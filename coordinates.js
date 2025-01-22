@@ -242,10 +242,9 @@ const Clear = el => {
   el.width = el.width
 }
 
-const Cube = (size = 1, subs = 0, sphereize = 0) => {
+const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   let p, pi=Math.PI, a, b, l, j, i, tx, ty, X, Y, Z
   let S=Math.sin, C=Math.cos
-  let flipNormals = false
   let position, texCoord
   let e = []
   for(i=6; i--; e=[...e, b])for(b=[], j=4;j--;) b=[...b, [(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[i%3]*(l=i<3?1:-1),a[(i+1)%3]*l,a[(i+2)%3]*l]]
