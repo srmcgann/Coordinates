@@ -1,4 +1,3 @@
-
 // 'Coordinates', a webgl framework
 // Scott McGann - whitehotrobot@gmail.com
 // all rights reserved - ©2024
@@ -215,6 +214,7 @@ const subbed = (subs, size, sphereize, shape) => {
     })
   }
   if(sphereize){
+    let d
     ip1 = sphereize
     ip2 = 1-sphereize
     shape = shape.map(v=>{
@@ -229,7 +229,8 @@ const subbed = (subs, size, sphereize, shape) => {
         X *= size/2*ip1 + d*ip2
         Y *= size/2*ip1 + d*ip2
         Z *= size/2*ip1 + d*ip2
-        return [X,Y,Z]
+        var ls = 1
+        return [X*ls, Y*ls, Z*ls]
       })
       return v
     })
@@ -242,18 +243,68 @@ const Clear = el => {
 }
 
 const Cube = (size = 1, subs = 0, sphereize = 0) => {
-  let ret=[], p, pi=Math.PI, a, b, l, j, i
+  let p, pi=Math.PI, a, b, l, j, i, tx, ty, X, Y, Z
   let S=Math.sin, C=Math.cos
-  for(i=6; i--; ret=[...ret, b])for(b=[], j=4;j--;) b=[...b, [(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[i%3]*(l=i<3?1:-1),a[(i+1)%3]*l,a[(i+2)%3]*l]]
-  ret = subbed(subs, 1, sphereize, ret)
-  ret.map(v=>{
+  let flipNormals = false
+  let position, texCoord
+  let e = []
+  for(i=6; i--; e=[...e, b])for(b=[], j=4;j--;) b=[...b, [(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[i%3]*(l=i<3?1:-1),a[(i+1)%3]*l,a[(i+2)%3]*l]]
+  a = []
+  subbed(subs, 1, sphereize, e).map(v=>{
     v.map(q=>{
-      q[0] *= size
-      q[1] *= size
-      q[2] *= size
+      X = q[0] *= size
+      Y = q[1] *= size
+      Z = q[2] *= size
     })
+    // triangulate
+    a = [...a, v[0],v[2],v[1], v[2],v[0],v[3]]
   })
+  b = []
+  a.map(v=>{
+    b = [...b, [...v]]
+  })
+  a = b
+
+  let ret = []
+  let normal
+  for(i = 0; i < a.length; i++){
+    j = i/3 | 0
+    if(j%2){
+      switch(flipNormals ? 2-(i%3) : i%3) {
+        case 0: tx=0, ty=1; break
+        case 1: tx=1, ty=0; break
+        case 2: tx=1, ty=1; break
+      }
+    }else{
+      switch(flipNormals ? 2-(i%3) : i%3) {
+        case 0: tx=1, ty=0; break
+        case 1: tx=0, ty=1; break
+        case 2: tx=0, ty=0; break
+      }
+    }
+    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
+    if(!(i%3)){
+      normal = Normal(b, true)
+      if(flipNormals){
+        normal[3] = normal[0] + (normal[0]-normal[3])
+        normal[4] = normal[1] + (normal[1]-normal[4])
+        normal[5] = normal[2] + (normal[2]-normal[5])
+      }
+    }
+    l = flipNormals ? a.length - i - 1 : i
+    ret = [...ret, {
+      position: a[l],
+      normal,
+      texCoord: [tx, ty],
+    }]
+  }
   return ret
+}
+
+const IsPowerOf2 = (v, d=0) => {
+  if(d>300) return false
+  if(v==2) return true
+  return IsPowerOf2(v/2, d+1)
 }
 
 const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
@@ -275,34 +326,10 @@ const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
   }
   let X2_ = ax + (crs[0]*=flip), Y2_ = ay + (crs[1]*=flip), Z2_ = az + (crs[2]*=flip)
   
-  return [X2_-X1_, Y2_-Y1_, Z2_-Z1_]
-  //return [X1_, Y1_, Z1_, X2_, Y2_, Z2_]
+  //return [X2_-X1_, Y2_-Y1_, Z2_-Z1_]
+  return [X1_, Y1_, Z1_, X2_, Y2_, Z2_]
 }
 
-
-const Geometry = source => {
-  let ret = [], a, tx, ty
-  source.map(v => {
-    let position, texCoord
-    let normal = Normal(v, true)
-    let a = []
-    v.map((q, j) => {
-      switch(j){
-        case 0: tx=0, ty=0; break
-        case 1: tx=0, ty=1; break
-        case 2: tx=1, ty=1; break
-        case 3: tx=1, ty=0; break
-      }
-      a = [...a, {
-        position: [...q],
-        normal,
-        texCoord: [tx, ty]
-      }]
-    })
-    ret = [...ret, ...a]
-  })
-  return ret
-}
 
 const AnimationLoop = func => {
   const loop = () => {
@@ -319,6 +346,6 @@ export {
   Cube,
   Clear,
   Q, R,
-  Geometry,
   Normal,
-};
+  IsPowerOf2,
+}

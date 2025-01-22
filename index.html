@@ -16,143 +16,376 @@
     <div id="output"></div>
     <script type="module">
       import * as Coordinates from "./coordinates.js"
-      
+
+      var vertices, normals, uvs
+      var vertex_buffer, normal_buffer, uv_buffer
+      var locPosition, locUv, locNormal, program, normalProgram
       var [c, gl] = Coordinates.CreateViewport(1920, 1080)//, ['2d'])
       var loop   = Coordinates.AnimationLoop('Draw')
+      var loadCube, camX, camY, camZ, fov
+      var locCamX, locCamY, locCamZ, locFov, locColor
+      var Vertex_Index_Buffer, Normal_Index_Buffer, UV_Index_Buffer
+      async function launch(){
 
+        var vert =
+           `precision mediump float;
+            attribute vec2 uv;
+            uniform float camX;
+            uniform float camY;
+            uniform float camZ;
+            uniform float fov;
+            attribute vec3 position;
+            varying vec2 vUv;
+            varying float skip;
+            uniform vec2 resolution;
+            void main(){
+              vUv = uv;
+              float Z = position.z + camZ;
+              if(Z > 0.0) {
+                float X = position.x / Z / resolution.x * fov + camX;
+                float Y = position.y / Z / resolution.y * fov + camY;
+                //gl_PointSize = 100.0 / Z;
+                gl_Position = vec4(X, Y, Z/10000.0, 1.0);
+                skip = 0.0;
+              }else{
+                skip = 1.0;
+              }
+            }
+          `
+        
+        var frag =
+         `precision mediump float;
+          uniform sampler2D baseTexture;
+          varying vec2 vUv;
+          varying float skip;
+          void main() {
+            if(skip != 1.0){
+              vec4 texel = texture2D( baseTexture, vUv);
+              gl_FragColor = texel;//vec4(1.0, 0.0, 0.0, 0.1);
+            }
+          }
+          `
+          
+        var normalVert =
+           `precision mediump float;
+            attribute vec2 uv;
+            uniform float camX;
+            uniform float camY;
+            uniform float camZ;
+            uniform float fov;
+            attribute vec3 normal;
+            varying vec2 vUv;
+            varying float skip;
+            uniform vec2 resolution;
+            void main(){
+              vUv = uv;
+              float Z = normal.z + camZ;
+              if(Z > 0.0) {
+                float X = normal.x / Z / resolution.x * fov + camX;
+                float Y = normal.y / Z / resolution.y * fov + camY;
+                gl_Position = vec4(X, Y, Z/10000.0, 1.0);
+                skip = 0.0;
+              }else{
+                skip = 1.0;
+              }
+            }
+          `
+        
+        var normalFrag =
+         `precision mediump float;
+          //uniform sampler2D baseTexture;
+          varying vec2 vUv;
+          varying float skip;
+          void main() {
+            if(skip != 1.0){
+              gl_FragColor = vec4(1.0, 0.0, 0.0, 0.8);
+            }
+          }
+          `
 
-      var vert =`
-        #version 100
-        void main() {
-          gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
-          gl_PointSize = 64.0;
+        loadCube = () => {
+          vertices = []
+          normals  = []
+          uvs      = []
+          let cube = Coordinates.Cube(10, 0, 0) //Math.sin(t)*1.5)
+          cube.map(v => {
+            vertices = [...vertices, ...v.position]
+            normals  = [...normals, ...v.normal]
+            uvs      = [...uvs,      ...v.texCoord]
+          })
+          vertices = new Float32Array(vertices)
+          normals  = new Float32Array(normals)
+          uvs      = new Float32Array(uvs)
         }
-        //varying vec2 vUv;
-        //void main() {
-          //vUv = uv;
-        //  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-        //}
-        `
-      
-      var frag = `
-        #version 100
-        void main() {
-          gl_FragColor = vec4(0.18, 0.54, 0.34, 1.0);
-        }
-        //varying vec2 vUv;
-        //uniform sampler2d baseTexture;
-        //void main() {
-        //  vec4 texel = vec4(1.0, 0.0, 0.0, 1.0);//texture2D( baseTexture, vUv );
-        //  gl_FragColor = texel; //vec4(0.18, 0.54, 0.34, 1.0);
-        //}
-        `
+        loadCube()
+        
+        
+        // link geometry buffers
+        
+        //vertics, indices
+        vertex_buffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer)
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ARRAY_BUFFER, null)
+        var vIndices = Array(vertices.length/3).fill().map((v,i)=>i)
+        Vertex_Index_Buffer = gl.createBuffer()
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(vIndices), gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+        
+        //normals, indices
+        
+        normal_buffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
+        gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ARRAY_BUFFER, null)
+        var nIndices = Array(normals.length/3).fill().map((v,i)=>i)
+        Normal_Index_Buffer = gl.createBuffer()
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(nIndices), gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
         
 
-      var cube = Coordinates.Cube(6, 2)
-      var cubeGeometry = Coordinates.Geometry(cube)
-            
-      const vertices = cubeGeometry
-
-      // Create array buffer
-      const buffer = new ArrayBuffer(20 * vertices.length);
-      // Fill array buffer
-      const dv = new DataView(buffer);
-      console.log(buffer)
-      console.log(vertices)
-      vertices.forEach((vertex, i) => {
-        dv.setFloat32(20 * i, vertex.position[0], true);
-        dv.setFloat32(20 * i + 4, vertex.position[1], true);
-        dv.setFloat32(20 * i + 8, vertex.position[2], true);
-        dv.setInt8(20 * i + 12, vertex.normal[0] * 0x7f);
-        dv.setInt8(20 * i + 13, vertex.normal[1] * 0x7f);
-        dv.setInt8(20 * i + 14, vertex.normal[2] * 0x7f);
-        dv.setInt8(20 * i + 15, 0);
-        dv.setUint16(20 * i + 16, vertex.texCoord[0] * 0xffff, true);
-        dv.setUint16(20 * i + 18, vertex.texCoord[1] * 0xffff, true);
-      })
-
-      const vertexShader = gl.createShader(gl.VERTEX_SHADER)
-      gl.shaderSource(vertexShader, vert)
-      gl.compileShader(vertexShader)
-      
-      const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
-      gl.shaderSource(fragmentShader, frag)
-      gl.compileShader(fragmentShader)
-      
-      var program = gl.createProgram()
-      gl.attachShader(program, vertexShader)
-      gl.attachShader(program, fragmentShader)
-      gl.linkProgram(program)
-      //gl.detachShader(program, vertexShader)
-      //gl.detachShader(program, fragmentShader)
-      //gl.deleteShader(vertexShader)
-      //gl.deleteShader(fragmentShader)
-      if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        gl.useProgram(program)
+        //uvs, indices
+        uv_buffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer)
+        gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ARRAY_BUFFER, null)
+        var uvIndices = Array(uvs.length/2).fill().map((v,i)=>i)
+        UV_Index_Buffer = gl.createBuffer()
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(uvIndices), gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
         
-        //initialize attributes
-        gl.enableVertexAttribArray(0)
-        gl.enableVertexAttribArray(1)
-        gl.enableVertexAttribArray(2)
-        gl.enableVertexAttribArray(4)
         
-        let vbo = gl.createBuffer()
-        gl.bindBuffer(gl.ARRAY_BUFFER, vbo)
-        gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW)
+        const vertexShader = gl.createShader(gl.VERTEX_SHADER)
+        gl.shaderSource(vertexShader, vert)
+        gl.compileShader(vertexShader)
         
-        /*
-        //Describe the layout of the buffer:
-        //1. position, not normalized
-        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 20, 0);
-        gl.enableVertexAttribArray(0);
-        //2. normal vector, normalized to [-1, 1]
-        gl.vertexAttribPointer(1, 4, gl.BYTE, true, 20, 12);
-        gl.enableVertexAttribArray(1);
-        //3. texture coordinates, normalized to [0, 1]
-        gl.vertexAttribPointer(2, 2, gl.UNSIGNED_SHORT, true, 20, 16);
-        gl.enableVertexAttribArray(2);
-
-        //Set the attributes in the vertex shader to the same indices
-        gl.bindAttribLocation(program, 0, "position");
-        gl.bindAttribLocation(program, 1, "normal");
-        gl.bindAttribLocation(program, 2, "texUV");
-        //Since the attribute indices have changed, we must re-link the shader
-        //Note that this will reset all uniforms that were previously set.
+        const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
+        gl.shaderSource(fragmentShader, frag)
+        gl.compileShader(fragmentShader)
+        
+        const normalVertexShader = gl.createShader(gl.VERTEX_SHADER)
+        gl.shaderSource(normalVertexShader, normalVert)
+        gl.compileShader(normalVertexShader)
+        
+        const normalFragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
+        gl.shaderSource(normalFragmentShader, normalFrag)
+        gl.compileShader(normalFragmentShader)
+        
+        program = gl.createProgram()
+        gl.attachShader(program, vertexShader)
+        gl.attachShader(program, fragmentShader)
         gl.linkProgram(program)
-        */
-        
-        
-        const locPosition = gl.getAttribLocation(program, "position")
-        gl.vertexAttribPointer(locPosition, 3, gl.FLOAT, false, 20, 0)
-        gl.enableVertexAttribArray(locPosition)
-        
-        //const locNormal = gl.getAttribLocation(program, "normal")
-        //gl.vertexAttribPointer(locNormal, 4, gl.BYTE, true, 20, 12)
-        //gl.enableVertexAttribArray(locNormal)
-        
-        const locTexUV = gl.getAttribLocation(program, "uv")
-        gl.vertexAttribPointer(locTexUV, 2, gl.UNSIGNED_SHORT, true, 20, 16)
-        gl.enableVertexAttribArray(locTexUV)
-        
-        
-        //gl.vertexAttribPointer(0, 1, gl.FLOAT, false, 0, 0);
 
-        gl.useProgram(program);
-        gl.drawArrays(gl.POINTS, 0, 1);
-  
-      }else{
-        console.log(`bad shader :(`)
-        console.log(gl.getProgramInfoLog(program))
+        normalProgram = gl.createProgram()
+        gl.attachShader(normalProgram, normalVertexShader)
+        gl.attachShader(normalProgram, normalFragmentShader)
+        gl.linkProgram(normalProgram)
+
+        //gl.detachShader(program, vertexShader)
+        //gl.detachShader(program, fragmentShader)
+        //gl.deleteShader(vertexShader)
+        //gl.deleteShader(fragmentShader)
+        //gl.detachShader(program, normalVertexShader)
+        //gl.detachShader(program, normalFragmentShader)
+        //gl.deleteShader(normalVertexShader)
+        //gl.deleteShader(normalFragmentShader)
+        
+        if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          gl.useProgram(program)
+
+          gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer)
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
+          locPosition = gl.getAttribLocation(program, "position")
+          gl.vertexAttribPointer(locPosition, 3, gl.FLOAT, false, 0, 0)
+          gl.enableVertexAttribArray(locPosition)
+
+          gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer)
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
+          locUv= gl.getAttribLocation(program, "uv")
+          gl.vertexAttribPointer(locUv , 2, gl.FLOAT, true, 0, 0)
+          gl.enableVertexAttribArray(locUv)
+
+          var locResolution = gl.getUniformLocation(program, "resolution")
+          gl.uniform2f(locResolution, c.width, c.height)
+
+          var locTexture = gl.getUniformLocation(program, "baseTexture")
+          var texture = gl.createTexture()
+          gl.bindTexture(gl.TEXTURE_2D, texture)
+          let image = new Image()
+          let iURL = 'https://drawings.twilightparadox.com/rotated/cbb26dc8c0a03de0bdf46938478c8b66.jpg'
+          await fetch(iURL).then(res=>res.blob()).then(data => {
+            image.src = URL.createObjectURL(data)
+          })
+          image.onload = () => {
+            
+            gl.bindTexture(gl.TEXTURE_2D, texture)
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+            
+            if (Coordinates.IsPowerOf2(image.width) &&
+                Coordinates.IsPowerOf2(image.height)) {
+              gl.generateMipmap(gl.TEXTURE_2D);
+            } else {
+              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            }
+          }
+          gl.useProgram(program)
+          gl.activeTexture(gl.TEXTURE0)
+          gl.bindTexture(gl.TEXTURE_2D, texture)
+          gl.uniform1i(locTexture, texture)
+          
+          camX = 0
+          camY = 0
+          camZ = 20
+          fov = 1e3
+          locCamX = gl.getUniformLocation(program, "camX")
+          locCamY = gl.getUniformLocation(program, "camY")
+          locCamZ = gl.getUniformLocation(program, "camZ")
+          locFov = gl.getUniformLocation(program, "fov")
+          gl.uniform1f(locCamX, camX)
+          gl.uniform1f(locCamY, camY)
+          gl.uniform1f(locCamZ, camZ)
+          gl.uniform1f(locFov, fov)
+          
+          gl.clearColor(0.0, 0.0, 0.0, 1.0)
+          gl.enable(gl.DEPTH_TEST)
+          gl.clear(gl.COLOR_BUFFER_BIT)
+          gl.viewport(0,0,c.width,c.height)
+          
+          //gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+          //gl.enable(gl.BLEND);
+          //gl.disable(gl.DEPTH_TEST);        
+          
+          //gl.cullFace(null)
+        }else{
+          var info = gl.getProgramInfoLog(program)
+          var vshaderInfo = gl.getShaderInfoLog(vertexShader)
+          var fshaderInfo = gl.getShaderInfoLog(fragmentShader)
+          console.error(`bad shader :( ${info}`)
+          console.error(`vShader info : ${vshaderInfo}`)
+          console.error(`fShader info : ${fshaderInfo}`)
+        }        
+        
+        if (gl.getProgramParameter(normalProgram, gl.LINK_STATUS)) {
+
+          gl.useProgram(normalProgram)
+
+          gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
+          locNormal = gl.getAttribLocation(normalProgram, "normal")
+          gl.vertexAttribPointer(locNormal, 3, gl.FLOAT, true, 0, 0)
+          gl.enableVertexAttribArray(locNormal)
+
+          var locResolution = gl.getUniformLocation(normalProgram, "resolution")
+          gl.uniform2f(locResolution, c.width, c.height)
+          
+          camX = 0
+          camY = 0
+          camZ = 20
+          fov = 1e3
+          locCamX = gl.getUniformLocation(normalProgram, "camX")
+          locCamY = gl.getUniformLocation(normalProgram, "camY")
+          locCamZ = gl.getUniformLocation(normalProgram, "camZ")
+          locFov = gl.getUniformLocation(normalProgram, "fov")
+          gl.uniform1f(locCamX, camX)
+          gl.uniform1f(locCamY, camY)
+          gl.uniform1f(locCamZ, camZ)
+          gl.uniform1f(locFov, fov)
+          
+          //gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+          //gl.enable(gl.BLEND);
+          //gl.disable(gl.DEPTH_TEST);        
+          
+          //gl.cullFace(null)
+        }else{
+          var info = gl.getProgramInfoLog(normalProgram)
+          var vshaderInfo = gl.getShaderInfoLog(normalVertexShader)
+          var fshaderInfo = gl.getShaderInfoLog(normalFragmentShader)
+          console.error(`bad (normalProgram) shader :( ${info}`)
+          console.error(`vShader info : ${vshaderInfo}`)
+          console.error(`fShader info : ${fshaderInfo}`)
+        }
       }
-
+      launch()
+      
       
       var t = 0
-      
       var oX, oY, oZ, Rl, Pt, Yw, X, Y, Z
       var S = Math.sin, C = Math.cos
       
       window.Draw = () => {
 
+        let e
+        //loadCube()
+        
+        for(let i = 0; i<vertices.length; i+=3){
+          X = vertices[i+0]
+          Y = vertices[i+1]
+          Z = vertices[i+2]
+          e = Coordinates.R(X,Y,Z, 0,0,0, 0,-.002,.005)
+          vertices[i+0] = e[0]
+          vertices[i+1] = e[1]
+          vertices[i+2] = e[2]
+        }
+        
+        for(let i = 0; i<normals.length; i+=3){
+          X = normals[i+0]
+          Y = normals[i+1]
+          Z = normals[i+2]
+          e = Coordinates.R(X,Y,Z, 0,0,0, 0,-.002,.005)
+          normals[i+0] = e[0]
+          normals[i+1] = e[1]
+          normals[i+2] = e[2]
+        }
+
+        
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        //camZ = Math.min(20, Math.max(0, (.3 + C(t/4))*50))
+        gl.useProgram(program)
+        locCamX = gl.getUniformLocation(program, "camX")
+        locCamY = gl.getUniformLocation(program, "camY")
+        locCamZ = gl.getUniformLocation(program, "camZ")
+        locFov = gl.getUniformLocation(program, "fov")
+        gl.uniform1f(locCamX, camX)
+        gl.uniform1f(locCamY, camY)
+        gl.uniform1f(locCamZ, camZ)
+        gl.uniform1f(locFov, fov)
+        //gl.uniform1f(locColor, color)
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
+        gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer)
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
+        gl.vertexAttribPointer(locPosition, 3, gl.FLOAT, false, 0, 0)
+        gl.drawElements(gl.TRIANGLES, vertices.length/3|0, gl.UNSIGNED_SHORT,0);
+
+
+        gl.useProgram(normalProgram)
+        locCamX = gl.getUniformLocation(normalProgram, "camX")
+        locCamY = gl.getUniformLocation(normalProgram, "camY")
+        locCamZ = gl.getUniformLocation(normalProgram, "camZ")
+        locFov = gl.getUniformLocation(normalProgram, "fov")
+        gl.uniform1f(locCamX, camX)
+        gl.uniform1f(locCamY, camY)
+        gl.uniform1f(locCamZ, camZ)
+        gl.uniform1f(locFov, fov)
+        gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
+        gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
+        gl.vertexAttribPointer(locNormal , 3, gl.FLOAT, true, 0, 0)
+        gl.drawElements(gl.LINES, normals.length/3|0, gl.UNSIGNED_SHORT,0);
+
+        
+        //gl.drawElements(gl.TRIANGLES, vertices.length/3|0, gl.UNSIGNED_SHORT,0);
+        
         /*
         
         Coordinates.Clear(c)
@@ -192,4 +425,3 @@
     </script>
   </body>
 </html>
-
