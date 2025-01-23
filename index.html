@@ -55,11 +55,11 @@
       renderer.z   = 20
       
       Coordinates.AnimationLoop(renderer, 'Draw')
-      //geometry = Coordinates.LoadGeometry(renderer, 'cube', 24, 4, 1, true, true)
-      geometry = Coordinates.LoadGeometry(renderer, 'dodecahedron', 24, 0, 1, true, true)
+      geometry = Coordinates.LoadGeometry(renderer, 'cube', 10, 3, 0, true, true)
+      //geometry = Coordinates.LoadGeometry(renderer, 'dodecahedron', 24, 0, 1, true, true)
       shader = Coordinates.BasicShader(renderer)
       
-      shader.ConnectGeometry(geometry)
+      shader.ConnectGeometry(geometry, 'https://drawings.twilightparadox.com/vdnQeyG.jpeg')
       
       
       var t = 0
@@ -99,7 +99,7 @@
         
         renderer.Clear()
         
-        renderer.z = Math.min(20, Math.max(0, (.3 + C(t/4))*50))
+        //renderer.z = Math.min(20, Math.max(0, (.3 + C(t/4))*50))
 
         renderer.Draw(geometry, shader)
 
