@@ -1,24 +1,30 @@
 <!--
   TO DO
   
-  * add shapes (in addtion to Cube)
+  ✔ add renderer object
+  ✔ add camera object
   
+  * subdivision
+    └> * add optional LOD param for all basic geometry
+       * decouple polygons from UV subdivision (interpolate UVs @ sub)
+       
+  * shaders
+    └> ✔ move shaders into Coordinates module
+       *  move camera into vertex shader
+       *  create pseudo-phong shader
+       *  integrate optional effect shaders
+
+  * add shapes (in addtion to Cube)
+
   * functions / methods
     └> * begin separating module functions as optional includes
        * migrate functions to coordinates.js module
        * integrate obj loader
-  
-  * shaders
-    └> * create pseudo-phong shader
-       * add camera object, move into vertex shader
-       
+
   * geometry
     └> * generalize geometry function
        * return "raw" geometry with inbuilt shapes, for 2d context
-    
-  * subdivision
-    └> * add optional LOD param for all basic geometry
-       * decouple polygons from UV subdivision (interpolate UVs @ sub)
+
        
 -->
 
@@ -39,359 +45,92 @@
   <body>
     <div id="output"></div>
     <script type="module">
+    
       import * as Coordinates from "./coordinates.js"
 
-      var vertices, normals, uvs
-      var vertex_buffer, normal_buffer, uv_buffer
-      var locPosition, locUv, locNormal, program, locRenderNormals
-      var [c, gl] = Coordinates.CreateViewport(1920, 1080)//, ['2d'])
-      var loop   = Coordinates.AnimationLoop('Draw')
-      var loadCube, camX, camY, camZ, fov, renderNormals
-      var locCamX, locCamY, locCamZ, locFov, locColor
-      var Vertex_Index_Buffer, Normal_Index_Buffer, UV_Index_Buffer
-      async function launch(){
-
-        var vert = `
-            precision mediump float;
-            attribute vec2 uv;
-            uniform float camX;
-            uniform float camY;
-            uniform float camZ;
-            uniform float fov;
-            uniform float renderNormals;
-            attribute vec3 position;
-            attribute vec3 normal;
-            varying vec2 vUv;
-            varying float skip;
-            uniform vec2 resolution;
-            void main(){
-              float cx, cy, cz;
-              if(renderNormals == 1.0){
-                cx = normal.x;
-                cy = normal.y;
-                cz = normal.z;
-              }else{
-                cx = position.x;
-                cy = position.y;
-                cz = position.z;
-              }
-              vUv = uv;
-              float Z = cz + camZ;
-              if(Z > 0.0) {
-                float X = cx / Z / resolution.x * fov + camX;
-                float Y = cy / Z / resolution.y * fov + camY;
-                //gl_PointSize = 100.0 / Z;
-                gl_Position = vec4(X, Y, Z/10000.0, 1.0);
-                skip = 0.0;
-              }else{
-                skip = 1.0;
-              }
-            }
-          `
-        
-        var frag = `
-          precision mediump float;
-          uniform float renderNormals;
-          uniform sampler2D baseTexture;
-          varying vec2 vUv;
-          varying float skip;
-          void main() {
-            if(skip != 1.0){
-              if(renderNormals == 1.0){
-                gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5);
-              }else{
-                vec4 texel = texture2D( baseTexture, vUv);
-                gl_FragColor = texel;
-              }
-            }
-          }
-          `
-
-        loadCube = () => {
-          vertices = []
-          normals  = []
-          uvs      = []
-          let cube = Coordinates.Cube(10, 2, 0, true) //Math.sin(t)*1.5)
-          cube.map(v => {
-            vertices = [...vertices, ...v.position]
-            normals  = [...normals,  ...v.normal]
-            uvs      = [...uvs,      ...v.texCoord]
-          })
-          vertices = new Float32Array(vertices)
-          normals  = new Float32Array(normals)
-          uvs      = new Float32Array(uvs)
-        }
-        loadCube()
-        
-        
-        // link geometry buffers
-        
-        //vertics, indices
-        vertex_buffer = gl.createBuffer()
-        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer)
-        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
-        gl.bindBuffer(gl.ARRAY_BUFFER, null)
-        var vIndices = Array(vertices.length/3).fill().map((v,i)=>i)
-        Vertex_Index_Buffer = gl.createBuffer()
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(vIndices), gl.STATIC_DRAW)
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
-        
-        //normals, indices
-        normal_buffer = gl.createBuffer()
-        gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
-        gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
-        gl.bindBuffer(gl.ARRAY_BUFFER, null)
-        var nIndices = Array(normals.length/3).fill().map((v,i)=>i)
-        Normal_Index_Buffer = gl.createBuffer()
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(nIndices), gl.STATIC_DRAW)
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
-        
-
-        //uvs, indices
-        uv_buffer = gl.createBuffer()
-        gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer)
-        gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW)
-        gl.bindBuffer(gl.ARRAY_BUFFER, null)
-        var uvIndices = Array(uvs.length/2).fill().map((v,i)=>i)
-        UV_Index_Buffer = gl.createBuffer()
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(uvIndices), gl.STATIC_DRAW)
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
-        
-        
-        const vertexShader = gl.createShader(gl.VERTEX_SHADER)
-        gl.shaderSource(vertexShader, vert)
-        gl.compileShader(vertexShader)
-        
-        const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
-        gl.shaderSource(fragmentShader, frag)
-        gl.compileShader(fragmentShader)
-        
-        program = gl.createProgram()
-        gl.attachShader(program, vertexShader)
-        gl.attachShader(program, fragmentShader)
-        gl.linkProgram(program)
-
-
-        //gl.detachShader(program, vertexShader)
-        //gl.detachShader(program, fragmentShader)
-        //gl.deleteShader(vertexShader)
-        //gl.deleteShader(fragmentShader)
-        
-        if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
-          gl.useProgram(program)
-
-          gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer)
-          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
-          locPosition = gl.getAttribLocation(program, "position")
-          gl.vertexAttribPointer(locPosition, 3, gl.FLOAT, false, 0, 0)
-          gl.enableVertexAttribArray(locPosition)
-
-          gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer)
-          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
-          locUv= gl.getAttribLocation(program, "uv")
-          gl.vertexAttribPointer(locUv , 2, gl.FLOAT, true, 0, 0)
-          gl.enableVertexAttribArray(locUv)
-
-          gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
-          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
-          locNormal = gl.getAttribLocation(program, "normal")
-          gl.vertexAttribPointer(locNormal, 3, gl.FLOAT, true, 0, 0)
-          gl.enableVertexAttribArray(locNormal)
-          
-
-          var locResolution = gl.getUniformLocation(program, "resolution")
-          gl.uniform2f(locResolution, c.width, c.height)
-
-          var locTexture = gl.getUniformLocation(program, "baseTexture")
-          var texture = gl.createTexture()
-          gl.bindTexture(gl.TEXTURE_2D, texture)
-          let image = new Image()
-          let iURL = 'https://drawings.twilightparadox.com/Cte57WT.jpeg'
-          await fetch(iURL).then(res=>res.blob()).then(data => {
-            image.src = URL.createObjectURL(data)
-          })
-          image.onload = () => {
-            
-            gl.bindTexture(gl.TEXTURE_2D, texture)
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-            
-            if (Coordinates.IsPowerOf2(image.width) &&
-                Coordinates.IsPowerOf2(image.height)) {
-              gl.generateMipmap(gl.TEXTURE_2D);
-            } else {
-              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            }
-          }
-          gl.useProgram(program)
-          gl.activeTexture(gl.TEXTURE0)
-          gl.bindTexture(gl.TEXTURE_2D, texture)
-          gl.uniform1i(locTexture, texture)
-          
-          camX             = 0
-          camY             = 0
-          camZ             = 20
-          fov              = 1e3
-          renderNormals    = 0
-          locCamX          = gl.getUniformLocation(program, "camX")
-          locCamY          = gl.getUniformLocation(program, "camY")
-          locCamZ          = gl.getUniformLocation(program, "camZ")
-          locFov           = gl.getUniformLocation(program, "fov")
-          locRenderNormals = gl.getUniformLocation(program, "renderNormals")
-          gl.uniform1f(locCamX,          camX)
-          gl.uniform1f(locCamY,          camY)
-          gl.uniform1f(locCamZ,          camZ)
-          gl.uniform1f(locFov,           fov)
-          gl.uniform1f(locRenderNormals, renderNormals)
-          
-          gl.clearColor(0.0, 0.0, 0.0, 1.0)
-          gl.enable(gl.DEPTH_TEST)
-          gl.clear(gl.COLOR_BUFFER_BIT)
-          gl.viewport(0,0,c.width,c.height)
-          
-          //gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-          //gl.enable(gl.BLEND);
-          //gl.disable(gl.DEPTH_TEST);        
-          
-          //gl.cullFace(null)
-        }else{
-          var info = gl.getProgramInfoLog(program)
-          var vshaderInfo = gl.getShaderInfoLog(vertexShader)
-          var fshaderInfo = gl.getShaderInfoLog(fragmentShader)
-          console.error(`bad shader :( ${info}`)
-          console.error(`vShader info : ${vshaderInfo}`)
-          console.error(`fShader info : ${fshaderInfo}`)
-        }        
-      }
-      launch()
+      var renderer, geometry, shader
+    
+      renderer = Coordinates.Renderer(1920, 1080)
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+      geometry = Coordinates.LoadGeometry(renderer, 'cube', 10, 2, 0, true, true)
+      shader = Coordinates.BasicShader(renderer)
+      
+      shader.ConnectGeometry(geometry, 'https://drawings.twilightparadox.com/1eb887432b02ec970a0299fb5ebed2cf_inverted.jpg')
       
       
       var t = 0
-      var oX, oY, oZ, Rl, Pt, Yw, X, Y, Z
       var S = Math.sin, C = Math.cos
       
       window.Draw = () => {
 
-        let e
-        //loadCube()
+        var X, Y, Z, e
         
-        if(1) for(let i = 0; i<vertices.length; i+=3){
-          X = vertices[i+0]
-          Y = vertices[i+1]
-          Z = vertices[i+2]
-          e = Coordinates.R(X,Y,Z, 0,0,0, 0,-.002,.001)
-          vertices[i+0] = e[0]
-          vertices[i+1] = e[1]
-          vertices[i+2] = e[2]
+        if(1) for(let i = 0; i<geometry.vertices.length; i+=3){
+          X = geometry.vertices[i+0]
+          Y = geometry.vertices[i+1]
+          Z = geometry.vertices[i+2]
+
+          e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
+                                    roll:  0,
+                                    pitch: -.002,
+                                    yaw:   .001}, false)
+          geometry.vertices[i+0] = e[0]
+          geometry.vertices[i+1] = e[1]
+          geometry.vertices[i+2] = e[2]
         }
         
-        if(1) for(let i = 0; i<normals.length; i+=3){
-          X = normals[i+0]
-          Y = normals[i+1]
-          Z = normals[i+2]
-          e = Coordinates.R(X,Y,Z, 0,0,0, 0,-.002,.001)
-          normals[i+0] = e[0]
-          normals[i+1] = e[1]
-          normals[i+2] = e[2]
+        if(1) for(let i = 0; i<geometry.normals.length; i+=3){
+          X = geometry.normals[i+0]
+          Y = geometry.normals[i+1]
+          Z = geometry.normals[i+2]
+          e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
+                                    roll:  0,
+                                    pitch: -.002,
+                                    yaw:   .001}, false)
+          geometry.normals[i+0] = e[0]
+          geometry.normals[i+1] = e[1]
+          geometry.normals[i+2] = e[2]
         }
 
         
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        renderer.Clear()
 
-        //camZ = Math.min(20, Math.max(0, (.3 + C(t/4))*50))
-        //gl.useProgram(program)
-        //locCamX           = gl.getUniformLocation(program, "camX")
-        //locCamY           = gl.getUniformLocation(program, "camY")
-        //locCamZ           = gl.getUniformLocation(program, "camZ")
-        //locFov            = gl.getUniformLocation(program, "fov")
-        //locRenderNormals  = gl.getUniformLocation(program, "renderNormals")
-        gl.uniform1f(locCamX,          camX)
-        gl.uniform1f(locCamY,          camY)
-        gl.uniform1f(locCamZ,          camZ)
-        gl.uniform1f(locFov,           fov)
-        gl.uniform1f(locRenderNormals, 0)
-        //gl.uniform1f(locColor, color)
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
-        gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
+        renderer.z = Math.min(20, Math.max(0, (.3 + C(t/4))*50))
         
-        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer)
-        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
-        gl.vertexAttribPointer(locPosition, 3, gl.FLOAT, false, 0, 0)
-        gl.drawElements(gl.TRIANGLES, vertices.length/3|0, gl.UNSIGNED_SHORT,0);
-
-
-
-        // normals
-        gl.uniform1f(locRenderNormals, 1)
-        //gl.uniform1f(locCamY, camY)
-        //gl.uniform1f(locCamZ, camZ)
-        //gl.uniform1f(locFov, fov)
-        gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
-        gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
-        gl.vertexAttribPointer(locNormal , 3, gl.FLOAT, true, 0, 0)
-        gl.drawElements(gl.LINES, normals.length/3|0, gl.UNSIGNED_SHORT,0);
-
+        renderer.Draw(geometry, shader)
 
         /*
-        gl.useProgram(normalProgram)
-        locCamX = gl.getUniformLocation(normalProgram, "camX")
-        locCamY = gl.getUniformLocation(normalProgram, "camY")
-        locCamZ = gl.getUniformLocation(normalProgram, "camZ")
-        locFov = gl.getUniformLocation(normalProgram, "fov")
-        gl.uniform1f(locCamX, camX)
-        gl.uniform1f(locCamY, camY)
-        gl.uniform1f(locCamZ, camZ)
-        gl.uniform1f(locFov, fov)
-        gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
-        gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
-        gl.vertexAttribPointer(locNormal , 3, gl.BYTE, true, 0, 0)
-        gl.drawElements(gl.LINES, normals.length/3|0, gl.UNSIGNED_SHORT,0);
-        */
         
+        renderer.Clear()
 
-        
-        //gl.drawElements(gl.TRIANGLES, vertices.length/3|0, gl.UNSIGNED_SHORT,0);
-        
-        /*
-        
-        Coordinates.Clear(c)
-
-        oX = 0
-        oY = 0
-        oZ = 16
-        Rl = 0
-        Pt = t/2
-        Yw = t
+        renderer.x     = 0
+        renderer.y     = 0
+        renderer.z     = 16
+        renderer.roll  = 0
+        renderer.pitch = -t/2
+        renderer.yaw   = t
 
         cube.map(v=>{
-          x.beginPath()
+          renderer.ctx.beginPath()
           v.map(q=>{
             X = q[0]
             Y = q[1]
             Z = q[2]
-            var e = Coordinates.R(X,Y,Z, oX,oY,oZ, Rl,Pt,Yw, true)
+            var e = Coordinates.R(X,Y,Z, renderer, true)
             X = e[0]
             Y = e[1]
             Z = e[2]
-            if(Z>0) x.lineTo(...Coordinates.Q(X, Y, Z, c))
+            if(Z>0) renderer.ctx.lineTo(...Coordinates.Q(X, Y, Z, c))
           })
-          x.lineWidth = 50/Z
-          x.strokeStyle = `#f004`
-          x.fillStyle = `#f001`
-          x.stroke()
-          x.strokeStyle = `#f008`
-          x.lineWidth /= 4
-          x.stroke()
-          x.fill()
+          renderer.ctx.lineWidth = 50/Z
+          renderer.ctx.strokeStyle = `#f004`
+          renderer.ctx.fillStyle = `#f001`
+          renderer.ctx.stroke()
+          renderer.ctx.strokeStyle = `#f008`
+          renderer.ctx.lineWidth /= 4
+          renderer.ctx.stroke()
+          renderer.ctx.fill()
         })
         */
         t += 1/60

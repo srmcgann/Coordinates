@@ -4,21 +4,33 @@
 
 const S = Math.sin, C = Math.cos
 
-const CreateViewport = (width   = 1920,
-                        height  = 1080,
-                        context = ['webgl', {
-                            alpha          : true,
-                            antialias      : true,
-                            desynchronized : true,
-                          }],
-                          attachToBody = true,
-                          margin = 10,
-                        ) => {
+const Renderer = (width   = 1920,
+                  height  = 1080,
+                  x      = 0, y     = 0, z = 0,
+                  roll   = 0, pitch = 0, yaw = 0, fov = 1e3,
+                  context = ['webgl', {
+                      alpha          : true,
+                      antialias      : true,
+                      desynchronized : true,
+                    }],
+                    attachToBody = true,
+                    margin = 10,
+                  ) => {
                           
-  const c  = document.createElement('canvas')
-  const x  = c.getContext(...context)
+  const c    = document.createElement('canvas')
+  const ctx  = c.getContext(...context)
   c.width  = width
   c.height = height
+  const contextType = context[0]
+  
+  switch(contextType){
+    case '2d':
+    break
+    default:
+      ctx.viewport(0, 0, c.width, c.height)
+    break
+  }
+
   if(attachToBody){
     c.style.display    = 'block'
     c.style.position   = 'absolute'
@@ -30,11 +42,11 @@ const CreateViewport = (width   = 1920,
     document.body.appendChild(c)
   }
   
-  let rsz
+  var rsz
   window.addEventListener('resize', rsz = (e) => {
-    let b = document.body
-    let n
-    let d = c.width !== 0 ? c.height / c.width : 1
+    var b = document.body
+    var n
+    var d = c.width !== 0 ? c.height / c.width : 1
     if(b.clientHeight/b.clientWidth > d){
       c.style.width = `${(n=b.clientWidth) - margin*2}px`
       c.style.height = `${n*d - margin*2}px`
@@ -45,7 +57,64 @@ const CreateViewport = (width   = 1920,
   })
   rsz()
   
-  return [c, x]
+  
+  var ret = {
+    // vars & objects
+    c, contextType,
+    width, height, x, y, z,
+    roll, pitch, yaw, fov,
+    ready: false,
+    
+    // functions
+  }
+  ret[contextType == '2d' ? 'ctx' : 'gl'] = ctx
+  
+  const Clear = () => {
+    switch(contextType){
+      case '2d': 
+        c.width = ret.c.width
+      break
+      default:
+        ctx.clear(ctx.COLOR_BUFFER_BIT);
+      break
+    }
+  }
+  ret['Clear'] = Clear
+  
+  
+  const Draw = (geometry, shader) => {
+    
+    // uniforms
+    ctx.uniform2f(shader.locResolution,    ret.width, ret.height)
+    ctx.uniform1f(shader.locCamX,          ret.x)
+    ctx.uniform1f(shader.locCamY,          ret.y)
+    ctx.uniform1f(shader.locCamZ,          ret.z)
+    ctx.uniform1f(shader.locFov,           ret.fov)
+    ctx.uniform1f(shader.locRenderNormals, 0)
+    
+    // uvs
+    ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer);
+    ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
+    ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW);
+    
+    // vertices
+    ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+    ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
+    ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+    ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+
+    // normals
+    if(geometry.showNormals){
+      ctx.uniform1f(shader.locRenderNormals, 1)
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
+      ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
+      ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_SHORT,0)
+    }
+  }
+  ret['Draw'] = Draw
+        
+  return ret
 }
 
 const DestroyViewport = el => {
@@ -54,9 +123,10 @@ const DestroyViewport = el => {
 
 const Q = (X, Y, Z, c, AR=700) => [c.width/2+X/Z*AR, c.height/2+Y/Z*AR]
 
-const R = (X,Y,Z, oX,oY,oZ, Rl,Pt,Yw, m=false) => {
-  let M = Math, p, d
-  let H=M.hypot, A=M.atan2
+const R = (X,Y,Z, cam, m=false) => {
+  var M = Math, p, d
+  var H=M.hypot, A=M.atan2
+  var Rl = cam.roll, Pt = cam.pitch, Yw = cam.yaw
   Y = S(p=A(Y,Z)+Pt)*(d=H(Y,Z))
   Z = C(p)*d
   X = S(p=A(X,Z)+Yw)*(d=H(X,Z))
@@ -64,6 +134,7 @@ const R = (X,Y,Z, oX,oY,oZ, Rl,Pt,Yw, m=false) => {
   X = S(p=A(X,Y)+Rl)*(d=H(X,Y))
   Y = C(p)*d
   if(m){
+    var oX = cam.x, oY = cam.y, oZ = cam.z
     X += oX
     Y += oY
     Z += oZ
@@ -71,13 +142,271 @@ const R = (X,Y,Z, oX,oY,oZ, Rl,Pt,Yw, m=false) => {
   return [X, Y, Z]
 }
 
+const LoadGeometry = (renderer, shape, size=1, subs=1, sphereize=0,
+                      flipNormals=false, showNormals=false) => {
+
+  var vertex_buffer, Vertex_Index_Buffer
+  var normal_buffer, Normal_Index_Buffer
+  var uv_buffer, UV_Index_Buffer
+  var vIndices, nIndices, uvIndices
+  const gl = renderer.gl
+  
+  var vertices = []
+  var normals  = []
+  var uvs      = []
+  
+  switch(shape){
+    case 'cube':
+      Cube(size, subs, sphereize, flipNormals).map(v => {
+        vertices = [...vertices, ...v.position]
+        normals  = [...normals,  ...v.normal]
+        uvs      = [...uvs,      ...v.texCoord]
+      })
+    break
+  }
+  vertices = new Float32Array(vertices)
+  normals  = new Float32Array(normals)
+  uvs      = new Float32Array(uvs)
+  
+  
+  // link geometry buffers
+  
+  //vertics, indices
+  vertex_buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer)
+  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  vIndices = Array(vertices.length/3).fill().map((v,i)=>i)
+  Vertex_Index_Buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(vIndices), gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  
+
+  //normals, indices
+  normal_buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
+  gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  nIndices = Array(normals.length/3).fill().map((v,i)=>i)
+  Normal_Index_Buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(nIndices), gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  
+
+  //uvs, indices
+  uv_buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer)
+  gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  uvIndices = Array(uvs.length/2).fill().map((v,i)=>i)
+  UV_Index_Buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(uvIndices), gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  
+  return {
+    vertices, normals, uvs,
+    vertex_buffer, Vertex_Index_Buffer,
+    normal_buffer, Normal_Index_Buffer,
+    uv_buffer, UV_Index_Buffer,
+    showNormals
+  }
+}
+
+var BasicShader = renderer => {
+
+  const gl = renderer.gl
+  var locCamX, locCamY, locCamZ, locFov, locUv, locNormal
+  var locRenderNormals, locPosition, vert, frag
+  var locResolution, locTexture
+  
+  let ret = {
+    ConnectGeometry: ()=>{},
+    locCamX, locCamY, locCamZ, locFov,
+    locPosition,
+    locRenderNormals, locTexture,
+    locUv, locNormal, locResolution,
+  }
+
+  ret.vert = `
+    precision mediump float;
+    attribute vec2 uv;
+    uniform float camX;
+    uniform float camY;
+    uniform float camZ;
+    uniform float fov;
+    uniform float renderNormals;
+    attribute vec3 position;
+    attribute vec3 normal;
+    varying vec2 vUv;
+    varying float skip;
+    uniform vec2 resolution;
+    void main(){
+      float cx, cy, cz;
+      if(renderNormals == 1.0){
+        cx = normal.x;
+        cy = normal.y;
+        cz = normal.z;
+      }else{
+        cx = position.x;
+        cy = position.y;
+        cz = position.z;
+      }
+      vUv = uv;
+      float Z = cz + camZ;
+      if(Z > 0.0) {
+        float X = cx / Z / resolution.x * fov + camX;
+        float Y = cy / Z / resolution.y * fov + camY;
+        //gl_PointSize = 100.0 / Z;
+        gl_Position = vec4(X, Y, Z/10000.0, 1.0);
+        skip = 0.0;
+      }else{
+        skip = 1.0;
+      }
+    }
+  `
+  
+  ret.frag = `
+    precision mediump float;
+    uniform float renderNormals;
+    uniform sampler2D baseTexture;
+    varying vec2 vUv;
+    varying float skip;
+    void main() {
+      if(skip != 1.0){
+        if(renderNormals == 1.0){
+          gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5);
+        }else{
+          vec4 texel = texture2D( baseTexture, vUv);
+          gl_FragColor = texel;
+        }
+      }
+    }
+  `
+  
+  const vertexShader = gl.createShader(gl.VERTEX_SHADER)
+  gl.shaderSource(vertexShader, ret.vert)
+  gl.compileShader(vertexShader)
+  
+  const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
+  gl.shaderSource(fragmentShader, ret.frag)
+  gl.compileShader(fragmentShader)
+  
+  const program = gl.createProgram()
+  gl.attachShader(program, vertexShader)
+  gl.attachShader(program, fragmentShader)
+  gl.linkProgram(program)
+
+  gl.detachShader(program, vertexShader)
+  gl.detachShader(program, fragmentShader)
+  gl.deleteShader(vertexShader)
+  gl.deleteShader(fragmentShader)
+  
+  ret.ConnectGeometry = async ( geometry,
+                            textureURL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/NGC_4414_%28NASA-med%29.jpg/800px-NGC_4414_%28NASA-med%29.jpg' ) => {
+    if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      
+      gl.useProgram(program)
+      
+      gl.bindBuffer(gl.ARRAY_BUFFER, geometry.vertex_buffer)
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+      ret.locPosition = gl.getAttribLocation(program, "position")
+      gl.vertexAttribPointer(ret.locPosition, 3, gl.FLOAT, false, 0, 0)
+      gl.enableVertexAttribArray(ret.locPosition)
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, geometry.uv_buffer)
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
+      ret.locUv= gl.getAttribLocation(program, "uv")
+      gl.vertexAttribPointer(ret.locUv , 2, gl.FLOAT, true, 0, 0)
+      gl.enableVertexAttribArray(ret.locUv)
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normal_buffer)
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
+      ret.locNormal = gl.getAttribLocation(program, "normal")
+      gl.vertexAttribPointer(ret.locNormal, 3, gl.FLOAT, true, 0, 0)
+      gl.enableVertexAttribArray(ret.locNormal)
+      
+
+      ret.locResolution = gl.getUniformLocation(program, "resolution")
+      gl.uniform2f(ret.locResolution, renderer.width, renderer.height)
+
+      ret.locTexture = gl.getUniformLocation(program, "baseTexture")
+      var texture = gl.createTexture()
+      gl.bindTexture(gl.TEXTURE_2D, texture)
+      var image = new Image()
+      var iURL = textureURL
+      await fetch(iURL).then(res=>res.blob()).then(data => {
+        image.src = URL.createObjectURL(data)
+      })
+      image.onload = () => {
+        
+        gl.bindTexture(gl.TEXTURE_2D, texture)
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        
+        if (IsPowerOf2(image.width) &&
+            IsPowerOf2(image.height)) {
+          gl.generateMipmap(gl.TEXTURE_2D);
+        } else {
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        }
+      }
+      gl.useProgram(program)
+      gl.activeTexture(gl.TEXTURE0)
+      gl.bindTexture(gl.TEXTURE_2D, texture)
+      gl.uniform1i(ret.locTexture, texture)
+      
+
+      renderer.x            = 0
+      renderer.y            = 0
+      renderer.z            = 20
+      renderer.fov          = 1e3
+      ret.locCamX           = gl.getUniformLocation(program, "camX")
+      ret.locCamY           = gl.getUniformLocation(program, "camY")
+      ret.locCamZ           = gl.getUniformLocation(program, "camZ")
+      ret.locFov            = gl.getUniformLocation(program, "fov")
+      ret.locRenderNormals  = gl.getUniformLocation(program, "renderNormals")
+      gl.uniform1f(ret.locCamX,          renderer.x)
+      gl.uniform1f(ret.locCamY,          renderer.y)
+      gl.uniform1f(ret.locCamZ,          renderer.z)
+      gl.uniform1f(ret.locFov,           renderer.fov)
+      gl.uniform1f(ret.locRenderNormals, 0)
+      
+      gl.clearColor(0.0, 0.0, 0.0, 1.0)
+      gl.enable(gl.DEPTH_TEST)
+      
+      //gl.clear(gl.COLOR_BUFFER_BIT)
+      //gl.viewport(0, 0, renderer.width, renderer.height)
+      
+      //gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+      //gl.enable(gl.BLEND);
+      //gl.disable(gl.DEPTH_TEST);        
+      
+      //gl.cullFace(null)
+    }else{
+      var info = gl.getProgramInfoLog(program)
+      var vshaderInfo = gl.getShaderInfoLog(vertexShader)
+      var fshaderInfo = gl.getShaderInfoLog(fragmentShader)
+      console.error(`bad shader :( ${info}`)
+      console.error(`vShader info : ${vshaderInfo}`)
+      console.error(`fShader info : ${fshaderInfo}`)
+    }
+  }
+  
+  return ret
+}
+
+
 const subbed = (subs, size, sphereize, shape) => {
-  let base, l, X, Y, Z, X1, Y1, Z1, X2, Y2, Z2
-  let X3, Y3, Z3, X4, Y4, Z4, a
-  let mx1, my1, mz1, mx2, my2, mz2
-  let mx3, my3, mz3, mx4, my4, mz4
-  let cx, cy, cz, ip1, ip2
-  for(let m=subs; m--;){
+  var base, l, X, Y, Z, X1, Y1, Z1, X2, Y2, Z2
+  var X3, Y3, Z3, X4, Y4, Z4, a
+  var mx1, my1, mz1, mx2, my2, mz2
+  var mx3, my3, mz3, mx4, my4, mz4
+  var cx, cy, cz, ip1, ip2
+  for(var m=subs; m--;){
     base = shape
     shape = []
     base.map(v=>{
@@ -214,7 +543,7 @@ const subbed = (subs, size, sphereize, shape) => {
     })
   }
   if(sphereize){
-    let d
+    var d
     ip1 = sphereize
     ip2 = 1-sphereize
     shape = shape.map(v=>{
@@ -238,15 +567,14 @@ const subbed = (subs, size, sphereize, shape) => {
   return shape
 }
 
-const Clear = el => {
-  el.width = el.width
-}
+
+const Camera = (x=0, y=0, z=0, roll=0, pitch=0, yaw=0) => ({ x, y, z, roll, pitch, yaw })
 
 const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
-  let p, pi=Math.PI, a, b, l, j, i, tx, ty, X, Y, Z
-  let S=Math.sin, C=Math.cos
-  let position, texCoord
-  let e = []
+  var p, pi=Math.PI, a, b, l, j, i, tx, ty, X, Y, Z
+  var S=Math.sin, C=Math.cos
+  var position, texCoord
+  var e = []
   for(i=6; i--; e=[...e, b])for(b=[], j=4;j--;) b=[...b, [(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[i%3]*(l=i<3?1:-1),a[(i+1)%3]*l,a[(i+2)%3]*l]]
   a = []
   subbed(subs, 1, sphereize, e).map(v=>{
@@ -264,8 +592,8 @@ const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   })
   a = b
 
-  let ret = []
-  let normal
+  var ret = []
+  var normal
   for(i = 0; i < a.length; i++){
     j = i/3 | 0
     if(j%2){
@@ -307,43 +635,47 @@ const IsPowerOf2 = (v, d=0) => {
 }
 
 const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
-  let ax = 0, ay = 0, az = 0, crs, d
+  var ax = 0, ay = 0, az = 0, crs, d
   facet.map(q_=>{ ax += q_[0], ay += q_[1], az += q_[2] })
   ax /= facet.length, ay /= facet.length, az /= facet.length
-  let b1 = facet[2][0]-facet[1][0], b2 = facet[2][1]-facet[1][1], b3 = facet[2][2]-facet[1][2]
-  let c1 = facet[1][0]-facet[0][0], c2 = facet[1][1]-facet[0][1], c3 = facet[1][2]-facet[0][2]
+  var b1 = facet[2][0]-facet[1][0], b2 = facet[2][1]-facet[1][1], b3 = facet[2][2]-facet[1][2]
+  var c1 = facet[1][0]-facet[0][0], c2 = facet[1][1]-facet[0][1], c3 = facet[1][2]-facet[0][2]
   crs = [b2*c3-b3*c2,b3*c1-b1*c3,b1*c2-b2*c1]
   d = Math.hypot(...crs)+.001
-  let nls = 1 //normal line length
+  var nls = 1 //normal line length
   crs = crs.map(q=>q/d*nls)
-  let X1_ = ax, Y1_ = ay, Z1_ = az
-  let flip = 1
+  var X1_ = ax, Y1_ = ay, Z1_ = az
+  var flip = 1
   if(autoFlipNormals){
-    let d1_ = Math.hypot(X1_-X1,Y1_-Y1,Z1_-Z1)
-    let d2_ = Math.hypot(X1-(ax + crs[0]/99),Y1-(ay + crs[1]/99),Z1-(az + crs[2]/99))
+    var d1_ = Math.hypot(X1_-X1,Y1_-Y1,Z1_-Z1)
+    var d2_ = Math.hypot(X1-(ax + crs[0]/99),Y1-(ay + crs[1]/99),Z1-(az + crs[2]/99))
     flip = d2_>d1_?-1:1
   }
-  let X2_ = ax + (crs[0]*=flip), Y2_ = ay + (crs[1]*=flip), Z2_ = az + (crs[2]*=flip)
+  var X2_ = ax + (crs[0]*=flip), Y2_ = ay + (crs[1]*=flip), Z2_ = az + (crs[2]*=flip)
   
   //return [X2_-X1_, Y2_-Y1_, Z2_-Z1_]
   return [X1_, Y1_, Z1_, X2_, Y2_, Z2_]
 }
 
 
-const AnimationLoop = func => {
+const AnimationLoop = (renderer, func) => {
   const loop = () => {
-    window[func]()
+    if(renderer.ready) window[func]()
     requestAnimationFrame(loop)
   }
-  window.addEventListener('load', () => loop() )
+  window.addEventListener('load', () => {
+    renderer.ready = true
+    loop()
+  })
 }
 
 export {
-  CreateViewport,
+  Renderer,
+  LoadGeometry,
+  BasicShader,
   DestroyViewport,
   AnimationLoop,
   Cube,
-  Clear,
   Q, R,
   Normal,
   IsPowerOf2,
