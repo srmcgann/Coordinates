@@ -55,11 +55,13 @@
       renderer.z   = 20
       
       Coordinates.AnimationLoop(renderer, 'Draw')
+      //geometry = Coordinates.LoadGeometry(renderer, 'obj', 10, 3, 0, true, true,
+      //                                    'https://srmcgann.github.io/objs/axe.obj')
       geometry = Coordinates.LoadGeometry(renderer, 'cube', 10, 3, 0, true, true)
       //geometry = Coordinates.LoadGeometry(renderer, 'dodecahedron', 24, 0, 1, true, true)
       shader = Coordinates.BasicShader(renderer)
       
-      shader.ConnectGeometry(geometry, 'https://drawings.twilightparadox.com/vdnQeyG.jpeg')
+      shader.ConnectGeometry(geometry)
       
       
       var t = 0

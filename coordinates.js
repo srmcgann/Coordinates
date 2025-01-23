@@ -121,6 +121,148 @@ const DestroyViewport = el => {
   el.remove()
 }
 
+const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
+  var res, flipNormals = false
+  var a, e, f, ax, ay, az, X, Y, Z, p, d, i, j, b, l
+  var geometry = []
+  var R2=(Rl,Pt,Yw)=>{
+    var M=Math
+    var A=M.atan2
+    var H=M.hypot
+    X=S(p=A(X,Y)+Rl)*(d=H(X,Y))
+    Y=C(p)*d
+    Y=S(p=A(Y,Z)+Pt)*(d=H(Y,Z))
+    Z=C(p)*d
+    X=S(p=A(X,Z)+Yw)*(d=H(X,Z))
+    Z=C(p)*d
+  }
+  
+  await fetch(url, res => res).then(data=>data.text()).then(data=>{
+    a=[]
+    data.split("\nv ").map(v=>{
+      a=[...a, v.split("\n")[0]]
+    })
+    a=a.filter((v,i)=>i).map(v=>[...v.split(' ').map(n=>(+n.replace("\n", '')))])
+    ax=ay=az=0
+    a.map(v=>{
+      v[1]*=-1
+      if(recenter){
+        ax+=v[0]
+        ay+=v[1]
+        az+=v[2]
+      }
+    })
+    ax/=a.length
+    ay/=a.length
+    az/=a.length
+    a.map(v=>{
+      X=(v[0]-ax)*scale
+      Y=(v[1]-ay)*scale
+      Z=(v[2]-az)*scale
+      R2(rl,pt,yw)
+      v[0]=X
+      v[1]=Y * (url.indexOf('bug')!=-1?2:1)
+      v[2]=Z
+    })
+    var maxY=-6e6
+    a.map(v=>{
+      if(v[1]>maxY)maxY=v[1]
+    })
+    a.map(v=>{
+      v[1]-=maxY
+      v[0]+=tx
+      v[1]+=ty
+      v[2]+=tz
+    })
+
+    var b=[]
+    data.split("\nf ").map(v=>{
+      b=[...b, v.split("\n")[0]]
+    })
+    b.shift()
+    b=b.map(v=>v.split(' '))
+    b=b.map(v=>{
+      v=v.map(q=>{
+        return +q.split('/')[0]
+      })
+      v=v.filter(q=>q)
+      return v
+    })
+
+    res=[]
+    b.map(v=>{
+      e=[]
+      v.map(q=>{
+        e=[...e, a[q-1]]
+      })
+      e = e.filter(q=>q)
+      res=[...res, structuredClone(e)]
+    })
+  })
+  //return res
+  
+  var e = res
+  var texCoords = []
+  for(i = 0; i < e.length; i++){
+    a = []
+    for(var k = e[i].length; k--;){
+      switch(k) {
+        case 0: tx=0, ty=0; break
+        case 1: tx=1, ty=0; break
+        case 2: tx=1, ty=1; break
+        case 3: tx=0, ty=1; break
+      }
+      a = [...a, [tx, ty]]
+    }
+    texCoords = [...texCoords, a]
+  }
+  
+  a = []
+  f = []
+
+  res = res.map((v, i) => {
+    return {
+      verts: v,
+      uvs: texCoords[i]
+    }
+  })
+  res.map(v => {
+    v.verts.map(q=>{
+      X = q[0] *= 1//size
+      Y = q[1] *= 1//size
+      Z = q[2] *= 1//size
+    })
+    // triangulate
+    a = [...a, v.verts[0],v.verts[2],v.verts[1],
+               v.verts[2],v.verts[0],v.verts[3]]
+    f = [...f, v.uvs[0],v.uvs[2],v.uvs[1],
+               v.uvs[2],v.uvs[0],v.uvs[3]]
+  })
+  
+  for(i = 0; i < a.length; i++){
+    var normal
+    j = i/3 | 0
+    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
+    if(!(i%3)){
+      normal = Normal(b, true)
+      if(flipNormals){
+        normal[3] = normal[0] + (normal[0]-normal[3])
+        normal[4] = normal[1] + (normal[1]-normal[4])
+        normal[5] = normal[2] + (normal[2]-normal[5])
+      }
+    }
+    l = flipNormals ? a.length - i - 1 : i
+    geometry = [...geometry, {
+      position: a[l],
+      normal,
+      texCoord: f[l],
+    }]
+  }
+  return {
+    geometry
+  }
+}
+
 const Q = (X, Y, Z, c, AR=700) => [c.width/2+X/Z*AR, c.height/2+Y/Z*AR]
 
 const R = (X,Y,Z, cam, m=false) => {
@@ -142,8 +284,8 @@ const R = (X,Y,Z, cam, m=false) => {
   return [X, Y, Z]
 }
 
-const LoadGeometry = (renderer, shape, size=1, subs=1, sphereize=0,
-                      flipNormals=false, showNormals=false) => {
+const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0,
+                      flipNormals=false, showNormals=false, url='') => {
 
   var vertex_buffer, Vertex_Index_Buffer
   var normal_buffer, Normal_Index_Buffer
@@ -159,6 +301,14 @@ const LoadGeometry = (renderer, shape, size=1, subs=1, sphereize=0,
   switch(shape){
     case 'cube':
       shape = Cube(size, subs, sphereize, flipNormals)
+      shape.geometry.map(v => {
+        vertices = [...vertices, ...v.position]
+        normals  = [...normals,  ...v.normal]
+        uvs      = [...uvs,      ...v.texCoord]
+      })
+    break
+    case 'obj':
+      shape = await LoadOBJ(url, 1, 0,0,0, 0,0,0, false)
       shape.geometry.map(v => {
         vertices = [...vertices, ...v.position]
         normals  = [...normals,  ...v.normal]
@@ -998,5 +1148,6 @@ export {
   Cube,
   Q, R,
   Normal,
+  LoadOBJ,
   IsPowerOf2,
 }
