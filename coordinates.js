@@ -111,12 +111,14 @@ const Renderer = (width   = 1920,
       // bind buffers
       
       // uvs - (unless these are changes they needn't be uncommented)
-      //ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer);
-      //ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW);
-      //ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
-      //ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW);
-      //ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
-      //ctx.enableVertexAttribArray(dset.locUv)
+      /*
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer);
+      ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW);
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
+      ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW);
+      ctx.vertexAttribPointer(dset.locUv ,2, ctx.FLOAT, false, 0, 0)
+      ctx.enableVertexAttribArray(dset.locUv)
+      */
       
       
       // vertices
@@ -314,8 +316,7 @@ const R = (X,Y,Z, cam, m=false) => {
   return [X, Y, Z]
 }
 
-const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equirectangular=false,
-                      flipNormals=false, showNormals=false, url='') => {
+const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equirectangular=false, flipNormals=false, showNormals=false, url='') => {
 
   var vertex_buffer, Vertex_Index_Buffer
   var normal_buffer, Normal_Index_Buffer
@@ -346,6 +347,7 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
       })
     break
     case 'dodecahedron':
+      equirectangular = true
       shape = Dodecahedron(size, subs, sphereize, flipNormals)
       shape.geometry.map(v => {
         vertices = [...vertices, ...v.position]
@@ -355,18 +357,17 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
     break
   }
   if(equirectangular){
-    console.log('normals', normals)
-    for(var i = 0; i < normals.length; i+=6){
-      var idx = i/6|0
-      var n = normals
-      var nidx = idx*6
-      var nx = n[nidx+0] - n[nidx+3]
-      var ny = n[nidx+1] - n[nidx+4]
-      var nz = n[nidx+2] - n[nidx+5]
-      var p1 = Math.atan2(nx, nz) / Math.PI /2 + .5
-      var p2 = Math.acos(ny / (Math.hypot(nx, ny, nz)+.00001)) / Math.PI 
+    for(var i = 0; i < vertices.length; i+=3){
+      var idx = i/3|0
+      var v = vertices
+      var vidx = idx*3
+      var vx = v[vidx+0]// - v[vidx+3]
+      var vy = v[vidx+1]// - v[vidx+4]
+      var vz = v[vidx+2]// - v[vidx+5]
+      var p1 = (Math.atan2(vx, vz) + Math.PI) / Math.PI / 2
+      var p2 = Math.acos(vy / (Math.hypot(vx, vy, vz)+.00001)) / Math.PI 
       
-      var tidx = idx*2
+      var tidx = idx * 2
       uvs[tidx+0] = p1
       uvs[tidx+1] = p2
     }
