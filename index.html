@@ -60,17 +60,17 @@
         var renderer = Coordinates.Renderer(1920, 1080)
         var shader = await Coordinates.BasicShader(renderer)
         
-        renderer.z = 200
+        renderer.z = 16
         
         Coordinates.AnimationLoop(renderer, 'Draw')
         
         let geos = []
-        let cl = 16
-        let rw = 9
+        let cl = 1
+        let rw = 1
         let br = 1
         let sp = 20
         await Array(cl*rw*br).fill().map(async (v, i) => {
-          let geo = await Coordinates.LoadGeometry(renderer, 'cube', 10, 1, 0, false, true)
+          let geo = await Coordinates.LoadGeometry(renderer, 'cube', 10, 3, 1, true, true, true)
           geo.x = ((i%cl)-cl/2 + .5) * sp
           geo.y = (((i/cl|0)%rw) - rw/2 + .5) * sp
           geo.z = ((i/cl/rw|0)-br/2 + .5) * sp

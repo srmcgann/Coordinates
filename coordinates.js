@@ -108,24 +108,6 @@ const Renderer = (width   = 1920,
       ctx.uniform1f(dset.locRenderNormals, 0)
       
       
-      // enable attributes (required @ shader program changes)
-      
-      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-      ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
-      ctx.enableVertexAttribArray(dset.locPosition)
-
-      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
-      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
-      ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, true, 0, 0)
-      ctx.enableVertexAttribArray(dset.locUv)
-
-      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
-      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
-      ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, true, 0, 0)
-      ctx.enableVertexAttribArray(dset.locNormal)
-      
-      
       // bind buffers
       
       // uvs - (unless these are changes they needn't be uncommented)
@@ -133,6 +115,9 @@ const Renderer = (width   = 1920,
       //ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW);
       //ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
       //ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW);
+      //ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
+      //ctx.enableVertexAttribArray(dset.locUv)
+      
       
       // vertices
 
@@ -140,6 +125,8 @@ const Renderer = (width   = 1920,
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
       ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
+      ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
+      ctx.enableVertexAttribArray(dset.locPosition)
       ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
 
       // normals
@@ -149,6 +136,8 @@ const Renderer = (width   = 1920,
         ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
         ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
         ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
+        ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, true, 0, 0)
+        ctx.enableVertexAttribArray(dset.locNormal)
         ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_SHORT,0)
       }
     }
@@ -325,7 +314,7 @@ const R = (X,Y,Z, cam, m=false) => {
   return [X, Y, Z]
 }
 
-const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0,
+const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equirectangular=false,
                       flipNormals=false, showNormals=false, url='') => {
 
   var vertex_buffer, Vertex_Index_Buffer
@@ -365,6 +354,25 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0,
       })
     break
   }
+  if(equirectangular){
+    console.log('normals', normals)
+    for(var i = 0; i < normals.length; i+=6){
+      var idx = i/6|0
+      var n = normals
+      var nidx = idx*6
+      var nx = n[nidx+0] - n[nidx+3]
+      var ny = n[nidx+1] - n[nidx+4]
+      var nz = n[nidx+2] - n[nidx+5]
+      var p1 = Math.atan2(nx, nz) / Math.PI /2 + .5
+      var p2 = Math.acos(ny / (Math.hypot(nx, ny, nz)+.00001)) / Math.PI 
+      
+      var tidx = idx*2
+      uvs[tidx+0] = p1
+      uvs[tidx+1] = p2
+    }
+  }
+
+  
   vertices = new Float32Array(vertices)
   normals  = new Float32Array(normals)
   uvs      = new Float32Array(uvs)
@@ -485,7 +493,7 @@ var BasicShader = async (renderer) => {
       }
       vUv = uv;
       
-      float camz = camZ / 2081.25 * pow(5.0, (log(fov) / 1.609438));
+      float camz = camZ / 1e3 * pow(5.0, (log(fov) / 1.609438));
       
       float Z = cz + camz + geoZ;
       if(Z > 0.0) {
@@ -560,7 +568,7 @@ var BasicShader = async (renderer) => {
       gl.bindBuffer(gl.ARRAY_BUFFER, geometry.uv_buffer)
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
       dset.locUv= gl.getAttribLocation(dset.program, "uv")
-      gl.vertexAttribPointer(dset.locUv , 2, gl.FLOAT, true, 0, 0)
+      gl.vertexAttribPointer(dset.locUv , 2, gl.FLOAT, false, 0, 0)
       gl.enableVertexAttribArray(dset.locUv)
 
       gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normal_buffer)
@@ -931,9 +939,9 @@ const subbed = (subs, size, sphereize, shape, texCoords) => {
         X /= d
         Y /= d
         Z /= d
-        X *= size/2*ip1 + d*ip2
-        Y *= size/2*ip1 + d*ip2
-        Z *= size/2*ip1 + d*ip2
+        X *= size/1*ip1 + d*ip2
+        Y *= size/1*ip1 + d*ip2
+        Z *= size/1*ip1 + d*ip2
         var ls = 1
         return [X*ls, Y*ls, Z*ls]
       })
@@ -1152,16 +1160,18 @@ const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   })
   
   for(i = 0; i < a.length; i++){
-    var normal
-    j = i/3 | 0
-    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
-    if(!(i%3)){
-      normal = Normal(b, true)
-      if(!flipNormals){
-        normal[3] = normal[0] + (normal[0]-normal[3])
-        normal[4] = normal[1] + (normal[1]-normal[4])
-        normal[5] = normal[2] + (normal[2]-normal[5])
-      }
+    let X = a[i][0]
+    let Y = a[i][1]
+    let Z = a[i][2]
+    let d = Math.hypot(X, Y, Z)
+    X /= d
+    Y /= d
+    Z /= d
+    var normal = [...a[i], X+a[i][0], Y+a[i][1], Z+a[i][2]]
+    if(!flipNormals){
+      normal[3] = normal[0] + (normal[0]-normal[3])
+      normal[4] = normal[1] + (normal[1]-normal[4])
+      normal[5] = normal[2] + (normal[2]-normal[5])
     }
     l = flipNormals ? a.length - i - 1 : i
     geometry = [...geometry, {
