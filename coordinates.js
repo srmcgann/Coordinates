@@ -7,7 +7,7 @@ const S = Math.sin, C = Math.cos
 const Renderer = (width   = 1920,
                   height  = 1080,
                   x      = 0, y     = 0, z = 0,
-                  roll   = 0, pitch = 0, yaw = 0, fov = 1e3,
+                  roll   = 0, pitch = 0, yaw = 0, fov = 2e3,
                   context = ['webgl', {
                       alpha          : true,
                       antialias      : true,
@@ -82,34 +82,75 @@ const Renderer = (width   = 1920,
   ret['Clear'] = Clear
   
   
-  const Draw = (geometry, shader) => {
+  const Draw = geometry => {
     
-    // uniforms
-    ctx.uniform2f(shader.locResolution,    ret.width, ret.height)
-    ctx.uniform1f(shader.locCamX,          ret.x)
-    ctx.uniform1f(shader.locCamY,          ret.y)
-    ctx.uniform1f(shader.locCamZ,          ret.z)
-    ctx.uniform1f(shader.locFov,           ret.fov)
-    ctx.uniform1f(shader.locRenderNormals, 0)
-    
-    // uvs
-    ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer);
-    ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
-    ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW);
-    
-    // vertices
-    ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-    ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
-    ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-    ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+    if(typeof geometry?.shader != 'undefined'){
+      
+      var shader = geometry.shader
+      var dset   = shader.datasets[geometry.datasetIdx]
+      var sProg  = dset.program
+      ctx.useProgram( sProg )
+      
+      
+      // update uniforms
+      
+      ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
+      ctx.uniform1i(dset.locTexture, dset.texture)
+      
+      ctx.uniform2f(dset.locResolution,    ret.width, ret.height)
+      ctx.uniform1f(dset.locCamX,          ret.x)
+      ctx.uniform1f(dset.locCamY,          ret.y)
+      ctx.uniform1f(dset.locCamZ,          ret.z)
+      ctx.uniform1f(dset.locGeoX,          geometry.x)
+      ctx.uniform1f(dset.locGeoY,          geometry.y)
+      ctx.uniform1f(dset.locGeoZ,          geometry.z)
+      ctx.uniform1f(dset.locFov,           ret.fov)
+      ctx.uniform1f(dset.locRenderNormals, 0)
+      
+      
+      // enable attributes (required @ shader program changes)
+      
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+      ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
+      ctx.enableVertexAttribArray(dset.locPosition)
 
-    // normals
-    if(geometry.showNormals){
-      ctx.uniform1f(shader.locRenderNormals, 1)
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
+      ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, true, 0, 0)
+      ctx.enableVertexAttribArray(dset.locUv)
+
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
-      ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
-      ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_SHORT,0)
+      ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, true, 0, 0)
+      ctx.enableVertexAttribArray(dset.locNormal)
+      
+      
+      // bind buffers
+      
+      // uvs - (unless these are changes they needn't be uncommented)
+      //ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer);
+      //ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW);
+      //ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
+      //ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW);
+      
+      // vertices
+
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+      ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+      ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
+      ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+
+      // normals
+      if(geometry.showNormals){
+        ctx.uniform1f(dset.locRenderNormals, 1)
+        ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
+        ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
+        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
+        ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
+        ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_SHORT,0)
+      }
     }
   }
   ret['Draw'] = Draw
@@ -336,10 +377,10 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0,
   gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer)
   gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
-  vIndices = Array(vertices.length/3).fill().map((v,i)=>i)
+  vIndices = new Uint16Array( Array(vertices.length/3).fill().map((v,i)=>i) )
   Vertex_Index_Buffer = gl.createBuffer()
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(vIndices), gl.STATIC_DRAW)
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, vIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
   
 
@@ -348,10 +389,10 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0,
   gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
   gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
-  nIndices = Array(normals.length/3).fill().map((v,i)=>i)
+  nIndices = new Uint16Array( Array(normals.length/3).fill().map((v,i)=>i) )
   Normal_Index_Buffer = gl.createBuffer()
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(nIndices), gl.STATIC_DRAW)
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, nIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
   
 
@@ -360,10 +401,10 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0,
   gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer)
   gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
-  uvIndices = Array(uvs.length/2).fill().map((v,i)=>i)
+  uvIndices = new Uint16Array( Array(uvs.length/2).fill().map((v,i)=>i) )
   UV_Index_Buffer = gl.createBuffer()
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(uvIndices), gl.STATIC_DRAW)
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, uvIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
   
   return {
@@ -371,24 +412,49 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0,
     vertex_buffer, Vertex_Index_Buffer,
     normal_buffer, Normal_Index_Buffer,
     uv_buffer, UV_Index_Buffer,
+    vIndices, nIndices, uvIndices,
     showNormals
   }
 }
 
-var BasicShader = renderer => {
+var BasicShader = async (renderer) => {
 
   const gl = renderer.gl
-  var locCamX, locCamY, locCamZ, locFov, locUv, locNormal
-  var locRenderNormals, locPosition, vert, frag
-  var locResolution, locTexture
+  var program
+  
+  var dataset = {
+    iURL: null,
+    locUv: null,
+    locFov: null,
+    program: null,
+    locCamX: null,
+    locCamY: null,
+    locCamZ: null,
+    locGeoX: null,
+    locGeoY: null,
+    locGeoZ: null,
+    locNormal: null,
+    locTexture: null,
+    locPosition: null,
+    locResolution: null,
+    locRenderNormals: null,
+  }
   
   let ret = {
-    ConnectGeometry: ()=>{},
-    locCamX, locCamY, locCamZ, locFov,
-    locPosition,
-    locRenderNormals, locTexture,
-    locUv, locNormal, locResolution,
+    ConnectGeometry: null,
+    datasets: [],
   }
+  
+  
+  gl.clearColor(0.0, 0.0, 0.0, 1.0)
+  gl.enable(gl.DEPTH_TEST)
+  //gl.clear(gl.COLOR_BUFFER_BIT)
+  //gl.viewport(0, 0, renderer.width, renderer.height)
+  //gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
+  //gl.enable(gl.BLEND)
+  //gl.disable(gl.DEPTH_TEST)
+  //gl.cullFace(null)
+  
 
   ret.vert = `
     precision mediump float;
@@ -396,6 +462,9 @@ var BasicShader = renderer => {
     uniform float camX;
     uniform float camY;
     uniform float camZ;
+    uniform float geoX;
+    uniform float geoY;
+    uniform float geoZ;
     uniform float fov;
     uniform float renderNormals;
     attribute vec3 position;
@@ -415,12 +484,15 @@ var BasicShader = renderer => {
         cz = position.z;
       }
       vUv = uv;
-      float Z = cz + camZ;
+      
+      float camz = camZ / 2081.25 * pow(5.0, (log(fov) / 1.609438));
+      
+      float Z = cz + camz + geoZ;
       if(Z > 0.0) {
-        float X = ((cx + camX) / Z * fov / resolution.x);
-        float Y = ((cy + camY) / Z * fov / resolution.y);
+        float X = ((cx + camX + geoX) / Z * fov / resolution.x);
+        float Y = ((cy + camY + geoY) / Z * fov / resolution.y);
         //gl_PointSize = 100.0 / Z;
-        gl_Position = vec4(X, Y, Z/10000.0, 1.0);
+        gl_Position = vec4(X, Y, Z/1000000.0, 1.0);
         skip = 0.0;
       }else{
         skip = 1.0;
@@ -445,7 +517,6 @@ var BasicShader = renderer => {
       }
     }
   `
-  
   const vertexShader = gl.createShader(gl.VERTEX_SHADER)
   gl.shaderSource(vertexShader, ret.vert)
   gl.compileShader(vertexShader)
@@ -454,98 +525,104 @@ var BasicShader = renderer => {
   gl.shaderSource(fragmentShader, ret.frag)
   gl.compileShader(fragmentShader)
   
-  const program = gl.createProgram()
-  gl.attachShader(program, vertexShader)
-  gl.attachShader(program, fragmentShader)
-  gl.linkProgram(program)
 
-  gl.detachShader(program, vertexShader)
-  gl.detachShader(program, fragmentShader)
-  gl.deleteShader(vertexShader)
-  gl.deleteShader(fragmentShader)
-  
   ret.ConnectGeometry = async ( geometry,
-                            textureURL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/NGC_4414_%28NASA-med%29.jpg/800px-NGC_4414_%28NASA-med%29.jpg' ) => {
-    if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      
-      gl.useProgram(program)
+                          textureURL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/NGC_4414_%28NASA-med%29.jpg/800px-NGC_4414_%28NASA-med%29.jpg' ) => {
+                            
+    var dset = structuredClone(dataset)
+    ret.datasets = [...ret.datasets, dset]
+    
+    dset.program = gl.createProgram()
+    
+    gl.attachShader(dset.program, vertexShader)
+    gl.attachShader(dset.program, fragmentShader)
+    gl.linkProgram(dset.program)
+
+    geometry.shader = ret
+    geometry.datasetIdx = ret.datasets.length - 1
+
+    //gl.detachShader(dset.program, vertexShader)
+    //gl.detachShader(dset.program, fragmentShader)
+    //gl.deleteShader(vertexShader)
+    //gl.deleteShader(fragmentShader)
+    
+                              
+    if (gl.getProgramParameter(dset.program, gl.LINK_STATUS)) {
+        
+      gl.useProgram(dset.program)
       
       gl.bindBuffer(gl.ARRAY_BUFFER, geometry.vertex_buffer)
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-      ret.locPosition = gl.getAttribLocation(program, "position")
-      gl.vertexAttribPointer(ret.locPosition, 3, gl.FLOAT, false, 0, 0)
-      gl.enableVertexAttribArray(ret.locPosition)
+      dset.locPosition = gl.getAttribLocation(dset.program, "position")
+      gl.vertexAttribPointer(dset.locPosition, 3, gl.FLOAT, false, 0, 0)
+      gl.enableVertexAttribArray(dset.locPosition)
 
       gl.bindBuffer(gl.ARRAY_BUFFER, geometry.uv_buffer)
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
-      ret.locUv= gl.getAttribLocation(program, "uv")
-      gl.vertexAttribPointer(ret.locUv , 2, gl.FLOAT, true, 0, 0)
-      gl.enableVertexAttribArray(ret.locUv)
+      dset.locUv= gl.getAttribLocation(dset.program, "uv")
+      gl.vertexAttribPointer(dset.locUv , 2, gl.FLOAT, true, 0, 0)
+      gl.enableVertexAttribArray(dset.locUv)
 
       gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normal_buffer)
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
-      ret.locNormal = gl.getAttribLocation(program, "normal")
-      gl.vertexAttribPointer(ret.locNormal, 3, gl.FLOAT, true, 0, 0)
-      gl.enableVertexAttribArray(ret.locNormal)
+      dset.locNormal = gl.getAttribLocation(dset.program, "normal")
+      gl.vertexAttribPointer(dset.locNormal, 3, gl.FLOAT, true, 0, 0)
+      gl.enableVertexAttribArray(dset.locNormal)
       
 
-      ret.locResolution = gl.getUniformLocation(program, "resolution")
-      gl.uniform2f(ret.locResolution, renderer.width, renderer.height)
+      dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
+      gl.uniform2f(dset.locResolution, renderer.width, renderer.height)
 
-      ret.locTexture = gl.getUniformLocation(program, "baseTexture")
-      var texture = gl.createTexture()
-      gl.bindTexture(gl.TEXTURE_2D, texture)
+      dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
+      dset.texture = gl.createTexture()
+      gl.bindTexture(gl.TEXTURE_2D, dset.texture)
       var image = new Image()
-      var iURL = textureURL
-      await fetch(iURL).then(res=>res.blob()).then(data => {
-        image.src = URL.createObjectURL(data)
-      })
-      image.onload = () => {
-        
-        gl.bindTexture(gl.TEXTURE_2D, texture)
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-        
-        if (IsPowerOf2(image.width) &&
-            IsPowerOf2(image.height)) {
-          gl.generateMipmap(gl.TEXTURE_2D);
-        } else {
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      dset.iURL = textureURL
+      let mTex
+      if((mTex = ret.datasets.filter(v=>v.iURL == dset.iURL)).length > 1){
+        dset.texture = mTex[0].texture
+      }else{
+        await fetch(dset.iURL).then(res=>res.blob()).then(data => {
+          image.src = URL.createObjectURL(data)
+        })
+        image.onload = () => {
+          
+          gl.bindTexture(gl.TEXTURE_2D, dset.texture)
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+          
+          if (IsPowerOf2(image.width) &&
+              IsPowerOf2(image.height)) {
+            gl.generateMipmap(gl.TEXTURE_2D);
+          } else {
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          }
         }
       }
-      gl.useProgram(program)
+      
+      gl.useProgram(dset.program)
       gl.activeTexture(gl.TEXTURE0)
-      gl.bindTexture(gl.TEXTURE_2D, texture)
-      gl.uniform1i(ret.locTexture, texture)
+      gl.bindTexture(gl.TEXTURE_2D, dset.texture)
+      gl.uniform1i(dset.locTexture, dset.texture)
       
 
-      //renderer.x            = 0
-      //renderer.y            = 0
-      //renderer.z            = 0
-      //renderer.fov          = 1e3
-      ret.locCamX           = gl.getUniformLocation(program, "camX")
-      ret.locCamY           = gl.getUniformLocation(program, "camY")
-      ret.locCamZ           = gl.getUniformLocation(program, "camZ")
-      ret.locFov            = gl.getUniformLocation(program, "fov")
-      ret.locRenderNormals  = gl.getUniformLocation(program, "renderNormals")
-      gl.uniform1f(ret.locCamX,          renderer.x)
-      gl.uniform1f(ret.locCamY,          renderer.y)
-      gl.uniform1f(ret.locCamZ,          renderer.z)
-      gl.uniform1f(ret.locFov,           renderer.fov)
-      gl.uniform1f(ret.locRenderNormals, 0)
-      
-      gl.clearColor(0.0, 0.0, 0.0, 1.0)
-      gl.enable(gl.DEPTH_TEST)
-      
-      //gl.clear(gl.COLOR_BUFFER_BIT)
-      //gl.viewport(0, 0, renderer.width, renderer.height)
-      
-      //gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-      //gl.enable(gl.BLEND);
-      //gl.disable(gl.DEPTH_TEST);        
-      
-      //gl.cullFace(null)
+      dset.locCamX           = gl.getUniformLocation(dset.program, "camX")
+      dset.locCamY           = gl.getUniformLocation(dset.program, "camY")
+      dset.locCamZ           = gl.getUniformLocation(dset.program, "camZ")
+      dset.locGeoX           = gl.getUniformLocation(dset.program, "geoX")
+      dset.locGeoY           = gl.getUniformLocation(dset.program, "geoY")
+      dset.locGeoZ           = gl.getUniformLocation(dset.program, "geoZ")
+      dset.locFov            = gl.getUniformLocation(dset.program, "fov")
+      dset.locRenderNormals  = gl.getUniformLocation(dset.program, "renderNormals")
+      gl.uniform1f(dset.locCamX,          renderer.x)
+      gl.uniform1f(dset.locCamY,          renderer.y)
+      gl.uniform1f(dset.locCamZ,          renderer.z)
+      gl.uniform1f(dset.locGeoX,          geometry.x)
+      gl.uniform1f(dset.locGeoY,          geometry.y)
+      gl.uniform1f(dset.locGeoZ,          geometry.z)
+      gl.uniform1f(dset.locFov,           renderer.fov)
+      gl.uniform1f(dset.locRenderNormals, 0)
     }else{
       var info = gl.getProgramInfoLog(program)
       var vshaderInfo = gl.getShaderInfoLog(vertexShader)
@@ -1080,7 +1157,7 @@ const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     b = [a[j*3+0], a[j*3+1], a[j*3+2]]
     if(!(i%3)){
       normal = Normal(b, true)
-      if(flipNormals){
+      if(!flipNormals){
         normal[3] = normal[0] + (normal[0]-normal[3])
         normal[4] = normal[1] + (normal[1]-normal[4])
         normal[5] = normal[2] + (normal[2]-normal[5])

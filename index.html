@@ -3,18 +3,24 @@
   
   ✔ add renderer object
   ✔ add camera object
+  ✔ fix FOV
   
+  * shapes
+    └> * add shapes (in addtion to Cube)
+       * make non-cube UVs equirectangular
+       * keep shape generation functions, but add 'precompiled' versions
+         for ordinary calls
+
   * subdivision
     └> * add optional LOD param for all basic geometry
        * decouple polygons from UV subdivision (interpolate UVs @ sub)
        
-  * shaders
+  * shaders / textures
     └> ✔ move shaders into Coordinates module
+       *  add '# tiling (x/y)' option
        *  move camera into vertex shader
        *  create pseudo-phong shader
        *  integrate optional effect shaders
-
-  * add shapes (in addtion to Cube)
 
   * functions / methods
     └> * begin separating module functions as optional includes
@@ -24,7 +30,6 @@
   * geometry
     └> * generalize geometry function
        * return "raw" geometry with inbuilt shapes, for 2d context
-
        
 -->
 
@@ -46,101 +51,125 @@
     <div id="output"></div>
     <script type="module">
     
-      import * as Coordinates from "./coordinates.js"
-
-      var renderer, geometry, shader
+    import * as Coordinates from "./coordinates.js"
+      
+      
+      const main = (async () => {
     
-      renderer = Coordinates.Renderer(1920, 1080)
-      
-      renderer.z   = 20
-      
-      Coordinates.AnimationLoop(renderer, 'Draw')
-      //geometry = Coordinates.LoadGeometry(renderer, 'obj', 10, 3, 0, true, true,
-      //                                    'https://srmcgann.github.io/objs/axe.obj')
-      geometry = Coordinates.LoadGeometry(renderer, 'cube', 10, 3, 0, true, true)
-      //geometry = Coordinates.LoadGeometry(renderer, 'dodecahedron', 24, 0, 1, true, true)
-      shader = Coordinates.BasicShader(renderer)
-      
-      shader.ConnectGeometry(geometry)
-      
-      
-      var t = 0
-      var S = Math.sin, C = Math.cos
-      
-      window.Draw = () => {
-
-        var X, Y, Z, e
         
-        if(1) for(let i = 0; i<geometry.vertices.length; i+=3){
-          X = geometry.vertices[i+0]
-          Y = geometry.vertices[i+1]
-          Z = geometry.vertices[i+2]
-
-          e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
-                                    roll:  0,
-                                    pitch: -.002,
-                                    yaw:   .001}, false)
-          geometry.vertices[i+0] = e[0]
-          geometry.vertices[i+1] = e[1]
-          geometry.vertices[i+2] = e[2]
-        }
+        var renderer = Coordinates.Renderer(1920, 1080)
+        var shader = await Coordinates.BasicShader(renderer)
         
-        if(1) for(let i = 0; i<geometry.normals.length; i+=3){
-          X = geometry.normals[i+0]
-          Y = geometry.normals[i+1]
-          Z = geometry.normals[i+2]
-          e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
-                                    roll:  0,
-                                    pitch: -.002,
-                                    yaw:   .001}, false)
-          geometry.normals[i+0] = e[0]
-          geometry.normals[i+1] = e[1]
-          geometry.normals[i+2] = e[2]
-        }
-
+        renderer.z = 200
         
-        renderer.Clear()
+        Coordinates.AnimationLoop(renderer, 'Draw')
         
-        //renderer.z = Math.min(20, Math.max(0, (.3 + C(t/4))*50))
-
-        renderer.Draw(geometry, shader)
-
-        /*
-        
-        renderer.Clear()
-
-        renderer.x     = 0
-        renderer.y     = 0
-        renderer.z     = 16
-        renderer.roll  = 0
-        renderer.pitch = -t/2
-        renderer.yaw   = t
-
-        cube.map(v=>{
-          renderer.ctx.beginPath()
-          v.map(q=>{
-            X = q[0]
-            Y = q[1]
-            Z = q[2]
-            var e = Coordinates.R(X,Y,Z, renderer, true)
-            X = e[0]
-            Y = e[1]
-            Z = e[2]
-            if(Z>0) renderer.ctx.lineTo(...Coordinates.Q(X, Y, Z, c))
-          })
-          renderer.ctx.lineWidth = 50/Z
-          renderer.ctx.strokeStyle = `#f004`
-          renderer.ctx.fillStyle = `#f001`
-          renderer.ctx.stroke()
-          renderer.ctx.strokeStyle = `#f008`
-          renderer.ctx.lineWidth /= 4
-          renderer.ctx.stroke()
-          renderer.ctx.fill()
+        let geos = []
+        let cl = 16
+        let rw = 9
+        let br = 1
+        let sp = 20
+        await Array(cl*rw*br).fill().map(async (v, i) => {
+          let geo = await Coordinates.LoadGeometry(renderer, 'cube', 10, 1, 0, false, true)
+          geo.x = ((i%cl)-cl/2 + .5) * sp
+          geo.y = (((i/cl|0)%rw) - rw/2 + .5) * sp
+          geo.z = ((i/cl/rw|0)-br/2 + .5) * sp
+          geos = [...geos, geo]
         })
-        */
-        t += 1/60
-      }
-      
+        
+        //geometries.push( await Coordinates.LoadGeometry(renderer, 'obj', 10, 3, 0, true, true, 'https://srmcgann.github.io/objs/axe.obj') )
+        //geometries.push( await Coordinates.LoadGeometry(renderer, 'dodecahedron', 24, 0, 1, true, true))
+        
+        await geos.map(async (geometry, idx) => {
+          let tex
+          switch(idx%5){
+            case 0: tex = 'https://srmcgann.github.io/skyboxes7/HDRI/nebugrid.jpg'; break
+            case 1: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/creepy_mansion.jpg'; break
+            case 2: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
+            case 3: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
+            case 4: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/redCluds.jpg'; break
+          }
+          await shader.ConnectGeometry(geometry, tex)
+        })
+        
+        
+        var t = 0
+        var S = Math.sin, C = Math.cos
+        
+        window.Draw = () => {
+
+          var X, Y, Z, e
+          renderer.Clear()
+          
+          //renderer.z = Math.min(20, Math.max(10, (.3 + C(t/4))*100))
+          
+          geos.map(geometry => {
+            if(1) for(let i = 0; i<geometry.vertices.length; i+=3){
+              X = geometry.vertices[i+0]
+              Y = geometry.vertices[i+1]
+              Z = geometry.vertices[i+2]
+
+              e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
+                                        roll:  0,
+                                        pitch: -.002,
+                                        yaw:   .001}, false)
+              geometry.vertices[i+0] = e[0]
+              geometry.vertices[i+1] = e[1]
+              geometry.vertices[i+2] = e[2]
+            }
+            
+            if(1) for(let i = 0; i<geometry.normals.length; i+=3){
+              X = geometry.normals[i+0]
+              Y = geometry.normals[i+1]
+              Z = geometry.normals[i+2]
+              e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
+                                        roll:  0,
+                                        pitch: -.002,
+                                        yaw:   .001}, false)
+              geometry.normals[i+0] = e[0]
+              geometry.normals[i+1] = e[1]
+              geometry.normals[i+2] = e[2]
+            }
+
+            renderer.Draw(geometry)
+          })
+
+          /*
+          
+          renderer.Clear()
+
+          renderer.x     = 0
+          renderer.y     = 0
+          renderer.z     = 16
+          renderer.roll  = 0
+          renderer.pitch = -t/2
+          renderer.yaw   = t
+
+          cube.map(v=>{
+            renderer.ctx.beginPath()
+            v.map(q=>{
+              X = q[0]
+              Y = q[1]
+              Z = q[2]
+              var e = Coordinates.R(X,Y,Z, renderer, true)
+              X = e[0]
+              Y = e[1]
+              Z = e[2]
+              if(Z>0) renderer.ctx.lineTo(...Coordinates.Q(X, Y, Z, c))
+            })
+            renderer.ctx.lineWidth = 50/Z
+            renderer.ctx.strokeStyle = `#f004`
+            renderer.ctx.fillStyle = `#f001`
+            renderer.ctx.stroke()
+            renderer.ctx.strokeStyle = `#f008`
+            renderer.ctx.lineWidth /= 4
+            renderer.ctx.stroke()
+            renderer.ctx.fill()
+          })
+          */
+          t += 1/60
+        }
+      })();
     </script>
   </body>
 </html>
