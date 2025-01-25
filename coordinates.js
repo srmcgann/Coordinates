@@ -130,6 +130,9 @@ const Renderer = (width   = 1920,
       ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
       ctx.enableVertexAttribArray(dset.locPosition)
       ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+      //ctx.uniform1f(dset.locRenderNormals, 1)
+      ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+      
 
       // normals
       if(geometry.showNormals){
@@ -301,12 +304,12 @@ const R = (X,Y,Z, cam, m=false) => {
   var M = Math, p, d
   var H=M.hypot, A=M.atan2
   var Rl = cam.roll, Pt = cam.pitch, Yw = cam.yaw
-  Y = S(p=A(Y,Z)+Pt)*(d=H(Y,Z))
-  Z = C(p)*d
-  X = S(p=A(X,Z)+Yw)*(d=H(X,Z))
-  Z = C(p)*d
   X = S(p=A(X,Y)+Rl)*(d=H(X,Y))
   Y = C(p)*d
+  X = S(p=A(X,Z)+Yw)*(d=H(X,Z))
+  Z = C(p)*d
+  Y = S(p=A(Y,Z)+Pt)*(d=H(Y,Z))
+  Z = C(p)*d
   if(m){
     var oX = cam.x, oY = cam.y, oZ = cam.z
     X += oX
@@ -356,20 +359,71 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
       })
     break
   }
+  
   if(equirectangular){
+    var op
     for(var i = 0; i < vertices.length; i+=3){
+      
       var idx = i/3|0
       var v = vertices
-      var vidx = idx*3
-      var vx = v[vidx+0]// - v[vidx+3]
-      var vy = v[vidx+1]// - v[vidx+4]
-      var vz = v[vidx+2]// - v[vidx+5]
-      var p1 = (Math.atan2(vx, vz) + Math.PI) / Math.PI / 2
-      var p2 = Math.acos(vy / (Math.hypot(vx, vy, vz)+.00001)) / Math.PI 
+      var split = false
+
+      var poly
+      var ax=0, az=0
+      var pidx = (i/9|0)*9;
+      (poly = [
+        [v[pidx+0],v[pidx+1],v[pidx+2]],
+        [v[pidx+3],v[pidx+4],v[pidx+5]],
+        [v[pidx+6],v[pidx+7],v[pidx+8]]
+      ]).map((v, i) => {
+        var X1 = poly[i][0]
+        var Z1 = poly[i][2]
+        var X2 = poly[(i+1)%3][0]
+        var Z2 = poly[(i+1)%3][2]
+        var tp1 = Math.atan2(X1, Z1)
+        var tp2 = Math.atan2(X2, Z2)
+        
+        ax += X1
+        az += Z1
+        
+        //if(Math.abs(tp1 - tp2) > Math.PI) split = true
+      })
       
+      ax /= 3
+      az /= 3
+
+      var vidx = idx*3
+      var vx = v[vidx+0]
+      var vy = v[vidx+1]
+      var vz = v[vidx+2]
+
+      var p = Math.atan2(vx, vz)
+
+      if(Math.abs(p) > Math.PI/2 && (Math.abs(vx) < .0001 || Math.abs(ax) < .0001)) split = true
+
+      var p1 = (p + Math.PI) / Math.PI / 2
+      var p2 = Math.acos(vy / (Math.hypot(vx, vy, vz)+.00001)) / Math.PI
       var tidx = idx * 2
+
       uvs[tidx+0] = p1
       uvs[tidx+1] = p2
+      if(split){
+        if(ax > .001){
+          uvs[tidx+0] = vx > .0001 ? p1 : 1
+        }
+        else if(ax < -.001){
+          uvs[tidx+0] = 0
+        }else{
+          if(vx > .0001){
+            uvs[tidx+0] = p1
+          }else if(vx < -.0001){
+            uvs[tidx+0] = p1-1
+          }else{
+            uvs[tidx+0] = 0
+          }
+          
+        }
+      }
     }
   }
 
@@ -606,6 +660,14 @@ var BasicShader = async (renderer) => {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
           }
         }
       }
@@ -928,26 +990,25 @@ const subbed = (subs, size, sphereize, shape, texCoords) => {
     })
   }
   if(sphereize){
-    var d
+    var d, val
     ip1 = sphereize
     ip2 = 1-sphereize
-    shape = shape.map(v=>{
-      v = v.map(q=>{
-        X = q[0]
-        Y = q[1]
-        Z = q[2]
-        d = Math.hypot(X,Y,Z)
-        X /= d
-        Y /= d
-        Z /= d
-        X *= size/1*ip1 + d*ip2
-        Y *= size/1*ip1 + d*ip2
-        Z *= size/1*ip1 + d*ip2
-        var ls = 1
-        return [X*ls, Y*ls, Z*ls]
+    for(var m=2; m--;) {
+      (m ? shape : texCoords).map(v=>{
+        v.map(q=>{
+          X = q[0]
+          Y = q[1]
+          Z = m ? q[2] : 0
+          d = Math.hypot(X,Y,Z)
+          X /= d
+          Y /= d
+          Z /= d
+          q[0]       = X *= size*ip1 + d*ip2
+          q[1]       = Y *= size*ip1 + d*ip2
+          if(m) q[2] = Z *= size*ip1 + d*ip2
+        })
       })
-      return v
-    })
+    }
   }
   return shape.map((v, i) => {
     return {
@@ -959,7 +1020,6 @@ const subbed = (subs, size, sphereize, shape, texCoords) => {
 
 
 const Camera = (x=0, y=0, z=0, roll=0, pitch=0, yaw=0) => ({ x, y, z, roll, pitch, yaw })
-
 
 const Dodecahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   var i, X, Y, Z, d1, b, p, r, tx, ty, f, i, j, l
@@ -1021,7 +1081,7 @@ const Dodecahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
                          pitch: 0,
                          yaw:   Math.PI/2})
       
-      r = R(X, Y, Z, {x:r[0], y:r[1], z:r[2],
+      r = R(r[0], r[1], r[2], {x:0, y:0, z:0,
                          roll:  0,
                          pitch: Math.PI/2,
                          yaw:   0})
@@ -1041,7 +1101,7 @@ const Dodecahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
                          pitch: 0,
                          yaw:   Math.PI/2})
       
-      r = R(X, Y, Z, {x:r[0], y:r[1], z:r[2],
+      r = R(r[0], r[1], r[2], {x:0, y:0, z:0,
                          roll:  Math.PI/2,
                          pitch: 0,
                          yaw:   0})
@@ -1051,13 +1111,6 @@ const Dodecahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     })
   })
   ret = [...ret, ...b, ...e]
-  ret.map(v=>{
-    v.map(q=>{
-      q[0] *= size/2
-      q[1] *= size/2
-      q[2] *= size/2
-    })
-  })
   
   var e = ret
   var texCoords = []
@@ -1076,7 +1129,6 @@ const Dodecahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     texCoords = [...texCoords, a]
   }
   
-  
   a = []
   f = []
   subbed(subs + 1, 1, sphereize, e, texCoords).map(v => {
@@ -1085,13 +1137,19 @@ const Dodecahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
       Y = q[1] *= size
       Z = q[2] *= size
     })
-    // triangulate
-//    a = [...a, v.verts[0],v.verts[2],v.verts[1],
-//               v.verts[2],v.verts[0],v.verts[3]]
-//    f = [...f, v.uvs[0],v.uvs[2],v.uvs[1],
-//               v.uvs[2],v.uvs[0],v.uvs[3]]
-    a = [...a, v.verts[0],v.verts[1],v.verts[2]]
-    f = [...f, v.uvs[0],v.uvs[1],v.uvs[2]]
+    
+    /*v.verts.map(q=>{
+      var r = R(...q, {x:0, y:0, z:0,
+                         roll:  0,
+                         pitch: 0,
+                         yaw:   .01})
+      q[0] = r[0]
+      q[1] = r[1]
+      q[2] = r[2]
+    })*/
+    
+    a = [...a, ...v.verts]
+    f = [...f, ...v.uvs]
   })
   
   for(i = 0; i < a.length; i++){
@@ -1100,7 +1158,7 @@ const Dodecahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     b = [a[j*3+0], a[j*3+1], a[j*3+2]]
     if(!(i%3)){
       normal = Normal(b, true)
-      if(flipNormals){
+      if(!flipNormals){
         normal[3] = normal[0] + (normal[0]-normal[3])
         normal[4] = normal[1] + (normal[1]-normal[4])
         normal[5] = normal[2] + (normal[2]-normal[5])
