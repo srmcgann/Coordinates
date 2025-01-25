@@ -97,6 +97,7 @@ const Renderer = (width   = 1920,
       ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
       ctx.uniform1i(dset.locTexture, dset.texture)
       
+      ctx.uniform2f(dset.locPhong,         ret.width, ret.height)
       ctx.uniform2f(dset.locResolution,    ret.width, ret.height)
       ctx.uniform1f(dset.locCamX,          ret.x)
       ctx.uniform1f(dset.locCamY,          ret.y)
@@ -111,15 +112,17 @@ const Renderer = (width   = 1920,
       // bind buffers
       
       // uvs - (unless these are changes they needn't be uncommented)
-      /*
-      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer);
-      ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW);
-      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
-      ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW);
-      ctx.vertexAttribPointer(dset.locUv ,2, ctx.FLOAT, false, 0, 0)
-      ctx.enableVertexAttribArray(dset.locUv)
-      */
       
+
+
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
+      ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
+      ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW)
+      ctx.vertexAttribPointer(dset.locUv ,2, ctx.FLOAT, false, 0, 0)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+
       
       // vertices
 
@@ -130,8 +133,9 @@ const Renderer = (width   = 1920,
       ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
       ctx.enableVertexAttribArray(dset.locPosition)
       ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
-      //ctx.uniform1f(dset.locRenderNormals, 1)
       ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       
 
       // normals
@@ -144,6 +148,8 @@ const Renderer = (width   = 1920,
         ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, true, 0, 0)
         ctx.enableVertexAttribArray(dset.locNormal)
         ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_SHORT,0)
+        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+        ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       }
     }
   }
@@ -334,6 +340,7 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
   
   switch(shape){
     case 'cube':
+      if(sphereize) equirectangular = true
       shape = Cube(size, subs, sphereize, flipNormals)
       shape.geometry.map(v => {
         vertices = [...vertices, ...v.position]
@@ -408,20 +415,13 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
       uvs[tidx+0] = p1
       uvs[tidx+1] = p2
       if(split){
-        if(ax > .001){
+        if(ax > .001){  
           uvs[tidx+0] = vx > .0001 ? p1 : 1
         }
         else if(ax < -.001){
           uvs[tidx+0] = 0
         }else{
-          if(vx > .0001){
-            uvs[tidx+0] = p1
-          }else if(vx < -.0001){
-            uvs[tidx+0] = p1-1
-          }else{
-            uvs[tidx+0] = 0
-          }
-          
+          uvs[tidx+0] = vx > .001 ? p1 : (vx < -.001 ? p1 + 1 : 1)
         }
       }
     }
@@ -479,6 +479,34 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
     showNormals
   }
 }
+
+const ImageToPo2 = async (image) => {
+  let ret = image
+  if ( !(IsPowerOf2(image.width) && IsPowerOf2(image.height)) ) {
+    let tCan = document.createElement('canvas')
+    let tCtx = tCan.getContext('2d')
+    let r = 8
+    let tsize=0
+    let mdif = 6e6
+    let d, j
+    let h = Math.hypot(image.width, image.height)
+    for(let i = 0; i<16; i++){
+      if((d=Math.abs(tsize-h)) < mdif){
+        mdif = d
+        tsize = r * 2**i
+        j=i
+      }
+    }
+    tsize -= r * 2**(j-1)
+    tCan.width  = tsize
+    tCan.height = tsize
+    tCtx.drawImage(image, 0, 0, tCan.width, tCan.height)
+    ret = new Image()
+    ret.src = tCan.toDataURL()
+  }
+  return ret
+}
+
 
 var BasicShader = async (renderer) => {
 
@@ -648,27 +676,16 @@ var BasicShader = async (renderer) => {
         await fetch(dset.iURL).then(res=>res.blob()).then(data => {
           image.src = URL.createObjectURL(data)
         })
-        image.onload = () => {
-          
+        image.onload = async () => {
+          let texImage = await ImageToPo2(image)
           gl.bindTexture(gl.TEXTURE_2D, dset.texture)
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-          
-          if (IsPowerOf2(image.width) &&
-              IsPowerOf2(image.height)) {
-            gl.generateMipmap(gl.TEXTURE_2D);
-          } else {
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-
-            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-            //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-          }
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage);
+          gl.generateMipmap(gl.TEXTURE_2D)
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+          //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         }
       }
       
@@ -695,7 +712,7 @@ var BasicShader = async (renderer) => {
       gl.uniform1f(dset.locFov,           renderer.fov)
       gl.uniform1f(dset.locRenderNormals, 0)
     }else{
-      var info = gl.getProgramInfoLog(program)
+      var info = gl.getProgramInfoLog(dset.program)
       var vshaderInfo = gl.getShaderInfoLog(vertexShader)
       var fshaderInfo = gl.getShaderInfoLog(fragmentShader)
       console.error(`bad shader :( ${info}`)
@@ -1003,9 +1020,9 @@ const subbed = (subs, size, sphereize, shape, texCoords) => {
           X /= d
           Y /= d
           Z /= d
-          q[0]       = X *= size*ip1 + d*ip2
-          q[1]       = Y *= size*ip1 + d*ip2
-          if(m) q[2] = Z *= size*ip1 + d*ip2
+          q[0]       = X *= size*1*ip1 + d*ip2
+          q[1]       = Y *= size*1*ip1 + d*ip2
+          if(m) q[2] = Z *= size*1*ip1 + d*ip2
         })
       })
     }
@@ -1133,9 +1150,9 @@ const Dodecahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   f = []
   subbed(subs + 1, 1, sphereize, e, texCoords).map(v => {
     v.verts.map(q=>{
-      X = q[0] *= size
-      Y = q[1] *= size
-      Z = q[2] *= size
+      X = q[0] *= size /  (sphereize ? 1 : 1.5)
+      Y = q[1] *= size /  (sphereize ? 1 : 1.5)
+      Z = q[2] *= size /  (sphereize ? 1 : 1.5)
     })
     
     /*v.verts.map(q=>{
@@ -1205,7 +1222,7 @@ const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   
   a = []
   f = []
-  subbed(subs, 1, sphereize, e, texCoords).map(v => {
+  subbed(subs + 1, 1, sphereize, e, texCoords).map(v => {
     v.verts.map(q=>{
       X = q[0] *= size
       Y = q[1] *= size
@@ -1219,18 +1236,16 @@ const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   })
   
   for(i = 0; i < a.length; i++){
-    let X = a[i][0]
-    let Y = a[i][1]
-    let Z = a[i][2]
-    let d = Math.hypot(X, Y, Z)
-    X /= d
-    Y /= d
-    Z /= d
-    var normal = [...a[i], X+a[i][0], Y+a[i][1], Z+a[i][2]]
-    if(!flipNormals){
-      normal[3] = normal[0] + (normal[0]-normal[3])
-      normal[4] = normal[1] + (normal[1]-normal[4])
-      normal[5] = normal[2] + (normal[2]-normal[5])
+    var normal
+    j = i/3 | 0
+    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
+    if(!(i%3)){
+      normal = Normal(b, true)
+      if(!flipNormals){
+        normal[3] = normal[0] + (normal[0]-normal[3])
+        normal[4] = normal[1] + (normal[1]-normal[4])
+        normal[5] = normal[2] + (normal[2]-normal[5])
+      }
     }
     l = flipNormals ? a.length - i - 1 : i
     geometry = [...geometry, {
@@ -1294,6 +1309,7 @@ export {
   Cube,
   Q, R,
   Normal,
+  ImageToPo2,
   LoadOBJ,
   IsPowerOf2,
 }
