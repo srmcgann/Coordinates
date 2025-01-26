@@ -4,21 +4,42 @@
 
 const S = Math.sin, C = Math.cos
 
-const Renderer = (width   = 1920,
-                  height  = 1080,
-                  x      = 0, y     = 0, z = 0,
-                  roll   = 0, pitch = 0, yaw = 0, fov = 2e3,
-                  context = ['webgl', {
-                      alpha          : true,
-                      antialias      : true,
-                      desynchronized : true,
-                    }],
-                    attachToBody = true,
-                    margin = 10, ambientLight = .2
-                  ) => {
+const Renderer = (width = 1920, height = 1080, options) => {
+
+  var x=0, y=0, z=0
+  var roll=0, pitch=0, yaw=0, fov=2e3
+  var attachToBody = true, margin = 10
+  var ambientLight = .4
+  var context = {
+    mode: 'webgl',
+    options: {
+      alpha          : true,
+      antialias      : true,
+      desynchronized : true,
+    }
+  }
+  
+  Object.keys(options).forEach((key, idx) =>{
+    switch(key){
+      case 'x': x = options[key]; break
+      case 'y': y = options[key]; break
+      case 'z': z = options[key]; break
+      case 'roll': roll = options[key]; break
+      case 'pitch': pitch = options[key]; break
+      case 'yaw': yaw = options[key]; break
+      case 'fov': fov = options[key]; break
+      case 'attachToBody': attachToBody = options[key]; break
+      case 'margin': margin = options[key]; break
+      case 'ambientLight': ambientLight = options[key]; break
+      case 'context':
+        context.mode = options[key].mode
+        context.options = options[key]['options']
+      break
+    }
+  })
                           
   const c    = document.createElement('canvas')
-  const ctx  = c.getContext(...context)
+  const ctx  = c.getContext(context.mode, context.options)
   c.width  = width
   c.height = height
   const contextType = context[0]
@@ -66,6 +87,7 @@ const Renderer = (width   = 1920,
     ready: false, ambientLight
     
     // functions
+    // ...
   }
   ret[contextType == '2d' ? 'ctx' : 'gl'] = ctx
   
@@ -94,9 +116,9 @@ const Renderer = (width   = 1920,
       
       // update uniforms
       
-      //ctx.activeTexture(ctx.TEXTURE0)
-      ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
       ctx.uniform1i(dset.locTexture, dset.texture)
+      ctx.activeTexture(ctx.TEXTURE0)
+      ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
       
       ctx.uniform1f(dset.locT,             ret.t)
       ctx.uniform1f(dset.locAmbientLight,  ret.ambientLight)
@@ -115,9 +137,10 @@ const Renderer = (width   = 1920,
           ctx[uniform.dataType](uniform.loc,         uniform.value)
           switch(uniform.name){
             case 'reflection':
-              //ctx.activeTexture(ctx.TEXTURE1)
-              ctx.bindTexture(ctx.TEXTURE_2D, dset.refTexture)
-              ctx.uniform1i(uniform.locRefTexture, dset.refTexture)
+              ctx.uniform1i(uniform.locRefTexture, 1)
+              ctx.activeTexture(ctx.TEXTURE1)
+              //ctx[uniform.dataType](uniform.loc,         1)
+              ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
             break
           }
         }
@@ -522,6 +545,21 @@ const ImageToPo2 = async (image) => {
 }
 
 
+
+const BindImage = async (gl, image, binding) => {
+  let texImage = await ImageToPo2(image)
+  //gl.activeTexture(gl.TEXTURE1)
+  gl.bindTexture(gl.TEXTURE_2D, binding)
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage);
+  gl.generateMipmap(gl.TEXTURE_2D)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  //gl.activeTexture(gl.TEXTURE0)
+}
+
 var BasicShader = async (renderer, options=[]) => {
   
   const gl = renderer.gl
@@ -577,7 +615,9 @@ var BasicShader = async (renderer, options=[]) => {
                   uniform sampler2D reflectionMap;
                 `,
                 fragCode:          `
-                  mixColor = vec4(texture2D( reflectionMap, vec2(refheading, refelevation)).rgb, reflection);
+                  mixColorIp = reflection;
+                  baseColorIp = 1.0 - mixColorIp;
+                  mixColor = vec4(texture2D( reflectionMap, vec2(refheading, refelevation)).rgb, 1.0);
                 `,
               }
               dataset.optionalUniforms.push( uniformOption )
@@ -595,7 +635,7 @@ var BasicShader = async (renderer, options=[]) => {
                 `,
                 vertCode:          `
                   float p1 = atan(position.x, position.z);
-                  heading   = 1.0 + sin(p1 - M_PI / 2.0 + .33) * 2.0;
+                  heading   = 1.0 + sin(p1 - M_PI / 2.0 + .33 + t) * 2.0;
                   elevation = acos(position.y / sqrt(position.x * position.x+
                                                     position.y * position.y+
                                                     position.z * position.z));
@@ -606,7 +646,8 @@ var BasicShader = async (renderer, options=[]) => {
                   varying float elevation;
                 `,
                 fragCode:          `
-                  colorMag = light + pow((1.0+heading) * (cos(elevation-1.222) + 1.0), 16.0) / 200000000000000.0 * phong;
+                  light = light * 10.0;
+                  colorMag = light + pow((1.0+heading) * (cos(elevation-1.222) + 1.0), 12.0) / 40000000000.0 * phong;
                   light = max(light, colorMag);
                 `,
               }
@@ -646,9 +687,8 @@ var BasicShader = async (renderer, options=[]) => {
   ret.vert = `
     precision mediump float;
     #define M_PI 3.14159265358979323
-    attribute vec2 uv;` +
-    `${uVertDeclaration}`+
-    `
+    attribute vec2 uv;
+    ${uVertDeclaration}
     uniform float t;
     uniform float ambientLight;
     uniform float camX;
@@ -665,9 +705,8 @@ var BasicShader = async (renderer, options=[]) => {
     varying float skip;
     uniform vec2 resolution;
     
-    void main(){` +
-    ` ${uVertCode}` +
-    `
+    void main(){
+      ${uVertCode}
       float cx, cy, cz;
       if(renderNormals == 1.0){
         cx = normal.x;
@@ -697,9 +736,8 @@ var BasicShader = async (renderer, options=[]) => {
   
   ret.frag = `
     precision mediump float;
-    #define M_PI 3.14159265358979323` +
-    `${uFragDeclaration}`+
-    `
+    #define M_PI 3.14159265358979323
+    ${uFragDeclaration}
     uniform float t;
     uniform float ambientLight;
     uniform float renderNormals;
@@ -707,23 +745,27 @@ var BasicShader = async (renderer, options=[]) => {
     varying vec2 vUv;
     varying float skip;
 
-    vec4 merge (vec4 col1, vec4 col2){
+    vec4 merge (vec4 col1, vec4 col2, float ip1, float ip2){
+      col1.a *= ip1;
+      col2.a *= ip2;
       return vec4(col1.rgb * col1.a + col2.rgb * col2.a, 1.0);
     }
 
     void main() {
+      float mixColorIp = 0.0;
+      float baseColorIp = 1.0;
       vec4 mixColor = vec4(0.0, 0.0, 0.0, 0.0);
-      float light = ambientLight;
+      float light = ambientLight / 10.0;
       float colorMag = 1.0;
-      float alpha = 1.0;` +
-    ` ${uFragCode}` +
-    ` if(skip != 1.0){
+      float alpha = 1.0;
+      if(skip != 1.0){
         if(renderNormals == 1.0){
           gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
         }else{
+          ${uFragCode}
           vec4 texel = texture2D( baseTexture, vUv);
-          texel = vec4(texel.rgb + light, 1.0);
-          vec4 col = merge(mixColor, texel);
+          texel = vec4(texel.rgb * (.5 + light/2.0) + light/4.0, 1.0);
+          vec4 col = merge(mixColor, texel, mixColorIp, baseColorIp);
           gl_FragColor = vec4(col.rgb * colorMag, alpha);
         }
       }
@@ -786,39 +828,29 @@ var BasicShader = async (renderer, options=[]) => {
         
         switch(uniform.name){
           case 'reflection':
-            uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
-            dset.refTexture = gl.createTexture()
-            gl.bindTexture(gl.TEXTURE_2D, dset.refTexture)
+            uniform.refTexture = gl.createTexture()
+            gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
             var image = new Image()
             var url = uniform.map  // to-do, include in asset cache (with uniform.iURL)
             //let mTex
             //if((mTex = ret.datasets.filter(v=>v.iURL == uniform.iURL)).length > 1){
-            //  dset.refTexture = mTex[0].texture
+            //  uniform.refTexture = mTex[0].texture
             //}else{
               await fetch(url).then(res=>res.blob()).then(data => {
                 image.src = URL.createObjectURL(data)
               })
-              image.onload = async () => {
-                let texImage = await ImageToPo2(image)
-                //gl.activeTexture(gl.TEXTURE1)
-                gl.bindTexture(gl.TEXTURE_2D, dset.refTexture)
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage);
-                gl.generateMipmap(gl.TEXTURE_2D)
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-                //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-                //gl.activeTexture(gl.TEXTURE0)
-              }
+              image.onload = async () => await BindImage(gl, image, uniform.refTexture)
             //}
-              gl.bindTexture(gl.TEXTURE_2D, dset.refTexture)
-              gl.uniform1i(uniform.locRefTexture, dset.refTexture)
+              uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
+              gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
+              gl.uniform1i(uniform.locRefTexture, 1)
+              gl.activeTexture(gl.TEXTURE1)
+              gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
           break
         }
         
         uniform.loc = gl.getUniformLocation(dset.program, uniform.name)
-        gl[uniform.dataType](dset[uniform.name], uniform.value)
+        gl[uniform.dataType](uniform.loc, uniform.value)
       })
 
       dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
@@ -830,9 +862,10 @@ var BasicShader = async (renderer, options=[]) => {
       dset.locAmbientLight = gl.getUniformLocation(dset.program, "ambientLight")
       gl.uniform1f(dset.locAmbientLight, renderer.ambientLight)
 
-      dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
       dset.texture = gl.createTexture()
       gl.bindTexture(gl.TEXTURE_2D, dset.texture)
+      dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
+      
       var image = new Image()
       dset.iURL = textureURL
       let mTex
@@ -842,23 +875,14 @@ var BasicShader = async (renderer, options=[]) => {
         await fetch(dset.iURL).then(res=>res.blob()).then(data => {
           image.src = URL.createObjectURL(data)
         })
-        image.onload = async () => {
-          let texImage = await ImageToPo2(image)
-          gl.bindTexture(gl.TEXTURE_2D, dset.texture)
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage);
-          gl.generateMipmap(gl.TEXTURE_2D)
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-          //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        }
+        image.onload = async () => await BindImage(gl, image, dset.texture)
       }
       
       gl.useProgram(dset.program)
-      //gl.activeTexture(gl.TEXTURE0)
+      //gl.bindTexture(gl.TEXTURE_2D, dset.texture)
+      gl.uniform1i(dset.locTexture, 0)
+      gl.activeTexture(gl.TEXTURE0)
       gl.bindTexture(gl.TEXTURE_2D, dset.texture)
-      gl.uniform1i(dset.locTexture, dset.texture)
       
 
       dset.locCamX           = gl.getUniformLocation(dset.program, "camX")
