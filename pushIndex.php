@@ -21,7 +21,9 @@ $file = <<<'FILE'
     └> ✔ move shaders into Coordinates module
        *  add '# tiling (x/y)' option
        ✔  move camera into vertex shader
-       *  create pseudo-phong shader
+       ✔  create pseudo-phong shader
+       *  add 'reflectivity' & texture input for it
+       *  flat/smooth shading
        *  integrate optional effect shaders
 
   * functions / methods
@@ -60,7 +62,23 @@ $file = <<<'FILE'
     
         
         var renderer = Coordinates.Renderer(1920, 1080)
-        var shader = await Coordinates.BasicShader(renderer)
+        
+        var shaderOptions = [
+          {
+            uniform: {
+              type: 'phong',
+              value: .6,
+            },
+          },
+          {
+            uniform: {
+              type: 'reflection',
+              map: 'https://srmcgann.github.io/skyboxes3/HDRI/creepy_mansion.jpg',
+              value: .6,
+            },
+          },
+        ]
+        var shader = await Coordinates.BasicShader(renderer, shaderOptions)
         
         renderer.z = 16
         
@@ -93,21 +111,22 @@ $file = <<<'FILE'
           let tex
           switch(idx%5){
             //case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
-            case 0: tex = 'https://srmcgann.github.io/skyboxes7/HDRI/nebugrid.jpg'; break
+            //case 0: tex = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg'; break
+            case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
             case 1: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/creepy_mansion.jpg'; break
             case 2: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
-            case 3: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
+            case 3: tex = 'https://srmcgann.github.io/skyboxes7/HDRI/nebugrid.jpg'; break
             case 4: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/redCluds.jpg'; break
           }
           await shader.ConnectGeometry(geometry, tex)
         })
         
         
-        var t = 0
         var S = Math.sin, C = Math.cos
         
         window.Draw = () => {
-
+        
+          var t = renderer.t
           var X, Y, Z, e
           renderer.Clear()
           
@@ -177,7 +196,6 @@ $file = <<<'FILE'
             renderer.ctx.fill()
           })
           */
-          t += 1/60
         }
       })();
     </script>

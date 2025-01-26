@@ -14,7 +14,7 @@ const Renderer = (width   = 1920,
                       desynchronized : true,
                     }],
                     attachToBody = true,
-                    margin = 10,
+                    margin = 10, ambientLight = .2
                   ) => {
                           
   const c    = document.createElement('canvas')
@@ -60,10 +60,10 @@ const Renderer = (width   = 1920,
   
   var ret = {
     // vars & objects
-    c, contextType,
+    c, contextType, t:0,
     width, height, x, y, z,
     roll, pitch, yaw, fov,
-    ready: false,
+    ready: false, ambientLight
     
     // functions
   }
@@ -94,10 +94,12 @@ const Renderer = (width   = 1920,
       
       // update uniforms
       
+      //ctx.activeTexture(ctx.TEXTURE0)
       ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
       ctx.uniform1i(dset.locTexture, dset.texture)
       
-      ctx.uniform2f(dset.locPhong,         ret.width, ret.height)
+      ctx.uniform1f(dset.locT,             ret.t)
+      ctx.uniform1f(dset.locAmbientLight,  ret.ambientLight)
       ctx.uniform2f(dset.locResolution,    ret.width, ret.height)
       ctx.uniform1f(dset.locCamX,          ret.x)
       ctx.uniform1f(dset.locCamY,          ret.y)
@@ -108,12 +110,23 @@ const Renderer = (width   = 1920,
       ctx.uniform1f(dset.locFov,           ret.fov)
       ctx.uniform1f(dset.locRenderNormals, 0)
       
+      dset.optionalUniforms.map(uniform => {
+        if(typeof uniform?.loc === 'object'){
+          ctx[uniform.dataType](uniform.loc,         uniform.value)
+          switch(uniform.name){
+            case 'reflection':
+              //ctx.activeTexture(ctx.TEXTURE1)
+              ctx.bindTexture(ctx.TEXTURE_2D, dset.refTexture)
+              ctx.uniform1i(uniform.locRefTexture, dset.refTexture)
+            break
+          }
+        }
+      })
+      
       
       // bind buffers
       
       // uvs - (unless these are changes they needn't be uncommented)
-      
-
 
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
@@ -152,6 +165,7 @@ const Renderer = (width   = 1920,
         ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       }
     }
+    ret.t += 1/60
   }
   ret['Draw'] = Draw
         
@@ -508,13 +522,14 @@ const ImageToPo2 = async (image) => {
 }
 
 
-var BasicShader = async (renderer) => {
-
+var BasicShader = async (renderer, options=[]) => {
+  
   const gl = renderer.gl
   var program
   
   var dataset = {
     iURL: null,
+    locT: null,
     locUv: null,
     locFov: null,
     program: null,
@@ -529,7 +544,79 @@ var BasicShader = async (renderer) => {
     locPosition: null,
     locResolution: null,
     locRenderNormals: null,
+    optionalUniforms: [],
   }
+  
+  options.map(option => {
+    Object.keys(option).forEach((key, idx) => {
+      switch(key){
+        case 'uniform':
+          switch(option.uniform.type){
+            case 'reflection':
+              var uniformOption = {
+                name:              option.uniform.type,
+                map:               option.uniform.map,
+                loc:               'locReflection',
+                value:             option.uniform.value,
+                dataType:          'uniform1f',
+                vertDeclaration:   `
+                  varying float refheading;
+                  varying float refelevation;
+                `,
+                vertCode:          `
+                  float refp1 = atan(position.x, position.z);
+                  refheading   = sin(refp1) / 2.0;
+                  refelevation = acos(position.y / sqrt(position.x * position.x+
+                                                    position.y * position.y+
+                                                    position.z * position.z)) / M_PI * 2.0 - 1.5;
+                `,
+                fragDeclaration:   `
+                  varying float refheading;
+                  varying float refelevation;
+                  uniform float reflection;
+                  uniform sampler2D reflectionMap;
+                `,
+                fragCode:          `
+                  mixColor = vec4(texture2D( reflectionMap, vec2(refheading, refelevation)).rgb, reflection);
+                `,
+              }
+              dataset.optionalUniforms.push( uniformOption )
+            break
+            case 'phong':
+              var uniformOption = {
+                name:              option.uniform.type,
+                loc:               'locPhong',
+                value:             option.uniform.value,
+                dataType:          'uniform1f',
+                vertDeclaration:   `
+                  uniform float phong;
+                  varying float heading;
+                  varying float elevation;
+                `,
+                vertCode:          `
+                  float p1 = atan(position.x, position.z);
+                  heading   = 1.0 + sin(p1 - M_PI / 2.0 + .33) * 2.0;
+                  elevation = acos(position.y / sqrt(position.x * position.x+
+                                                    position.y * position.y+
+                                                    position.z * position.z));
+                `,
+                fragDeclaration:   `
+                  uniform float phong;
+                  varying float heading;
+                  varying float elevation;
+                `,
+                fragCode:          `
+                  colorMag = light + pow((1.0+heading) * (cos(elevation-1.222) + 1.0), 16.0) / 200000000000000.0 * phong;
+                  light = max(light, colorMag);
+                `,
+              }
+              dataset.optionalUniforms.push( uniformOption )
+            break
+          }
+        break
+      }
+    })
+  })
   
   let ret = {
     ConnectGeometry: null,
@@ -544,12 +631,26 @@ var BasicShader = async (renderer) => {
   //gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
   //gl.enable(gl.BLEND)
   //gl.disable(gl.DEPTH_TEST)
-  //gl.cullFace(null)
+  gl.cullFace(gl.BACK)
   
+  let uVertDeclaration = ''
+  dataset.optionalUniforms.map(v=>{ uVertDeclaration += ("\n" + v.vertDeclaration + "\n") })
+  let uVertCode= ''
+  dataset.optionalUniforms.map(v=>{ uVertCode += ("\n" + v.vertCode + "\n") })
+
+  let uFragDeclaration = ''
+  dataset.optionalUniforms.map(v=>{ uFragDeclaration += ("\n" + v.fragDeclaration + "\n") })
+  let uFragCode= ''
+  dataset.optionalUniforms.map(v=>{ uFragCode += ("\n" + v.fragCode + "\n") })
 
   ret.vert = `
     precision mediump float;
-    attribute vec2 uv;
+    #define M_PI 3.14159265358979323
+    attribute vec2 uv;` +
+    `${uVertDeclaration}`+
+    `
+    uniform float t;
+    uniform float ambientLight;
     uniform float camX;
     uniform float camY;
     uniform float camZ;
@@ -563,7 +664,10 @@ var BasicShader = async (renderer) => {
     varying vec2 vUv;
     varying float skip;
     uniform vec2 resolution;
-    void main(){
+    
+    void main(){` +
+    ` ${uVertCode}` +
+    `
       float cx, cy, cz;
       if(renderNormals == 1.0){
         cx = normal.x;
@@ -593,21 +697,39 @@ var BasicShader = async (renderer) => {
   
   ret.frag = `
     precision mediump float;
+    #define M_PI 3.14159265358979323` +
+    `${uFragDeclaration}`+
+    `
+    uniform float t;
+    uniform float ambientLight;
     uniform float renderNormals;
     uniform sampler2D baseTexture;
     varying vec2 vUv;
     varying float skip;
+
+    vec4 merge (vec4 col1, vec4 col2){
+      return vec4(col1.rgb * col1.a + col2.rgb * col2.a, 1.0);
+    }
+
     void main() {
-      if(skip != 1.0){
+      vec4 mixColor = vec4(0.0, 0.0, 0.0, 0.0);
+      float light = ambientLight;
+      float colorMag = 1.0;
+      float alpha = 1.0;` +
+    ` ${uFragCode}` +
+    ` if(skip != 1.0){
         if(renderNormals == 1.0){
-          gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5);
+          gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
         }else{
           vec4 texel = texture2D( baseTexture, vUv);
-          gl_FragColor = texel;
+          texel = vec4(texel.rgb + light, 1.0);
+          vec4 col = merge(mixColor, texel);
+          gl_FragColor = vec4(col.rgb * colorMag, alpha);
         }
       }
     }
   `
+  
   const vertexShader = gl.createShader(gl.VERTEX_SHADER)
   gl.shaderSource(vertexShader, ret.vert)
   gl.compileShader(vertexShader)
@@ -660,9 +782,53 @@ var BasicShader = async (renderer) => {
       gl.vertexAttribPointer(dset.locNormal, 3, gl.FLOAT, true, 0, 0)
       gl.enableVertexAttribArray(dset.locNormal)
       
+      dset.optionalUniforms.map(async (uniform) => {
+        
+        switch(uniform.name){
+          case 'reflection':
+            uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
+            dset.refTexture = gl.createTexture()
+            gl.bindTexture(gl.TEXTURE_2D, dset.refTexture)
+            var image = new Image()
+            var url = uniform.map  // to-do, include in asset cache (with uniform.iURL)
+            //let mTex
+            //if((mTex = ret.datasets.filter(v=>v.iURL == uniform.iURL)).length > 1){
+            //  dset.refTexture = mTex[0].texture
+            //}else{
+              await fetch(url).then(res=>res.blob()).then(data => {
+                image.src = URL.createObjectURL(data)
+              })
+              image.onload = async () => {
+                let texImage = await ImageToPo2(image)
+                //gl.activeTexture(gl.TEXTURE1)
+                gl.bindTexture(gl.TEXTURE_2D, dset.refTexture)
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage);
+                gl.generateMipmap(gl.TEXTURE_2D)
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+                //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                //gl.activeTexture(gl.TEXTURE0)
+              }
+            //}
+              gl.bindTexture(gl.TEXTURE_2D, dset.refTexture)
+              gl.uniform1i(uniform.locRefTexture, dset.refTexture)
+          break
+        }
+        
+        uniform.loc = gl.getUniformLocation(dset.program, uniform.name)
+        gl[uniform.dataType](dset[uniform.name], uniform.value)
+      })
 
       dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
       gl.uniform2f(dset.locResolution, renderer.width, renderer.height)
+
+      dset.locT = gl.getUniformLocation(dset.program, "t")
+      gl.uniform1f(dset.locT, 0)
+
+      dset.locAmbientLight = gl.getUniformLocation(dset.program, "ambientLight")
+      gl.uniform1f(dset.locAmbientLight, renderer.ambientLight)
 
       dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
       dset.texture = gl.createTexture()
@@ -690,7 +856,7 @@ var BasicShader = async (renderer) => {
       }
       
       gl.useProgram(dset.program)
-      gl.activeTexture(gl.TEXTURE0)
+      //gl.activeTexture(gl.TEXTURE0)
       gl.bindTexture(gl.TEXTURE_2D, dset.texture)
       gl.uniform1i(dset.locTexture, dset.texture)
       
