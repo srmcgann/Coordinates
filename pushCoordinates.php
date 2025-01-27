@@ -132,6 +132,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.uniform1f(dset.locGeoY,          geometry.y)
       ctx.uniform1f(dset.locGeoZ,          geometry.z)
       ctx.uniform1f(dset.locFov,           ret.fov)
+      ctx.uniform1f(dset.locFlatShading,   ret.flatShading)
       ctx.uniform1f(dset.locRenderNormals, 0)
       
       dset.optionalUniforms.map(uniform => {
@@ -164,6 +165,14 @@ const Renderer = (width = 1920, height = 1080, options) => {
       
       // vertices
 
+        //ctx.uniform1f(dset.locRenderNormals, 1)
+        ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
+        ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
+        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
+        ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
+        ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, true, 0, 0)
+        ctx.enableVertexAttribArray(dset.locNormal)
+
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
@@ -171,13 +180,13 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
       ctx.enableVertexAttribArray(dset.locPosition)
       ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
-      ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+      //ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       
 
       // normals
-      if(geometry.showNormals){
+      if(0&&geometry.showNormals){
         ctx.uniform1f(dset.locRenderNormals, 1)
         ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
         ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
@@ -281,66 +290,8 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
   })
   //return res
   
-  var e = res
-  var texCoords = []
-  for(i = 0; i < e.length; i++){
-    a = []
-    for(var k = e[i].length; k--;){
-      switch(k) {
-        case 0: tx=0, ty=0; break
-        case 1: tx=1, ty=0; break
-        case 2: tx=1, ty=1; break
-        case 3: tx=0, ty=1; break
-      }
-      a = [...a, [tx, ty]]
-    }
-    texCoords = [...texCoords, a]
-  }
-  
-  a = []
-  f = []
-
-  res = res.map((v, i) => {
-    return {
-      verts: v,
-      uvs: texCoords[i]
-    }
-  })
-  res.map(v => {
-    v.verts.map(q=>{
-      X = q[0] *= 1//size
-      Y = q[1] *= 1//size
-      Z = q[2] *= 1//size
-    })
-    // triangulate
-    a = [...a, v.verts[0],v.verts[2],v.verts[1],
-               v.verts[2],v.verts[0],v.verts[3]]
-    f = [...f, v.uvs[0],v.uvs[2],v.uvs[1],
-               v.uvs[2],v.uvs[0],v.uvs[3]]
-  })
-  
-  for(i = 0; i < a.length; i++){
-    var normal
-    j = i/3 | 0
-    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
-    if(!(i%3)){
-      normal = Normal(b, true)
-      if(flipNormals){
-        normal[3] = normal[0] + (normal[0]-normal[3])
-        normal[4] = normal[1] + (normal[1]-normal[4])
-        normal[5] = normal[2] + (normal[2]-normal[5])
-      }
-    }
-    l = flipNormals ? a.length - i - 1 : i
-    geometry = [...geometry, {
-      position: a[l],
-      normal,
-      texCoord: f[l],
-    }]
-  }
-  return {
-    geometry
-  }
+  return GeometryFromRaw(e, texCoords, size, subs,
+                         sphereize, flipNormals, false)
 }
 
 const Q = (X, Y, Z, c, AR=700) => [c.width/2+X/Z*AR, c.height/2+Y/Z*AR]
@@ -364,7 +315,7 @@ const R = (X,Y,Z, cam, m=false) => {
   return [X, Y, Z]
 }
 
-const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equirectangular=false, flipNormals=false, showNormals=false, url='') => {
+const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equirectangular=false, flipNormals=false, flatShading=false, showNormals=false, url='') => {
 
   var vertex_buffer, Vertex_Index_Buffer
   var normal_buffer, Normal_Index_Buffer
@@ -435,10 +386,11 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
   
   if(equirectangular){
     var op
+    var v = vertices
+    var n = normals
     for(var i = 0; i < vertices.length; i+=3){
       
       var idx = i/3|0
-      var v = vertices
       var split = false
 
       var poly
@@ -470,12 +422,22 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
       var vy = v[vidx+1]
       var vz = v[vidx+2]
 
-      var p = Math.atan2(vx, vz)
+      var nidx = idx //(i/6|0)*6;
+      var nx = n[idx + 0] //n[nidx+3] - n[nidx+0]
+      var ny = n[idx + 1]  //n[nidx+4] - n[nidx+1]
+      var nz = n[idx + 2]  //n[nidx+5] - n[nidx+2]
 
+      //var p = flatShading ? Math.atan2(nx, nz) : Math.atan2(vx, vz)
+      var p = Math.atan2(vx, vz)
       if(Math.abs(p) > Math.PI/2 && (Math.abs(vx) < .0001 || Math.abs(ax) < .0001)) split = true
 
-      var p1 = (p + Math.PI) / Math.PI / 2
-      var p2 = Math.acos(vy / (Math.hypot(vx, vy, vz)+.00001)) / Math.PI
+      var p1 = (p + Math.PI) / Math.PI / 2 / 1 //+ .5
+      var p2
+      if(0&&flatShading){
+        p2 = Math.acos(ny / (Math.hypot(nx, ny, nz)+.00001)) / Math.PI / 1 //+ .5
+      }else{
+        p2 = Math.acos(vy / (Math.hypot(vx, vy, vz)+.00001)) / Math.PI //+ .5
+      }
       var tidx = idx * 2
 
       uvs[tidx+0] = p1
@@ -542,7 +504,7 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
     normal_buffer, Normal_Index_Buffer,
     uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices,
-    showNormals
+    showNormals, flatShading
   }
 }
 
@@ -589,6 +551,7 @@ const BindImage = async (gl, image, binding) => {
   //gl.activeTexture(gl.TEXTURE0)
 }
 
+
 var BasicShader = async (renderer, options=[]) => {
   
   const gl = renderer.gl
@@ -631,11 +594,12 @@ var BasicShader = async (renderer, options=[]) => {
                   varying float refelevation;
                 `,
                 vertCode:          `
-                  float refp1 = atan(position.x, position.z);
+                  px = flatShading == 0.0 ? position.x : normal.x;
+                  py = flatShading == 0.0 ? position.y : normal.y;
+                  pz = flatShading == 0.0 ? position.z : normal.z;
+                  float refp1 = atan(px, pz);
                   refheading   = sin(refp1) / 2.0;
-                  refelevation = acos(position.y / sqrt(position.x * position.x+
-                                                    position.y * position.y+
-                                                    position.z * position.z)) / M_PI * 2.0 - 1.5;
+                  refelevation = acos(py / sqrt(px * px + py * py + pz* pz)) / M_PI * 2.0 - 1.5;
                 `,
                 fragDeclaration:   `
                   varying float refheading;
@@ -663,11 +627,12 @@ var BasicShader = async (renderer, options=[]) => {
                   varying float elevation;
                 `,
                 vertCode:          `
-                  float p1 = atan(position.x, position.z);
-                  heading   = 1.0 + sin(p1 - M_PI / 2.0 + .33 + t*4.0) * 2.0;
-                  elevation = acos(position.y / sqrt(position.x * position.x+
-                                                    position.y * position.y+
-                                                    position.z * position.z));
+                  px = flatShading == 0.0 ? position.x : normal.x;
+                  py = flatShading == 0.0 ? position.y : normal.y;
+                  pz = flatShading == 0.0 ? position.z : normal.z;
+                  float p1 = atan(px, pz);
+                  heading   = 1.0 + sin(p1 - M_PI / 2.0 + .33) * 2.0;
+                  elevation = acos(position.y / sqrt(px * px + py * py+ pz * pz));
                 `,
                 fragDeclaration:   `
                   uniform float phong;
@@ -720,6 +685,7 @@ var BasicShader = async (renderer, options=[]) => {
     attribute vec2 uv;
     ${uVertDeclaration}
     uniform float t;
+    uniform float flatShading;
     uniform float ambientLight;
     uniform float camX;
     uniform float camY;
@@ -736,6 +702,7 @@ var BasicShader = async (renderer, options=[]) => {
     uniform vec2 resolution;
     
     void main(){
+      float px, py, pz;
       ${uVertCode}
       float cx, cy, cz;
       if(renderNormals == 1.0){
@@ -769,6 +736,7 @@ var BasicShader = async (renderer, options=[]) => {
     #define M_PI 3.14159265358979323
     ${uFragDeclaration}
     uniform float t;
+    uniform float flatShading;
     uniform float ambientLight;
     uniform float renderNormals;
     uniform sampler2D baseTexture;
@@ -816,6 +784,8 @@ var BasicShader = async (renderer, options=[]) => {
                             
     var dset = structuredClone(dataset)
     ret.datasets = [...ret.datasets, dset]
+    
+    var flatShading = geometry.flatShading
     
     dset.program = gl.createProgram()
     
@@ -888,6 +858,9 @@ var BasicShader = async (renderer, options=[]) => {
       dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
       gl.uniform2f(dset.locResolution, renderer.width, renderer.height)
 
+      dset.locFlatShading = gl.getUniformLocation(dset.program, "flatShading")
+      gl.uniform1f(dset.locFlatShading , flatShading ? 1.0 : 0.0)
+
       dset.locT = gl.getUniformLocation(dset.program, "t")
       gl.uniform1f(dset.locT, 0)
 
@@ -946,6 +919,56 @@ var BasicShader = async (renderer, options=[]) => {
   return ret
 }
 
+
+const GeometryFromRaw = (raw, texCoords, size, subs,
+                         sphereize, flipNormals, quads=false) => {
+  var j, i, X, Y, Z, b, l
+  var a = []
+  var f = []
+  var e = raw
+  var geometry = []
+  
+  subbed(subs + 1, 1, sphereize, e, texCoords).map(v => {
+    v.verts.map(q=>{
+      X = q[0] *= size //  (sphereize ? .5 : 1.5)
+      Y = q[1] *= size //  (sphereize ? .5 : 1.5)
+      Z = q[2] *= size //  (sphereize ? .5 : 1.5)
+    })
+    
+    if(quads){
+      a = [...a, v.verts[0],v.verts[2],v.verts[1],
+                 v.verts[2],v.verts[0],v.verts[3]]
+      f = [...f, v.uvs[0],v.uvs[2],v.uvs[1],
+                 v.uvs[2],v.uvs[0],v.uvs[3]]
+    }else{
+      a = [...a, ...v.verts]
+      f = [...f, ...v.uvs]
+    }
+  })
+  
+  for(i = 0; i < a.length; i++){
+    var normal
+    j = i/3 | 0
+    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
+    if(!(i%3)){
+      normal = Normal(b, true)
+      if(!flipNormals){
+        normal[3] = normal[0] + (normal[0]-normal[3])
+        normal[4] = normal[1] + (normal[1]-normal[4])
+        normal[5] = normal[2] + (normal[2]-normal[5])
+      }
+    }
+    l = flipNormals ? a.length - i - 1 : i
+    geometry = [...geometry, {
+      position: a[l],
+      normal: [[normal[3] - normal[0]], [normal[4] - normal[1]], [normal[5] - normal[2]]],
+      texCoord: f[l],
+    }]
+  }
+  return {
+    geometry
+  }
+}
 
 const subbed = (subs, size, sphereize, shape, texCoords) => {
   var base, baseTexCoords, l, X, Y, Z
@@ -1242,9 +1265,9 @@ const subbed = (subs, size, sphereize, shape, texCoords) => {
           X /= d
           Y /= d
           Z /= d
-          q[0]       = X *= size*1*ip1 + d*ip2
-          q[1]       = Y *= size*1*ip1 + d*ip2
-          if(m) q[2] = Z *= size*1*ip1 + d*ip2
+          q[0]       = X *= ip1 + d*ip2
+          q[1]       = Y *= ip1 + d*ip2
+          if(m) q[2] = Z *= ip1 + d*ip2
         })
       })
     }
@@ -1359,14 +1382,14 @@ const  Cylinder = (size = 1, rw, cl, ls1, ls2, caps=false, flipNormals=false) =>
 
 const Tetrahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   var X, Y, Z, p, tx, ty, ax, ay, az
-  var f, i, j, l, a, b, ct
+  var f, i, j, l, a, b, ct, sz = 1
   var geometry = []
   var ret = []
   a = []
-  let h = size/1.4142/1.25
+  let h = sz/1.4142/1.25
   for(i=3;i--;){
-    X = S(p=Math.PI*2/3*i) * size/1.25
-    Y = C(p) * size/1.25
+    X = S(p=Math.PI*2/3*i) * sz/1.25
+    Y = C(p) * sz/1.25
     Z = h
     a = [...a, [X,Y,Z]]
   }
@@ -1377,12 +1400,12 @@ const Tetrahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     Y = 0
     Z = -h
     a = [...a, [X,Y,Z]]
-    X = S(p=Math.PI*2/3*j) * size/1.25
-    Y = C(p) * size/1.25
+    X = S(p=Math.PI*2/3*j) * sz/1.25
+    Y = C(p) * sz/1.25
     Z = h
     a = [...a, [X,Y,Z]]
-    X = S(p=Math.PI*2/3*(j+1)) * size/1.25
-    Y = C(p) * size/1.25
+    X = S(p=Math.PI*2/3*(j+1)) * sz/1.25
+    Y = C(p) * sz/1.25
     Z = h
     a = [...a, [X,Y,Z]]
     ret = [...ret, a]
@@ -1424,61 +1447,28 @@ const Tetrahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     texCoords = [...texCoords, a]
   }
   
-  a = []
-  f = []
-  subbed(subs + 1, 1, sphereize, e, texCoords).map(v => {
-    v.verts.map(q=>{
-      X = q[0] *= size //  9
-      Y = q[1] *= size //  9
-      Z = q[2] *= size //  9
-    })
-    
-    a = [...a, ...v.verts]
-    f = [...f, ...v.uvs]
-  })
-  
-  for(i = 0; i < a.length; i++){
-    var normal
-    j = i/3 | 0
-    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
-    if(!(i%3)){
-      normal = Normal(b, true)
-      if(!flipNormals){
-        normal[3] = normal[0] + (normal[0]-normal[3])
-        normal[4] = normal[1] + (normal[1]-normal[4])
-        normal[5] = normal[2] + (normal[2]-normal[5])
-      }
-    }
-    l = flipNormals ? a.length - i - 1 : i
-    geometry = [...geometry, {
-      position: a[l],
-      normal,
-      texCoord: f[l],
-    }]
-  }
-  return {
-    geometry
-  }
-}
+  return GeometryFromRaw(e, texCoords, size, subs,
+                         sphereize, flipNormals, false)
+ }
 
 const Octahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   var X, Y, Z, p, tx, ty
-  var f, i, j, l, a, b
+  var f, i, j, l, a, b, sz = 1
   var geometry = []
   var ret = []
-  let h = size/1.25
+  let h = sz/1.25
   for(j=8;j--;){
     a = []
     X = 0
     Y = 0
     Z = h * (j<4?-1:1)
     a = [...a, [X,Y,Z]]
-    X = S(p=Math.PI*2/4*j) * size/1.25
-    Y = C(p) * size/1.25
+    X = S(p=Math.PI*2/4*j) * sz/1.25
+    Y = C(p) * sz/1.25
     Z = 0
     a = [...a, [X,Y,Z]]
-    X = S(p=Math.PI*2/4*(j+1)) * size/1.25
-    Y = C(p) * size/1.25
+    X = S(p=Math.PI*2/4*(j+1)) * sz/1.25
+    Y = C(p) * sz/1.25
     Z = 0
     a = [...a, [X,Y,Z]]
     ret = [...ret, a]
@@ -1501,41 +1491,8 @@ const Octahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     texCoords = [...texCoords, a]
   }
   
-  a = []
-  f = []
-  subbed(subs + 1, 1, sphereize, e, texCoords).map(v => {
-    v.verts.map(q=>{
-      X = q[0] *= size //  9
-      Y = q[1] *= size //  9
-      Z = q[2] *= size //  9
-    })
-    
-    a = [...a, ...v.verts]
-    f = [...f, ...v.uvs]
-  })
-  
-  for(i = 0; i < a.length; i++){
-    var normal
-    j = i/3 | 0
-    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
-    if(!(i%3)){
-      normal = Normal(b, true)
-      if(!flipNormals){
-        normal[3] = normal[0] + (normal[0]-normal[3])
-        normal[4] = normal[1] + (normal[1]-normal[4])
-        normal[5] = normal[2] + (normal[2]-normal[5])
-      }
-    }
-    l = flipNormals ? a.length - i - 1 : i
-    geometry = [...geometry, {
-      position: a[l],
-      normal,
-      texCoord: f[l],
-    }]
-  }
-  return {
-    geometry
-  }
+  return GeometryFromRaw(e, texCoords, size, subs,
+                         sphereize, flipNormals, false)
 }
 
     
@@ -1579,9 +1536,9 @@ const Icosahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   for(j=3;j--;ret=[...ret, b])for(b=[],i=4;i--;) b = [...b, [a[i][j],a[i][(j+1)%3],a[i][(j+2)%3]]]
   ret.map(v=>{
     v.map(q=>{
-      q[0]*=size/2.25
-      q[1]*=size/2.25
-      q[2]*=size/2.25
+      q[0]*=1/2.25
+      q[1]*=1/2.25
+      q[2]*=1/2.25
     })
   })
   cp = structuredClone(ret)
@@ -1618,48 +1575,14 @@ const Icosahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     texCoords = [...texCoords, a]
   }
   
-  a = []
-  f = []
-  subbed(subs + 1, 1, sphereize, e, texCoords).map(v => {
-    v.verts.map(q=>{
-      X = q[0] *= size //  9
-      Y = q[1] *= size //  9
-      Z = q[2] *= size // 9
-    })
-    
-    a = [...a, ...v.verts]
-    f = [...f, ...v.uvs]
-  })
-  
-  for(i = 0; i < a.length; i++){
-    var normal
-    j = i/3 | 0
-    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
-    if(!(i%3)){
-      normal = Normal(b, true)
-      if(!flipNormals){
-        normal[3] = normal[0] + (normal[0]-normal[3])
-        normal[4] = normal[1] + (normal[1]-normal[4])
-        normal[5] = normal[2] + (normal[2]-normal[5])
-      }
-    }
-    l = flipNormals ? a.length - i - 1 : i
-    geometry = [...geometry, {
-      position: a[l],
-      normal,
-      texCoord: f[l],
-    }]
-  }
-  return {
-    geometry
-  }
+  return GeometryFromRaw(e, texCoords, size, subs,
+                         sphereize, flipNormals, false)
 }
 
 const Dodecahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   var i, X, Y, Z, d1, b, p, r, tx, ty, f, i, j, l
   var ret = []
   var a = []
-  var geometry = []
   let mind = -6e6
   for(i=5;i--;){
     X=S(p=Math.PI*2/5*i + Math.PI/5)
@@ -1763,51 +1686,8 @@ const Dodecahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     texCoords = [...texCoords, a]
   }
   
-  a = []
-  f = []
-  subbed(subs + 1, 1, sphereize, e, texCoords).map(v => {
-    v.verts.map(q=>{
-      X = q[0] *= size //  (sphereize ? .5 : 1.5)
-      Y = q[1] *= size //  (sphereize ? .5 : 1.5)
-      Z = q[2] *= size //  (sphereize ? .5 : 1.5)
-    })
-    
-    /*v.verts.map(q=>{
-      var r = R(...q, {x:0, y:0, z:0,
-                         roll:  0,
-                         pitch: 0,
-                         yaw:   .01})
-      q[0] = r[0]
-      q[1] = r[1]
-      q[2] = r[2]
-    })*/
-    
-    a = [...a, ...v.verts]
-    f = [...f, ...v.uvs]
-  })
-  
-  for(i = 0; i < a.length; i++){
-    var normal
-    j = i/3 | 0
-    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
-    if(!(i%3)){
-      normal = Normal(b, true)
-      if(!flipNormals){
-        normal[3] = normal[0] + (normal[0]-normal[3])
-        normal[4] = normal[1] + (normal[1]-normal[4])
-        normal[5] = normal[2] + (normal[2]-normal[5])
-      }
-    }
-    l = flipNormals ? a.length - i - 1 : i
-    geometry = [...geometry, {
-      position: a[l],
-      normal,
-      texCoord: f[l],
-    }]
-  }
-  return {
-    geometry
-  }
+  return GeometryFromRaw(e, texCoords, size / Math.max(1, (2 - sphereize)), subs,
+                         sphereize, flipNormals)
 }
 
 
@@ -1837,43 +1717,9 @@ const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
   }
   
   
-  a = []
-  f = []
-  subbed(subs + 1, 1, sphereize, e, texCoords).map(v => {
-    v.verts.map(q=>{
-      X = q[0] *= size
-      Y = q[1] *= size
-      Z = q[2] *= size
-    })
-    // triangulate
-    a = [...a, v.verts[0],v.verts[2],v.verts[1],
-               v.verts[2],v.verts[0],v.verts[3]]
-    f = [...f, v.uvs[0],v.uvs[2],v.uvs[1],
-               v.uvs[2],v.uvs[0],v.uvs[3]]
-  })
-  
-  for(i = 0; i < a.length; i++){
-    var normal
-    j = i/3 | 0
-    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
-    if(!(i%3)){
-      normal = Normal(b, true)
-      if(!flipNormals){
-        normal[3] = normal[0] + (normal[0]-normal[3])
-        normal[4] = normal[1] + (normal[1]-normal[4])
-        normal[5] = normal[2] + (normal[2]-normal[5])
-      }
-    }
-    l = flipNormals ? a.length - i - 1 : i
-    geometry = [...geometry, {
-      position: a[l],
-      normal,
-      texCoord: f[l],
-    }]
-  }
-  return {
-    geometry
-  }
+  return GeometryFromRaw(e, texCoords, size / 1.2, subs,
+                         sphereize, flipNormals, true)
+                         
 }
 
 const IsPowerOf2 = (v, d=0) => {

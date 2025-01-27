@@ -60,7 +60,7 @@
     
         var rendererOptions = {
           fov: 1500,
-          ambientLight: 1,
+          ambientLight: .5,
           x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0,
           margin: 10, attachToBody: true,
           context: {
@@ -78,44 +78,44 @@
           {
             uniform: {
               type: 'reflection',
-              map: 'https://srmcgann.github.io/skyboxes3/HDRI/fantasy1.jpg',
-              value: .25,
+              map: 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg',
+              value: 1,
             },
           },
           {
             uniform: {
               type: 'phong',
-              value: .75,
+              value: 1,
             },
           },
         ]
         var shader = await Coordinates.BasicShader(renderer, shaderOptions)
         
-        renderer.z = 60
+        renderer.z = 20
         
         Coordinates.AnimationLoop(renderer, 'Draw')
         
         let geos = []
-        let cl = 5
-        let rw = 3
+        let cl = 1
+        let rw = 1
         let br = 1
         let sp = 30
         
-        let size, subs, sphereize
+        let size, subs, sphereize, flatShading
         let equirectangular, invertNormals, showNormals
         let shapeType
         await Array(cl*rw*br).fill().map(async (v, i) => {
-          switch(i%5){
-            case 0: shapeType = 'tetrahedron'; break
+          switch(i%1){
             case 1: shapeType = 'cube'; break
-            case 2: shapeType = 'octahedron'; break
+            case 0: shapeType = 'octahedron'; break
+            case 2: shapeType = 'tetrahedron'; break
             case 3: shapeType = 'dodecahedron'; break
             case 4: shapeType = 'icosahedron'; break
           }
           let geo = await Coordinates.LoadGeometry(renderer, shapeType,
-                            size=5, subs=1, sphereize=0,
+                            size=20, subs=2, sphereize=0,
                             equirectangular=false, invertNormals=false,
-                            showNormals=false)
+                            flatShading=true, showNormals=true)
           geo.x = ((i%cl)-cl/2 + .5) * sp
           geo.y = (((i/cl|0)%rw) - rw/2 + .5) * sp
           geo.z = ((i/cl/rw|0)-br/2 + .5) * sp
@@ -127,7 +127,7 @@
         
         await geos.map(async (geometry, idx) => {
           let tex
-          switch(idx%5){
+          switch(idx%1){
             case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
             //case 0: tex = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg'; break
             //case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
@@ -149,7 +149,7 @@
           var X, Y, Z, e
           renderer.Clear()
           
-          renderer.z = Math.min(60, Math.max(0, (.3 + C(t/8))*60))
+          //renderer.z = Math.min(90, Math.max(0, (.3 + C(t/8))*200))
           
           geos.map(geometry => {
             if(1) for(let i = 0; i<geometry.vertices.length; i+=3){
