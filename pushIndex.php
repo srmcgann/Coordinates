@@ -22,7 +22,7 @@ $file = <<<'FILE'
        *  add '# tiling (x/y)' option
        ✔  move camera into vertex shader
        ✔  create pseudo-phong shader
-       *  add 'reflectivity' & texture input for it
+       ✔  add 'reflectivity' & texture input for it
        *  flat/smooth shading
        *  integrate optional effect shaders
 
@@ -61,7 +61,7 @@ $file = <<<'FILE'
       const main = (async () => {
     
         var rendererOptions = {
-          fov: 700,
+          fov: 1500,
           ambientLight: 1,
           x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0,
           margin: 10, attachToBody: true,
@@ -80,8 +80,8 @@ $file = <<<'FILE'
           {
             uniform: {
               type: 'reflection',
-              map: 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg',
-              value: .5,
+              map: 'https://srmcgann.github.io/skyboxes3/HDRI/fantasy1.jpg',
+              value: .25,
             },
           },
           {
@@ -93,22 +93,29 @@ $file = <<<'FILE'
         ]
         var shader = await Coordinates.BasicShader(renderer, shaderOptions)
         
-        renderer.z = 16
+        renderer.z = 60
         
         Coordinates.AnimationLoop(renderer, 'Draw')
         
         let geos = []
-        let cl = 1
-        let rw = 1
+        let cl = 5
+        let rw = 3
         let br = 1
-        let sp = 27
+        let sp = 30
         
         let size, subs, sphereize
         let equirectangular, invertNormals, showNormals
-        
+        let shapeType
         await Array(cl*rw*br).fill().map(async (v, i) => {
-          let geo = await Coordinates.LoadGeometry(renderer, i%2 ? 'cube' : 'dodecahedron',
-                            size=5, subs=3, sphereize=-2.5,
+          switch(i%5){
+            case 0: shapeType = 'tetrahedron'; break
+            case 1: shapeType = 'cube'; break
+            case 2: shapeType = 'octahedron'; break
+            case 3: shapeType = 'dodecahedron'; break
+            case 4: shapeType = 'icosahedron'; break
+          }
+          let geo = await Coordinates.LoadGeometry(renderer, shapeType,
+                            size=5, subs=1, sphereize=0,
                             equirectangular=false, invertNormals=false,
                             showNormals=false)
           geo.x = ((i%cl)-cl/2 + .5) * sp
@@ -144,7 +151,7 @@ $file = <<<'FILE'
           var X, Y, Z, e
           renderer.Clear()
           
-          renderer.z = Math.min(30, Math.max(0, (.3 + C(t/4))*40))
+          renderer.z = Math.min(60, Math.max(0, (.3 + C(t/8))*60))
           
           geos.map(geometry => {
             if(1) for(let i = 0; i<geometry.vertices.length; i+=3){
@@ -155,7 +162,7 @@ $file = <<<'FILE'
               e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
                                         roll:  0,
                                         pitch: .005,
-                                        yaw:   C(t) * .02}, false)
+                                        yaw:   C(t/2) * .02 + .01}, false)
               geometry.vertices[i+0] = e[0]
               geometry.vertices[i+1] = e[1]
               geometry.vertices[i+2] = e[2]
@@ -168,7 +175,7 @@ $file = <<<'FILE'
               e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
                                         roll:  0,
                                         pitch: .005,
-                                        yaw:   C(t) * .02}, false)
+                                        yaw:   C(t/2) * .02 + .01}, false)
               geometry.normals[i+0] = e[0]
               geometry.normals[i+1] = e[1]
               geometry.normals[i+2] = e[2]
