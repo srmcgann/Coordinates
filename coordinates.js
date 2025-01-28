@@ -120,27 +120,27 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.activeTexture(ctx.TEXTURE0)
       ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
       
-      ctx.uniform1f(dset.locT,             ret.t)
-      ctx.uniform1f(dset.locAmbientLight,  ret.ambientLight)
-      ctx.uniform2f(dset.locResolution,    ret.width, ret.height)
-      ctx.uniform1f(dset.locCamX,          ret.x)
-      ctx.uniform1f(dset.locCamY,          ret.y)
-      ctx.uniform1f(dset.locCamZ,          ret.z)
-      ctx.uniform1f(dset.locGeoX,          geometry.x)
-      ctx.uniform1f(dset.locGeoY,          geometry.y)
-      ctx.uniform1f(dset.locGeoZ,          geometry.z)
-      ctx.uniform1f(dset.locFov,           ret.fov)
-      ctx.uniform1f(dset.locFlatShading,   geometry.flatShading ? 1.0 : 0.0)
-      ctx.uniform1f(dset.locRenderNormals, 0)
+      ctx.uniform1f(dset.locT,               ret.t)
+      ctx.uniform1f(dset.locAmbientLight,    ret.ambientLight)
+      ctx.uniform2f(dset.locResolution,      ret.width, ret.height)
+      ctx.uniform1f(dset.locCamX,            ret.x)
+      ctx.uniform1f(dset.locCamY,            ret.y)
+      ctx.uniform1f(dset.locCamZ,            ret.z)
+      ctx.uniform1f(dset.locGeoX,            geometry.x)
+      ctx.uniform1f(dset.locGeoY,            geometry.y)
+      ctx.uniform1f(dset.locGeoZ,            geometry.z)
+      ctx.uniform1f(dset.locFov,             ret.fov)
+      ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
+      ctx.uniform1f(dset.locRenderNormals,   0)
       
       dset.optionalUniforms.map(uniform => {
         if(typeof uniform?.loc === 'object'){
-          ctx[uniform.dataType](uniform.loc,         uniform.value)
+          ctx[uniform.dataType](uniform.loc,      uniform.value)
+          ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
           switch(uniform.name){
             case 'reflection':
               ctx.uniform1i(uniform.locRefTexture, 1)
               ctx.activeTexture(ctx.TEXTURE1)
-              //ctx[uniform.dataType](uniform.loc,         1)
               ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
             break
           }
@@ -150,8 +150,6 @@ const Renderer = (width = 1920, height = 1080, options) => {
       
       // bind buffers
       
-      // uvs - (unless these are changes they needn't be uncommented)
-
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
@@ -164,6 +162,17 @@ const Renderer = (width = 1920, height = 1080, options) => {
       // vertices
 
         //ctx.uniform1f(dset.locRenderNormals, 1.0)
+
+
+      /*geometry.normalVecs    = []
+      for(var i=0; i<geometry.normals.length; i+=3){
+        let l = i/6|0
+        let X = geometry.normals[i*2+3] - geometry.normals[i*2+0]
+        let Y = geometry.normals[i*2+4] - geometry.normals[i*2+1]
+        let Z = geometry.normals[i*2+5] - geometry.normals[i*2+2]
+        geometry.normalVecs = [...geometry.normalVecs, X, Y, Z]
+      }*/
+
         
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
@@ -171,7 +180,9 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nVecIndices, ctx.STATIC_DRAW)
       ctx.vertexAttribPointer(dset.locVecNormal, 3, ctx.FLOAT, true, 0, 0)
       ctx.enableVertexAttribArray(dset.locVecNormal)
-      ctx.drawElements(ctx.POINTS, geometry.normalVecs.length/3|0, ctx.UNSIGNED_SHORT,0)
+      //ctx.drawElements(ctx.POINTS, geometry.normalVecs.length/3|0, ctx.UNSIGNED_SHORT,0)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
         
 
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
@@ -316,7 +327,7 @@ const R = (X,Y,Z, cam, m=false) => {
   return [X, Y, Z]
 }
 
-const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equirectangular=false, flipNormals=false, flatShading=false, showNormals=false, url='') => {
+const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equirectangular=false, flipNormals=false, showNormals=false, url='') => {
 
   var vertex_buffer, Vertex_Index_Buffer
   var normal_buffer, Normal_Index_Buffer
@@ -387,86 +398,17 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
     break
   }
   normalVecs    = []
-  console.log(normals)
-  for(i=0; i<normals.length; i+=2){
-    normalVecs = [...normalVecs, normals[i+1] - normals[i+0]]
+  for(var i=0; i<normals.length; i+=3){
+    let l = i/6|0
+    let X = normals[i*2+3] - normals[i*2+0]
+    let Y = normals[i*2+4] - normals[i*2+1]
+    let Z = normals[i*2+5] - normals[i*2+2]
+    normalVecs = [...normalVecs, X, Y, Z]
   }
-  
-  if(equirectangular){
-    var op
-    var v = vertices
-    var n = normals
-    for(var i = 0; i < vertices.length; i+=3){
-      
-      var idx = i/3|0
-      var split = false
-
-      var poly
-      var ax=0, az=0
-      var pidx = (i/9|0)*9;
-      (poly = [
-        [v[pidx+0],v[pidx+1],v[pidx+2]],
-        [v[pidx+3],v[pidx+4],v[pidx+5]],
-        [v[pidx+6],v[pidx+7],v[pidx+8]]
-      ]).map((v, i) => {
-        var X1 = poly[i][0]
-        var Z1 = poly[i][2]
-        var X2 = poly[(i+1)%3][0]
-        var Z2 = poly[(i+1)%3][2]
-        var tp1 = Math.atan2(X1, Z1)
-        var tp2 = Math.atan2(X2, Z2)
-        
-        ax += X1
-        az += Z1
-        
-        //if(Math.abs(tp1 - tp2) > Math.PI) split = true
-      })
-      
-      ax /= 3
-      az /= 3
-
-      var vidx = idx*3
-      var vx = v[vidx+0]
-      var vy = v[vidx+1]
-      var vz = v[vidx+2]
-
-      var nidx = (i/6|0)*6;
-      var nx = n[nidx+3] - n[nidx+0]
-      var ny = n[nidx+4] - n[nidx+1]
-      var nz = n[nidx+5] - n[nidx+2]
-
-      //var p = flatShading ? Math.atan2(nx, nz) : Math.atan2(vx, vz)
-      var p = Math.atan2(vx, vz)
-      if(Math.abs(p) > Math.PI/2 && (Math.abs(vx) < .0001 || Math.abs(ax) < .0001)) split = true
-
-      var p1 = (p + Math.PI) / Math.PI / 2 / 1 //+ .5
-      var p2
-      if(0&&flatShading){
-        p2 = Math.acos(ny / (Math.hypot(nx, ny, nz)+.00001)) / Math.PI / 1 //+ .5
-      }else{
-        p2 = Math.acos(vy / (Math.hypot(vx, vy, vz)+.00001)) / Math.PI //+ .5
-      }
-      var tidx = idx * 2
-
-      uvs[tidx+0] = p1
-      uvs[tidx+1] = p2
-      if(split){
-        if(ax > .001){  
-          uvs[tidx+0] = vx > .0001 ? p1 : 1
-        }
-        else if(ax < -.001){
-          uvs[tidx+0] = 0
-        }else{
-          uvs[tidx+0] = vx > .001 ? p1 : (vx < -.001 ? p1 + 1 : 1)
-        }
-      }
-    }
-  }
-
   
   vertices   = new Float32Array(vertices)
   normals    = new Float32Array(normals)
-  normalVecs = new Float32Array(normals)
+  normalVecs = new Float32Array(normalVecs)
   uvs        = new Float32Array(uvs)
   
   
@@ -523,9 +465,10 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
     vertex_buffer, Vertex_Index_Buffer,
     normal_buffer, Normal_Index_Buffer,
     normalVec_buffer, NormalVec_Index_Buffer,
+    nVecIndices, equirectangular,
     uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices,
-    showNormals, flatShading
+    showNormals
   }
 }
 
@@ -566,9 +509,10 @@ const BindImage = async (gl, image, binding) => {
   gl.generateMipmap(gl.TEXTURE_2D)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-  //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  
+  //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   //gl.activeTexture(gl.TEXTURE0)
 }
 
@@ -593,8 +537,8 @@ var BasicShader = async (renderer, options=[]) => {
     locNormal: null,
     locTexture: null,
     locPosition: null,
+    flatShading: null,
     locNormalVec: null,
-    locflatShading: null,
     locResolution: null,
     locRenderNormals: null,
     optionalUniforms: [],
@@ -606,69 +550,67 @@ var BasicShader = async (renderer, options=[]) => {
         case 'uniform':
           switch(option.uniform.type){
             case 'reflection':
-              var uniformOption = {
-                name:              option.uniform.type,
-                map:               option.uniform.map,
-                loc:               'locReflection',
-                value:             option.uniform.value,
-                dataType:          'uniform1f',
-                vertDeclaration:   `
-                  varying float refheading;
-                  varying float refelevation;
-                `,
-                vertCode:          `
-                  px = flatShading == 1.0 ? normalVec.x : position.x;
-                  py = flatShading == 1.0 ? normalVec.y : position.y;
-                  pz = flatShading == 1.0 ? normalVec.z : position.z;
-                  float refp1 = atan(px, pz);
-                  refheading   = sin(refp1) / 2.0;
-                  refelevation = acos(py / sqrt(px * px + py * py + pz* pz)) / M_PI * 2.0 - 1.5;
-                `,
-                fragDeclaration:   `
-                  varying float refheading;
-                  varying float refelevation;
-                  uniform float reflection;
-                  uniform sampler2D reflectionMap;
-                `,
-                fragCode:          `
-                  mixColorIp = reflection;
-                  baseColorIp = 1.0 - mixColorIp;
-                  mixColor = vec4(texture2D( reflectionMap, vec2(refheading, refelevation)).rgb, 1.0);
-                `,
+              if(typeof option.uniform?.enabled == 'undefined' ||
+                 !!option.uniform.enabled){
+                var uniformOption = {
+                  name:                option.uniform.type,
+                  map:                 option.uniform.map,
+                  loc:                 'locReflection',
+                  value:               option.uniform.value,
+                  flatShading:         option.uniform.flatShading,
+                  flatShadingUniform:  'refFlatShading',
+                  dataType:            'uniform1f',
+                  vertDeclaration:     `
+                  `,
+                  vertCode:            `
+                  `,
+                  fragDeclaration:     `
+                    uniform float reflection;
+                    uniform float refFlatShading;
+                    uniform sampler2D reflectionMap;
+                  `,
+                  fragCode:            `
+                    mixColorIp = reflection;
+                    baseColorIp = 1.0 - mixColorIp;
+                    vec2 refCoords = Coords(refFlatShading);
+                    mixColor = vec4(texture2D( reflectionMap, vec2(refCoords.x, refCoords.y)).rgb, 1.0);
+                  `,
+                }
+                dataset.optionalUniforms.push( uniformOption )
               }
-              dataset.optionalUniforms.push( uniformOption )
             break
             case 'phong':
-              var uniformOption = {
-                name:              option.uniform.type,
-                loc:               'locPhong',
-                value:             option.uniform.value,
-                dataType:          'uniform1f',
-                vertDeclaration:   `
-                  uniform float phong;
-                  varying float heading;
-                  varying float elevation;
-                `,
-                vertCode:          `
-                  px = flatShading == 1.0 ? normalVec.x : position.x;
-                  py = flatShading == 1.0 ? normalVec.y : position.y;
-                  pz = flatShading == 1.0 ? normalVec.z : position.z;
-                  float p1 = atan(px, pz);
-                  heading   = 1.0 + sin(p1 - M_PI / 2.0 + .33) * 2.0;
-                  elevation = acos(position.y / sqrt(px * px + py * py+ pz * pz));
-                `,
-                fragDeclaration:   `
-                  uniform float phong;
-                  varying float heading;
-                  varying float elevation;
-                `,
-                fragCode:          `
-                  light = light * 10.0;
-                  colorMag = light + pow((1.0+heading) * (cos(elevation-1.222) + 1.0), 12.0) / 40000000000.0 * phong;
-                  light = max(light, colorMag);
-                `,
+              if(typeof option.uniform?.enabled == 'undefined' ||
+                 !!option.uniform.enabled){
+                var uniformOption = {
+                  name:                option.uniform.type,
+                  loc:                 'locPhong',
+                  value:               option.uniform.value,
+                  flatShading:         option.uniform.flatShading,
+                  flatShadingUniform:  'phongFlatShading',
+                  dataType:            'uniform1f',
+                  vertDeclaration:     `
+                  `,
+                  vertCode:            `
+                  `,
+                  fragDeclaration:     `
+                    uniform float phong;
+                    uniform float phongFlatShading;
+                  `,
+                  fragCode:            `
+                    light = light * 10.0;
+                    float px = phongFlatShading == 1.0 ? nVec.x : fPos.x;
+                    float py = phongFlatShading == 1.0 ? nVec.y : fPos.y;
+                    float pz = phongFlatShading == 1.0 ? nVec.z : fPos.z;
+                    float p1 = atan(px, pz);
+                    float phongP1   = 1.0 + sin(p1 - M_PI / 2.0 + .33) * 2.0;
+                    float phongP2 = acos(py / sqrt(px * px + py * py+ pz * pz));
+                    colorMag = light + pow((1.0+phongP1) * (cos(phongP2-1.222) + 1.0), 12.0) / 40000000000.0 * phong;
+                    light = max(light, colorMag);
+                  `,
+                }
+                dataset.optionalUniforms.push( uniformOption )
               }
-              dataset.optionalUniforms.push( uniformOption )
             break
           }
         break
@@ -708,7 +650,6 @@ var BasicShader = async (renderer, options=[]) => {
     attribute vec2 uv;
     ${uVertDeclaration}
     uniform float t;
-    uniform float flatShading;
     uniform float ambientLight;
     uniform float camX;
     uniform float camY;
@@ -717,11 +658,14 @@ var BasicShader = async (renderer, options=[]) => {
     uniform float geoY;
     uniform float geoZ;
     uniform float fov;
+    uniform float equirectangular;
     uniform float renderNormals;
     attribute vec3 position;
     attribute vec3 normal;
     attribute vec3 normalVec;
     varying vec2 vUv;
+    varying vec3 nVec;
+    varying vec3 fPos;
     varying float skip;
     uniform vec2 resolution;
     
@@ -739,6 +683,8 @@ var BasicShader = async (renderer, options=[]) => {
         cz = position.z;
       }
       vUv = uv;
+      nVec = normalVec;
+      fPos = position;
       
       float camz = camZ / 1e3 * pow(5.0, (log(fov) / 1.609438));
       
@@ -747,7 +693,7 @@ var BasicShader = async (renderer, options=[]) => {
         float X = ((cx + camX + geoX) / Z * fov / resolution.x);
         float Y = ((cy + camY + geoY) / Z * fov / resolution.y);
         //gl_PointSize = 100.0 / Z;
-        gl_Position = vec4(X, Y, Z/1000000.0, 1.0);
+        gl_Position = vec4(X, Y, Z/10000.0, 1.0);
         skip = 0.0;
       }else{
         skip = 1.0;
@@ -763,8 +709,11 @@ var BasicShader = async (renderer, options=[]) => {
     uniform float flatShading;
     uniform float ambientLight;
     uniform float renderNormals;
+    uniform float equirectangular;
     uniform sampler2D baseTexture;
     varying vec2 vUv;
+    varying vec3 nVec;
+    varying vec3 fPos;
     varying float skip;
 
     vec4 merge (vec4 col1, vec4 col2, float ip1, float ip2){
@@ -772,8 +721,24 @@ var BasicShader = async (renderer, options=[]) => {
       col2.a *= ip2;
       return vec4(col1.rgb * col1.a + col2.rgb * col2.a, 1.0);
     }
+    
+    vec2 Coords(float flatShading) {
+      if(equirectangular == 1.0){
+        float p;
+        float p2;
+        p = flatShading == 1.0 ? atan(nVec.x, nVec.z) : atan(fPos.x, fPos.z);
+        float p1 = p / M_PI / 2.0; //min(.9, max(.1, (p + M_PI) / M_PI / 2.0));
+        p2 = flatShading == 1.0 ?
+              acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) / M_PI   :
+              p2 = acos(fPos.y / (sqrt(fPos.x*fPos.x + fPos.y*fPos.y + fPos.z*fPos.z)+.00001)) / M_PI;
+        return vec2(p1, p2);
+      }else{
+        return vUv;
+      }
+    }
 
     void main() {
+      vec2 coords = Coords(0.0);
       float mixColorIp = 0.0;
       float baseColorIp = 1.0;
       vec4 mixColor = vec4(0.0, 0.0, 0.0, 0.0);
@@ -785,12 +750,8 @@ var BasicShader = async (renderer, options=[]) => {
           gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
         }else{
           ${uFragCode}
-          vec4 texel;
-          //if(flatShading == 1.0){
-          //  texel = vec4(1.0, 0.0, 0.0, 1.0);
-          //}else{
-            texel = texture2D( baseTexture, vUv);
-          //}
+          vec4 texel = texture2D( baseTexture, coords);
+          
           texel = vec4(texel.rgb * (.5 + light/2.0) + light/4.0, 1.0);
           vec4 col = merge(mixColor, texel, mixColorIp, baseColorIp);
           gl_FragColor = vec4(col.rgb * colorMag, alpha);
@@ -814,7 +775,6 @@ var BasicShader = async (renderer, options=[]) => {
     var dset = structuredClone(dataset)
     ret.datasets = [...ret.datasets, dset]
     
-    var flatShading = geometry.flatShading
     dset.program = gl.createProgram()
     
     gl.attachShader(dset.program, vertexShader)
@@ -859,7 +819,6 @@ var BasicShader = async (renderer, options=[]) => {
       gl.enableVertexAttribArray(dset.locNormalVec)
       
       dset.optionalUniforms.map(async (uniform) => {
-        
         switch(uniform.name){
           case 'reflection':
             var image = new Image()
@@ -883,7 +842,11 @@ var BasicShader = async (renderer, options=[]) => {
             gl.activeTexture(gl.TEXTURE1)
             gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
           break
+          break
         }
+        uniform.locFlatShading = gl.getUniformLocation(dset.program, uniform.flatShadingUniform)
+        gl.uniform1f(uniform.locFlatShading , uniform.flatShading ? 1.0 : 0.0)
+        
         
         uniform.loc = gl.getUniformLocation(dset.program, uniform.name)
         gl[uniform.dataType](uniform.loc, uniform.value)
@@ -892,8 +855,8 @@ var BasicShader = async (renderer, options=[]) => {
       dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
       gl.uniform2f(dset.locResolution, renderer.width, renderer.height)
 
-      dset.locFlatShading = gl.getUniformLocation(dset.program, "flatShading")
-      gl.uniform1f(dset.locFlatShading , flatShading ? 1.0 : 0.0)
+      dset.locEquirectangular = gl.getUniformLocation(dset.program, "equirectangular")
+      gl.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
 
       dset.locT = gl.getUniformLocation(dset.program, "t")
       gl.uniform1f(dset.locT, 0)

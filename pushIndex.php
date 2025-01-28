@@ -12,6 +12,7 @@ $file = <<<'FILE'
        * make non-cube UVs equirectangular
        * keep shape generation functions, but add 'precompiled' versions
          for ordinary calls
+       * move rotation function into shader
 
   * subdivision
     └> *  add optional LOD param for all basic geometry
@@ -62,7 +63,7 @@ $file = <<<'FILE'
     
         var rendererOptions = {
           fov: 1500,
-          ambientLight: .5,
+          ambientLight: .25,
           x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0,
           margin: 10, attachToBody: true,
           context: {
@@ -76,18 +77,22 @@ $file = <<<'FILE'
         }
         var renderer = Coordinates.Renderer(1920, 1080, rendererOptions)
         
-        var shaderOptions = [
+        if(1) var shaderOptions = [
           {
             uniform: {
-              type: 'reflection',
-              map: 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg',
-              value: .25,
+              enabled: false,
+              type: 'phong',
+              value: 1,
+              flatShading: true,
             },
           },
           {
             uniform: {
-              type: 'phong',
-              value: 1,
+              enabled: true,
+              type: 'reflection',
+              map: 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg',
+              value: .5,
+              flatShading: true,
             },
           },
         ]
@@ -103,21 +108,21 @@ $file = <<<'FILE'
         let br = 1
         let sp = 30
         
-        let size, subs, sphereize, flatShading
+        let size, subs, sphereize
         let equirectangular, invertNormals, showNormals
         let shapeType
         await Array(cl*rw*br).fill().map(async (v, i) => {
           switch(i%1){
-            case 1: shapeType = 'cube'; break
-            case 0: shapeType = 'octahedron'; break
-            case 2: shapeType = 'tetrahedron'; break
+            case 0: shapeType = 'cube'; break
+            case 1: shapeType = 'tetrahedron'; break
+            case 2: shapeType = 'icosahedron'; break
             case 3: shapeType = 'dodecahedron'; break
-            case 4: shapeType = 'icosahedron'; break
+            case 4: shapeType = 'octahedron'; break
           }
           let geo = await Coordinates.LoadGeometry(renderer, shapeType,
-                            size=20, subs=2, sphereize=0,
-                            equirectangular=false, invertNormals=false,
-                            flatShading=true, showNormals=true)
+                            size=15, subs=3, sphereize=-.5,
+                            equirectangular=true, invertNormals=false,
+                            showNormals=false)
           geo.x = ((i%cl)-cl/2 + .5) * sp
           geo.y = (((i/cl|0)%rw) - rw/2 + .5) * sp
           geo.z = ((i/cl/rw|0)-br/2 + .5) * sp
@@ -130,7 +135,8 @@ $file = <<<'FILE'
         await geos.map(async (geometry, idx) => {
           let tex
           switch(idx%1){
-            case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
+            case 0: tex = 'https://srmcgann.github.io/Coordinates/spectrum_test.jpg'; break
+            //case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
             //case 0: tex = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg'; break
             //case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
             //case 0: tex = 'https://srmcgann.github.io/skyboxes7/HDRI/nebugrid.jpg'; break
@@ -162,7 +168,7 @@ $file = <<<'FILE'
               e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
                                         roll:  0,
                                         pitch: .005,
-                                        yaw:   C(t/2) * .02 + .01}, false)
+                                        yaw:   C(t/2) * .01 + .005}, false)
               geometry.vertices[i+0] = e[0]
               geometry.vertices[i+1] = e[1]
               geometry.vertices[i+2] = e[2]
@@ -175,10 +181,23 @@ $file = <<<'FILE'
               e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
                                         roll:  0,
                                         pitch: .005,
-                                        yaw:   C(t/2) * .02 + .01}, false)
+                                        yaw:   C(t/2) * .01 + .005}, false)
               geometry.normals[i+0] = e[0]
               geometry.normals[i+1] = e[1]
               geometry.normals[i+2] = e[2]
+            }
+
+            if(1) for(let i = 0; i<geometry.normalVecs.length; i+=3){
+              X = geometry.normalVecs[i+0]
+              Y = geometry.normalVecs[i+1]
+              Z = geometry.normalVecs[i+2]
+              e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
+                                        roll:  0,
+                                        pitch: .005,
+                                        yaw:   C(t/2) * .01 + .005}, false)
+              geometry.normalVecs[i+0] = e[0]
+              geometry.normalVecs[i+1] = e[1]
+              geometry.normalVecs[i+2] = e[2]
             }
 
             renderer.Draw(geometry)
