@@ -130,7 +130,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.uniform1f(dset.locGeoY,          geometry.y)
       ctx.uniform1f(dset.locGeoZ,          geometry.z)
       ctx.uniform1f(dset.locFov,           ret.fov)
-      ctx.uniform1f(dset.locFlatShading,   ret.flatShading)
+      ctx.uniform1f(dset.locFlatShading,   geometry.flatShading ? 1.0 : 0.0)
       ctx.uniform1f(dset.locRenderNormals, 0)
       
       dset.optionalUniforms.map(uniform => {
@@ -163,13 +163,16 @@ const Renderer = (width = 1920, height = 1080, options) => {
       
       // vertices
 
-        //ctx.uniform1f(dset.locRenderNormals, 1)
-        ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
-        ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
-        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
-        ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
-        ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, true, 0, 0)
-        ctx.enableVertexAttribArray(dset.locNormal)
+        //ctx.uniform1f(dset.locRenderNormals, 1.0)
+        
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
+      ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
+      ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nVecIndices, ctx.STATIC_DRAW)
+      ctx.vertexAttribPointer(dset.locVecNormal, 3, ctx.FLOAT, true, 0, 0)
+      ctx.enableVertexAttribArray(dset.locVecNormal)
+      ctx.drawElements(ctx.POINTS, geometry.normalVecs.length/3|0, ctx.UNSIGNED_SHORT,0)
+        
 
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
@@ -183,8 +186,8 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       
 
-      // normals
-      if(0&&geometry.showNormals){
+      // normals lines drawn, optionally
+      if(geometry.showNormals){
         ctx.uniform1f(dset.locRenderNormals, 1)
         ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
         ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
@@ -317,14 +320,16 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
 
   var vertex_buffer, Vertex_Index_Buffer
   var normal_buffer, Normal_Index_Buffer
+  var normalVec_buffer, NormalVec_Index_Buffer
   var uv_buffer, UV_Index_Buffer
-  var vIndices, nIndices, uvIndices
+  var vIndices, nIndices, nVecIndices, uvIndices
   const gl = renderer.gl
   var shape
   
-  var vertices = []
-  var normals  = []
-  var uvs      = []
+  var vertices    = []
+  var normals     = []
+  var normalVecs  = []
+  var uvs         = []
   
   switch(shape.toLowerCase()){
     case 'tetrahedron':
@@ -375,11 +380,16 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
       equirectangular = true
       shape = Dodecahedron(size, subs, sphereize, flipNormals)
       shape.geometry.map(v => {
-        vertices = [...vertices, ...v.position]
-        normals  = [...normals,  ...v.normal]
-        uvs      = [...uvs,      ...v.texCoord]
+        vertices    = [...vertices, ...v.position]
+        normals     = [...normals,  ...v.normal]
+        uvs         = [...uvs,      ...v.texCoord]
       })
     break
+  }
+  normalVecs    = []
+  console.log(normals)
+  for(i=0; i<normals.length; i+=2){
+    normalVecs = [...normalVecs, normals[i+1] - normals[i+0]]
   }
   
   if(equirectangular){
@@ -420,10 +430,10 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
       var vy = v[vidx+1]
       var vz = v[vidx+2]
 
-      var nidx = idx //(i/6|0)*6;
-      var nx = n[idx + 0] //n[nidx+3] - n[nidx+0]
-      var ny = n[idx + 1]  //n[nidx+4] - n[nidx+1]
-      var nz = n[idx + 2]  //n[nidx+5] - n[nidx+2]
+      var nidx = (i/6|0)*6;
+      var nx = n[nidx+3] - n[nidx+0]
+      var ny = n[nidx+4] - n[nidx+1]
+      var nz = n[nidx+5] - n[nidx+2]
 
       //var p = flatShading ? Math.atan2(nx, nz) : Math.atan2(vx, vz)
       var p = Math.atan2(vx, vz)
@@ -454,9 +464,10 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
   }
 
   
-  vertices = new Float32Array(vertices)
-  normals  = new Float32Array(normals)
-  uvs      = new Float32Array(uvs)
+  vertices   = new Float32Array(vertices)
+  normals    = new Float32Array(normals)
+  normalVecs = new Float32Array(normals)
+  uvs        = new Float32Array(uvs)
   
   
   // link geometry buffers
@@ -474,6 +485,17 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
   
 
   //normals, indices
+  normalVec_buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, normalVec_buffer)
+  gl.bufferData(gl.ARRAY_BUFFER, normalVecs, gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  nVecIndices = new Uint16Array( Array(normalVecs.length/3).fill().map((v,i)=>i) )
+  NormalVec_Index_Buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, NormalVec_Index_Buffer)
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, nVecIndices, gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  
+  //normal lines for drawing, indices
   normal_buffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
   gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
@@ -497,9 +519,10 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
   
   return {
-    vertices, normals, uvs,
+    vertices, normals, normalVecs, uvs,
     vertex_buffer, Vertex_Index_Buffer,
     normal_buffer, Normal_Index_Buffer,
+    normalVec_buffer, NormalVec_Index_Buffer,
     uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices,
     showNormals, flatShading
@@ -570,6 +593,8 @@ var BasicShader = async (renderer, options=[]) => {
     locNormal: null,
     locTexture: null,
     locPosition: null,
+    locNormalVec: null,
+    locflatShading: null,
     locResolution: null,
     locRenderNormals: null,
     optionalUniforms: [],
@@ -577,7 +602,7 @@ var BasicShader = async (renderer, options=[]) => {
   
   options.map(option => {
     Object.keys(option).forEach((key, idx) => {
-      switch(key){
+      switch(key.toLowerCase()){
         case 'uniform':
           switch(option.uniform.type){
             case 'reflection':
@@ -592,9 +617,9 @@ var BasicShader = async (renderer, options=[]) => {
                   varying float refelevation;
                 `,
                 vertCode:          `
-                  px = flatShading == 0.0 ? position.x : normal.x;
-                  py = flatShading == 0.0 ? position.y : normal.y;
-                  pz = flatShading == 0.0 ? position.z : normal.z;
+                  px = flatShading == 1.0 ? normalVec.x : position.x;
+                  py = flatShading == 1.0 ? normalVec.y : position.y;
+                  pz = flatShading == 1.0 ? normalVec.z : position.z;
                   float refp1 = atan(px, pz);
                   refheading   = sin(refp1) / 2.0;
                   refelevation = acos(py / sqrt(px * px + py * py + pz* pz)) / M_PI * 2.0 - 1.5;
@@ -625,9 +650,9 @@ var BasicShader = async (renderer, options=[]) => {
                   varying float elevation;
                 `,
                 vertCode:          `
-                  px = flatShading == 0.0 ? position.x : normal.x;
-                  py = flatShading == 0.0 ? position.y : normal.y;
-                  pz = flatShading == 0.0 ? position.z : normal.z;
+                  px = flatShading == 1.0 ? normalVec.x : position.x;
+                  py = flatShading == 1.0 ? normalVec.y : position.y;
+                  pz = flatShading == 1.0 ? normalVec.z : position.z;
                   float p1 = atan(px, pz);
                   heading   = 1.0 + sin(p1 - M_PI / 2.0 + .33) * 2.0;
                   elevation = acos(position.y / sqrt(px * px + py * py+ pz * pz));
@@ -695,6 +720,7 @@ var BasicShader = async (renderer, options=[]) => {
     uniform float renderNormals;
     attribute vec3 position;
     attribute vec3 normal;
+    attribute vec3 normalVec;
     varying vec2 vUv;
     varying float skip;
     uniform vec2 resolution;
@@ -759,7 +785,12 @@ var BasicShader = async (renderer, options=[]) => {
           gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
         }else{
           ${uFragCode}
-          vec4 texel = texture2D( baseTexture, vUv);
+          vec4 texel;
+          //if(flatShading == 1.0){
+          //  texel = vec4(1.0, 0.0, 0.0, 1.0);
+          //}else{
+            texel = texture2D( baseTexture, vUv);
+          //}
           texel = vec4(texel.rgb * (.5 + light/2.0) + light/4.0, 1.0);
           vec4 col = merge(mixColor, texel, mixColorIp, baseColorIp);
           gl_FragColor = vec4(col.rgb * colorMag, alpha);
@@ -784,7 +815,6 @@ var BasicShader = async (renderer, options=[]) => {
     ret.datasets = [...ret.datasets, dset]
     
     var flatShading = geometry.flatShading
-    
     dset.program = gl.createProgram()
     
     gl.attachShader(dset.program, vertexShader)
@@ -821,6 +851,12 @@ var BasicShader = async (renderer, options=[]) => {
       dset.locNormal = gl.getAttribLocation(dset.program, "normal")
       gl.vertexAttribPointer(dset.locNormal, 3, gl.FLOAT, true, 0, 0)
       gl.enableVertexAttribArray(dset.locNormal)
+      
+      gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normalVec_buffer)
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
+      dset.locNormalVec = gl.getAttribLocation(dset.program, "normalVec")
+      gl.vertexAttribPointer(dset.locNormalVec, 3, gl.FLOAT, true, 0, 0)
+      gl.enableVertexAttribArray(dset.locNormalVec)
       
       dset.optionalUniforms.map(async (uniform) => {
         
@@ -959,7 +995,7 @@ const GeometryFromRaw = (raw, texCoords, size, subs,
     l = flipNormals ? a.length - i - 1 : i
     geometry = [...geometry, {
       position: a[l],
-      normal: [[normal[3] - normal[0]], [normal[4] - normal[1]], [normal[5] - normal[2]]],
+      normal,
       texCoord: f[l],
     }]
   }

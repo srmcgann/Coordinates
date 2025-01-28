@@ -81,7 +81,7 @@ $file = <<<'FILE'
             uniform: {
               type: 'reflection',
               map: 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg',
-              value: 1,
+              value: .25,
             },
           },
           {
