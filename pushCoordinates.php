@@ -895,6 +895,7 @@ var BasicShader = async (renderer, options=[]) => {
               })
               image.onload = async () => await BindImage(gl, image, uniform.refTexture)
             }
+            gl.useProgram(dset.program)
             uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
             gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
             gl.uniform1i(uniform.locRefTexture, 1)
@@ -991,8 +992,7 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
   var geometry = []
   
   var hint = `${shapeType}_${subs}`;
-  
-  (await subbed(subs + 1, 1, sphereize, e, texCoords, hint)).map(v => {
+  await (await subbed(subs + 1, 1, sphereize, e, texCoords, hint)).map(async (v) => {
     v.verts.map(q=>{
       X = q[0] *= size //  (sphereize ? .5 : 1.5)
       Y = q[1] *= size //  (sphereize ? .5 : 1.5)
@@ -1055,25 +1055,38 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
       case 'tetrahedron_0': resolved = true; fileBase = hint; break
       case 'tetrahedron_1': resolved = true; fileBase = hint; break
       case 'tetrahedron_2': resolved = true; fileBase = hint; break
+      case 'tetrahedron_3': resolved = true; fileBase = hint; break
+      case 'tetrahedron_4': resolved = true; fileBase = hint; break
       case 'cube_0': resolved = true; fileBase = hint; break
       case 'cube_1': resolved = true; fileBase = hint; break
       case 'cube_2': resolved = true; fileBase = hint; break
+      case 'cube_3': resolved = true; fileBase = hint; break
+      case 'cube_4': resolved = true; fileBase = hint; break
       case 'octahedron_0': resolved = true; fileBase = hint; break
       case 'octahedron_1': resolved = true; fileBase = hint; break
       case 'octahedron_2': resolved = true; fileBase = hint; break
+      case 'octahedron_3': resolved = true; fileBase = hint; break
+      case 'octahedron_4': resolved = true; fileBase = hint; break
       case 'dodecahedron_0': resolved = true; fileBase = hint; break
       case 'dodecahedron_1': resolved = true; fileBase = hint; break
       case 'dodecahedron_2': resolved = true; fileBase = hint; break
+      case 'dodecahedron_3': resolved = true; fileBase = hint; break
+      case 'dodecahedron_4': resolved = true; fileBase = hint; break
       case 'icosahedron_0': resolved = true; fileBase = hint; break
       case 'icosahedron_1': resolved = true; fileBase = hint; break
       case 'icosahedron_2': resolved = true; fileBase = hint; break
+      case 'icosahedron_3': resolved = true; fileBase = hint; break
+      case 'icosahedron_4': resolved = true; fileBase = hint; break
     }
     if(resolved){
       var url
       url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/${fileBase}.json`
-      await fetch(url).then(res=>res.blob()).then(data => {shape = JSON.parse(URL.createObjectURL(data))})
+      //fetch(url).then(res=>res.json()).then(data => {shape = data})
+      await fetch(url).then(async(res) => await res.json())
+      .then(async(data) => shape = await data)
       url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/${fileBase}uv.json`
-      await fetch(url).then(res=>res.blob()).then(data => {texCoords = JSON.parse(URL.createObjectURL(data))})
+      //fetch(url).then(res=>res.json()).then(data => {texCoords = data})
+      await fetch(url).then(res=>res.json()).then(data => {texCoords = data})
     }
   }
   if(!resolved){
@@ -1347,7 +1360,10 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
       })
     }
   }
-  /*var truncate = shape => {
+
+  /*
+  */
+  var truncate = shape => {
     return shape.map(v=>{
       return v.map(q=>{
         return q.map(val=>Math.round(val*1e4) / 1e4)
@@ -1357,7 +1373,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   
   console.log(JSON.stringify(truncate(shape)))
   console.log(JSON.stringify(truncate(texCoords)))
-  */
+  
   
   if(sphereize){
     var d, val
@@ -1611,6 +1627,7 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   var idx1b, idx2b, idx3b
   var geometry = []
   var ret = []
+
   let B = [
     [[0,3],[1,0],[2,2]],
     [[0,3],[1,0],[1,3]],
@@ -1633,7 +1650,6 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     [[0,1],[1,2],[1,1]],
     [[0,2],[2,0],[0,1]],
   ]
-  //for(p=[1,1],i=38;i--;)p=[...p,p[l=p.length-1]+p[l-1]]
   phi = .5+5**.5/2  //p[l]/p[l-1]
   a = [
     [-phi,-1,0],
@@ -1649,7 +1665,8 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
       q[2]*=1/2.25
     })
   })
-  cp = structuredClone(ret)
+  cp = JSON.parse(JSON.stringify(ret))
+  out=[]
   a = []
   B.map(v=>{
     idx1a = v[0][0]
@@ -1660,10 +1677,9 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     idx3b = v[2][1]
     a = [...a, [cp[idx1a][idx1b],cp[idx2a][idx2b],cp[idx3a][idx3b]]]
   })
-  
-  ret = [...ret, ...a]
-  
-  var e = ret
+  out = [...out, ...a]
+
+  var e = out
   var texCoords = []
   for(i = 0; i < e.length; i++){
     a = []
@@ -1792,7 +1808,7 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
   }
   
   return await GeometryFromRaw(e, texCoords, size / Math.max(1, (2 - sphereize)), subs,
-                         sphereize, flipNormals, shapeType)
+                         sphereize, flipNormals, false, shapeType)
 }
 
 
@@ -1800,7 +1816,6 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
 
 const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
   var p, pi=Math.PI, a, b, l, i, j, k, tx, ty, X, Y, Z
-  var S=Math.sin, C=Math.cos
   var position, texCoord
   var geometry = []
   var e = [], f
@@ -1885,7 +1900,6 @@ export {
   LoadOBJ,
   IsPowerOf2,
 }
-
 
 FILE;
 file_put_contents('../../Coordinates/coordinates.js', $file);

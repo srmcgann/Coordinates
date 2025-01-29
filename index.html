@@ -4,6 +4,8 @@
   ✔ add renderer object
   ✔ add camera object
   ✔ fix FOV
+
+  * cache for API, to include all network-callable items
   
   * shapes
     └> * add shapes (in addtion to Cube)
@@ -53,14 +55,12 @@
   <body>
     <div id="output"></div>
     <script type="module">
-    
     import * as Coordinates from "./coordinates.js"
-      
-      
+    
       const main = (async () => {
     
         var rendererOptions = {
-          fov: 2e3,
+          fov: 1e3,
           ambientLight: 1,
           x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0,
           margin: 10, attachToBody: true,
@@ -86,67 +86,70 @@
           },
           {
             uniform: {
-              enabled: false,
+              enabled: true,
               type: 'reflection',
               map: 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg',
-              value: .7,
+              value: .4,
               flatShading: false,
             },
           },
         ]
         var shader = await Coordinates.BasicShader(renderer, shaderOptions)
         
-        renderer.z = 100
+        renderer.z = 16
         
         Coordinates.AnimationLoop(renderer, 'Draw')
         
         let geos = []
-        let cl = 5
+        let cl = 1
         let rw = 1
         let br = 1
         let sp = 30
-        let subs = 2
+        let subs = 4
         
         let size, sphereize
         let equirectangular, invertNormals, showNormals
         let shapeType
-        await Array(cl*rw*br).fill().map(async (v, i) => {
+        let ct = 0
+        Array(cl*rw*br).fill().map(async (v, i) => {
           switch(i%5){
-            case 0: shapeType = 'tetrahedron'; break
-            case 1: shapeType = 'cube'; break
-            case 2: shapeType = 'octahedron'; break
-            case 3: shapeType = 'dodecahedron'; break
-            case 4: shapeType = 'icosahedron'; break
+            //case 0: shapeType = 'tetrahedron'; break
+            //case 0: shapeType = 'cube'; break
+            //case 0: shapeType = 'octahedron'; break
+            //case 0: shapeType = 'dodecahedron'; break
+            case 0: shapeType = 'icosahedron'; break
           }
-          console.log(shapeType, subs)
           let geo = await Coordinates.LoadGeometry(renderer, shapeType,
                             size=12, subs, sphereize=0,
-                            equirectangular=false, invertNormals=false,
+                            equirectangular=true, invertNormals=false,
                             showNormals=false)
           geo.x = ((i%cl)-cl/2 + .5) * sp
           geo.y = (((i/cl|0)%rw) - rw/2 + .5) * sp
           geo.z = ((i/cl/rw|0)-br/2 + .5) * sp
           geos = [...geos, geo]
-        })
-        
-        //geometries.push( await Coordinates.LoadGeometry(renderer, 'obj', 10, 3, 0, true, true, 'https://srmcgann.github.io/objs/axe.obj') )
-        //geometries.push( await Coordinates.LoadGeometry(renderer, 'dodecahedron', 24, 0, 1, true, true))
-        
-        await geos.map(async (geometry, idx) => {
-          let tex
-          switch(idx%1){
-            //case 0: tex = 'https://srmcgann.github.io/Coordinates/spectrum_test.jpg'; break
-            //case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/pano3.jpg'; break
-            case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
-            //case 0: tex = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg'; break
-            //case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
-            //case 0: tex = 'https://srmcgann.github.io/skyboxes7/HDRI/nebugrid.jpg'; break
-            case 1: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/creepy_mansion.jpg'; break
-            case 2: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
-            case 3: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
-            case 4: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/redCluds.jpg'; break
+          if(++ct){ //loaded
+            if(ct == cl*rw*br){
+              //geometries.push( await Coordinates.LoadGeometry(renderer, 'obj', 10, 3, 0, true, true, 'https://srmcgann.github.io/objs/axe.obj') )
+              //geometries.push( await Coordinates.LoadGeometry(renderer, 'dodecahedron', 24, 0, 1, true, true))
+              
+              await geos.map(async (geometry, idx) => {
+                let tex
+                switch(idx%5){
+                  //case 0: tex = 'https://srmcgann.github.io/Coordinates/spectrum_test.jpg'; break
+                  //case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/pano3.jpg'; break
+                  case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
+                  //case 0: tex = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg'; break
+                  //case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
+                  //case 0: tex = 'https://srmcgann.github.io/skyboxes7/HDRI/nebugrid.jpg'; break
+                  case 1: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/creepy_mansion.jpg'; break
+                  case 2: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
+                  case 3: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
+                  case 4: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/redCluds.jpg'; break
+                }
+                await shader.ConnectGeometry(geometry, tex)
+              })
+            }
           }
-          await shader.ConnectGeometry(geometry, tex)
         })
         
         
@@ -158,11 +161,12 @@
           var X, Y, Z, e
           renderer.Clear()
           
-          //renderer.z = Math.min(20, Math.max(0, (.3 + C(t/8))*100))
-          renderer.yaw   = -t/2
-          renderer.pitch = C(t/4) * 2
+          //renderer.z = Math.min(100, Math.max(0, (.3 + C(t/8))*100))
+          renderer.pitch   = -t/2
+          renderer.yaw = C(t/4) * 2
           
           geos.map(geometry => {
+            geometry.yaw += .01
             renderer.Draw(geometry)
           })
 
