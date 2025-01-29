@@ -128,6 +128,9 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.uniform1f(dset.locCamX,            ret.x)
       ctx.uniform1f(dset.locCamY,            ret.y)
       ctx.uniform1f(dset.locCamZ,            ret.z)
+      ctx.uniform1f(dset.locCamRoll,         ret.roll)
+      ctx.uniform1f(dset.locCamPitch,        ret.pitch)
+      ctx.uniform1f(dset.locCamYaw,          ret.yaw)
       ctx.uniform1f(dset.locGeoX,            geometry.x)
       ctx.uniform1f(dset.locGeoY,            geometry.y)
       ctx.uniform1f(dset.locGeoZ,            geometry.z)
@@ -539,7 +542,6 @@ var BasicShader = async (renderer, options=[]) => {
     locNormal: null,
     locTexture: null,
     locPosition: null,
-    flatShading: null,
     locNormalVec: null,
     locResolution: null,
     locRenderNormals: null,
@@ -574,7 +576,14 @@ var BasicShader = async (renderer, options=[]) => {
                   fragCode:            `
                     mixColorIp = reflection;
                     baseColorIp = 1.0 - mixColorIp;
-                    vec2 refCoords = Coords(refFlatShading);
+                    
+                    float refp = refFlatShading == 1.0 ? atan(nVec.x, nVec.z) : atan(fPos.x, fPos.z);
+                    float refP1 = refp / M_PI - .5; // 2.0;
+                    float refP2 = refFlatShading == 1.0 ?
+                          acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) / M_PI   :
+                          acos(fPos.y / (sqrt(fPos.x*fPos.x + fPos.y*fPos.y + fPos.z*fPos.z)+.00001)) / M_PI;
+                    
+                    vec2 refCoords = vec2(refP1, refP2); // Coords(refP1, refP2);
                     mixColor = vec4(texture2D( reflectionMap, vec2(refCoords.x, refCoords.y)).rgb, 1.0);
                   `,
                 }
@@ -604,7 +613,7 @@ var BasicShader = async (renderer, options=[]) => {
                     float px = phongFlatShading == 1.0 ? nVec.x : fPos.x;
                     float py = phongFlatShading == 1.0 ? nVec.y : fPos.y;
                     float pz = phongFlatShading == 1.0 ? nVec.z : fPos.z;
-                    float p1 = atan(px, pz);
+                    float p1 = atan(px, pz) + t * 2.0;
                     float phongP1   = 1.0 + sin(p1 - M_PI / 2.0 + .33) * 2.0;
                     float phongP2 = acos(py / sqrt(px * px + py * py+ pz * pz));
                     colorMag = light + pow((1.0+phongP1) * (cos(phongP2-1.222) + 1.0), 12.0) / 40000000000.0 * phong;
@@ -656,23 +665,43 @@ var BasicShader = async (renderer, options=[]) => {
     uniform float camX;
     uniform float camY;
     uniform float camZ;
+    uniform float camRoll;
+    uniform float camPitch;
+    uniform float camYaw;
     uniform float geoX;
     uniform float geoY;
     uniform float geoZ;
     uniform float fov;
     uniform float equirectangular;
     uniform float renderNormals;
+    uniform vec2 resolution;
     attribute vec3 position;
     attribute vec3 normal;
     attribute vec3 normalVec;
     varying vec2 vUv;
+    varying vec2 uvi;
     varying vec3 nVec;
+    varying vec3 nVeci;
     varying vec3 fPos;
+    varying vec3 fPosi;
     varying float skip;
-    uniform vec2 resolution;
+    
+    
+    vec3 R(float X, float Y, float Z){
+      float p, d;
+      float Rl = camRoll;
+      float Pt = camPitch;
+      float Yw = camYaw;
+      X = sin(p=atan(X,Y)+Rl)*(d=sqrt(X*X+Y*Y));
+      Y = cos(p)*d;
+      X = sin(p=atan(X,Z)+Yw)*(d=sqrt(X*X+Z*Z));
+      Z = cos(p)*d;
+      Y = sin(p=atan(Y,Z)+Pt)*(d=sqrt(Y*Y+Z*Z));
+      Z = cos(p)*d;
+      return vec3(X, Y, Z);
+    }
     
     void main(){
-      float px, py, pz;
       ${uVertCode}
       float cx, cy, cz;
       if(renderNormals == 1.0){
@@ -684,16 +713,34 @@ var BasicShader = async (renderer, options=[]) => {
         cy = position.y;
         cz = position.z;
       }
+      
       vUv = uv;
-      nVec = normalVec;
-      fPos = position;
+      
+      uvi = uv / 2.0;
+      uvi = vec2(uvi.x, .5 - uvi.y);
+      
+      nVeci = normalVec;
+      fPosi = position;
+      
+      
+      // camera rotation
+      
+      vec3 geo = R(geoX, geoY, geoZ);
+      vec3 pos = R(cx, cy, cz);
+      
+      nVec = R(nVeci.x, nVeci.y, nVeci.z);
+      fPos = R(fPosi.x, fPosi.y, fPosi.z);
+      
+      //geo += vec3(camX, camY, camZ);
+      //pos += vec3(camX, camY, camZ);
+      
       
       float camz = camZ / 1e3 * pow(5.0, (log(fov) / 1.609438));
       
-      float Z = cz + camz + geoZ;
+      float Z = pos.z + camz + geo.z;
       if(Z > 0.0) {
-        float X = ((cx + camX + geoX) / Z * fov / resolution.x);
-        float Y = ((cy + camY + geoY) / Z * fov / resolution.y);
+        float X = ((pos.x + camX + geo.x) / Z * fov / resolution.x);
+        float Y = ((pos.y + camY + geo.y) / Z * fov / resolution.y);
         //gl_PointSize = 100.0 / Z;
         gl_Position = vec4(X, Y, Z/10000.0, 1.0);
         skip = 0.0;
@@ -713,9 +760,15 @@ var BasicShader = async (renderer, options=[]) => {
     uniform float renderNormals;
     uniform float equirectangular;
     uniform sampler2D baseTexture;
+    uniform float camRoll;
+    uniform float camPitch;
+    uniform float camYaw;
     varying vec2 vUv;
+    varying vec2 uvi;
     varying vec3 nVec;
+    varying vec3 nVeci;
     varying vec3 fPos;
+    varying vec3 fPosi;
     varying float skip;
 
     vec4 merge (vec4 col1, vec4 col2, float ip1, float ip2){
@@ -728,18 +781,21 @@ var BasicShader = async (renderer, options=[]) => {
       if(equirectangular == 1.0){
         float p;
         float p2;
-        p = flatShading == 1.0 ? atan(nVec.x, nVec.z) : atan(fPos.x, fPos.z);
-        float p1 = p / M_PI / 2.0; //min(.9, max(.1, (p + M_PI) / M_PI / 2.0));
+        p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(fPosi.x, fPosi.z);
+        float p1;
+        p1 = p / M_PI / 2.0;
         p2 = flatShading == 1.0 ?
-              acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) / M_PI   :
-              p2 = acos(fPos.y / (sqrt(fPos.x*fPos.x + fPos.y*fPos.y + fPos.z*fPos.z)+.00001)) / M_PI;
+              acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
+              p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.00001)) / M_PI;
         return vec2(p1, p2);
       }else{
-        return vUv;
+        return uvi;
       }
     }
 
     void main() {
+      float X, Y, Z, p, d, i, j;
+      
       vec2 coords = Coords(0.0);
       float mixColorIp = 0.0;
       float baseColorIp = 1.0;
@@ -892,6 +948,9 @@ var BasicShader = async (renderer, options=[]) => {
       dset.locCamX           = gl.getUniformLocation(dset.program, "camX")
       dset.locCamY           = gl.getUniformLocation(dset.program, "camY")
       dset.locCamZ           = gl.getUniformLocation(dset.program, "camZ")
+      dset.locCamRoll        = gl.getUniformLocation(dset.program, "camRoll")
+      dset.locCamPitch       = gl.getUniformLocation(dset.program, "camPitch")
+      dset.locCamYaw         = gl.getUniformLocation(dset.program, "camYaw")
       dset.locGeoX           = gl.getUniformLocation(dset.program, "geoX")
       dset.locGeoY           = gl.getUniformLocation(dset.program, "geoY")
       dset.locGeoZ           = gl.getUniformLocation(dset.program, "geoZ")
@@ -900,6 +959,9 @@ var BasicShader = async (renderer, options=[]) => {
       gl.uniform1f(dset.locCamX,          renderer.x)
       gl.uniform1f(dset.locCamY,          renderer.y)
       gl.uniform1f(dset.locCamZ,          renderer.z)
+      gl.uniform1f(dset.locCamRoll,       renderer.roll)
+      gl.uniform1f(dset.locCamPitch,      renderer.pitch)
+      gl.uniform1f(dset.locCamYaw,        renderer.yaw)
       gl.uniform1f(dset.locGeoX,          geometry.x)
       gl.uniform1f(dset.locGeoY,          geometry.y)
       gl.uniform1f(dset.locGeoZ,          geometry.z)
@@ -1250,6 +1312,18 @@ const subbed = (subs, size, sphereize, shape, texCoords) => {
       }
     })
   }
+  
+  var truncate = shape => {
+    return shape.map(v=>{
+      return v.map(q=>{
+        return q.map(val=>Math.round(val*1e4) / 1e4)
+      })
+    })
+  }
+  
+  console.log(JSON.stringify(truncate(shape)))
+  console.log(JSON.stringify(truncate(texCoords)))
+  
   if(sphereize){
     var d, val
     ip1 = sphereize
@@ -1524,8 +1598,8 @@ const Icosahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     [[0,1],[1,2],[1,1]],
     [[0,2],[2,0],[0,1]],
   ]
-  for(p=[1,1],i=38;i--;)p=[...p,p[l=p.length-1]+p[l-1]]
-  phi = p[l]/p[l-1]
+  //for(p=[1,1],i=38;i--;)p=[...p,p[l=p.length-1]+p[l-1]]
+  phi = .5+5**.5/2  //p[l]/p[l-1]
   a = [
     [-phi,-1,0],
     [phi,-1,0],
@@ -1541,7 +1615,6 @@ const Icosahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     })
   })
   cp = structuredClone(ret)
-  out=[]
   a = []
   B.map(v=>{
     idx1a = v[0][0]
@@ -1552,10 +1625,8 @@ const Icosahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false) => {
     idx3b = v[2][1]
     a = [...a, [cp[idx1a][idx1b],cp[idx2a][idx2b],cp[idx3a][idx3b]]]
   })
-  out = [...out, ...a]
-
-  e = out
-  ret = [...ret, ...b, ...e]
+  
+  ret = [...ret, ...a]
   
   var e = ret
   var texCoords = []

@@ -62,8 +62,8 @@ $file = <<<'FILE'
       const main = (async () => {
     
         var rendererOptions = {
-          fov: 1500,
-          ambientLight: .25,
+          fov: 2e3,
+          ambientLight: 1,
           x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0,
           margin: 10, attachToBody: true,
           context: {
@@ -80,48 +80,50 @@ $file = <<<'FILE'
         if(1) var shaderOptions = [
           {
             uniform: {
-              enabled: false,
+              enabled: true,
               type: 'phong',
               value: 1,
-              flatShading: true,
+              flatShading: false,
             },
           },
           {
             uniform: {
-              enabled: true,
+              enabled: false,
               type: 'reflection',
-              map: 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg',
-              value: .5,
-              flatShading: true,
+              map: 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg',
+              value: .7,
+              flatShading: false,
             },
           },
         ]
         var shader = await Coordinates.BasicShader(renderer, shaderOptions)
         
-        renderer.z = 20
+        renderer.z = 100
         
         Coordinates.AnimationLoop(renderer, 'Draw')
         
         let geos = []
-        let cl = 1
+        let cl = 5
         let rw = 1
         let br = 1
         let sp = 30
+        let subs = 0
         
-        let size, subs, sphereize
+        let size, sphereize
         let equirectangular, invertNormals, showNormals
         let shapeType
         await Array(cl*rw*br).fill().map(async (v, i) => {
-          switch(i%1){
-            case 0: shapeType = 'cube'; break
-            case 1: shapeType = 'tetrahedron'; break
-            case 2: shapeType = 'icosahedron'; break
-            case 3: shapeType = 'dodecahedron'; break
-            case 4: shapeType = 'octahedron'; break
+          switch(i%5){
+            case 0: shapeType = 'tetrahedron'; break
+            case 1: shapeType = 'cube'; break
+            case 2: shapeType = 'dodecahedron'; break
+            case 3: shapeType = 'octahedron'; break
+            case 4: shapeType = 'icosahedron'; break
           }
+          console.log(shapeType, subs)
           let geo = await Coordinates.LoadGeometry(renderer, shapeType,
-                            size=15, subs=3, sphereize=-.5,
-                            equirectangular=true, invertNormals=false,
+                            size=12, subs, sphereize=0,
+                            equirectangular=false, invertNormals=false,
                             showNormals=false)
           geo.x = ((i%cl)-cl/2 + .5) * sp
           geo.y = (((i/cl|0)%rw) - rw/2 + .5) * sp
@@ -135,8 +137,9 @@ $file = <<<'FILE'
         await geos.map(async (geometry, idx) => {
           let tex
           switch(idx%1){
-            case 0: tex = 'https://srmcgann.github.io/Coordinates/spectrum_test.jpg'; break
-            //case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
+            //case 0: tex = 'https://srmcgann.github.io/Coordinates/spectrum_test.jpg'; break
+            //case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/pano3.jpg'; break
+            case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
             //case 0: tex = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg'; break
             //case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
             //case 0: tex = 'https://srmcgann.github.io/skyboxes7/HDRI/nebugrid.jpg'; break
@@ -157,49 +160,11 @@ $file = <<<'FILE'
           var X, Y, Z, e
           renderer.Clear()
           
-          //renderer.z = Math.min(90, Math.max(0, (.3 + C(t/8))*200))
+          //renderer.z = Math.min(20, Math.max(0, (.3 + C(t/8))*100))
+          renderer.yaw   = -t/2
+          renderer.pitch = C(t/4) * 2
           
           geos.map(geometry => {
-            if(1) for(let i = 0; i<geometry.vertices.length; i+=3){
-              X = geometry.vertices[i+0]
-              Y = geometry.vertices[i+1]
-              Z = geometry.vertices[i+2]
-
-              e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
-                                        roll:  0,
-                                        pitch: .005,
-                                        yaw:   C(t/2) * .01 + .005}, false)
-              geometry.vertices[i+0] = e[0]
-              geometry.vertices[i+1] = e[1]
-              geometry.vertices[i+2] = e[2]
-            }
-            
-            if(1) for(let i = 0; i<geometry.normals.length; i+=3){
-              X = geometry.normals[i+0]
-              Y = geometry.normals[i+1]
-              Z = geometry.normals[i+2]
-              e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
-                                        roll:  0,
-                                        pitch: .005,
-                                        yaw:   C(t/2) * .01 + .005}, false)
-              geometry.normals[i+0] = e[0]
-              geometry.normals[i+1] = e[1]
-              geometry.normals[i+2] = e[2]
-            }
-
-            if(1) for(let i = 0; i<geometry.normalVecs.length; i+=3){
-              X = geometry.normalVecs[i+0]
-              Y = geometry.normalVecs[i+1]
-              Z = geometry.normalVecs[i+2]
-              e = Coordinates.R(X,Y,Z, {x:0, y:0, z:0,
-                                        roll:  0,
-                                        pitch: .005,
-                                        yaw:   C(t/2) * .01 + .005}, false)
-              geometry.normalVecs[i+0] = e[0]
-              geometry.normalVecs[i+1] = e[1]
-              geometry.normalVecs[i+2] = e[2]
-            }
-
             renderer.Draw(geometry)
           })
 
@@ -241,7 +206,6 @@ $file = <<<'FILE'
     </script>
   </body>
 </html>
-
 
 FILE;
 file_put_contents('../../Coordinates/index.html', $file);
