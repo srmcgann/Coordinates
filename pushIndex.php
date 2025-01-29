@@ -107,7 +107,7 @@ $file = <<<'FILE'
         let rw = 1
         let br = 1
         let sp = 30
-        let subs = 4
+        let subs = 3
         
         let size, sphereize
         let equirectangular, invertNormals, showNormals

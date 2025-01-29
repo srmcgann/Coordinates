@@ -308,7 +308,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
   //return res
   
   return await GeometryFromRaw(e, texCoords, size, subs,
-                         sphereize, flipNormals, false)
+                         sphereize, flipNormals, false, shapeType)
 }
 
 const Q = (X, Y, Z, c, AR=700) => [c.width/2+X/Z*AR, c.height/2+Y/Z*AR]
@@ -1047,7 +1047,6 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   var tmx3, tmy3, tmx4, tmy4, tmx5, tmy5
   var cx, cy, cz, ip1, ip2, a, ta
   var tcx, tcy, tv
-  
   var resolved = false
   if(hint){
     var fileBase
@@ -1078,15 +1077,15 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
       case 'icosahedron_3': resolved = true; fileBase = hint; break
       case 'icosahedron_4': resolved = true; fileBase = hint; break
     }
+    
     if(resolved){
       var url
       url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/${fileBase}.json`
-      //fetch(url).then(res=>res.json()).then(data => {shape = data})
       await fetch(url).then(async(res) => await res.json())
       .then(async(data) => shape = await data)
       url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/${fileBase}uv.json`
-      //fetch(url).then(res=>res.json()).then(data => {texCoords = data})
       await fetch(url).then(res=>res.json()).then(data => {texCoords = data})
+      console.log(`shape ${hint} loaded from pre-built file`)
     }
   }
   if(!resolved){
@@ -1362,7 +1361,6 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   }
 
   /*
-  */
   var truncate = shape => {
     return shape.map(v=>{
       return v.map(q=>{
@@ -1373,6 +1371,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   
   console.log(JSON.stringify(truncate(shape)))
   console.log(JSON.stringify(truncate(texCoords)))
+  */
   
   
   if(sphereize){
@@ -1697,7 +1696,7 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   }
   
   return await GeometryFromRaw(e, texCoords, size, subs,
-                         sphereize, flipNormals, false)
+                         sphereize, flipNormals, false, shapeType)
 }
 
 const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
@@ -1900,6 +1899,7 @@ export {
   LoadOBJ,
   IsPowerOf2,
 }
+
 
 FILE;
 file_put_contents('../../Coordinates/coordinates.js', $file);
