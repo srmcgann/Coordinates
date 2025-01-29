@@ -107,7 +107,7 @@ $file = <<<'FILE'
         let rw = 1
         let br = 1
         let sp = 30
-        let subs = 0
+        let subs = 3
         
         let size, sphereize
         let equirectangular, invertNormals, showNormals
@@ -116,8 +116,8 @@ $file = <<<'FILE'
           switch(i%5){
             case 0: shapeType = 'tetrahedron'; break
             case 1: shapeType = 'cube'; break
-            case 2: shapeType = 'dodecahedron'; break
-            case 3: shapeType = 'octahedron'; break
+            case 2: shapeType = 'octahedron'; break
+            case 3: shapeType = 'dodecahedron'; break
             case 4: shapeType = 'icosahedron'; break
           }
           console.log(shapeType, subs)
@@ -206,6 +206,7 @@ $file = <<<'FILE'
     </script>
   </body>
 </html>
+
 
 FILE;
 file_put_contents('../../Coordinates/index.html', $file);
