@@ -63,8 +63,8 @@ $file = <<<'FILE'
       const main = (async () => {
     
         var rendererOptions = {
-          fov: 1e3,
-          ambientLight: .2,
+          fov: 2000,
+          ambientLight: .5,
           x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0,
           margin: 10, attachToBody: true,
           context: {
@@ -99,33 +99,33 @@ $file = <<<'FILE'
         ]
         var shader = await Coordinates.BasicShader(renderer, shaderOptions)
         
-        renderer.z = 16
+        renderer.z = 60
         
         Coordinates.AnimationLoop(renderer, 'Draw')
         
         let geos = []
-        let cl = 1
+        let cl = 6
         let rw = 1
         let br = 1
-        let sp = 30
-        let subs = 3
+        let sp = 25
+        let subs = 1
         
         let size, sphereize
         let equirectangular, invertNormals, showNormals
         let shapeType
         let ct = 0
         Array(cl*rw*br).fill().map(async (v, i) => {
-          switch(i%5){
-            //case 0: shapeType = 'rectangle'; break
-            //case 0: shapeType = 'tetrahedron'; break
-            //case 0: shapeType = 'cube'; break
-            //case 0: shapeType = 'octahedron'; break
-            case 0: shapeType = 'dodecahedron'; break
-            //case 0: shapeType = 'icosahedron'; break
+          switch(i%6){
+            case 0: shapeType = 'rectangle'; break
+            case 1: shapeType = 'tetrahedron'; break
+            case 2: shapeType = 'cube'; break
+            case 3: shapeType = 'octahedron'; break
+            case 4: shapeType = 'dodecahedron'; break
+            case 5: shapeType = 'icosahedron'; break
           }
           let geo = await Coordinates.LoadGeometry(renderer, shapeType,
-                            size=10, subs, sphereize=0,
-                            equirectangular=true, invertNormals=false,
+                            size=14, subs, sphereize=0,
+                            equirectangular=false, invertNormals=false,
                             showNormals=false)
           geo.x = ((i%cl)-cl/2 + .5) * sp
           geo.y = (((i/cl|0)%rw) - rw/2 + .5) * sp
@@ -165,8 +165,8 @@ $file = <<<'FILE'
           renderer.Clear()
           
           //renderer.z = Math.min(100, Math.max(0, (.3 + C(t/8))*100))
-          renderer.pitch   -= .002
-          renderer.yaw += .001
+          renderer.pitch   -= .01
+          //renderer.yaw += .001
           
           geos.map(geometry => {
             //geometry.yaw = t

@@ -145,6 +145,8 @@ const Renderer = (width = 1920, height = 1080, options) => {
               ctx.uniform1i(uniform.locRefTexture, 1)
               ctx.activeTexture(ctx.TEXTURE1)
               ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
+              
+              ctx.uniform1i(uniform.locRefOmitEquirectangular, geometry.shapeType == 'rectangle' ? 1.0 : 0.0)
             break
           }
         }
@@ -182,8 +184,8 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
       ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
       ctx.enableVertexAttribArray(dset.locPosition)
-      //ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
-      ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+      ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+      //ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       
@@ -372,6 +374,7 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
       })
     break
     case 'rectangle':
+      //equirectangular = false
       shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
       shape.geometry.map(v => {
         vertices = [...vertices, ...v.position]
@@ -468,7 +471,7 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
     nVecIndices, equirectangular,
     uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices,
-    showNormals
+    showNormals, shapeType
   }
 }
 
@@ -566,19 +569,25 @@ var BasicShader = async (renderer, options=[]) => {
                   fragDeclaration:     `
                     uniform float reflection;
                     uniform float refFlatShading;
+                    uniform float refOmitEquirectangular;
                     uniform sampler2D reflectionMap;
                   `,
                   fragCode:            `
                     mixColorIp = reflection;
                     baseColorIp = 1.0 - mixColorIp;
-                    
-                    float refp = refFlatShading == 1.0 ? atan(nVec.x, nVec.z) : atan(fPos.x, fPos.z);
-                    float refP1 = refp / M_PI - .5; // 2.0;
-                    float refP2 = refFlatShading == 1.0 ?
+                    float refP1, refP2;
+                    if(refOmitEquirectangular != 1.0){
+                      float refp = refFlatShading == 1.0 ? atan(nVec.x, nVec.z) : atan(fPos.x, fPos.z);
+                      refP1 = refp / M_PI - .5; // 2.0;
+                      refP2 = refFlatShading == 1.0 ?
                           acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) / M_PI   :
                           acos(fPos.y / (sqrt(fPos.x*fPos.x + fPos.y*fPos.y + fPos.z*fPos.z)+.00001)) / M_PI;
+                    } else {
+                      refP1 = vUv.x;
+                      refP2 = vUv.y;
+                    }
                     
-                    vec2 refCoords = vec2(refP1, refP2); // Coords(refP1, refP2);
+                    vec2 refCoords = vec2(refP1, refP2);
                     mixColor = vec4(texture2D( reflectionMap, vec2(refCoords.x, refCoords.y)).rgb, 1.0);
                   `,
                 }
@@ -889,6 +898,8 @@ var BasicShader = async (renderer, options=[]) => {
               image.onload = async () => await BindImage(gl, image, uniform.refTexture)
             }
             gl.useProgram(dset.program)
+            uniform.locRefOmitEquirectangular = gl.getUniformLocation(dset.program, "refOmitEquirectangular")
+            gl.uniform1f(uniform.locRefOmitEquirectangular, geometry.shapeType == 'rectangle' ? 1.0 : 0.0)
             uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
             gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
             gl.uniform1i(uniform.locRefTexture, 1)
