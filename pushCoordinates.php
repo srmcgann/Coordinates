@@ -154,14 +154,16 @@ const Renderer = (width = 1920, height = 1080, options) => {
       
       
       // bind buffers
-      
+      /*
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
       ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW)
-      ctx.vertexAttribPointer(dset.locUv ,2, ctx.FLOAT, false, 0, 0)
+      ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
+      //ctx.drawElements(ctx.POINTS, geometry.normalVecs.length/3|0, ctx.UNSIGNED_SHORT,0)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+      */
 
       
       // vertices
@@ -183,7 +185,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
       ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nVecIndices, ctx.STATIC_DRAW)
-      ctx.vertexAttribPointer(dset.locVecNormal, 3, ctx.FLOAT, true, 0, 0)
+      ctx.vertexAttribPointer(dset.locVecNormal, 2, ctx.FLOAT, true, 0, 0)
       ctx.enableVertexAttribArray(dset.locVecNormal)
       //ctx.drawElements(ctx.POINTS, geometry.normalVecs.length/3|0, ctx.UNSIGNED_SHORT,0)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
@@ -384,6 +386,16 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
         normals  = [...normals,  ...v.normal]
         uvs      = [...uvs,      ...v.texCoord]
       })
+    break
+    case 'rectangle':
+      //if(sphereize) equirectangular = true
+      shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
+      shape.geometry.map(v => {
+        vertices = [...vertices, ...v.position]
+        normals  = [...normals,  ...v.normal]
+        uvs      = [...uvs,      ...v.texCoord]
+      })
+      console.log(shape)
     break
     case 'obj':
       shape = await LoadOBJ(url, 1, 0,0,0, 0,0,0, false)
@@ -614,7 +626,7 @@ var BasicShader = async (renderer, options=[]) => {
                     float px = phongFlatShading == 1.0 ? nVec.x : fPos.x;
                     float py = phongFlatShading == 1.0 ? nVec.y : fPos.y;
                     float pz = phongFlatShading == 1.0 ? nVec.z : fPos.z;
-                    float p1 = atan(px, pz) + t * 2.0;
+                    float p1 = atan(px, pz);// + t * 2.0;
                     float phongP1   = 1.0 + sin(p1 - M_PI / 2.0 + .33) * 2.0;
                     float phongP2 = acos(py / sqrt(px * px + py * py+ pz * pz));
                     colorMag = light + pow((1.0+phongP1) * (cos(phongP2-1.222) + 1.0), 12.0) / 40000000000.0 * phong;
@@ -715,8 +727,6 @@ var BasicShader = async (renderer, options=[]) => {
         cz = position.z;
       }
       
-      vUv = uv;
-      
       uvi = uv / 2.0;
       uvi = vec2(uvi.x, .5 - uvi.y);
       
@@ -745,6 +755,7 @@ var BasicShader = async (renderer, options=[]) => {
         //gl_PointSize = 100.0 / Z;
         gl_Position = vec4(X, Y, Z/10000.0, 1.0);
         skip = 0.0;
+        vUv = uv;
       }else{
         skip = 1.0;
       }
@@ -756,6 +767,7 @@ var BasicShader = async (renderer, options=[]) => {
     #define M_PI 3.14159265358979323
     ${uFragDeclaration}
     uniform float t;
+    uniform vec2 resolution;
     uniform float flatShading;
     uniform float ambientLight;
     uniform float renderNormals;
@@ -788,9 +800,8 @@ var BasicShader = async (renderer, options=[]) => {
         p2 = flatShading == 1.0 ?
               acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
               p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.00001)) / M_PI;
-        return vec2(p1, p2);
       }else{
-        return uvi;
+        return vUv;
       }
     }
 
@@ -810,7 +821,6 @@ var BasicShader = async (renderer, options=[]) => {
         }else{
           ${uFragCode}
           vec4 texel = texture2D( baseTexture, coords);
-          
           texel = vec4(texel.rgb * (.5 + light/2.0) + light/4.0, 1.0);
           vec4 col = merge(mixColor, texel, mixColorIp, baseColorIp);
           gl_FragColor = vec4(col.rgb * colorMag, alpha);
@@ -992,18 +1002,16 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
   var geometry = []
   
   var hint = `${shapeType}_${subs}`;
-  await (await subbed(subs + 1, 1, sphereize, e, texCoords, hint)).map(async (v) => {
+  await (await subbed(subs + 0, 1, sphereize, e, texCoords, hint)).map(async (v) => {
     v.verts.map(q=>{
       X = q[0] *= size //  (sphereize ? .5 : 1.5)
       Y = q[1] *= size //  (sphereize ? .5 : 1.5)
       Z = q[2] *= size //  (sphereize ? .5 : 1.5)
     })
-    
     if(quads){
-      a = [...a, v.verts[0],v.verts[2],v.verts[1],
-                 v.verts[2],v.verts[0],v.verts[3]]
-      f = [...f, v.uvs[0],v.uvs[2],v.uvs[1],
-                 v.uvs[2],v.uvs[0],v.uvs[3]]
+      a = [...a, v.verts[0],v.verts[1],v.verts[2],
+                 v.verts[2],v.verts[3],v.verts[0]]
+      f = [...f, v.uvs[0],v.uvs[1],v.uvs[2], v.uvs[2],v.uvs[3],v.uvs[0]]
     }else{
       a = [...a, ...v.verts]
       f = [...f, ...v.uvs]
@@ -1048,7 +1056,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   var cx, cy, cz, ip1, ip2, a, ta
   var tcx, tcy, tv
   var resolved = false
-  if(hint){
+  if(0&&hint){
     var fileBase
     switch(hint){
       case 'tetrahedron_0': resolved = true; fileBase = hint; break
@@ -1079,12 +1087,20 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     }
     
     if(resolved){
-      var url
-      url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/${fileBase}.json`
-      await fetch(url).then(async(res) => await res.json())
-      .then(async(data) => shape = await data)
-      url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/${fileBase}uv.json`
-      await fetch(url).then(res=>res.json()).then(data => {texCoords = data})
+      //if(hint == 'icosahedron_3'){
+        //import("./data.json", { with: { type: "json" } });
+        //var data = require('./prebuilt shapes/icosahedron_4_full.json');
+        //import * as data from './prebuilt shapes/icosahedron_4_full.json' with {type: 'json'}
+        //shape = data.shape
+        //texCoords = data.texCoords
+      //}else{
+        var url
+        url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/${fileBase}.json`
+        await fetch(url).then(async(res) => await res.json())
+        .then(async(data) => shape = await data)
+        url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/${fileBase}uv.json`
+        await fetch(url).then(res=>res.json()).then(data => {texCoords = data})
+      //}
       console.log(`shape ${hint} loaded from pre-built file`)
     }
   }
@@ -1835,10 +1851,38 @@ const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeT
     texCoords = [...texCoords, a]
   }
   
-  
   return await GeometryFromRaw(e, texCoords, size / 1.2, subs,
                          sphereize, flipNormals, true, shapeType)
                          
+}
+
+const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
+  var p, pi=Math.PI, a, b, l, i, j, k, tx, ty, X, Y, Z
+  var position, texCoord
+  var geometry = []
+  var e = []
+
+//      a = [...a, v.verts[0],v.verts[1],v.verts[2],
+//                 v.verts[2],v.verts[3],v.verts[0]]
+//      f = [...f, v.uvs[0],v.uvs[1],v.uvs[2],
+//                 v.uvs[2],v.uvs[3],v.uvs[0]]
+
+  e = [[
+        [1, -1, 0],
+        [1, 1, 0],
+        [-1, -1, 0],
+        [-1, 1, 0],
+      ]]
+  var texCoords = [[
+    [1, 0],
+    [1, 1],
+    [0, 0],
+    [0, 1],
+  ]]
+  
+  
+  return await GeometryFromRaw(e, texCoords, size,  subs,
+                         sphereize, flipNormals, true, shapeType)
 }
 
 const IsPowerOf2 = (v, d=0) => {

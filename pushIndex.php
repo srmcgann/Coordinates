@@ -63,7 +63,7 @@ $file = <<<'FILE'
     
         var rendererOptions = {
           fov: 1e3,
-          ambientLight: 1,
+          ambientLight: .2,
           x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0,
           margin: 10, attachToBody: true,
           context: {
@@ -80,18 +80,18 @@ $file = <<<'FILE'
         if(1) var shaderOptions = [
           {
             uniform: {
-              enabled: true,
+              enabled: false,
               type: 'phong',
-              value: 1,
+              value: .8,
               flatShading: false,
             },
           },
           {
             uniform: {
-              enabled: true,
+              enabled: false,
               type: 'reflection',
-              map: 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg',
-              value: .4,
+              map: 'https://srmcgann.github.io/skyboxes3/HDRI/creepy_mansion.jpg',
+              value: .2,
               flatShading: false,
             },
           },
@@ -107,7 +107,7 @@ $file = <<<'FILE'
         let rw = 1
         let br = 1
         let sp = 30
-        let subs = 3
+        let subs = 0
         
         let size, sphereize
         let equirectangular, invertNormals, showNormals
@@ -115,16 +115,17 @@ $file = <<<'FILE'
         let ct = 0
         Array(cl*rw*br).fill().map(async (v, i) => {
           switch(i%5){
+            //case 0: shapeType = 'rectangle'; break
             //case 0: shapeType = 'tetrahedron'; break
-            //case 0: shapeType = 'cube'; break
+            case 0: shapeType = 'cube'; break
             //case 0: shapeType = 'octahedron'; break
             //case 0: shapeType = 'dodecahedron'; break
-            case 0: shapeType = 'icosahedron'; break
+            //case 0: shapeType = 'cube'; break
           }
           let geo = await Coordinates.LoadGeometry(renderer, shapeType,
                             size=12, subs, sphereize=0,
-                            equirectangular=true, invertNormals=false,
-                            showNormals=false)
+                            equirectangular=false, invertNormals=false,
+                            showNormals=true)
           geo.x = ((i%cl)-cl/2 + .5) * sp
           geo.y = (((i/cl|0)%rw) - rw/2 + .5) * sp
           geo.z = ((i/cl/rw|0)-br/2 + .5) * sp
@@ -153,8 +154,7 @@ $file = <<<'FILE'
             }
           }
         })
-        
-        
+
         var S = Math.sin, C = Math.cos
         
         window.Draw = () => {
@@ -164,11 +164,11 @@ $file = <<<'FILE'
           renderer.Clear()
           
           //renderer.z = Math.min(100, Math.max(0, (.3 + C(t/8))*100))
-          renderer.pitch   = -t/2
-          renderer.yaw = C(t/4) * 2
+          //renderer.pitch   -= .02
+          renderer.yaw += .01
           
           geos.map(geometry => {
-            geometry.yaw += .01
+            //geometry.yaw = t
             renderer.Draw(geometry)
           })
 
