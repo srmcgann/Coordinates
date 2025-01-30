@@ -37,6 +37,7 @@ $file = <<<'FILE'
   * geometry
     └> * generalize geometry function
        * return "raw" geometry with inbuilt shapes, for 2d context
+       * add 3-axis 'scale' function 
        
 -->
 
@@ -80,18 +81,18 @@ $file = <<<'FILE'
         if(1) var shaderOptions = [
           {
             uniform: {
-              enabled: false,
+              enabled: true,
               type: 'phong',
-              value: .8,
-              flatShading: false,
+              value: 1,
+              flatShading: true,
             },
           },
           {
             uniform: {
-              enabled: false,
+              enabled: true,
               type: 'reflection',
-              map: 'https://srmcgann.github.io/skyboxes3/HDRI/creepy_mansion.jpg',
-              value: .2,
+              map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg',
+              value: .5,
               flatShading: false,
             },
           },
@@ -107,7 +108,7 @@ $file = <<<'FILE'
         let rw = 1
         let br = 1
         let sp = 30
-        let subs = 0
+        let subs = 3
         
         let size, sphereize
         let equirectangular, invertNormals, showNormals
@@ -117,15 +118,15 @@ $file = <<<'FILE'
           switch(i%5){
             //case 0: shapeType = 'rectangle'; break
             //case 0: shapeType = 'tetrahedron'; break
-            case 0: shapeType = 'cube'; break
-            //case 0: shapeType = 'octahedron'; break
-            //case 0: shapeType = 'dodecahedron'; break
             //case 0: shapeType = 'cube'; break
+            //case 0: shapeType = 'octahedron'; break
+            case 0: shapeType = 'dodecahedron'; break
+            //case 0: shapeType = 'icosahedron'; break
           }
           let geo = await Coordinates.LoadGeometry(renderer, shapeType,
-                            size=12, subs, sphereize=0,
-                            equirectangular=false, invertNormals=false,
-                            showNormals=true)
+                            size=10, subs, sphereize=0,
+                            equirectangular=true, invertNormals=false,
+                            showNormals=false)
           geo.x = ((i%cl)-cl/2 + .5) * sp
           geo.y = (((i/cl|0)%rw) - rw/2 + .5) * sp
           geo.z = ((i/cl/rw|0)-br/2 + .5) * sp
@@ -138,9 +139,9 @@ $file = <<<'FILE'
               await geos.map(async (geometry, idx) => {
                 let tex
                 switch(idx%5){
-                  //case 0: tex = 'https://srmcgann.github.io/Coordinates/spectrum_test.jpg'; break
+                  case 0: tex = 'https://srmcgann.github.io/Coordinates/spectrum_test.jpg'; break
                   //case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/pano3.jpg'; break
-                  case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
+                  //case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
                   //case 0: tex = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg'; break
                   //case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
                   //case 0: tex = 'https://srmcgann.github.io/skyboxes7/HDRI/nebugrid.jpg'; break
@@ -164,8 +165,8 @@ $file = <<<'FILE'
           renderer.Clear()
           
           //renderer.z = Math.min(100, Math.max(0, (.3 + C(t/8))*100))
-          //renderer.pitch   -= .02
-          renderer.yaw += .01
+          renderer.pitch   -= .002
+          renderer.yaw += .001
           
           geos.map(geometry => {
             //geometry.yaw = t

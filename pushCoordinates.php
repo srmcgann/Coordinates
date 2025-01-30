@@ -154,16 +154,13 @@ const Renderer = (width = 1920, height = 1080, options) => {
       
       
       // bind buffers
-      /*
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
       ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW)
       ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
-      //ctx.drawElements(ctx.POINTS, geometry.normalVecs.length/3|0, ctx.UNSIGNED_SHORT,0)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-      */
 
       
       // vertices
@@ -171,23 +168,12 @@ const Renderer = (width = 1920, height = 1080, options) => {
         //ctx.uniform1f(dset.locRenderNormals, 1.0)
 
 
-      /*geometry.normalVecs    = []
-      for(var i=0; i<geometry.normals.length; i+=3){
-        let l = i/6|0
-        let X = geometry.normals[i*2+3] - geometry.normals[i*2+0]
-        let Y = geometry.normals[i*2+4] - geometry.normals[i*2+1]
-        let Z = geometry.normals[i*2+5] - geometry.normals[i*2+2]
-        geometry.normalVecs = [...geometry.normalVecs, X, Y, Z]
-      }*/
-
-        
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
       ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nVecIndices, ctx.STATIC_DRAW)
-      ctx.vertexAttribPointer(dset.locVecNormal, 2, ctx.FLOAT, true, 0, 0)
-      ctx.enableVertexAttribArray(dset.locVecNormal)
-      //ctx.drawElements(ctx.POINTS, geometry.normalVecs.length/3|0, ctx.UNSIGNED_SHORT,0)
+      ctx.vertexAttribPointer(dset.locNormalVec, 3, ctx.FLOAT, true, 0, 0)
+      ctx.enableVertexAttribArray(dset.locNormalVec)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
         
@@ -198,8 +184,8 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
       ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
       ctx.enableVertexAttribArray(dset.locPosition)
-      ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
-      //ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+      //ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+      ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       
@@ -379,7 +365,7 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
       })
     break
     case 'cube':
-      if(sphereize) equirectangular = true
+      //if(sphereize) equirectangular = true
       shape = await Cube(size, subs, sphereize, flipNormals, shapeType)
       shape.geometry.map(v => {
         vertices = [...vertices, ...v.position]
@@ -388,14 +374,12 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
       })
     break
     case 'rectangle':
-      //if(sphereize) equirectangular = true
       shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
       shape.geometry.map(v => {
         vertices = [...vertices, ...v.position]
         normals  = [...normals,  ...v.normal]
         uvs      = [...uvs,      ...v.texCoord]
       })
-      console.log(shape)
     break
     case 'obj':
       shape = await LoadOBJ(url, 1, 0,0,0, 0,0,0, false)
@@ -415,12 +399,12 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
       })
     break
   }
+  
   normalVecs    = []
-  for(var i=0; i<normals.length; i+=3){
-    let l = i/6|0
-    let X = normals[i*2+3] - normals[i*2+0]
-    let Y = normals[i*2+4] - normals[i*2+1]
-    let Z = normals[i*2+5] - normals[i*2+2]
+  for(var i=0; i<normals.length; i+=6){
+    let X = normals[i+3] - normals[i+0]
+    let Y = normals[i+4] - normals[i+1]
+    let Z = normals[i+5] - normals[i+2]
     normalVecs = [...normalVecs, X, Y, Z]
   }
   
@@ -800,6 +784,7 @@ var BasicShader = async (renderer, options=[]) => {
         p2 = flatShading == 1.0 ?
               acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
               p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.00001)) / M_PI;
+        return vec2(p1, p2);
       }else{
         return vUv;
       }
@@ -1002,7 +987,8 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
   var geometry = []
   
   var hint = `${shapeType}_${subs}`;
-  await (await subbed(subs + 0, 1, sphereize, e, texCoords, hint)).map(async (v) => {
+  var shape = await subbed(subs + 1, 1, sphereize, e, texCoords, hint)
+  shape.map(v => {
     v.verts.map(q=>{
       X = q[0] *= size //  (sphereize ? .5 : 1.5)
       Y = q[1] *= size //  (sphereize ? .5 : 1.5)
@@ -1011,7 +997,8 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
     if(quads){
       a = [...a, v.verts[0],v.verts[1],v.verts[2],
                  v.verts[2],v.verts[3],v.verts[0]]
-      f = [...f, v.uvs[0],v.uvs[1],v.uvs[2], v.uvs[2],v.uvs[3],v.uvs[0]]
+      f = [...f, v.uvs[0],v.uvs[1],v.uvs[2],
+                 v.uvs[2],v.uvs[3],v.uvs[0]]
     }else{
       a = [...a, ...v.verts]
       f = [...f, ...v.uvs]
@@ -1056,7 +1043,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   var cx, cy, cz, ip1, ip2, a, ta
   var tcx, tcy, tv
   var resolved = false
-  if(0&&hint){
+  if(hint){
     var fileBase
     switch(hint){
       case 'tetrahedron_0': resolved = true; fileBase = hint; break
@@ -1087,20 +1074,11 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     }
     
     if(resolved){
-      //if(hint == 'icosahedron_3'){
-        //import("./data.json", { with: { type: "json" } });
-        //var data = require('./prebuilt shapes/icosahedron_4_full.json');
-        //import * as data from './prebuilt shapes/icosahedron_4_full.json' with {type: 'json'}
-        //shape = data.shape
-        //texCoords = data.texCoords
-      //}else{
-        var url
-        url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/${fileBase}.json`
-        await fetch(url).then(async(res) => await res.json())
-        .then(async(data) => shape = await data)
-        url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/${fileBase}uv.json`
-        await fetch(url).then(res=>res.json()).then(data => {texCoords = data})
-      //}
+      var baseURL = `https://srmcgann.github.io/Coordinates/new%20prebuilt%20shapes/`
+      await fetch(`${baseURL}${fileBase}_full.json`).then(res=>res.json()).then(data=>{
+        shape     = data.shape
+        texCoords = data.texCoords
+      })
       console.log(`shape ${hint} loaded from pre-built file`)
     }
   }
@@ -1411,6 +1389,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
       })
     }
   }
+  
   return shape.map((v, i) => {
     return {
       verts: v,
@@ -1586,7 +1565,7 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     texCoords = [...texCoords, a]
   }
   
-  return await GeometryFromRaw(e, texCoords, size, subs,
+  return GeometryFromRaw(e, texCoords, size, subs,
                          sphereize, flipNormals, false, shapeType)
  }
 
@@ -1851,9 +1830,10 @@ const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeT
     texCoords = [...texCoords, a]
   }
   
-  return await GeometryFromRaw(e, texCoords, size / 1.2, subs,
+  let ret = await GeometryFromRaw(e, texCoords, size / 1.2, subs,
                          sphereize, flipNormals, true, shapeType)
                          
+  return ret
 }
 
 const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
@@ -1868,20 +1848,20 @@ const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
 //                 v.uvs[2],v.uvs[3],v.uvs[0]]
 
   e = [[
+        [-1, -1, 0],
         [1, -1, 0],
         [1, 1, 0],
-        [-1, -1, 0],
         [-1, 1, 0],
       ]]
   var texCoords = [[
+    [0, 0],
     [1, 0],
     [1, 1],
-    [0, 0],
     [0, 1],
   ]]
   
   
-  return await GeometryFromRaw(e, texCoords, size,  subs,
+  return await GeometryFromRaw(e, texCoords, size / 1.5,  subs,
                          sphereize, flipNormals, true, shapeType)
 }
 
