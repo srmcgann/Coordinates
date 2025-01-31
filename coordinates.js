@@ -1094,7 +1094,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   var cx, cy, cz, ip1, ip2, a, ta
   var tcx, tcy, tv
   var resolved = false
-  if(0&&hint){
+  if(hint){
     var fileBase
     switch(hint){
       case 'tetrahedron_0': resolved = true; fileBase = hint; break
@@ -1406,7 +1406,6 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   }
 
   /*
-  */
   var truncate = shape => {
     return shape.map(v=>{
       return v.map(q=>{
@@ -1417,6 +1416,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   
   console.log(JSON.stringify(truncate(shape)))
   console.log(JSON.stringify(truncate(texCoords)))
+  */
   
   
   if(sphereize){
