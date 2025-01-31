@@ -59,7 +59,6 @@
     import * as Coordinates from "./coordinates.js"
     
       const main = (async () => {
-    
         var rendererOptions = {
           fov: 2e3,
           ambientLight: 1,
@@ -81,13 +80,13 @@
             uniform: {
               enabled: true,
               type: 'phong',
-              value: .66,
+              value: .5,
               flatShading: false,
             },
           },
           {
             uniform: {
-              enabled: true,
+              enabled: false,
               type: 'reflection',
               map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg',
               value: .5,
@@ -97,7 +96,7 @@
         ]
         var shader = await Coordinates.BasicShader(renderer, shaderOptions)
         
-        renderer.z = 20
+        renderer.z = 16
         
         Coordinates.AnimationLoop(renderer, 'Draw')
         
@@ -106,7 +105,7 @@
         let rw = 1
         let br = 1
         let sp = 25
-        let subs = 3
+        let subs = 2
         
         let size, sphereize
         let equirectangular, invertNormals, showNormals
@@ -115,11 +114,12 @@
         
         Array(cl*rw*br).fill().map(async (v, i) => {
           switch(i%6){
-            case 4: shapeType = 'cube'; break
+            case 0: shapeType = 'obj'; break
+            //case 0: shapeType = 'cube'; break
             case 1: shapeType = 'dodecahedron'; break
             case 2: shapeType = 'octahedron'; break
             case 3: shapeType = 'tetrahedron'; break
-            case 0: shapeType = 'icosahedron'; break
+            case 4: shapeType = 'icosahedron'; break
             case 5: shapeType = 'rectangle'; break
           }
           var geoOptions = {
@@ -130,12 +130,13 @@
             pitch: 0,
             yaw: 0,
             shapeType,
-            size: 8,
+            size: 12,
             subs,
-            sphereize: 1.66,
+            sphereize: -1,
             equirectangular: true,
             invertNormals: false,
             showNormals: false,
+            url: 'https://srmcgann.github.io/objs/tree/tree.obj'
           }
           await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry, idx) => {
             let tex
@@ -167,14 +168,14 @@
             var X, Y, Z, e
             renderer.Clear()
             
-            renderer.z = Math.min(20, Math.max(0, (.3 + C(t/8))*100))
+            //renderer.z = Math.min(40, Math.max(0, (.3 + C(t/8))*100))
             //renderer.x = S(t*8) * 20
             //renderer.pitch   -= .01
-            //renderer.yaw += .025
+            //renderer.yaw += .005
             
             geos.map(geometry => {
-              geometry.yaw -= .01
-              geometry.pitch -= .02
+              geometry.yaw -= .002
+              //geometry.pitch -= .01
               renderer.Draw(geometry)
             })
           //}

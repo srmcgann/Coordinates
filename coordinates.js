@@ -233,12 +233,17 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
     Z=C(p)*d
   }
   
+  var uvs = []
   await fetch(url, res => res).then(data=>data.text()).then(data=>{
     a=[]
     data.split("\nv ").map(v=>{
       a=[...a, v.split("\n")[0]]
     })
     a=a.filter((v,i)=>i).map(v=>[...v.split(' ').map(n=>(+n.replace("\n", '')))])
+    data.split("\nvt ").map(v=>{
+      uvs=[...uvs, v.split("\n")[0]]
+    })
+    uvs=uvs.filter((v,i)=>i).map(v=>[...v.split(' ').map(n=>(+n.replace("\n", '')))])
     ax=ay=az=0
     a.map(v=>{
       v[1]*=-1
@@ -297,8 +302,13 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
   })
   //return res
   
-  return await GeometryFromRaw(e, texCoords, size, subs,
-                         sphereize, flipNormals, false, shapeType)
+  
+  var e = res
+  var texCoords = uvs
+  
+  return await GeometryFromRaw(e, texCoords, 1, 0,
+                         0, false, false, 'obj')
+
 }
 
 const Q = (X, Y, Z, c, AR=700) => [c.width/2+X/Z*AR, c.height/2+Y/Z*AR]
@@ -416,11 +426,13 @@ const LoadGeometry = async (renderer, geoOptions) => {
     break
     case 'obj':
       shape = await LoadOBJ(url, 1, 0,0,0, 0,0,0, false)
+      console.log(shape)
       shape.geometry.map(v => {
         vertices = [...vertices, ...v.position]
         normals  = [...normals,  ...v.normal]
         uvs      = [...uvs,      ...v.texCoord]
       })
+      console.log(vertices, normals, uvs)
     break
     case 'dodecahedron':
       equirectangular = true
@@ -598,11 +610,14 @@ var BasicShader = async (renderer, options=[]) => {
                     baseColorIp = 1.0 - mixColorIp;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
+                      
                       float refp = refFlatShading == 1.0 ? atan(nVec.x, nVec.z) : atan(fPos.x, fPos.z);
-                      refP1 = ((refp - camYaw) / M_PI)/ 2.0;
-                      refP2 = refFlatShading == 1.0 ?
-                          (acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) - camPitch) / M_PI:
-                          (acos(fPos.y / (sqrt(fPos.x*fPos.x + fPos.y*fPos.y + fPos.z*fPos.z)+.00001)) - camPitch) / M_PI;
+                      refP1 = ((refp + camYaw + geoYaw) / M_PI)/ 2.0;
+                      
+                      //refP2 = refFlatShading == 1.0 ?
+                      //    (acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) + camPitch) / M_PI:
+                      //    (acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPos.y*fPosi.y + fPos.z*fPosi.z)+.00001)) - geoPitch) / M_PI;
+                      refP2 = coords.y;
                     } else {
                       refP1 = vUv.x;
                       refP2 = vUv.y;
@@ -635,11 +650,11 @@ var BasicShader = async (renderer, options=[]) => {
                   `,
                   fragCode:            `
                     light = light * 10.0;
-                    float px = phongFlatShading == 1.0 ? nVec.x : fPos.x;
-                    float py = phongFlatShading == 1.0 ? nVec.y : fPos.y;
-                    float pz = phongFlatShading == 1.0 ? nVec.z : fPos.z;
+                    float px = phongFlatShading == 1.0 ? nVec.x : fPosi.x;
+                    float py = phongFlatShading == 1.0 ? nVec.y : fPosi.y;
+                    float pz = phongFlatShading == 1.0 ? nVec.z : fPosi.z;
                     float p1 = atan(px, pz);// + t * 2.0;
-                    float phongP1   = 1.0 + sin(p1 - M_PI / 2.0 + .33 - camYaw) * 2.0;
+                    float phongP1   = 1.0 + sin(p1 - M_PI / 2.0 + .4 - camYaw + geoYaw) * 2.0;
                     float phongP2 = acos(py / sqrt(px * px + py * py+ pz * pz));
                     colorMag = light + pow((1.0+phongP1) * (cos(phongP2-1.222-camPitch) + 1.0), 12.0) / 40000000000.0 * phong;
                     light = max(light, colorMag);
@@ -749,17 +764,17 @@ var BasicShader = async (renderer, options=[]) => {
       // camera rotation
       
       vec3 geo = R(geoX, geoY, geoZ, camRoll, camPitch, camYaw);
-      vec3 pos = R(cx, cy, cz, geoRoll  + camRoll,
+      vec3 pos = R(cx, cy, cz, geoRoll + camRoll,
                                geoPitch + camPitch,
-                               geoYaw   + camYaw);
+                               geoYaw + camYaw);
       
-      nVec = R(nVeci.x, nVeci.y, nVeci.z, geoRoll  + camRoll, 
-                                          geoPitch + camPitch,
-                                          geoYaw   + camYaw);
+      nVec = R(nVeci.x, nVeci.y, nVeci.z, geoRoll  - camRoll * 2.0, 
+                                          geoPitch - camPitch * 2.0,
+                                          geoYaw   - camYaw * 2.0);
                                           
-      fPos = R(fPosi.x, fPosi.y, fPosi.z, geoRoll  + camRoll,
-                                          geoPitch + camPitch,
-                                          geoYaw   + camYaw);
+      fPos = R(fPosi.x, fPosi.y, fPosi.z, geoRoll - camRoll,
+                                          0.0,
+                                          geoYaw - camYaw);
       
       //geo += vec3(camX, camY, camZ);
       //pos += vec3(camX, camY, camZ);
@@ -826,7 +841,7 @@ var BasicShader = async (renderer, options=[]) => {
         float p1;
         p1 = p / M_PI / 2.0;
         p2 = flatShading == 1.0 ?
-              acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
+              acos(nVec.y / (sqrt(nVeci.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) / M_PI   :
               p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.00001)) / M_PI;
         return vec2(p1, p2);
       }else{
@@ -1038,7 +1053,12 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
   var geometry = []
   
   var hint = `${shapeType}_${subs}`;
-  var shape = await subbed(subs + 1, 1, sphereize, e, texCoords, hint)
+  var shape
+  switch(shapeType){
+    case 'obj': shape = await subbed(0, 1, sphereize, e, texCoords, hint); break
+    default: shape = await subbed(subs + 1, 1, sphereize, e, texCoords, hint); break
+  }
+  console.log(shape)
   shape.map(v => {
     v.verts.map(q=>{
       X = q[0] *= size //  (sphereize ? .5 : 1.5)
