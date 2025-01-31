@@ -37,7 +37,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
       break
     }
   })
-                          
+
   const c    = document.createElement('canvas')
   const ctx  = c.getContext(context.mode, context.options)
   c.width  = width
@@ -113,7 +113,6 @@ const Renderer = (width = 1920, height = 1080, options) => {
       var sProg  = dset.program
       ctx.useProgram( sProg )
       
-      
       // update uniforms
       
       ctx.uniform1i(dset.locTexture, dset.texture)
@@ -132,6 +131,9 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.uniform1f(dset.locGeoX,            geometry.x)
       ctx.uniform1f(dset.locGeoY,            geometry.y)
       ctx.uniform1f(dset.locGeoZ,            geometry.z)
+      ctx.uniform1f(dset.locGeoRoll,         geometry.roll)
+      ctx.uniform1f(dset.locGeoPitch,        geometry.pitch)
+      ctx.uniform1f(dset.locGeoYaw,         geometry.yaw)
       ctx.uniform1f(dset.locFov,             ret.fov)
       ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
       ctx.uniform1f(dset.locRenderNormals,   0)
@@ -146,7 +148,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
               ctx.activeTexture(ctx.TEXTURE1)
               ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
               
-              ctx.uniform1i(uniform.locRefOmitEquirectangular, geometry.shapeType == 'rectangle' ? 1.0 : 0.0)
+              ctx.uniform1f(uniform.locRefOmitEquirectangular, geometry.shapeType == 'rectangle' ? 1.0 : 0.0)
             break
           }
         }
@@ -320,8 +322,9 @@ const R = (X,Y,Z, cam, m=false) => {
   return [X, Y, Z]
 }
 
-const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equirectangular=false, flipNormals=false, showNormals=false, url='') => {
+const LoadGeometry = async (renderer, geoOptions) => {
 
+  var x, y, z, roll, pitch, yaw
   var vertex_buffer, Vertex_Index_Buffer
   var normal_buffer, Normal_Index_Buffer
   var normalVec_buffer, NormalVec_Index_Buffer
@@ -330,12 +333,41 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
   const gl = renderer.gl
   var shape
   
+  // geo defaults
+  var url              = ''
+  var size             = 1
+  var subs             = 1
+  var sphereize        = 0
+  var equirectangular  = false
+  var flipNormals      = false
+  var showNormals      = false
+  geoOptions = structuredClone(geoOptions)
+  Object.keys(geoOptions).forEach((key, idx) => {
+    switch(key){
+      case 'x': x = geoOptions[key]; break
+      case 'y': y = geoOptions[key]; break
+      case 'z': z = geoOptions[key]; break
+      case 'roll': roll = geoOptions[key]; break
+      case 'pitch': pitch = geoOptions[key]; break
+      case 'yaw': yaw = geoOptions[key]; break
+      case 'shapeType': shapeType = geoOptions[key]; break
+      case 'url': url = geoOptions[key]; break
+      case 'size': size = geoOptions[key]; break
+      case 'subs': subs = geoOptions[key]; break
+      case 'sphereize': sphereize = geoOptions[key]; break
+      case 'equirectangular': equirectangular = geoOptions[key]; break
+      case 'flipNormals': flipNormals = geoOptions[key]; break
+      case 'showNormals': showNormals = geoOptions[key]; break
+    }
+  })
+
+  
   var vertices    = []
   var normals     = []
   var normalVecs  = []
   var uvs         = []
   
-  var shapeType = shape.toLowerCase()
+  var shapeType = shapeType.toLowerCase()
   switch(shapeType){
     case 'tetrahedron':
       equirectangular = true
@@ -427,7 +459,6 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, vIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
-  
 
   //normals, indices
   normalVec_buffer = gl.createBuffer()
@@ -450,7 +481,6 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, nIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
-  
 
   //uvs, indices
   uv_buffer = gl.createBuffer()
@@ -462,16 +492,19 @@ const LoadGeometry = async (renderer, shape, size=1, subs=1, sphereize=0, equire
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, uvIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
-  
+
   return {
+    x, y, z,
+    roll, pitch, yaw,
+    url, size, subs,
+    showNormals, shapeType,
+    sphereize, equirectangular, flipNormals,
     vertices, normals, normalVecs, uvs,
     vertex_buffer, Vertex_Index_Buffer,
     normal_buffer, Normal_Index_Buffer,
     normalVec_buffer, NormalVec_Index_Buffer,
-    nVecIndices, equirectangular,
-    uv_buffer, UV_Index_Buffer,
+    nVecIndices, uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices,
-    showNormals, shapeType
   }
 }
 
@@ -531,18 +564,6 @@ var BasicShader = async (renderer, options=[]) => {
     locUv: null,
     locFov: null,
     program: null,
-    locCamX: null,
-    locCamY: null,
-    locCamZ: null,
-    locGeoX: null,
-    locGeoY: null,
-    locGeoZ: null,
-    locNormal: null,
-    locTexture: null,
-    locPosition: null,
-    locNormalVec: null,
-    locResolution: null,
-    locRenderNormals: null,
     optionalUniforms: [],
   }
   
@@ -578,10 +599,10 @@ var BasicShader = async (renderer, options=[]) => {
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
                       float refp = refFlatShading == 1.0 ? atan(nVec.x, nVec.z) : atan(fPos.x, fPos.z);
-                      refP1 = refp / M_PI - .5; // 2.0;
+                      refP1 = ((refp - camYaw) / M_PI)/ 2.0;
                       refP2 = refFlatShading == 1.0 ?
-                          acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) / M_PI   :
-                          acos(fPos.y / (sqrt(fPos.x*fPos.x + fPos.y*fPos.y + fPos.z*fPos.z)+.00001)) / M_PI;
+                          (acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) - camPitch) / M_PI:
+                          (acos(fPos.y / (sqrt(fPos.x*fPos.x + fPos.y*fPos.y + fPos.z*fPos.z)+.00001)) - camPitch) / M_PI;
                     } else {
                       refP1 = vUv.x;
                       refP2 = vUv.y;
@@ -618,9 +639,9 @@ var BasicShader = async (renderer, options=[]) => {
                     float py = phongFlatShading == 1.0 ? nVec.y : fPos.y;
                     float pz = phongFlatShading == 1.0 ? nVec.z : fPos.z;
                     float p1 = atan(px, pz);// + t * 2.0;
-                    float phongP1   = 1.0 + sin(p1 - M_PI / 2.0 + .33) * 2.0;
+                    float phongP1   = 1.0 + sin(p1 - M_PI / 2.0 + .33 - camYaw) * 2.0;
                     float phongP2 = acos(py / sqrt(px * px + py * py+ pz * pz));
-                    colorMag = light + pow((1.0+phongP1) * (cos(phongP2-1.222) + 1.0), 12.0) / 40000000000.0 * phong;
+                    colorMag = light + pow((1.0+phongP1) * (cos(phongP2-1.222-camPitch) + 1.0), 12.0) / 40000000000.0 * phong;
                     light = max(light, colorMag);
                   `,
                 }
@@ -675,6 +696,9 @@ var BasicShader = async (renderer, options=[]) => {
     uniform float geoX;
     uniform float geoY;
     uniform float geoZ;
+    uniform float geoRoll;
+    uniform float geoPitch;
+    uniform float geoYaw;
     uniform float fov;
     uniform float equirectangular;
     uniform float renderNormals;
@@ -691,11 +715,8 @@ var BasicShader = async (renderer, options=[]) => {
     varying float skip;
     
     
-    vec3 R(float X, float Y, float Z){
+    vec3 R(float X, float Y, float Z, float Rl, float Pt, float Yw){
       float p, d;
-      float Rl = camRoll;
-      float Pt = camPitch;
-      float Yw = camYaw;
       X = sin(p=atan(X,Y)+Rl)*(d=sqrt(X*X+Y*Y));
       Y = cos(p)*d;
       X = sin(p=atan(X,Z)+Yw)*(d=sqrt(X*X+Z*Z));
@@ -727,11 +748,18 @@ var BasicShader = async (renderer, options=[]) => {
       
       // camera rotation
       
-      vec3 geo = R(geoX, geoY, geoZ);
-      vec3 pos = R(cx, cy, cz);
+      vec3 geo = R(geoX, geoY, geoZ, camRoll, camPitch, camYaw);
+      vec3 pos = R(cx, cy, cz, geoRoll  + camRoll,
+                               geoPitch + camPitch,
+                               geoYaw   + camYaw);
       
-      nVec = R(nVeci.x, nVeci.y, nVeci.z);
-      fPos = R(fPosi.x, fPosi.y, fPosi.z);
+      nVec = R(nVeci.x, nVeci.y, nVeci.z, geoRoll  + camRoll, 
+                                          geoPitch + camPitch,
+                                          geoYaw   + camYaw);
+                                          
+      fPos = R(fPosi.x, fPosi.y, fPosi.z, geoRoll  + camRoll,
+                                          geoPitch + camPitch,
+                                          geoYaw   + camYaw);
       
       //geo += vec3(camX, camY, camZ);
       //pos += vec3(camX, camY, camZ);
@@ -764,9 +792,18 @@ var BasicShader = async (renderer, options=[]) => {
     uniform float renderNormals;
     uniform float equirectangular;
     uniform sampler2D baseTexture;
+    uniform float camX;
+    uniform float camY;
+    uniform float camZ;
     uniform float camRoll;
     uniform float camPitch;
     uniform float camYaw;
+    uniform float geoX;
+    uniform float geoY;
+    uniform float geoZ;
+    uniform float geoRoll;
+    uniform float geoPitch;
+    uniform float geoYaw;
     varying vec2 vUv;
     varying vec2 uvi;
     varying vec3 nVec;
@@ -824,11 +861,11 @@ var BasicShader = async (renderer, options=[]) => {
   const vertexShader = gl.createShader(gl.VERTEX_SHADER)
   gl.shaderSource(vertexShader, ret.vert)
   gl.compileShader(vertexShader)
-  
+
   const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
   gl.shaderSource(fragmentShader, ret.frag)
   gl.compileShader(fragmentShader)
-  
+
 
   ret.ConnectGeometry = async ( geometry,
                           textureURL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/NGC_4414_%28NASA-med%29.jpg/800px-NGC_4414_%28NASA-med%29.jpg' ) => {
@@ -945,7 +982,6 @@ var BasicShader = async (renderer, options=[]) => {
       }
       
       gl.useProgram(dset.program)
-      //gl.bindTexture(gl.TEXTURE_2D, dset.texture)
       gl.uniform1i(dset.locTexture, 0)
       gl.activeTexture(gl.TEXTURE0)
       gl.bindTexture(gl.TEXTURE_2D, dset.texture)
@@ -960,6 +996,9 @@ var BasicShader = async (renderer, options=[]) => {
       dset.locGeoX           = gl.getUniformLocation(dset.program, "geoX")
       dset.locGeoY           = gl.getUniformLocation(dset.program, "geoY")
       dset.locGeoZ           = gl.getUniformLocation(dset.program, "geoZ")
+      dset.locGeoRoll        = gl.getUniformLocation(dset.program, "geoRoll")
+      dset.locGeoPitch       = gl.getUniformLocation(dset.program, "geoPitch")
+      dset.locGeoYaw         = gl.getUniformLocation(dset.program, "geoYaw")
       dset.locFov            = gl.getUniformLocation(dset.program, "fov")
       dset.locRenderNormals  = gl.getUniformLocation(dset.program, "renderNormals")
       gl.uniform1f(dset.locCamX,          renderer.x)
@@ -971,6 +1010,9 @@ var BasicShader = async (renderer, options=[]) => {
       gl.uniform1f(dset.locGeoX,          geometry.x)
       gl.uniform1f(dset.locGeoY,          geometry.y)
       gl.uniform1f(dset.locGeoZ,          geometry.z)
+      gl.uniform1f(dset.locGeoRoll,       geometry.roll)
+      gl.uniform1f(dset.locGeoPitch,      geometry.pitch)
+      gl.uniform1f(dset.locGeoYaw,        geometry.yaw)
       gl.uniform1f(dset.locFov,           renderer.fov)
       gl.uniform1f(dset.locRenderNormals, 0)
     }else{
@@ -1052,7 +1094,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   var cx, cy, cz, ip1, ip2, a, ta
   var tcx, tcy, tv
   var resolved = false
-  if(hint){
+  if(0&&hint){
     var fileBase
     switch(hint){
       case 'tetrahedron_0': resolved = true; fileBase = hint; break
@@ -1083,7 +1125,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     }
     
     if(resolved){
-      var baseURL = `https://srmcgann.github.io/Coordinates/new%20prebuilt%20shapes/`
+      var baseURL = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/`
       await fetch(`${baseURL}${fileBase}_full.json`).then(res=>res.json()).then(data=>{
         shape     = data.shape
         texCoords = data.texCoords
@@ -1364,6 +1406,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   }
 
   /*
+  */
   var truncate = shape => {
     return shape.map(v=>{
       return v.map(q=>{
@@ -1374,7 +1417,6 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   
   console.log(JSON.stringify(truncate(shape)))
   console.log(JSON.stringify(truncate(texCoords)))
-  */
   
   
   if(sphereize){
