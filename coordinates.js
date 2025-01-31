@@ -235,80 +235,34 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
   
   var uvs = []
   await fetch(url, res => res).then(data=>data.text()).then(data=>{
-    a=[]
-    data.split("\nv ").map(v=>{
-      a=[...a, v.split("\n")[0]]
-    })
-    a=a.filter((v,i)=>i).map(v=>[...v.split(' ').map(n=>(+n.replace("\n", '')))])
-    data.split("\nvt ").map(v=>{
-      uvs=[...uvs, v.split("\n")[0]]
-    })
-    uvs=uvs.filter((v,i)=>i).map(v=>[...v.split(' ').map(n=>(+n.replace("\n", '')))])
-    ax=ay=az=0
-    a.map(v=>{
-      v[1]*=-1
-      if(recenter){
-        ax+=v[0]
-        ay+=v[1]
-        az+=v[2]
-      }
-    })
-    ax/=a.length
-    ay/=a.length
-    az/=a.length
-    a.map(v=>{
-      X=(v[0]-ax)*scale
-      Y=(v[1]-ay)*scale
-      Z=(v[2]-az)*scale
-      R2(rl,pt,yw)
-      v[0]=X
-      v[1]=Y * (url.indexOf('bug')!=-1?2:1)
-      v[2]=Z
-    })
-    var maxY=-6e6
-    a.map(v=>{
-      if(v[1]>maxY)maxY=v[1]
-    })
-    a.map(v=>{
-      v[1]-=maxY
-      v[0]+=tx
-      v[1]+=ty
-      v[2]+=tz
-    })
 
-    var b=[]
-    data.split("\nf ").map(v=>{
-      b=[...b, v.split("\n")[0]]
+    var geometry    = []
+    var faceLines   = []
+    var normalLines = []
+    var vertLines   = []
+    var uvLines     = []
+    
+    data.split("\n").forEach(line => {
+      if(line.substr(0, 2) == 'v ') vertLines.push(line.substr(2))
+      if(line.substr(0, 3) == 'vn ') normalLines.push(line.substr(3))
+      if(line.substr(0, 2) == 't ') uvLines.push(line.substr(2))
+      if(line.substr(0, 2) == 'f ') faceLines.push(line.substr(2))
     })
-    b.shift()
-    b=b.map(v=>v.split(' '))
-    b=b.map(v=>{
-      v=v.map(q=>{
-        return +q.split('/')[0]
-      })
-      v=v.filter(q=>q)
-      return v
-    })
-
-    res=[]
-    b.map(v=>{
-      e=[]
-      v.map(q=>{
-        e=[...e, a[q-1]]
-      })
-      e = e.filter(q=>q)
-      res=[...res, structuredClone(e)]
+    faceLines.forEach(line => {
+      console.log(line)
+      var vidx = line.split('/')[0]
+      var tidx = line.split('/')[1]
+      var nidx = line.split('/')[2]
+      console.log(vidx, tidx, nidx)
+      geometry = [...geometry, {
+          position: vertLines[vidx].split(' ').map(v=>+v),
+          normal:   normalLines[nidx].split(' ').map(v=>+v),
+          texCoord: uvLines[tidx].split(' ').map(v=>+v),
+        }]
     })
   })
-  //return res
   
-  
-  var e = res
-  var texCoords = uvs
-  
-  return await GeometryFromRaw(e, texCoords, 1, 0,
-                         0, false, false, 'obj')
-
+  return geometry
 }
 
 const Q = (X, Y, Z, c, AR=700) => [c.width/2+X/Z*AR, c.height/2+Y/Z*AR]
@@ -1071,6 +1025,7 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
       f = [...f, v.uvs[0],v.uvs[1],v.uvs[2],
                  v.uvs[2],v.uvs[3],v.uvs[0]]
     }else{
+      console.log(v.uvs)
       a = [...a, ...v.verts]
       f = [...f, ...v.uvs]
     }
