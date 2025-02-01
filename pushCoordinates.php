@@ -632,7 +632,7 @@ var BasicShader = async (renderer, options=[]) => {
                     if(refOmitEquirectangular != 1.0){
                       
                       float refp = refFlatShading == 1.0 ? atan(nVec.x, nVec.z) : atan(fPos.x, fPos.z);
-                      refP1 = ((refp + camYaw + geoYaw) / M_PI)/ 2.0;
+                      refP1 = ((refp + camYaw) / M_PI)/ 2.0;
                       
                       //refP2 = refFlatShading == 1.0 ?
                       //    (acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) + camPitch) / M_PI:
@@ -673,7 +673,7 @@ var BasicShader = async (renderer, options=[]) => {
                     float px = phongFlatShading == 1.0 ? nVeci.x : fPosi.x;
                     float py = phongFlatShading == 1.0 ? nVeci.y : fPosi.y;
                     float pz = phongFlatShading == 1.0 ? nVeci.z : fPosi.z;
-                    float p1 = atan(px, pz) + .33 + sin(t*2.0) / 2.0;
+                    float p1 = atan(px, pz) + .33 + t*2.0;
                     float phongP1   = 1.0 + sin(p1 - M_PI / 2.0 + .4 - camYaw + geoYaw) * 2.0;
                     float phongP2 = acos(py / sqrt(px * px + py * py+ pz * pz));
                     colorMag = light + pow((1.0+phongP1) * (cos(phongP2-1.222-camPitch) + 1.0), 12.0) / 40000000000.0 * phong;
@@ -1090,7 +1090,6 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
       f = [...f, v.uvs[0],v.uvs[1],v.uvs[2],
                  v.uvs[2],v.uvs[3],v.uvs[0]]
     }else{
-      console.log(v.uvs)
       a = [...a, ...v.verts]
       f = [...f, ...v.uvs]
     }
@@ -1134,7 +1133,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   var cx, cy, cz, ip1, ip2, a, ta
   var tcx, tcy, tv
   var resolved = false
-  if(hint){
+  if(subs > 1 && hint){
     var fileBase
     switch(hint){
       case 'tetrahedron_0': resolved = true; fileBase = hint; break
@@ -1165,7 +1164,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     }
     
     if(resolved){
-      var baseURL = `https://srmcgann.github.io/Coordinates/new%20prebuilt%20shapes/`
+      var baseURL = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/`
       await fetch(`${baseURL}${fileBase}_full.json`).then(res=>res.json()).then(data=>{
         shape     = data.shape
         texCoords = data.texCoords

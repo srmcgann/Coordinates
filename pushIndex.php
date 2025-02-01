@@ -62,8 +62,8 @@ $file = <<<'FILE'
     
       const main = (async () => {
         var rendererOptions = {
-          fov: 2500,
-          ambientLight: .75,
+          fov: 1500,
+          ambientLight: 1,
           x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0,
           margin: 10, attachToBody: true,
           context: {
@@ -83,7 +83,7 @@ $file = <<<'FILE'
             uniform: {
               enabled: true,
               type: 'phong',
-              value: 1.5,
+              value: 2,
               flatShading: false,
             },
           },
@@ -101,20 +101,21 @@ $file = <<<'FILE'
         
         var backgroundshaderOptions = structuredClone(shaderOptions)
         backgroundshaderOptions[0].uniform.enabled = true
-        backgroundshaderOptions[0].uniform.value   = .2
+        backgroundshaderOptions[0].uniform.value   = 1
         backgroundshaderOptions[1].uniform.enabled = true
-        backgroundshaderOptions[1].uniform.value   = .5
+        backgroundshaderOptions[1].uniform.value   = .25
+        backgroundshaderOptions[1].uniform.map   = 'https://srmcgann.github.io/skyboxes7/HDRI/nebugrid.jpg'
         var backgroundShader = await Coordinates.BasicShader(renderer, backgroundshaderOptions)
         
-        renderer.z = 24
+        renderer.z = 40
         
         
         let geos = []
-        let cl = 6
-        let rw = 1
+        let cl = 7
+        let rw = 3
         let br = 1
-        let sp = 20
-        let subs = 0
+        let sp = 40
+        let subs = 1
         
         let size, sphereize
         let equirectangular, invertNormals, showNormals
@@ -122,11 +123,11 @@ $file = <<<'FILE'
         
         var geoOptions = {
           name: 'background',
-          x: 0, y: 0, z: 40,
+          x: 0, y: 0, z: 0,
           roll: 0,
-          pitch: Math.PI,
+          pitch: 0,
           yaw: 0,
-          scaleX: 1.7778,
+          scaleX: 1,//.7778,
           scaleY: 1,
           scaleZ: 1,
           objX: 0,
@@ -135,27 +136,28 @@ $file = <<<'FILE'
           objRoll: 0,
           objPitch: 0,
           objYaw: 0,
-          shapeType: 'rectangle',
-          size: 80,
-          subs,
-          sphereize: 0,
-          equirectangular: false,
+          shapeType: 'dodecahedron',
+          size: 350,
+          subs: 2,
+          sphereize: 1,
+          equirectangular: true,
           invertNormals: false,
           showNormals: false,
           url: ''
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry, idx) => {
-          let tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'
+          //let tex = 'https://srmcgann.github.io/skyboxes7/HDRI/quickgrid.png'
+          let tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'
             geos = [...geos, geometry]
             await backgroundShader.ConnectGeometry(geometry, tex)
         })
 
         Array(cl*rw*br).fill().map(async (v, i) => {
           var shapeType
-          switch(i){
+          switch(i%7){
             case 0: shapeType = 'tetrahedron'; break
-            case 1: shapeType = 'Cube'; break
-            case 2: shapeType = 'Octahedron'; break
+            case 1: shapeType = 'cube'; break
+            case 2: shapeType = 'octahedron'; break
             case 3: shapeType = 'obj'; break
             case 4: shapeType = 'dodecahedron'; break
             case 5: shapeType = 'icosahedron'; break
@@ -167,28 +169,27 @@ $file = <<<'FILE'
             z: ((i/cl/rw|0)-br/2 + .5) * sp,
             roll: 0,
             pitch: 0,
-            yaw: 0,
+            yaw: Math.PI,
             scaleX: 1,
             scaleY: 1,
-            scaleZ: i == 3 ? 2 : 1,
+            scaleZ: (i%7)==3 ? 1 : 1,
             objX: 0,
-            objY: i==3 ? -4 : 0,
+            objY: (i%7)==3 ? -13.5 : 0,
             objZ: 0,
             objRoll: 0,
             objPitch: 0,
             objYaw: Math.PI,
             shapeType,
-            name: i==3 ? 'elephant' : 'solid',
-            size: i==3 ? 2 : 10,
+            name: (i%7)==3 ? 'greek_head' : 'solid',
+            size: (i%7)==3 ? 7.5 : 15,
             subs,
-            sphereize: .5,
+            sphereize: 0,
             equirectangular: true,
             invertNormals: false,
             showNormals: false,
-            objURL: i == 3 ? 'https://srmcgann.github.io/objs/elephant.obj' : ''
+            objURL: (i%7)==3 ? 'https://srmcgann.github.io/objs/greek_head.obj' : ''
           }
           await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry, idx) => {
-            console.log(geometry)
             let tex
             switch(i%1){
               case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
@@ -215,31 +216,33 @@ $file = <<<'FILE'
         window.Draw = () => {
         
           var t = renderer.t
-          //if(cl*rw*br == ct){
+          if(cl*rw*br == ct){
           
             var X, Y, Z, e
             renderer.Clear()
             
-            renderer.z = Math.min(24, Math.max(10, (.3 - C(t/2))*50))
+            renderer.z = Math.min(120, Math.max(18, (.3 - C(t/2))*150))
             //renderer.x = S(t*8) * 20
             //renderer.pitch   -= .01
-            //renderer.yaw += .005
+            renderer.yaw += .005
             
-            console.log(geos.length)
-            geos.map(geometry => {
+            geos.map((geometry, idx) => {
               switch(geometry.name){
-                case 'elephant':
-                  geometry.yaw += S(t) * .02 + .02
-                  geometry.pitch = C(t*2) * .5
-                break
+                case 'background':
+                  geometry.yaw += .005
+                break;
                 case 'solid':
-                  geometry.yaw -= .02
+                  geometry.yaw -= .02 * (idx ? -1 : 1)
+                  geometry.pitch = C(t/2) * .5
+                break
+                default: // objs
+                  geometry.yaw += S(t) * .025 + .02
                   geometry.pitch = C(t/2) * .5
                 break
               }
               renderer.Draw(geometry)
             })
-          //}
+          }
           
           /*
           
@@ -280,6 +283,7 @@ $file = <<<'FILE'
     </script>
   </body>
 </html>
+
 
 FILE;
 file_put_contents('../../Coordinates/index.html', $file);
