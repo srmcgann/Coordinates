@@ -190,7 +190,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
       //ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-      
+
 
       // normals lines drawn, optionally
       if(geometry.showNormals){
@@ -221,22 +221,14 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
   var res, flipNormals = false
   var a, e, f, ax, ay, az, X, Y, Z, p, d, i, j, b, l
   var geometry = []
-  var R2=(Rl,Pt,Yw)=>{
-    var M=Math
-    var A=M.atan2
-    var H=M.hypot
-    X=S(p=A(X,Y)+Rl)*(d=H(X,Y))
-    Y=C(p)*d
-    Y=S(p=A(Y,Z)+Pt)*(d=H(Y,Z))
-    Z=C(p)*d
-    X=S(p=A(X,Z)+Yw)*(d=H(X,Z))
-    Z=C(p)*d
+
+  var rawGeometry = {
+    vertices: [],
+    normals:  [],
+    uvs:      [],
   }
-  
-  var uvs = []
   await fetch(url, res => res).then(data=>data.text()).then(data=>{
 
-    var geometry    = []
     var faceLines   = []
     var normalLines = []
     var vertLines   = []
@@ -245,24 +237,75 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
     data.split("\n").forEach(line => {
       if(line.substr(0, 2) == 'v ') vertLines.push(line.substr(2))
       if(line.substr(0, 3) == 'vn ') normalLines.push(line.substr(3))
-      if(line.substr(0, 2) == 't ') uvLines.push(line.substr(2))
+      if(line.substr(0, 3) == 'vt ') uvLines.push(line.substr(3))
       if(line.substr(0, 2) == 'f ') faceLines.push(line.substr(2))
     })
     faceLines.forEach(line => {
-      console.log(line)
-      var vidx = line.split('/')[0]
-      var tidx = line.split('/')[1]
-      var nidx = line.split('/')[2]
-      console.log(vidx, tidx, nidx)
-      geometry = [...geometry, {
-          position: vertLines[vidx].split(' ').map(v=>+v),
-          normal:   normalLines[nidx].split(' ').map(v=>+v),
-          texCoord: uvLines[tidx].split(' ').map(v=>+v),
-        }]
+      let verts = line.split(' ')
+      var tverts   = []
+      var tnormals = []
+      var tuvs     = []
+      verts.forEach((vertex, idx) => {
+        var vidx = vertex.split('/')[0]-1
+        var nidx = vertex.split('/')[2]-1
+        var tidx = vertex.split('/')[1]-1
+        
+        var tvert = vertLines[vidx].split(' ')
+        for(var i = 0; i<tvert.length; i+=3){
+          var X = tvert[i+0] * scale + tx
+          var Y = tvert[i+1] * scale + ty
+          var Z = tvert[i+2] * scale + tz
+          var r = R(X, Y, Z, {x:0, y:0, z:0,
+                             roll:  rl,
+                             pitch: pt,
+                             yaw:   yw})
+          
+          tvert[i+0] = r[0]
+          tvert[i+1] = r[1]
+          tvert[i+2] = r[2]
+        }
+        
+        var tnormal = normalLines[nidx].split(' ').map(q=>+q)
+        
+        var nx1 = tvert[0]
+        var ny1 = tvert[1]
+        var nz1 = tvert[2]
+        var nx2 = tvert[0] + tnormal[0]
+        var ny2 = tvert[1] + tnormal[1]
+        var nz2 = tvert[2] + tnormal[2]
+        var tuv = uvLines.length ? uvLines[tidx].split(' ').map(q=>+q) : []
+        
+        tverts.push(tvert)
+        tuvs.push(tuv)
+        tnormals.push([nx1, ny1, nz1, nx2, ny2, nz2])
+      })
+      switch(verts.length){
+        case 3:
+          tverts.map(v=> rawGeometry.vertices.push(...v))
+          tnormals.map(v=> rawGeometry.normals.push(...v))
+          tuvs.map(v=> rawGeometry.uvs.push(...v))
+        break
+        case 4:  // split quads, if found
+          tverts.filter((v,i)=>i<3).map(v=>{
+            rawGeometry.vertices.push(...v)
+          })
+          tnormals.filter((v,i)=>i<3).map(v=>{
+            rawGeometry.normals.push(...v)
+          })
+          tuvs.filter((v,i)=>i<3).map(v=>{
+            rawGeometry.uvs.push(...v)
+          });
+          
+          ([2,3,0]).map(idx => {
+            tverts[idx].forEach(v=>rawGeometry.vertices.push(v))
+            tnormals[idx].forEach(v=>rawGeometry.normals.push(v))
+            tuvs[idx].forEach(v=>rawGeometry.uvs.push(v))
+          })
+        break
+      }
     })
   })
-  
-  return geometry
+  return rawGeometry
 }
 
 const Q = (X, Y, Z, c, AR=700) => [c.width/2+X/Z*AR, c.height/2+Y/Z*AR]
@@ -289,16 +332,18 @@ const R = (X,Y,Z, cam, m=false) => {
 const LoadGeometry = async (renderer, geoOptions) => {
 
   var x, y, z, roll, pitch, yaw
+  var scaleX=1, scaleY=1, scaleZ=1
+  var objX, objY, objZ, objRoll, objPitch, objYaw
   var vertex_buffer, Vertex_Index_Buffer
   var normal_buffer, Normal_Index_Buffer
   var normalVec_buffer, NormalVec_Index_Buffer
-  var uv_buffer, UV_Index_Buffer
+  var uv_buffer, UV_Index_Buffer, name
   var vIndices, nIndices, nVecIndices, uvIndices
   const gl = renderer.gl
   var shape
   
   // geo defaults
-  var url              = ''
+  var objURL           = ''
   var size             = 1
   var subs             = 1
   var sphereize        = 0
@@ -315,13 +360,23 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'pitch': pitch = geoOptions[key]; break
       case 'yaw': yaw = geoOptions[key]; break
       case 'shapeType': shapeType = geoOptions[key]; break
-      case 'url': url = geoOptions[key]; break
+      case 'objURL': objURL = geoOptions[key]; break
       case 'size': size = geoOptions[key]; break
       case 'subs': subs = geoOptions[key]; break
       case 'sphereize': sphereize = geoOptions[key]; break
       case 'equirectangular': equirectangular = geoOptions[key]; break
       case 'flipNormals': flipNormals = geoOptions[key]; break
       case 'showNormals': showNormals = geoOptions[key]; break
+      case 'objX': objX = geoOptions[key]; break
+      case 'objY': objY = geoOptions[key]; break
+      case 'objZ': objZ = geoOptions[key]; break
+      case 'objRoll': objRoll = geoOptions[key]; break
+      case 'objPitch': objPitch = geoOptions[key]; break
+      case 'objYaw': objYaw = geoOptions[key]; break
+      case 'scaleX': scaleX = geoOptions[key]; break
+      case 'scaleY': scaleY = geoOptions[key]; break
+      case 'scaleZ': scaleZ = geoOptions[key]; break
+      case 'name': name = geoOptions[key]; break
     }
   })
 
@@ -379,14 +434,17 @@ const LoadGeometry = async (renderer, geoOptions) => {
       })
     break
     case 'obj':
-      shape = await LoadOBJ(url, 1, 0,0,0, 0,0,0, false)
-      console.log(shape)
-      shape.geometry.map(v => {
-        vertices = [...vertices, ...v.position]
-        normals  = [...normals,  ...v.normal]
-        uvs      = [...uvs,      ...v.texCoord]
-      })
-      console.log(vertices, normals, uvs)
+      if(typeof objX     == 'undefined') objX     = 0
+      if(typeof objY     == 'undefined') objY     = 0
+      if(typeof objZ     == 'undefined') objZ     = 0
+      if(typeof objRoll  == 'undefined') objRoll  = 0
+      if(typeof objPitch == 'undefined') objPitch = 0
+      if(typeof objYaw   == 'undefined') objYaw   = 0
+      shape = await LoadOBJ(objURL, size, objX, objY, objZ,
+                            objRoll, objPitch, objYaw, false)
+      vertices = shape.vertices
+      normals = shape.normals
+      uvs     = shape.uvs
     break
     case 'dodecahedron':
       equirectangular = true
@@ -397,6 +455,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
         uvs         = [...uvs,      ...v.texCoord]
       })
     break
+  }
+  
+  for(var i=0; i<vertices.length; i+=3){
+     vertices[i+0] *= scaleX
+     vertices[i+1] *= scaleY
+     vertices[i+2] *= scaleZ
   }
   
   normalVecs    = []
@@ -462,7 +526,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   return {
     x, y, z,
     roll, pitch, yaw,
-    url, size, subs,
+    objURL, size, subs, name,
     showNormals, shapeType,
     sphereize, equirectangular, flipNormals,
     vertices, normals, normalVecs, uvs,
@@ -604,10 +668,10 @@ var BasicShader = async (renderer, options=[]) => {
                   `,
                   fragCode:            `
                     light = light * 10.0;
-                    float px = phongFlatShading == 1.0 ? nVec.x : fPosi.x;
-                    float py = phongFlatShading == 1.0 ? nVec.y : fPosi.y;
-                    float pz = phongFlatShading == 1.0 ? nVec.z : fPosi.z;
-                    float p1 = atan(px, pz);// + t * 2.0;
+                    float px = phongFlatShading == 1.0 ? nVeci.x : fPosi.x;
+                    float py = phongFlatShading == 1.0 ? nVeci.y : fPosi.y;
+                    float pz = phongFlatShading == 1.0 ? nVeci.z : fPosi.z;
+                    float p1 = atan(px, pz) + .33 + sin(t*2.0) / 2.0;
                     float phongP1   = 1.0 + sin(p1 - M_PI / 2.0 + .4 - camYaw + geoYaw) * 2.0;
                     float phongP2 = acos(py / sqrt(px * px + py * py+ pz * pz));
                     colorMag = light + pow((1.0+phongP1) * (cos(phongP2-1.222-camPitch) + 1.0), 12.0) / 40000000000.0 * phong;
@@ -1012,7 +1076,6 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
     case 'obj': shape = await subbed(0, 1, sphereize, e, texCoords, hint); break
     default: shape = await subbed(subs + 1, 1, sphereize, e, texCoords, hint); break
   }
-  console.log(shape)
   shape.map(v => {
     v.verts.map(q=>{
       X = q[0] *= size //  (sphereize ? .5 : 1.5)
@@ -1100,7 +1163,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     }
     
     if(resolved){
-      var baseURL = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/`
+      var baseURL = `https://srmcgann.github.io/Coordinates/new%20prebuilt%20shapes/`
       await fetch(`${baseURL}${fileBase}_full.json`).then(res=>res.json()).then(data=>{
         shape     = data.shape
         texCoords = data.texCoords
@@ -1923,7 +1986,7 @@ const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
 
 const AnimationLoop = (renderer, func) => {
   const loop = () => {
-    if(renderer.ready) window[func]()
+    if(renderer.ready && typeof window[func] != 'undefined') window[func]()
     requestAnimationFrame(loop)
   }
   window.addEventListener('load', () => {
