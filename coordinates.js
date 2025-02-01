@@ -1163,7 +1163,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     }
     
     if(resolved){
-      var baseURL = `https://srmcgann.github.io/Coordinates/new%20prebuilt%20shapes/`
+      var baseURL = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/`
       await fetch(`${baseURL}${fileBase}_full.json`).then(res=>res.json()).then(data=>{
         shape     = data.shape
         texCoords = data.texCoords
