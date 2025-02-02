@@ -12,9 +12,10 @@ $file = <<<'FILE'
   * shapes
     └> ✔ add shapes (in addtion to Cube)
        ✔ make non-cube UVs equirectangular
-       ✔ keep shape generation functions, but add 'precompiled' versions
-         for ordinary calls
+       ✔ keep shape generation functions, but add 'precompiled' versions for ordinary calls
        ✔ move rotation function into shader
+       * loading -> compression, direct output of
+                    usable format (no further processing needed)
 
   * subdivision
     └> ✔  add optional LOD param for all basic geometry
@@ -63,7 +64,7 @@ $file = <<<'FILE'
       const main = (async () => {
         var rendererOptions = {
           fov: 1500,
-          ambientLight: 1,
+          ambientLight: .9,
           x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0,
           margin: 10, attachToBody: true,
           context: {
@@ -83,7 +84,8 @@ $file = <<<'FILE'
             uniform: {
               enabled: true,
               type: 'phong',
-              value: 2,
+              value: 1.5,
+              theta: .25,
               flatShading: false,
             },
           },
@@ -91,30 +93,31 @@ $file = <<<'FILE'
             uniform: {
               enabled: true,
               type: 'reflection',
-              map: 'https://srmcgann.github.io/skyboxes3/HDRI/redCluds.jpg',
-              value: .75,
+              map: 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg',
+              value: .4,
               flatShading: false,
             },
           },
         ]
         var shader = await Coordinates.BasicShader(renderer, shaderOptions)
         
+        console.log(shader)
         var backgroundshaderOptions = structuredClone(shaderOptions)
         backgroundshaderOptions[0].uniform.enabled = true
         backgroundshaderOptions[0].uniform.value   = 1
         backgroundshaderOptions[1].uniform.enabled = true
-        backgroundshaderOptions[1].uniform.value   = .25
-        backgroundshaderOptions[1].uniform.map   = 'https://srmcgann.github.io/skyboxes7/HDRI/nebugrid.jpg'
+        backgroundshaderOptions[1].uniform.value   = 1
+        backgroundshaderOptions[1].uniform.map   = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'
         var backgroundShader = await Coordinates.BasicShader(renderer, backgroundshaderOptions)
         
         renderer.z = 40
         
         
         let geos = []
-        let cl = 7
+        let cl = 5
         let rw = 3
-        let br = 1
-        let sp = 40
+        let br = 3
+        let sp = 100
         let subs = 1
         
         let size, sphereize
@@ -137,7 +140,7 @@ $file = <<<'FILE'
           objPitch: 0,
           objYaw: 0,
           shapeType: 'dodecahedron',
-          size: 350,
+          size: 500,
           subs: 2,
           sphereize: 1,
           equirectangular: true,
@@ -146,64 +149,112 @@ $file = <<<'FILE'
           url: ''
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry, idx) => {
-          //let tex = 'https://srmcgann.github.io/skyboxes7/HDRI/quickgrid.png'
-          let tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'
-            geos = [...geos, geometry]
-            await backgroundShader.ConnectGeometry(geometry, tex)
+          let tex = ''//
+          //let tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'
+          geos = [...geos, geometry]
+          await backgroundShader.ConnectGeometry(geometry, tex)
         })
 
         Array(cl*rw*br).fill().map(async (v, i) => {
-          var shapeType
-          switch(i%7){
-            case 0: shapeType = 'tetrahedron'; break
-            case 1: shapeType = 'cube'; break
-            case 2: shapeType = 'octahedron'; break
-            case 3: shapeType = 'obj'; break
-            case 4: shapeType = 'dodecahedron'; break
-            case 5: shapeType = 'icosahedron'; break
-            case 6: shapeType = 'tetrahedron'; break
+          var shapeType, objURL, size
+          var scaleX, scaleY, scaleZ
+          var objRoll, objPitch, objYaw
+          var x, y, z
+          x = ((i%cl)-cl/2 + .5) * sp
+          y = (((i/cl|0)%rw) - rw/2 + .5) * sp
+          z = ((i/cl/rw|0)-br/2 + .5) * sp
+          scaleX = 1
+          scaleY = 1
+          scaleZ = 1
+          objRoll = 0
+          objPitch = 0
+          objYaw = 0
+          size = 40
+          switch(i%cl){
+            //case 1: shapeType = 'tetrahedron'; break
+            case 0:
+              shapeType = 'obj'
+              objURL = 'https://srmcgann.github.io/objs/elephant.obj'
+              y -= 18
+              scaleZ = 2
+              size = 6.5
+            break
+            case 1:
+              shapeType = 'obj'
+              objURL = 'https://srmcgann.github.io/objs/greek_head1.obj'
+              size = 20
+              y += 16
+            break
+            case 2:
+              //shapeType = 'cube'
+              shapeType = 'obj'
+              if(i%4){
+                objURL = 'https://srmcgann.github.io/objs/heart.obj'
+                objYaw   = Math.PI/2
+                size = 1
+              }else{
+                objURL = 'https://srmcgann.github.io/objs/parabolic_dish.obj'
+                size = 10
+                objPitch = Math.PI/2
+              }
+              y -= 3
+            break
+            case 3:
+              shapeType = 'dodecahedron'
+            break
+            case 4:
+              shapeType = 'obj'
+              if(i%4){
+                objURL = 'https://srmcgann.github.io/objs/heart.obj'
+                objYaw   = Math.PI/2
+                size = 1
+              }else{
+                objURL = 'https://srmcgann.github.io/objs/parabolic_dish.obj'
+                size = 10
+                objPitch = Math.PI/2
+              }
+            break
+            //case 5: shapeType = 'tetrahedron'; break
           }
           var geoOptions = {
-            x: ((i%cl)-cl/2 + .5) * sp,
-            y: (((i/cl|0)%rw) - rw/2 + .5) * sp,
-            z: ((i/cl/rw|0)-br/2 + .5) * sp,
+            x, y , z,
             roll: 0,
             pitch: 0,
-            yaw: Math.PI,
-            scaleX: 1,
-            scaleY: 1,
-            scaleZ: (i%7)==3 ? 1 : 1,
+            yaw: 0,
+            scaleX,
+            scaleY,
+            scaleZ,
             objX: 0,
-            objY: (i%7)==3 ? -13.5 : 0,
+            objY: 0,
             objZ: 0,
-            objRoll: 0,
-            objPitch: 0,
-            objYaw: Math.PI,
+            objRoll,
+            objPitch,
+            objYaw,
             shapeType,
-            name: (i%7)==3 ? 'greek_head' : 'solid',
-            size: (i%7)==3 ? 7.5 : 15,
+            name: 'solid',
+            size,
             subs,
-            sphereize: 0,
+            sphereize: -.25,
             equirectangular: true,
             invertNormals: false,
             showNormals: false,
-            objURL: (i%7)==3 ? 'https://srmcgann.github.io/objs/greek_head.obj' : ''
+            objURL,
           }
           await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry, idx) => {
             let tex
-            switch(i%1){
+            switch(i%3){
               case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
               //case 0: tex = 'https://srmcgann.github.io/Coordinates/spectrum_test.jpg'; break
-              case 1: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/pano3.jpg'; break
+              case 2: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/pano3.jpg'; break
               //case 0: tex = 'https://srmcgann.github.io/objs/tree/bark1.jpg'; break
               //case 0: tex = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg'; break
               //case 1: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
-              //case 0: tex = 'https://srmcgann.github.io/skyboxes7/HDRI/nebugrid.jpg'; break
+              //case 0: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'; break
               //case 1: tex = 'https://srmcgann.github.io/objs/tree/leaf_texture.png'; break
               //case 1: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/creepy_mansion.jpg'; break
-              case 2: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
-              case 3: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
-              case 4: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/redCluds.jpg'; break
+              case 1: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
+              case 3: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/redCluds.jpg'; break
+              case 4: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
             }
             ct++
             geos = [...geos, geometry]
@@ -212,32 +263,41 @@ $file = <<<'FILE'
         })
 
         var S = Math.sin, C = Math.cos
-        
+        console.log(shader)
         window.Draw = () => {
-        
+
           var t = renderer.t
+        
+          for(var m=2;m--;) (m?backgroundShader:shader).datasets.map(v=>{
+            if(typeof v?.optionalUniforms != 'undefined'){
+              let phongShader = v.optionalUniforms.filter(v=>v.name=='phong')
+              if(phongShader.length) phongShader[0].theta -= .03
+            }
+          })
+          
           if(cl*rw*br == ct){
           
             var X, Y, Z, e
             renderer.Clear()
-            
-            renderer.z = Math.min(120, Math.max(18, (.3 - C(t/2))*150))
+
+            renderer.z = Math.min(200, Math.max(28, (.3 - C(t/20))*400))
             //renderer.x = S(t*8) * 20
             //renderer.pitch   -= .01
-            renderer.yaw += .005
-            
+            renderer.yaw   += .002 //S(t/4) * 1
+            renderer.pitch = S(t/8) / 1.66
+
             geos.map((geometry, idx) => {
               switch(geometry.name){
                 case 'background':
-                  geometry.yaw += .005
+                  //geometry.yaw += .005
                 break;
-                case 'solid':
-                  geometry.yaw -= .02 * (idx ? -1 : 1)
-                  geometry.pitch = C(t/2) * .5
-                break
+                //case 'solid':
+                //break
                 default: // objs
-                  geometry.yaw += S(t) * .025 + .02
-                  geometry.pitch = C(t/2) * .5
+                  geometry.yaw -= C(t/3 + idx) * .05 * (idx%2 ? -1 : 1)
+                  geometry.pitch = C(t/2) / 2
+                  //geometry.yaw += S(t) * .025 + .02
+                  //geometry.pitch = C(t/2) * .5
                 break
               }
               renderer.Draw(geometry)
@@ -283,7 +343,6 @@ $file = <<<'FILE'
     </script>
   </body>
 </html>
-
 
 FILE;
 file_put_contents('../../Coordinates/index.html', $file);

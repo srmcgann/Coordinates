@@ -150,6 +150,10 @@ const Renderer = (width = 1920, height = 1080, options) => {
               
               ctx.uniform1f(uniform.locRefOmitEquirectangular, geometry.shapeType == 'rectangle' ? 1.0 : 0.0)
             break
+            case 'phong':
+              uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
+              ctx.uniform1f(uniform.locPhongTheta, uniform.theta)
+            break
           }
         }
       })
@@ -265,7 +269,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
           tvert[i+2] = r[2]
         }
         
-        var tnormal = normalLines[nidx].split(' ').map(q=>+q)
+        var tnormal = normalLines.length ? normalLines[nidx].split(' ').map(q=>+q) : []
         
         var nx1 = tvert[0]
         var ny1 = tvert[1]
@@ -614,28 +618,30 @@ var BasicShader = async (renderer, options=[]) => {
                   flatShadingUniform:  'refFlatShading',
                   dataType:            'uniform1f',
                   vertDeclaration:     `
+                    varying vec3 reflectionPos;
                   `,
                   vertCode:            `
+                    reflectionPos = vec3(position.x, position.y, position.z);
+                    reflectionPos = R(reflectionPos.x, reflectionPos.y, reflectionPos.z,
+                                 geoRoll, geoPitch, geoYaw);
                   `,
                   fragDeclaration:     `
                     uniform float reflection;
                     uniform float refFlatShading;
                     uniform float refOmitEquirectangular;
                     uniform sampler2D reflectionMap;
+                    varying vec3 reflectionPos;
                   `,
                   fragCode:            `
                     mixColorIp = reflection;
                     baseColorIp = 1.0 - mixColorIp;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
-                      
-                      float refp = refFlatShading == 1.0 ? atan(nVec.x, nVec.z) : atan(fPos.x, fPos.z);
-                      refP1 = ((refp + camYaw) / M_PI)/ 2.0;
-                      
-                      //refP2 = refFlatShading == 1.0 ?
-                      //    (acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) + camPitch) / M_PI:
-                      //    (acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPos.y*fPosi.y + fPos.z*fPosi.z)+.00001)) - geoPitch) / M_PI;
-                      refP2 = coords.y;
+                      float px = reflectionPos.x;
+                      float py = reflectionPos.y;
+                      float pz = reflectionPos.z;
+                      refP1 = atan(px, pz) / M_PI / 2.0;
+                      refP2 = acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
                     } else {
                       refP1 = vUv.x;
                       refP2 = vUv.y;
@@ -657,24 +663,30 @@ var BasicShader = async (renderer, options=[]) => {
                   value:               option.uniform.value,
                   flatShading:         option.uniform.flatShading,
                   flatShadingUniform:  'phongFlatShading',
+                  theta:                option.uniform.theta,
                   dataType:            'uniform1f',
                   vertDeclaration:     `
+                    varying vec3 phongPos;
                   `,
                   vertCode:            `
+                    phongPos = vec3(position.x, position.y, position.z);
+                    phongPos = R(phongPos.x, phongPos.y, phongPos.z,
+                                 geoRoll, geoPitch, geoYaw);
                   `,
                   fragDeclaration:     `
                     uniform float phong;
+                    uniform float phongTheta;
                     uniform float phongFlatShading;
+                    varying vec3 phongPos;
                   `,
                   fragCode:            `
                     light = light * 10.0;
-                    float px = phongFlatShading == 1.0 ? nVeci.x : fPosi.x;
-                    float py = phongFlatShading == 1.0 ? nVeci.y : fPosi.y;
-                    float pz = phongFlatShading == 1.0 ? nVeci.z : fPosi.z;
-                    float p1 = atan(px, pz) + .33 + t*2.0;
-                    float phongP1   = 1.0 + sin(p1 - M_PI / 2.0 + .4 - camYaw + geoYaw) * 2.0;
-                    float phongP2 = acos(py / sqrt(px * px + py * py+ pz * pz));
-                    colorMag = light + pow((1.0+phongP1) * (cos(phongP2-1.222-camPitch) + 1.0), 12.0) / 40000000000.0 * phong;
+                    float px = phongPos.x;
+                    float py = phongPos.y;
+                    float pz = phongPos.z;
+                    float phongP1 = 1.0 + sin( atan(px, pz) + phongTheta + M_PI * 1.5) * 2.0;
+                    float phongP2 = acos( py / sqrt(px * px + py * py + pz * pz)) + 5.0;
+                    colorMag = light + pow((1.0+phongP1) * (cos(phongP2) + 1.0), 12.0) / 40000000000.0 * phong;
                     light = max(light, colorMag);
                   `,
                 }
@@ -776,6 +788,8 @@ var BasicShader = async (renderer, options=[]) => {
       uvi = vec2(uvi.x, .5 - uvi.y);
       
       nVeci = normalVec;
+      
+      fPos = vec3(position.x, position.y, position.z);
       fPosi = position;
       
       
@@ -790,7 +804,7 @@ var BasicShader = async (renderer, options=[]) => {
                                           geoPitch - camPitch * 2.0,
                                           geoYaw   - camYaw * 2.0);
                                           
-      fPos = R(fPosi.x, fPosi.y, fPosi.z, geoRoll - camRoll,
+      R(fPosi.x, fPosi.y, fPosi.z, geoRoll - camRoll,
                                           0.0,
                                           geoYaw - camYaw);
       
@@ -976,10 +990,14 @@ var BasicShader = async (renderer, options=[]) => {
             gl.activeTexture(gl.TEXTURE1)
             gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
           break
+          case 'phong':
+            uniform.locPhongTheta = gl.getUniformLocation(dset.program, uniform.theta)
+            gl.uniform1f(uniform.locPhongTheta, uniform.theta)
           break
         }
         uniform.locFlatShading = gl.getUniformLocation(dset.program, uniform.flatShadingUniform)
         gl.uniform1f(uniform.locFlatShading , uniform.flatShading ? 1.0 : 0.0)
+        
         
         
         uniform.loc = gl.getUniformLocation(dset.program, uniform.name)
