@@ -64,7 +64,7 @@ $file = <<<'FILE'
       const main = (async () => {
         var rendererOptions = {
           fov: 1500,
-          ambientLight: .9,
+          ambientLight: 1.25,
           x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0,
           margin: 10, attachToBody: true,
           context: {
@@ -84,7 +84,7 @@ $file = <<<'FILE'
             uniform: {
               enabled: true,
               type: 'phong',
-              value: 1.5,
+              value: 40,
               theta: .25,
               flatShading: false,
             },
@@ -93,32 +93,31 @@ $file = <<<'FILE'
             uniform: {
               enabled: true,
               type: 'reflection',
-              map: 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg',
-              value: .4,
+              map: 'https://srmcgann.github.io/Coordinates/doommaze_light.jpg',
+              value: 1,
               flatShading: false,
             },
           },
         ]
         var shader = await Coordinates.BasicShader(renderer, shaderOptions)
         
-        console.log(shader)
         var backgroundshaderOptions = structuredClone(shaderOptions)
         backgroundshaderOptions[0].uniform.enabled = true
         backgroundshaderOptions[0].uniform.value   = 1
         backgroundshaderOptions[1].uniform.enabled = true
         backgroundshaderOptions[1].uniform.value   = 1
-        backgroundshaderOptions[1].uniform.map   = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'
+        backgroundshaderOptions[1].uniform.map   = 'https://srmcgann.github.io/Coordinates/doommaze_light.jpg'
         var backgroundShader = await Coordinates.BasicShader(renderer, backgroundshaderOptions)
         
-        renderer.z = 40
+        renderer.z = 5
         
         
         let geos = []
         let cl = 5
-        let rw = 3
-        let br = 3
-        let sp = 100
-        let subs = 1
+        let rw = 5
+        let br = 5
+        let sp = 5
+        let subs = 2
         
         let size, sphereize
         let equirectangular, invertNormals, showNormals
@@ -141,7 +140,7 @@ $file = <<<'FILE'
           objYaw: 0,
           shapeType: 'dodecahedron',
           size: 500,
-          subs: 2,
+          subs: 3,
           sphereize: 1,
           equirectangular: true,
           invertNormals: false,
@@ -169,50 +168,50 @@ $file = <<<'FILE'
           objRoll = 0
           objPitch = 0
           objYaw = 0
-          size = 40
+          size = 1.66
           switch(i%cl){
             //case 1: shapeType = 'tetrahedron'; break
-            case 0:
-              shapeType = 'obj'
-              objURL = 'https://srmcgann.github.io/objs/elephant.obj'
-              y -= 18
-              scaleZ = 2
-              size = 6.5
-            break
             case 1:
-              shapeType = 'obj'
-              objURL = 'https://srmcgann.github.io/objs/greek_head1.obj'
-              size = 20
-              y += 16
+              shapeType = 'tetrahedron'
+              //objURL = 'https://srmcgann.github.io/objs/elephant.obj'
+              //y -= 18
+              //scaleZ = 2
+              //size = 6.5
             break
             case 2:
+              shapeType = 'cube'
+              //objURL = 'https://srmcgann.github.io/objs/greek_head1.obj'
+              //size = 20
+              //y += 16
+            break
+            case 0:
               //shapeType = 'cube'
-              shapeType = 'obj'
-              if(i%4){
-                objURL = 'https://srmcgann.github.io/objs/heart.obj'
-                objYaw   = Math.PI/2
-                size = 1
-              }else{
-                objURL = 'https://srmcgann.github.io/objs/parabolic_dish.obj'
-                size = 10
-                objPitch = Math.PI/2
-              }
-              y -= 3
+              shapeType = 'octahedron'
+              //if(i%4){
+                //objURL = 'https://srmcgann.github.io/objs/heart.obj'
+                //objYaw   = Math.PI/2
+                //size = 1
+              //}else{
+                //objURL = 'https://srmcgann.github.io/objs/parabolic_dish.obj'
+                //size = 10
+                //objPitch = Math.PI/2
+              //}
+              //y -= 3
             break
             case 3:
               shapeType = 'dodecahedron'
             break
             case 4:
-              shapeType = 'obj'
-              if(i%4){
-                objURL = 'https://srmcgann.github.io/objs/heart.obj'
-                objYaw   = Math.PI/2
-                size = 1
-              }else{
-                objURL = 'https://srmcgann.github.io/objs/parabolic_dish.obj'
-                size = 10
-                objPitch = Math.PI/2
-              }
+              shapeType = 'icosahedron'
+              //if(i%4){
+              //  objURL = 'https://srmcgann.github.io/objs/heart.obj'
+              //  objYaw   = Math.PI/2
+              //  size = 1
+              //}else{
+              //  objURL = 'https://srmcgann.github.io/objs/parabolic_dish.obj'
+              //  size = 10
+              //  objPitch = Math.PI/2
+              //}
             break
             //case 5: shapeType = 'tetrahedron'; break
           }
@@ -234,7 +233,7 @@ $file = <<<'FILE'
             name: 'solid',
             size,
             subs,
-            sphereize: -.25,
+            sphereize: -.66,
             equirectangular: true,
             invertNormals: false,
             showNormals: false,
@@ -242,7 +241,7 @@ $file = <<<'FILE'
           }
           await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry, idx) => {
             let tex
-            switch(i%3){
+            switch(i%1){
               case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
               //case 0: tex = 'https://srmcgann.github.io/Coordinates/spectrum_test.jpg'; break
               case 2: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/pano3.jpg'; break
@@ -263,7 +262,6 @@ $file = <<<'FILE'
         })
 
         var S = Math.sin, C = Math.cos
-        console.log(shader)
         window.Draw = () => {
 
           var t = renderer.t
@@ -271,7 +269,7 @@ $file = <<<'FILE'
           for(var m=2;m--;) (m?backgroundShader:shader).datasets.map(v=>{
             if(typeof v?.optionalUniforms != 'undefined'){
               let phongShader = v.optionalUniforms.filter(v=>v.name=='phong')
-              if(phongShader.length) phongShader[0].theta -= .03
+              if(phongShader.length) phongShader[0].theta -= .2
             }
           })
           
@@ -280,10 +278,9 @@ $file = <<<'FILE'
             var X, Y, Z, e
             renderer.Clear()
 
-            renderer.z = Math.min(200, Math.max(28, (.3 - C(t/20))*400))
+            renderer.z = Math.min(16, Math.max(2, (.3 + C(t/10))*20))
             //renderer.x = S(t*8) * 20
-            //renderer.pitch   -= .01
-            renderer.yaw   += .002 //S(t/4) * 1
+            renderer.yaw   += .005 //S(t/4) * 1
             renderer.pitch = S(t/8) / 1.66
 
             geos.map((geometry, idx) => {

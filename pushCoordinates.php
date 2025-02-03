@@ -6,6 +6,12 @@ $file = <<<'FILE'
 
 const S = Math.sin, C = Math.cos
 
+const cache = {
+  objFiles: [],
+  textures: [],
+  geometry: []
+}
+
 const Renderer = (width = 1920, height = 1080, options) => {
 
   var x=0, y=0, z=0
@@ -393,94 +399,171 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var uvs         = []
   
   var shapeType = shapeType.toLowerCase()
-  switch(shapeType){
-    case 'tetrahedron':
-      equirectangular = true
-      shape = await Tetrahedron(size, subs, sphereize, flipNormals, shapeType)
-      shape.geometry.map(v => {
-        vertices = [...vertices, ...v.position]
-        normals  = [...normals,  ...v.normal]
-        uvs      = [...uvs,      ...v.texCoord]
+  
+  let hint = `${shapeType}_${subs}`
+  var resolved = false
+  if(subs < 5 && hint){
+    var fileBase
+    switch(hint){
+      case 'tetrahedron_0':
+      case 'tetrahedron_1':
+      case 'tetrahedron_2':
+      case 'tetrahedron_3':
+      case 'tetrahedron_4':
+      case 'cube_0':
+      case 'cube_1':
+      case 'cube_2':
+      case 'cube_3':
+      case 'cube_4':
+      case 'octahedron_0':
+      case 'octahedron_1':
+      case 'octahedron_2':
+      case 'octahedron_3':
+      case 'octahedron_4':
+      case 'dodecahedron_0':
+      case 'dodecahedron_1':
+      case 'dodecahedron_2':
+      case 'dodecahedron_3':
+      case 'dodecahedron_4':
+      case 'icosahedron_0':
+      case 'icosahedron_1':
+      case 'icosahedron_2':
+      case 'icosahedron_3':
+      case 'icosahedron_4':
+        resolved = true; fileBase = hint; break
+      break
+    }
+    
+    if(resolved){
+      var baseURL = `https://srmcgann.github.io/Coordinates/new%20shapes/`
+      await fetch(`${baseURL}${fileBase}.json`).then(res=>res.json()).then(data=>{
+        vertices    = data.vertices
+        normals     = data.normals
+        normalVecs  = data.normalVecs
+        uvs         = data.uvs
       })
-    break
-    case 'octahedron':
-      equirectangular = true
-      shape = await Octahedron(size, subs, sphereize, flipNormals, shapeType)
-      shape.geometry.map(v => {
-        vertices = [...vertices, ...v.position]
-        normals  = [...normals,  ...v.normal]
-        uvs      = [...uvs,      ...v.texCoord]
-      })
-    break
-    case 'icosahedron':
-      equirectangular = true
-      shape = await Icosahedron(size, subs, sphereize, flipNormals, shapeType)
-      shape.geometry.map(v => {
-        vertices = [...vertices, ...v.position]
-        normals  = [...normals,  ...v.normal]
-        uvs      = [...uvs,      ...v.texCoord]
-      })
-    break
-    case 'cube':
-      //if(sphereize) equirectangular = true
-      shape = await Cube(size, subs, sphereize, flipNormals, shapeType)
-      shape.geometry.map(v => {
-        vertices = [...vertices, ...v.position]
-        normals  = [...normals,  ...v.normal]
-        uvs      = [...uvs,      ...v.texCoord]
-      })
-    break
-    case 'rectangle':
-      //equirectangular = false
-      shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
-      shape.geometry.map(v => {
-        vertices = [...vertices, ...v.position]
-        normals  = [...normals,  ...v.normal]
-        uvs      = [...uvs,      ...v.texCoord]
-      })
-    break
-    case 'obj':
-      if(typeof objX     == 'undefined') objX     = 0
-      if(typeof objY     == 'undefined') objY     = 0
-      if(typeof objZ     == 'undefined') objZ     = 0
-      if(typeof objRoll  == 'undefined') objRoll  = 0
-      if(typeof objPitch == 'undefined') objPitch = 0
-      if(typeof objYaw   == 'undefined') objYaw   = 0
-      shape = await LoadOBJ(objURL, size, objX, objY, objZ,
-                            objRoll, objPitch, objYaw, false)
-      vertices = shape.vertices
-      normals = shape.normals
-      uvs     = shape.uvs
-    break
-    case 'dodecahedron':
-      equirectangular = true
-      shape = await Dodecahedron(size, subs, sphereize, flipNormals, shapeType)
-      shape.geometry.map(v => {
-        vertices    = [...vertices, ...v.position]
-        normals     = [...normals,  ...v.normal]
-        uvs         = [...uvs,      ...v.texCoord]
-      })
-    break
+      
+      for(var i = 0; i< vertices.length; i+=3){
+        var ip1 = 1-sphereize
+        var ip2 = sphereize
+        var d = sphereize == 0 ? 1 : Math.hypot(vertices[i+0],
+                                                vertices[i+1],
+                                                vertices[i+2])
+        
+        vertices[i+0] = vertices[i+0] / d * (d * ip1 * size + ip2 * size)
+        vertices[i+1] = vertices[i+1] / d * (d * ip1 * size + ip2 * size)
+        vertices[i+2] = vertices[i+2] / d * (d * ip1 * size + ip2 * size)
+        
+      }
+      console.log(`shape ${hint} loaded from pre-built file`)
+    }
+  }
+  if(!resolved){
+    switch(shapeType){
+      case 'tetrahedron':
+        equirectangular = true
+        shape = await Tetrahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape.geometry.map(v => {
+          vertices = [...vertices, ...v.position]
+          normals  = [...normals,  ...v.normal]
+          uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'octahedron':
+        equirectangular = true
+        shape = await Octahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape.geometry.map(v => {
+          vertices = [...vertices, ...v.position]
+          normals  = [...normals,  ...v.normal]
+          uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'icosahedron':
+        equirectangular = true
+        shape = await Icosahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape.geometry.map(v => {
+          vertices = [...vertices, ...v.position]
+          normals  = [...normals,  ...v.normal]
+          uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'cube':
+        //if(sphereize) equirectangular = true
+        shape = await Cube(size, subs, sphereize, flipNormals, shapeType)
+        shape.geometry.map(v => {
+          vertices = [...vertices, ...v.position]
+          normals  = [...normals,  ...v.normal]
+          uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'rectangle':
+        //equirectangular = false
+        shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
+        shape.geometry.map(v => {
+          vertices = [...vertices, ...v.position]
+          normals  = [...normals,  ...v.normal]
+          uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'obj':
+        if(typeof objX     == 'undefined') objX     = 0
+        if(typeof objY     == 'undefined') objY     = 0
+        if(typeof objZ     == 'undefined') objZ     = 0
+        if(typeof objRoll  == 'undefined') objRoll  = 0
+        if(typeof objPitch == 'undefined') objPitch = 0
+        if(typeof objYaw   == 'undefined') objYaw   = 0
+        shape = await LoadOBJ(objURL, size, objX, objY, objZ,
+                              objRoll, objPitch, objYaw, false)
+        vertices = shape.vertices
+        normals = shape.normals
+        uvs     = shape.uvs
+      break
+      case 'dodecahedron':
+        equirectangular = true
+        shape = await Dodecahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape.geometry.map(v => {
+          vertices    = [...vertices, ...v.position]
+          normals     = [...normals,  ...v.normal]
+          uvs         = [...uvs,      ...v.texCoord]
+        })
+      break
+    }
+    
+    for(var i=0; i<vertices.length; i+=3){
+       vertices[i+0] *= scaleX
+       vertices[i+1] *= scaleY
+       vertices[i+2] *= scaleZ
+    }
+    
+    normalVecs    = []
+    for(var i=0; i<normals.length; i+=6){
+      let X = normals[i+3] - normals[i+0]
+      let Y = normals[i+4] - normals[i+1]
+      let Z = normals[i+5] - normals[i+2]
+      normalVecs = [...normalVecs, X, Y, Z]
+    }
   }
   
-  for(var i=0; i<vertices.length; i+=3){
-     vertices[i+0] *= scaleX
-     vertices[i+1] *= scaleY
-     vertices[i+2] *= scaleZ
-  }
   
-  normalVecs    = []
-  for(var i=0; i<normals.length; i+=6){
-    let X = normals[i+3] - normals[i+0]
-    let Y = normals[i+4] - normals[i+1]
-    let Z = normals[i+5] - normals[i+2]
-    normalVecs = [...normalVecs, X, Y, Z]
-  }
+  //console.log(`${shapeType}_${subs} : vertices`, JSON.stringify(structuredClone(vertices).//map(v=>{
+  //  return Math.round(v*1e4) / 1e4
+  //})))
+  //console.log(`${shapeType}_${subs} : normals`, JSON.stringify(structuredClone(normals).map(v=>{
+  //  return Math.round(v*1e4) / 1e4
+  //})))
+  //console.log(`${shapeType}_${subs} : normalVecs`, JSON.stringify(structuredClone(normalVecs).map(v=>{
+  //  return Math.round(v*1e4) / 1e4
+  //})))
+  //console.log(`${shapeType}_${subs} : uvs`, JSON.stringify(structuredClone(uvs).map(v=>{
+  //  return Math.round(v*1e4) / 1e4
+  //})))
+  
   
   vertices   = new Float32Array(vertices)
   normals    = new Float32Array(normals)
   normalVecs = new Float32Array(normalVecs)
   uvs        = new Float32Array(uvs)
+  
   
   
   // link geometry buffers
@@ -1462,20 +1545,6 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     }
   }
 
-  /*
-  var truncate = shape => {
-    return shape.map(v=>{
-      return v.map(q=>{
-        return q.map(val=>Math.round(val*1e4) / 1e4)
-      })
-    })
-  }
-  
-  console.log(JSON.stringify(truncate(shape)))
-  console.log(JSON.stringify(truncate(texCoords)))
-  */
-  
-  
   if(sphereize){
     var d, val
     ip1 = sphereize
