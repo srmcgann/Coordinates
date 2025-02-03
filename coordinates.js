@@ -15,7 +15,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
   var x=0, y=0, z=0
   var roll=0, pitch=0, yaw=0, fov=2e3
   var attachToBody = true, margin = 10
-  var ambientLight = 1
+  var ambientLight = 1, alpha=false
   var context = {
     mode: 'webgl',
     options: {
@@ -27,6 +27,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
   
   Object.keys(options).forEach((key, idx) =>{
     switch(key){
+      case 'alpha': alpha = options[key]; break
       case 'x': x = options[key]; break
       case 'y': y = options[key]; break
       case 'z': z = options[key]; break
@@ -87,7 +88,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
   
   var ret = {
     // vars & objects
-    c, contextType, t:0,
+    c, contextType, t:0, alpha,
     width, height, x, y, z,
     roll, pitch, yaw, fov,
     ready: false, ambientLight
@@ -690,7 +691,7 @@ const BindImage = async (gl, image, binding) => {
 var BasicShader = async (renderer, options=[]) => {
   
   const gl = renderer.gl
-  var program, alpha = false
+  var program
   
   var dataset = {
     iURL: null,
@@ -704,8 +705,6 @@ var BasicShader = async (renderer, options=[]) => {
   options.map(option => {
     Object.keys(option).forEach((key, idx) => {
       switch(key.toLowerCase()){
-        case 'alpha':
-        break
         case 'uniform':
           switch(option.uniform.type){
             case 'reflection':
@@ -813,8 +812,8 @@ var BasicShader = async (renderer, options=[]) => {
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.enable(gl.DEPTH_TEST)
   //gl.clear(gl.COLOR_BUFFER_BIT)
-
-  if(alpha) {
+  console.log(renderer)
+  if(renderer.alpha) {
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
     gl.enable(gl.BLEND)
     gl.disable(gl.DEPTH_TEST)
