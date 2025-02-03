@@ -690,7 +690,7 @@ const BindImage = async (gl, image, binding) => {
 var BasicShader = async (renderer, options=[]) => {
   
   const gl = renderer.gl
-  var program
+  var program, var alpha = false
   
   var dataset = {
     iURL: null,
@@ -704,6 +704,8 @@ var BasicShader = async (renderer, options=[]) => {
   options.map(option => {
     Object.keys(option).forEach((key, idx) => {
       switch(key.toLowerCase()){
+        case 'alpha':
+        break
         case 'uniform':
           switch(option.uniform.type){
             case 'reflection':
@@ -812,12 +814,14 @@ var BasicShader = async (renderer, options=[]) => {
   gl.enable(gl.DEPTH_TEST)
   //gl.clear(gl.COLOR_BUFFER_BIT)
 
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
-  gl.enable(gl.BLEND)
-  gl.disable(gl.DEPTH_TEST)
-  
-  //gl.cullFace(gl.BACK)
-  //gl.disable(gl.CULL_FACE)
+  if(alpha) {
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
+    gl.enable(gl.BLEND)
+    gl.disable(gl.DEPTH_TEST)
+    gl.disable(gl.CULL_FACE)
+  }else{
+    gl.cullFace(gl.BACK)
+  }
   
   let uVertDeclaration = ''
   dataset.optionalUniforms.map(v=>{ uVertDeclaration += ("\n" + v.vertDeclaration + "\n") })
