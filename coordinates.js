@@ -690,7 +690,7 @@ const BindImage = async (gl, image, binding) => {
 var BasicShader = async (renderer, options=[]) => {
   
   const gl = renderer.gl
-  var program, var alpha = false
+  var program, alpha = false
   
   var dataset = {
     iURL: null,
