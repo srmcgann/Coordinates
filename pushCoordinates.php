@@ -17,7 +17,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
   var x=0, y=0, z=0
   var roll=0, pitch=0, yaw=0, fov=2e3
   var attachToBody = true, margin = 10
-  var ambientLight = .4
+  var ambientLight = 1
   var context = {
     mode: 'webgl',
     options: {
@@ -443,16 +443,33 @@ const LoadGeometry = async (renderer, geoOptions) => {
         uvs         = data.uvs
       })
       
+      var ip1 = sphereize
+      var ip2 = 1-sphereize
       for(var i = 0; i< vertices.length; i+=3){
-        var ip1 = 1-sphereize
-        var ip2 = sphereize
-        var d = sphereize == 0 ? 1 : Math.hypot(vertices[i+0],
-                                                vertices[i+1],
-                                                vertices[i+2])
+ 
+        var d, val
         
-        vertices[i+0] = vertices[i+0] / d * (d * ip1 * size + ip2 * size)
-        vertices[i+1] = vertices[i+1] / d * (d * ip1 * size + ip2 * size)
-        vertices[i+2] = vertices[i+2] / d * (d * ip1 * size + ip2 * size)
+        var X1 = vertices[i+0]
+        var Y1 = vertices[i+1]
+        var Z1 = vertices[i+2]
+        d = Math.hypot(X1, Y1, Z1)
+        var X2 = X1 / d
+        var Y2 = Y1 / d
+        var Z2 = Z1 / d
+        vertices[i+0] = (X2 * ip1 + X1 * ip2) * size
+        vertices[i+1] = (Y2 * ip1 + Y1 * ip2) * size
+        vertices[i+2] = (Z2 * ip1 + Z1 * ip2) * size
+        
+        var ox = normals[i*2+0]
+        var oy = normals[i*2+1]
+        var oz = normals[i*2+2]
+ 
+        normals[i*2+0] += vertices[i+0] - ox
+        normals[i*2+1] += vertices[i+1] - oy
+        normals[i*2+2] += vertices[i+2] - oz
+        normals[i*2+3] += vertices[i+0] - ox
+        normals[i*2+4] += vertices[i+1] - oy
+        normals[i*2+5] += vertices[i+2] - oz
         
       }
       console.log(`shape ${hint} loaded from pre-built file`)
@@ -544,21 +561,21 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  
-  //console.log(`${shapeType}_${subs} : vertices`, JSON.stringify(structuredClone(vertices).//map(v=>{
-  //  return Math.round(v*1e4) / 1e4
-  //})))
-  //console.log(`${shapeType}_${subs} : normals`, JSON.stringify(structuredClone(normals).map(v=>{
-  //  return Math.round(v*1e4) / 1e4
-  //})))
-  //console.log(`${shapeType}_${subs} : normalVecs`, JSON.stringify(structuredClone(normalVecs).map(v=>{
-  //  return Math.round(v*1e4) / 1e4
-  //})))
-  //console.log(`${shapeType}_${subs} : uvs`, JSON.stringify(structuredClone(uvs).map(v=>{
-  //  return Math.round(v*1e4) / 1e4
-  //})))
-  
-  
+  if(geoOptions.name !== 'background'){
+    //console.log(`${shapeType}_${subs} : vertices`, JSON.stringify(structuredClone(vertices).//map(v=>{
+    //  return Math.round(v*1e4) / 1e4
+    //})))
+    //console.log(`${shapeType}_${subs} : normals`, JSON.stringify(structuredClone(normals).map(v=>{
+    //  return Math.round(v*1e4) / 1e4
+    //})))
+    //console.log(`${shapeType}_${subs} : normalVecs`, JSON.stringify(structuredClone(normalVecs).map(v=>{
+    //  return Math.round(v*1e4) / 1e4
+    //})))
+    //console.log(`${shapeType}_${subs} : uvs`, JSON.stringify(structuredClone(uvs).map(v=>{
+    //  return Math.round(v*1e4) / 1e4
+    //})))
+  }
+    
   vertices   = new Float32Array(vertices)
   normals    = new Float32Array(normals)
   normalVecs = new Float32Array(normalVecs)
@@ -708,7 +725,7 @@ var BasicShader = async (renderer, options=[]) => {
                   vertCode:            `
                     reflectionPos = vec3(position.x, position.y, position.z);
                     reflectionPos = R(reflectionPos.x, reflectionPos.y, reflectionPos.z,
-                                 geoRoll, geoPitch, geoYaw);
+                                 0.0, geoPitch - camPitch / 2.0, geoYaw + camYaw);
                   `,
                   fragDeclaration:     `
                     uniform float reflection;
@@ -725,7 +742,7 @@ var BasicShader = async (renderer, options=[]) => {
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
-                      refP1 = atan(px, pz) / M_PI / 2.0;
+                      refP1 = (atan(px, pz) - camYaw)/ M_PI / 2.0;
                       refP2 = acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
                     } else {
                       refP1 = vUv.x;
@@ -754,9 +771,12 @@ var BasicShader = async (renderer, options=[]) => {
                     varying vec3 phongPos;
                   `,
                   vertCode:            `
+                    //phongPos = vec3(position.x, position.y, position.z);
+                    //phongPos = R(phongPos.x, phongPos.y, phongPos.z,
+                    //             geoRoll, geoPitch, geoYaw);
                     phongPos = vec3(position.x, position.y, position.z);
                     phongPos = R(phongPos.x, phongPos.y, phongPos.z,
-                                 geoRoll, geoPitch, geoYaw);
+                                 0.0, geoPitch - camPitch / 2.0, geoYaw + camYaw);
                   `,
                   fragDeclaration:     `
                     uniform float phong;
@@ -793,12 +813,13 @@ var BasicShader = async (renderer, options=[]) => {
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.enable(gl.DEPTH_TEST)
   //gl.clear(gl.COLOR_BUFFER_BIT)
-  //gl.viewport(0, 0, renderer.width, renderer.height)
-  //gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
-  //gl.enable(gl.BLEND)
-  //gl.disable(gl.DEPTH_TEST)
-  gl.cullFace(gl.BACK)
-  gl.disable(gl.CULL_FACE)
+
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
+  gl.enable(gl.BLEND)
+  gl.disable(gl.DEPTH_TEST)
+  
+  //gl.cullFace(gl.BACK)
+  //gl.disable(gl.CULL_FACE)
   
   let uVertDeclaration = ''
   dataset.optionalUniforms.map(v=>{ uVertDeclaration += ("\n" + v.vertDeclaration + "\n") })
@@ -847,12 +868,12 @@ var BasicShader = async (renderer, options=[]) => {
     
     vec3 R(float X, float Y, float Z, float Rl, float Pt, float Yw){
       float p, d;
-      X = sin(p=atan(X,Y)+Rl)*(d=sqrt(X*X+Y*Y));
-      Y = cos(p)*d;
       X = sin(p=atan(X,Z)+Yw)*(d=sqrt(X*X+Z*Z));
       Z = cos(p)*d;
       Y = sin(p=atan(Y,Z)+Pt)*(d=sqrt(Y*Y+Z*Z));
       Z = cos(p)*d;
+      X = sin(p=atan(X,Y)+Rl)*(d=sqrt(X*X+Y*Y));
+      Y = cos(p)*d;
       return vec3(X, Y, Z);
     }
     
@@ -2100,6 +2121,7 @@ export {
   LoadOBJ,
   IsPowerOf2,
 }
+
 
 FILE;
 file_put_contents('../../Coordinates/coordinates.js', $file);
