@@ -560,7 +560,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  if(geoOptions.name !== 'background'){
+  //if(geoOptions.name !== 'background'){
     //console.log(`${shapeType}_${subs} : vertices`, JSON.stringify(structuredClone(vertices).//map(v=>{
     //  return Math.round(v*1e4) / 1e4
     //})))
@@ -573,7 +573,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     //console.log(`${shapeType}_${subs} : uvs`, JSON.stringify(structuredClone(uvs).map(v=>{
     //  return Math.round(v*1e4) / 1e4
     //})))
-  }
+  //}
     
   vertices   = new Float32Array(vertices)
   normals    = new Float32Array(normals)
@@ -812,7 +812,6 @@ var BasicShader = async (renderer, options=[]) => {
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.enable(gl.DEPTH_TEST)
   //gl.clear(gl.COLOR_BUFFER_BIT)
-  console.log(renderer)
   if(renderer.alpha) {
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
     gl.enable(gl.BLEND)
