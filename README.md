@@ -78,7 +78,7 @@ the result<br>
 ![example 1](https://srmcgann.github.io/Coordinates/README_g1.gif)
 <br><br>
 
-## method options, with their defaults
+## methods, options, and their defaults
 #### Renderer()
 ``Coordinates.Renderer( width = 1920, height = 1080, rendererOptions )``
 ##### returns a camera object, creates a canvas
