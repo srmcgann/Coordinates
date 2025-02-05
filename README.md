@@ -1,6 +1,6 @@
 # Coordinates
 <b>Coordinates</b> is a graphics API for JavaScript enabled web browsers. It has methods for leveraging the HTML5 canvas API to create <b>images</b>, <b>animations</b>, <b>games</b> or <b>artwork</b>. At this time, <b>WebGL</b> is the only supported context, but 2d canvas support is also planned.<br>
-<center>![example 1](https://srmcgann.github.io/Coordinates/README_g0.gif)</center>
+<center> ![example 1](https://srmcgann.github.io/Coordinates/README_g0.gif) </center>
 <br>
 As a stand-alone module, <b>Coordinates</b> may be included in an HTML5 project, providing a framework for creating graphics <b>viewports, shaders</b>, stock and custom <b>shapes</b>, as well as <b>textures</b>, and a growing library of <b>effects</b>.
 
