@@ -181,6 +181,7 @@ var geoOptions = {
                       // octahedron
                       // dodecahedron
                       // icosahedron
+                      // rectangle (is a squre, unless you use a scale above)
                       // obj
                       // custom shape
                          // "custom shapes" may be obtained from any
