@@ -114,7 +114,8 @@ var rendererOptions = {
 #### AnimationLoop()
 ``Coordinates.AnimationLoop( renderer, 'Draw' )``<br>
 ##### Returns nothing. Takes no options
-The function named should be a window global, as to be callable
+The function named should be a<br>
+window global  ``window.Draw = () => { ... }``, as to be callable
 <br>
 
 #### BasicShader()
