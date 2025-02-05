@@ -24,6 +24,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
 <!DOCTYPE html>
 <html>
   <head>
+    <title>Coordinates boilerplate example</title>
     <style>
       body, html{
         background: #333;
