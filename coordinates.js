@@ -15,7 +15,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
   var x=0, y=0, z=0
   var roll=0, pitch=0, yaw=0, fov=2e3
   var attachToBody = true, margin = 10
-  var ambientLight = 1, alpha=false
+  var ambientLight = .5, alpha=false
   var context = {
     mode: 'webgl',
     options: {
@@ -25,26 +25,28 @@ const Renderer = (width = 1920, height = 1080, options) => {
     }
   }
   
-  Object.keys(options).forEach((key, idx) =>{
-    switch(key){
-      case 'alpha': alpha = options[key]; break
-      case 'x': x = options[key]; break
-      case 'y': y = options[key]; break
-      case 'z': z = options[key]; break
-      case 'roll': roll = options[key]; break
-      case 'pitch': pitch = options[key]; break
-      case 'yaw': yaw = options[key]; break
-      case 'fov': fov = options[key]; break
-      case 'attachToBody': attachToBody = options[key]; break
-      case 'margin': margin = options[key]; break
-      case 'ambientLight': ambientLight = options[key]; break
-      case 'context':
-        context.mode = options[key].mode
-        context.options = options[key]['options']
-      break
-    }
-  })
-
+  if(typeof options != 'undefined'){
+    Object.keys(options).forEach((key, idx) =>{
+      switch(key){
+        case 'alpha': alpha = options[key]; break
+        case 'x': x = options[key]; break
+        case 'y': y = options[key]; break
+        case 'z': z = options[key]; break
+        case 'roll': roll = options[key]; break
+        case 'pitch': pitch = options[key]; break
+        case 'yaw': yaw = options[key]; break
+        case 'fov': fov = options[key]; break
+        case 'attachToBody': attachToBody = options[key]; break
+        case 'margin': margin = options[key]; break
+        case 'ambientLight': ambientLight = options[key]; break
+        case 'context':
+          context.mode = options[key].mode
+          context.options = options[key]['options']
+        break
+      }
+    })
+  }
+  
   const c    = document.createElement('canvas')
   const ctx  = c.getContext(context.mode, context.options)
   c.width  = width
@@ -342,8 +344,6 @@ const R = (X,Y,Z, cam, m=false) => {
 
 const LoadGeometry = async (renderer, geoOptions) => {
 
-  var x, y, z, roll, pitch, yaw
-  var scaleX=1, scaleY=1, scaleZ=1
   var objX, objY, objZ, objRoll, objPitch, objYaw
   var vertex_buffer, Vertex_Index_Buffer
   var normal_buffer, Normal_Index_Buffer
@@ -354,9 +354,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var shape, exportShape = false
   
   // geo defaults
+  var x = 0, y = 0, z = 0
+  var roll = 0, pitch = 0, yaw = 0
+  var scaleX=1, scaleY=1, scaleZ=1
   var url              = ''
   var size             = 1
-  var subs             = 1
+  var subs             = 2
   var sphereize        = 0
   var equirectangular  = false
   var flipNormals      = false
@@ -788,8 +791,10 @@ var BasicShader = async (renderer, options=[]) => {
                   name:                option.uniform.type,
                   map:                 option.uniform.map,
                   loc:                 'locReflection',
-                  value:               option.uniform.value,
-                  flatShading:         option.uniform.flatShading,
+                  value:               typeof option.uniform.map == 'undefined' ?
+                                         .5 : option.uniform.value,
+                  flatShading:         typeof option.uniform.flatShading == 'undefined' ?
+                                         false : option.uniform.flatShading,
                   flatShadingUniform:  'refFlatShading',
                   dataType:            'uniform1f',
                   vertDeclaration:     `
@@ -835,10 +840,13 @@ var BasicShader = async (renderer, options=[]) => {
                 var uniformOption = {
                   name:                option.uniform.type,
                   loc:                 'locPhong',
-                  value:               option.uniform.value,
-                  flatShading:         option.uniform.flatShading,
+                  value:               typeof option.uniform.value == 'undefined' ?
+                                         .3 : option.uniform.value,
+                  flatShading:         typeof option.uniform.flatShading == 'undefined' ?
+                                         false : option.uniform.flatShading,
                   flatShadingUniform:  'phongFlatShading',
-                  theta:                option.uniform.theta,
+                  theta:                typeof option.uniform.theta == 'undefined' ?
+                                          .6 : option.uniform.theta,
                   dataType:            'uniform1f',
                   vertDeclaration:     `
                     varying vec3 phongPos;
@@ -1100,7 +1108,7 @@ var BasicShader = async (renderer, options=[]) => {
 
 
   ret.ConnectGeometry = async ( geometry,
-                          textureURL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/NGC_4414_%28NASA-med%29.jpg/800px-NGC_4414_%28NASA-med%29.jpg' ) => {
+                          textureURL = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg' ) => {
                             
     var dset = structuredClone(dataset)
     ret.datasets = [...ret.datasets, dset]
