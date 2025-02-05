@@ -1,6 +1,6 @@
 // 'Coordinates', a webgl framework
 // Scott McGann - whitehotrobot@gmail.com
-// all rights reserved - ©2024
+// all rights reserved - ©2025
 
 const S = Math.sin, C = Math.cos
 
@@ -348,7 +348,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var vertex_buffer, Vertex_Index_Buffer
   var normal_buffer, Normal_Index_Buffer
   var normalVec_buffer, NormalVec_Index_Buffer
-  var uv_buffer, UV_Index_Buffer, name
+  var uv_buffer, UV_Index_Buffer, name, shapeType
   var vIndices, nIndices, nVecIndices, uvIndices
   const gl = renderer.gl
   var shape, exportShape = false
@@ -398,7 +398,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var normalVecs  = []
   var uvs         = []
   
-  var shapeType = shapeType.toLowerCase()
+  shapeType = shapeType.toLowerCase()
   var resolved = false
   var fileURL, hint
   
@@ -481,8 +481,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         normals[i*2+5] += vertices[i+2] - oz
         
       }
-    //}
-    console.log(`shape ${hint} loaded from pre-built file`)
+    //console.log(`shape ${hint} loaded from pre-built file`)
   }
   if(!resolved){
     switch(shapeType){
@@ -532,6 +531,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'obj':
+        console.log('reached obj')
         if(typeof objX     == 'undefined') objX     = 0
         if(typeof objY     == 'undefined') objY     = 0
         if(typeof objZ     == 'undefined') objZ     = 0
@@ -884,13 +884,14 @@ var BasicShader = async (renderer, options=[]) => {
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.enable(gl.DEPTH_TEST)
   //gl.clear(gl.COLOR_BUFFER_BIT)
+  gl.disable(gl.CULL_FACE)
+  //gl.cullFace(gl.BACK)
   if(renderer.alpha) {
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
     gl.enable(gl.BLEND)
     gl.disable(gl.DEPTH_TEST)
-    gl.disable(gl.CULL_FACE)
   }else{
-    gl.cullFace(gl.BACK)
+    //gl.cullFace(gl.BACK)
   }
   
   let uVertDeclaration = ''
