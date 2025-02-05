@@ -3,7 +3,6 @@
 <center>
   
 ![example0](README_g0.gif) </center>
-<br>
 As a stand-alone module, <b>Coordinates</b> may be included in an HTML5 project, providing a framework for creating graphics <b>viewports, shaders</b>, stock and custom <b>shapes</b>, as well as <b>textures</b>, and a growing library of <b>effects</b>.
 
 
