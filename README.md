@@ -18,7 +18,7 @@ var rendererOptions = {
 ```
 
 Instantiation works with default settings as well. You can copy the code below  <br>
-verbatim, into a file named index.html, and see the result...<br>
+verbatim, into a file named ``index.html``, and see the result...<br>
 
 ```html
 <!DOCTYPE html>
