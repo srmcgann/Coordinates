@@ -17,9 +17,8 @@ var rendererOptions = {
 }
 ```
 
-Instantiation works with default settings as well.<br>
-You can copy the code below verbatim, into a file <br>
-named index.html, and see the result...<br>
+Instantiation works with default settings as well. You can copy the code below 
+verbatim, into a file named index.html, and see the result...<br>
 
 ```html
 <!DOCTYPE html>
