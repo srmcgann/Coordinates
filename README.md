@@ -116,7 +116,7 @@ var rendererOptions = {
 ##### Returns nothing. Takes no options
 The function named should be a<br>
 window global  ``window.Draw = () => { ... }``, as to be callable
-<br>
+<br><br>
 
 #### BasicShader()
 ``Coordinates.BasicShader(renderer, shaderOptions)``<br>
@@ -152,7 +152,7 @@ var shaderOptions = {
   }
 }
 ```
-<br>
+<br><br>
 
 #### LoadGeometry()
 ``Coordinates.LoadGeometry( renderer, geoOptions )``<br>
@@ -204,7 +204,7 @@ var geoOptions = {
                          // url is ignored otherwise.
 }
 ```
-<br>
+<br><br>
 
 #### ConnectGeometry()
 Performs linkage between geometry created with the ``LoadGeometry`` method, and a shader created with the ``BasicShader`` method, and an optional texture.
@@ -212,7 +212,7 @@ Performs linkage between geometry created with the ``LoadGeometry`` method, and 
 ``shader.ConnectGeometry( geometry, texture = 'flat_grey.jpg' )``
 
 ##### Returns nothing, optional async, optional texture
-<br>
+<br><br>
 
 #### Draw()
 Draws a single geometry created with the ``LoadGeometry`` method
