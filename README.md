@@ -92,8 +92,8 @@ var rendererOptions = {
   x:    0, y:     0, z:   0,
   roll: 0, pitch: 0, yaw: 0,
   margin: 10,  // the viewport will expand to fill as much of the
-               // visible page, resizing automatically, with a
-               // margin of this amount
+               // visible page as possible, resizing automatically,
+               // with a margin of this amount
   attachToBody: true, // this can be set to false, for
                       // background/buffer operations if needed
   context: {
