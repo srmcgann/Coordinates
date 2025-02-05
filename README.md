@@ -108,13 +108,15 @@ var rendererOptions = {
 }
 ```
 <br>
+
 #### AnimationLoop()
 ``Coordinates.AnimationLoop( renderer, 'Draw' )``<br>
 ##### Returns nothing. Takes no options
-
 <br>
+
 #### BasicShader()
 ``Coordinates.BasicShader(renderer, shaderOptions)``<br>
+
 ##### Returns basic shader object, optional async
 ```js
 var shaderOptions = {
@@ -147,8 +149,10 @@ var shaderOptions = {
 }
 ```
 <br>
+
 #### LoadGeometry()
 ``Coordinates.LoadGeometry( renderer, geoOptions )``<br>
+
 ##### Returns a mesh object, optional async
 ```js
 var geoOptions = {
@@ -196,15 +200,17 @@ var geoOptions = {
 }
 ```
 <br>
+
 #### ConnectGeometry()
 Performs linkage between geometry created with the ``LoadGeometry`` method, and a shader created with the ``BasicShader`` method, and an optional texture.
 
 ``shader.ConnectGeometry( geometry, texture = 'flat_grey.jpg' )``
-##### Returns nothing, optional async, optional texture
 
+##### Returns nothing, optional async, optional texture
 <br>
+
 #### Draw()
 Draws a single geometry created with the ``LoadGeometry`` method
-
 ``renderer.Draw( geometry)``
+
 ##### Returns nothing
