@@ -35,7 +35,7 @@ Instantiation works with default settings as well.
     <script type="module">
     
       import * as Coordinates from
-      "./coordinates.js"
+      "https://srmcgann.github.io/Coordinates/coordinates.js"
     
       // instantiate a canvas. this is also our 'camera'
       var renderer = Coordinates.Renderer()
