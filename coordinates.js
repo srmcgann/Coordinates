@@ -284,7 +284,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
         var nx2 = tvert[0] + tnormal[0]
         var ny2 = tvert[1] + tnormal[1]
         var nz2 = tvert[2] + tnormal[2]
-        var tuv = uvLines.length ? uvLines[tidx].split(' ').map(q=>+q) : []
+        var tuv = uvLines.length && tidx < uvLines.length ? uvLines[tidx].split(' ').map(q=>+q) : []
         
         tverts.push(tvert)
         tuvs.push(tuv)
@@ -351,10 +351,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var uv_buffer, UV_Index_Buffer, name
   var vIndices, nIndices, nVecIndices, uvIndices
   const gl = renderer.gl
-  var shape
+  var shape, exportShape = false
   
   // geo defaults
-  var objURL           = ''
+  var url              = ''
   var size             = 1
   var subs             = 1
   var sphereize        = 0
@@ -363,31 +363,32 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var showNormals      = false
   geoOptions = structuredClone(geoOptions)
   Object.keys(geoOptions).forEach((key, idx) => {
-    switch(key){
-      case 'x': x = geoOptions[key]; break
-      case 'y': y = geoOptions[key]; break
-      case 'z': z = geoOptions[key]; break
-      case 'roll': roll = geoOptions[key]; break
-      case 'pitch': pitch = geoOptions[key]; break
-      case 'yaw': yaw = geoOptions[key]; break
-      case 'shapeType': shapeType = geoOptions[key]; break
-      case 'objURL': objURL = geoOptions[key]; break
-      case 'size': size = geoOptions[key]; break
-      case 'subs': subs = geoOptions[key]; break
-      case 'sphereize': sphereize = geoOptions[key]; break
-      case 'equirectangular': equirectangular = geoOptions[key]; break
-      case 'flipNormals': flipNormals = geoOptions[key]; break
-      case 'showNormals': showNormals = geoOptions[key]; break
-      case 'objX': objX = geoOptions[key]; break
-      case 'objY': objY = geoOptions[key]; break
-      case 'objZ': objZ = geoOptions[key]; break
-      case 'objRoll': objRoll = geoOptions[key]; break
-      case 'objPitch': objPitch = geoOptions[key]; break
-      case 'objYaw': objYaw = geoOptions[key]; break
-      case 'scaleX': scaleX = geoOptions[key]; break
-      case 'scaleY': scaleY = geoOptions[key]; break
-      case 'scaleZ': scaleZ = geoOptions[key]; break
-      case 'name': name = geoOptions[key]; break
+    switch(key.toLowerCase()){
+      case 'x'               : x = geoOptions[key]; break
+      case 'y'               : y = geoOptions[key]; break
+      case 'z'               : z = geoOptions[key]; break
+      case 'roll'            : roll = geoOptions[key]; break
+      case 'pitch'           : pitch = geoOptions[key]; break
+      case 'yaw'             : yaw = geoOptions[key]; break
+      case 'shapetype'       : shapeType = geoOptions[key]; break
+      case 'size'            : size = geoOptions[key]; break
+      case 'subs'            : subs = geoOptions[key]; break
+      case 'sphereize'       : sphereize = !!geoOptions[key]; break
+      case 'equirectangular' : equirectangular = !!geoOptions[key]; break
+      case 'flipnormals'     : flipNormals = !!geoOptions[key]; break
+      case 'shownormals'     : showNormals = !!geoOptions[key]; break
+      case 'objx'            : objX = geoOptions[key]; break
+      case 'objy'            : objY = geoOptions[key]; break
+      case 'objz'            : objZ = geoOptions[key]; break
+      case 'objroll'         : objRoll = geoOptions[key]; break
+      case 'objpitch'        : objPitch = geoOptions[key]; break
+      case 'objyaw'          : objYaw = geoOptions[key]; break
+      case 'scalex'          : scaleX = geoOptions[key]; break
+      case 'scaley'          : scaleY = geoOptions[key]; break
+      case 'scalez'          : scaleZ = geoOptions[key]; break
+      case 'name'            : name = geoOptions[key]; break
+      case 'exportshape'     : exportShape = !!geoOptions[key]; break
+      case 'url'             : url = geoOptions[key]; break
     }
   })
 
@@ -398,60 +399,69 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var uvs         = []
   
   var shapeType = shapeType.toLowerCase()
-  
-  let hint = `${shapeType}_${subs}`
   var resolved = false
-  if(subs < 5 && hint){
-    var fileBase
-    switch(hint){
-      case 'tetrahedron_0':
-      case 'tetrahedron_1':
-      case 'tetrahedron_2':
-      case 'tetrahedron_3':
-      case 'tetrahedron_4':
-      case 'cube_0':
-      case 'cube_1':
-      case 'cube_2':
-      case 'cube_3':
-      case 'cube_4':
-      case 'octahedron_0':
-      case 'octahedron_1':
-      case 'octahedron_2':
-      case 'octahedron_3':
-      case 'octahedron_4':
-      case 'dodecahedron_0':
-      case 'dodecahedron_1':
-      case 'dodecahedron_2':
-      case 'dodecahedron_3':
-      case 'dodecahedron_4':
-      case 'icosahedron_0':
-      case 'icosahedron_1':
-      case 'icosahedron_2':
-      case 'icosahedron_3':
-      case 'icosahedron_4':
-        resolved = true; fileBase = hint; break
-      break
+  var fileURL, hint
+  
+  if(shapeType.indexOf('custom shape') != -1){
+    fileURL = url
+    hint = `${shapeType} ${name} (${url})`
+    resolved = true
+  }else{
+    hint = `${shapeType}_${subs}`
+    if(subs < 5 && hint){
+      var fileBase
+      switch(hint){
+        case 'tetrahedron_0':
+        case 'tetrahedron_1':
+        case 'tetrahedron_2':
+        case 'tetrahedron_3':
+        case 'tetrahedron_4':
+        case 'cube_0':
+        case 'cube_1':
+        case 'cube_2':
+        case 'cube_3':
+        case 'cube_4':
+        case 'octahedron_0':
+        case 'octahedron_1':
+        case 'octahedron_2':
+        case 'octahedron_3':
+        case 'octahedron_4':
+        case 'dodecahedron_0':
+        case 'dodecahedron_1':
+        case 'dodecahedron_2':
+        case 'dodecahedron_3':
+        case 'dodecahedron_4':
+        case 'icosahedron_0':
+        case 'icosahedron_1':
+        case 'icosahedron_2':
+        case 'icosahedron_3':
+        case 'icosahedron_4':
+          resolved = true;
+          url = `https://srmcgann.github.io/Coordinates/new%20shapes/`
+          fileURL = `${url}${hint}.json`
+        break
+      }
     }
+  }
+  if(resolved){
+    await fetch(fileURL).then(res=>res.json()).then(data=>{
+      vertices    = data.vertices
+      normals     = data.normals
+      normalVecs  = data.normalVecs
+      uvs         = data.uvs
+    })
     
-    if(resolved){
-      var baseURL = `https://srmcgann.github.io/Coordinates/new%20shapes/`
-      await fetch(`${baseURL}${fileBase}.json`).then(res=>res.json()).then(data=>{
-        vertices    = data.vertices
-        normals     = data.normals
-        normalVecs  = data.normalVecs
-        uvs         = data.uvs
-      })
-      
+    //if(shapeType != 'custom shape' && shapeType != 'obj'){
       var ip1 = sphereize
       var ip2 = 1-sphereize
       for(var i = 0; i< vertices.length; i+=3){
- 
+
         var d, val
         
         var X1 = vertices[i+0]
         var Y1 = vertices[i+1]
         var Z1 = vertices[i+2]
-        d = Math.hypot(X1, Y1, Z1)
+        d = Math.hypot(X1, Y1, Z1) + .0001
         var X2 = X1 / d
         var Y2 = Y1 / d
         var Z2 = Z1 / d
@@ -462,7 +472,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         var ox = normals[i*2+0]
         var oy = normals[i*2+1]
         var oz = normals[i*2+2]
- 
+
         normals[i*2+0] += vertices[i+0] - ox
         normals[i*2+1] += vertices[i+1] - oy
         normals[i*2+2] += vertices[i+2] - oz
@@ -471,8 +481,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
         normals[i*2+5] += vertices[i+2] - oz
         
       }
-      console.log(`shape ${hint} loaded from pre-built file`)
-    }
+    //}
+    console.log(`shape ${hint} loaded from pre-built file`)
   }
   if(!resolved){
     switch(shapeType){
@@ -528,7 +538,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(typeof objRoll  == 'undefined') objRoll  = 0
         if(typeof objPitch == 'undefined') objPitch = 0
         if(typeof objYaw   == 'undefined') objYaw   = 0
-        shape = await LoadOBJ(objURL, size, objX, objY, objZ,
+        shape = await LoadOBJ(url, size, objX, objY, objZ,
                               objRoll, objPitch, objYaw, false)
         vertices = shape.vertices
         normals = shape.normals
@@ -560,21 +570,85 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  //if(geoOptions.name !== 'background'){
-    //console.log(`${shapeType}_${subs} : vertices`, JSON.stringify(structuredClone(vertices).//map(v=>{
-    //  return Math.round(v*1e4) / 1e4
-    //})))
-    //console.log(`${shapeType}_${subs} : normals`, JSON.stringify(structuredClone(normals).map(v=>{
-    //  return Math.round(v*1e4) / 1e4
-    //})))
-    //console.log(`${shapeType}_${subs} : normalVecs`, JSON.stringify(structuredClone(normalVecs).map(v=>{
-    //  return Math.round(v*1e4) / 1e4
-    //})))
-    //console.log(`${shapeType}_${subs} : uvs`, JSON.stringify(structuredClone(uvs).map(v=>{
-    //  return Math.round(v*1e4) / 1e4
-    //})))
-  //}
+  if(exportShape && name !== 'background'){
+    var popup = document.createElement('div')
+    popup.style.position = 'fixed'
+    popup.style.zIndex = 100000
+    popup.style.left = '50%'
+    popup.style.top = '50%'
+    popup.style.transform = 'translate(-50%, -50%)'
+    popup.style.background = '#0008'
+    popup.style.padding = '20px'
+    popup.style.width = '700px'
+    popup.style.height = '450px'
+    popup.style.border = '1px solid #fff4'
+    popup.style.borderRadius = '5px'
+    popup.style.fontFamily = 'monospace'
+    popup.style.fontSize = '20px'
+    popup.style.color = '#fff'
+    var titleEl = document.createElement('div')
+    titleEl.style.fontSize = '24px'
+    titleEl.style.color = '#0f8c'
+    titleEl.innerHTML = `Export Coordinates File -> ${shapeType} ` + (geoOptions?.name ? `(${geoOptions.name})` : '') + '<br><br>'
+    popup.appendChild(titleEl)
+    var output = document.createElement('div')
+    output.id = 'shapeDataOutput'
+    output.style.minWidth = 'calc(100% - 0px)'
+    output.style.height = '300px'
+    output.style.background = '#333'
+    output.style.border = '1px solid #fff4'
+    output.style.overflowY = 'auto'
+    output.style.wordWrap = 'break-word'
+    output.style.color = '#888'
+    output.style.fontSize = '10px'
+    popup.appendChild(output)
+    var copyButton = document.createElement('button')
+    copyButton.style.border = 'none'
+    copyButton.style.padding = '3px'
+    copyButton.style.cursor = 'pointer'
+    copyButton.fontSize = '20px'
+    copyButton.style.borderRadius = '10px'
+    copyButton.style.margin = '10px'
+    copyButton.style.minWidth = '100px'
+    copyButton.innerHTML = '📋 copy'
+    copyButton.title = "copy shape data to clipboard"
+    copyButton.onclick = () => {
+      var range = document.createRange()
+      range.selectNode(document.querySelectorAll('#shapeDataOutput')[0])
+      window.getSelection().removeAllRanges()
+      window.getSelection().addRange(range)
+      document.execCommand("copy")
+      window.getSelection().removeAllRanges()
+      copyButton.innerHTML = 'COPIED!'
+      setTimeout(() => {
+        copyButton.innerHTML = '📋 copy'
+      } , 1000)
+    }
+    popup.appendChild(copyButton)
+    var closeButton = document.createElement('button')
+    closeButton.onclick = () => popup.remove()
     
+    closeButton.style.border = 'none'
+    closeButton.style.padding = '3px'
+    closeButton.style.cursor = 'pointer'
+    closeButton.fontSize = '20px'
+    closeButton.style.borderRadius = '10px'
+    closeButton.style.margin = '10px'
+    closeButton.style.background = '#faa'
+    closeButton.style.minWidth = '100px'
+    closeButton.innerHTML = 'close'
+    popup.appendChild(closeButton)
+    
+    output.innerHTML = JSON.stringify({
+      vertices: structuredClone(vertices).map(v=>{return Math.round(v*1e4) / 1e4}),
+      normals: structuredClone(normals).map(v=>{return Math.round(v*1e4) / 1e4}),
+      normalVecs: structuredClone(normalVecs).map(v=>{return Math.round(v*1e4) / 1e4}),
+      uvs: structuredClone(uvs).map(v=>{return Math.round(v*1e4) / 1e4}),
+    })
+    document.body.appendChild(popup)
+  }
+  
+
   vertices   = new Float32Array(vertices)
   normals    = new Float32Array(normals)
   normalVecs = new Float32Array(normalVecs)
@@ -631,8 +705,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   return {
     x, y, z,
     roll, pitch, yaw,
-    objURL, size, subs, name,
-    showNormals, shapeType,
+    size, subs, name, url,
+    showNormals, shapeType, exportShape,
     sphereize, equirectangular, flipNormals,
     vertices, normals, normalVecs, uvs,
     vertex_buffer, Vertex_Index_Buffer,
@@ -770,9 +844,7 @@ var BasicShader = async (renderer, options=[]) => {
                     varying vec3 phongPos;
                   `,
                   vertCode:            `
-                    //phongPos = vec3(position.x, position.y, position.z);
-                    //phongPos = R(phongPos.x, phongPos.y, phongPos.z,
-                    //             geoRoll, geoPitch, geoYaw);
+                  
                     phongPos = vec3(position.x, position.y, position.z);
                     phongPos = R(phongPos.x, phongPos.y, phongPos.z,
                                  0.0, geoPitch - camPitch / 2.0, geoYaw + camYaw);
@@ -863,6 +935,7 @@ var BasicShader = async (renderer, options=[]) => {
     varying vec3 nVeci;
     varying vec3 fPos;
     varying vec3 fPosi;
+    varying vec3 vnorm;
     varying float skip;
     
     
@@ -897,14 +970,18 @@ var BasicShader = async (renderer, options=[]) => {
       
       fPos = vec3(position.x, position.y, position.z);
       fPosi = position;
+      vnorm = normal;
       
       
       // camera rotation
       
       vec3 geo = R(geoX, geoY, geoZ, camRoll, camPitch, camYaw);
-      vec3 pos = R(cx, cy, cz, geoRoll + camRoll,
-                               geoPitch + camPitch,
-                               geoYaw + camYaw);
+      vec3 pos = R(cx, cy, cz, geoRoll,
+                               geoPitch,
+                               geoYaw);
+      pos = R(pos.x, pos.y, pos.z, camRoll,
+                               camPitch,
+                               camYaw);
       
       nVec = R(nVeci.x, nVeci.y, nVeci.z, geoRoll  - camRoll * 2.0, 
                                           geoPitch - camPitch * 2.0,
@@ -959,6 +1036,7 @@ var BasicShader = async (renderer, options=[]) => {
     uniform float geoYaw;
     varying vec2 vUv;
     varying vec2 uvi;
+    varying vec3 vnorm;
     varying vec3 nVec;
     varying vec3 nVeci;
     varying vec3 fPos;
@@ -1286,8 +1364,8 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     }
     
     if(resolved){
-      var baseURL = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/`
-      await fetch(`${baseURL}${fileBase}_full.json`).then(res=>res.json()).then(data=>{
+      var url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/`
+      await fetch(`${url}${fileBase}_full.json`).then(res=>res.json()).then(data=>{
         shape     = data.shape
         texCoords = data.texCoords
       })

@@ -62,12 +62,13 @@
     import * as Coordinates from "./coordinates.js"
 
       var S = Math.sin, C = Math.cos
+      var Rn = Math.random
       
       const main = (async () => {
         var rendererOptions = {
-          alpha: true,
+          alpha: false,
           fov: 1500,
-          ambientLight: .5,
+          ambientLight: .8,
           x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0,
           margin: 10, attachToBody: true,
           context: {
@@ -87,7 +88,7 @@
             uniform: {
               enabled: true,
               type: 'phong',
-              value: .6,
+              value: 1,
               theta: .5,
               flatShading: false,
             },
@@ -96,14 +97,14 @@
             uniform: {
               enabled: true,
               type: 'reflection',
-              map: 'https://srmcgann.github.io/Coordinates/ultracloudsbase.jpg',
-              value: .5,
+              map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg',
+              value: .25,
               flatShading: false,
             },
           },
         ]
         var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-        
+
         var backgroundshaderOptions = structuredClone(shaderOptions)
         backgroundshaderOptions[0].uniform.enabled = true
         backgroundshaderOptions[0].uniform.value   = .6
@@ -111,16 +112,15 @@
         backgroundshaderOptions[1].uniform.value   = 0
         backgroundshaderOptions[1].uniform.map   = ''
         var backgroundShader = await Coordinates.BasicShader(renderer, backgroundshaderOptions)
-        
-        renderer.z = 16
-        
+
+        renderer.z = 25
         
         let geos = []
-        let cl = 16
+        let cl = 1
         let rw = 1
         let br = 1
         let sp = 350
-        let subs = 2
+        let subs = 3
         
         let size, sphereize
         let equirectangular, invertNormals, showNormals
@@ -152,129 +152,112 @@
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry, idx) => {
           //let tex = ''//
-          let tex = 'https://srmcgann.github.io/Coordinates/ultracloudsbase.jpg'
+          let tex = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
           geos = [...geos, geometry]
           await backgroundShader.ConnectGeometry(geometry, tex)
         })
 
-        Array(cl*rw*br).fill().map(async (v, i) => {
-          var shapeType, objURL, size
+        var iSc = 20
+        Array(iSc).fill().map(async (v, i) => {
+          var shapeType, URL, size
           var scaleX, scaleY, scaleZ
           var objRoll, objPitch, objYaw
-          var x, y, z
+          var x, y, z, exportShape, name, sphereize
+          var roll = 0, pitch = 0, yaw = 0
+          var objX = 0, objY = 0, objZ = 0
+          var equirectangular = false
           //x = ((i%cl)-cl/2 + .5) * sp
           //y = (((i/cl|0)%rw) - rw/2 + .5) * sp
           //z = ((i/cl/rw|0)-br/2 + .5) * sp
           var p
-          x = i ? S(p = Math.PI*2/(cl-1)*i) * sp : 0
-          y = i ? C(p) * sp : 0
-          z = 0
           
-          if(1 || Math.hypot(x, z) < Math.hypot(cl, br) * sp / 4) {
-            scaleX = 1
-            scaleY = 1
-            scaleZ = 1
-            objRoll = 0
-            objPitch = 0
-            objYaw = 0
-            size = i ? 64 : 200
-            if(i){
-              switch(i%Math.min(cl, 3)){
-                //case 1: shapeType = 'tetrahedron'; break
-                case 0:
-                  shapeType = 'cube'
-                  //objURL = 'https://srmcgann.github.io/objs/elephant.obj'
-                  //y -= 18
-                  //scaleZ = 2
-                  //size = 6.5
-                break
-                case 1:
-                  shapeType = 'dodecahedron'
-                  //objURL = 'https://srmcgann.github.io/objs/greek_head1.obj'
-                  //size = 20
-                  //y += 16
-                break
-                case 2:
-                  //shapeType = 'cube'
-                  shapeType = 'octahedron'
-                  //if(i%4){
-                    //objURL = 'https://srmcgann.github.io/objs/heart.obj'
-                    //objYaw   = Math.PI/2
-                    //size = 1
-                  //}else{
-                    //objURL = 'https://srmcgann.github.io/objs/parabolic_dish.obj'
-                    //size = 10
-                    //objPitch = Math.PI/2
-                  //}
-                  //y -= 3
-                break
-                case 3:
-                  shapeType = 'tetrahedron'
-                break
-                case 4:
-                  shapeType = 'icosahedron'
-                  //if(i%4){
-                  //  objURL = 'https://srmcgann.github.io/objs/heart.obj'
-                  //  objYaw   = Math.PI/2
-                  //  size = 1
-                  //}else{
-                  //  objURL = 'https://srmcgann.github.io/objs/parabolic_dish.obj'
-                  //  size = 10
-                  //  objPitch = Math.PI/2
-                  //}
-                break
-                //case 5: shapeType = 'tetrahedron'; break
-              }
-            }else{
-              shapeType = 'obj'
-              objURL = 'https://srmcgann.github.io/objs/cross.obj'
-              size = 6
-            }
-            var geoOptions = {
-              x, y , z,
-              roll: 0,
-              pitch: 0,
-              yaw: 0,
-              scaleX,
-              scaleY,
-              scaleZ,
-              objX: 0,
-              objY: 0,
-              objZ: 0,
-              objRoll,
-              objPitch,
-              objYaw,
-              shapeType,
-              name: 'solid',
-              size,
-              subs,
-              sphereize: .25,
-              equirectangular: true,
-              invertNormals: false,
-              showNormals: false,
-              objURL,
-            }
-            await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry, idx) => {
-              let tex
-              switch(i%1){
-                case 0: tex = 'https://srmcgann.github.io/Coordinates/nebugrid_po2.jpg'; break
-                //case 0: tex = 'https://srmcgann.github.io/Coordinates/spectrum_test.jpg'; break
-                case 2: tex = 'https://srmcgann.github.io/Coordinates/ultracloudsbase.jpg'; break
-                //case 0: tex = 'https://srmcgann.github.io/objs/tree/bark1.jpg'; break
-                //case 0: tex = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg'; break
-                //case 1: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
-                //case 0: tex = 'https://srmcgann.github.io/Coordinates/ultracloudsbase.jpg'; break
-                //case 1: tex = 'https://srmcgann.github.io/objs/tree/leaf_texture.png'; break
-                //case 1: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/creepy_mansion.jpg'; break
-                case 1: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
-                case 3: tex = 'https://srmcgann.github.io/Coordinates/ultracloudsbase.jpg'; break
-                case 4: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
-              }
-              ct++
-              geos = [...geos, geometry]
-              await shader.ConnectGeometry(geometry, tex)
-            })
+          scaleX = 1
+          scaleY = 1
+          scaleZ = 1
+          objRoll = 0
+          objPitch = 0
+          objYaw = 0
+          size = i ? 64 : 200
+          name = 'solid'
+          exportShape = false
+          sphereize = 0
+          switch(i){
+            case 0:
+              x = 0
+              y = -31
+              z = 0
+              shapeType = 'cube'
+              pitch = -Math.PI/2
+              subs = 3
+              size = 50
+            break
+            default:
+              shapeType = 'custom shape'
+              name = 'custom'
+              URL = 'https://srmcgann.github.io/Coordinates/custom shapes/sedan.json'
+              objY -= 0
+              subs = 0
+              size = .05
+              sphereize = 0
+              x = 0
+              y = -.5
+              z = 0
+              x = (Rn() -.5) * 50
+              y = 0
+              z = (Rn() -.5) * 50
+              yaw = (Rn() -.5) * Math.PI*2
+              exportShape = false
+              equirectangular = true
+            break
           }
+          var geoOptions = {
+            exportShape,
+            x, y , z,
+            roll,
+            pitch,
+            yaw,
+            scaleX,
+            scaleY,
+            scaleZ,
+            objX,
+            objY,
+            objZ,
+            objRoll,
+            objPitch,
+            objYaw,
+            shapeType,
+            name,
+            size,
+            subs,
+            sphereize,
+            equirectangular,
+            invertNormals: false,
+            showNormals: false,
+            URL,
+          }
+          await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry, idx) => {
+            let tex
+            switch(i%9){
+              case 0: tex = 'https://srmcgann.github.io/objs/tree/bark1.jpg'; break
+              brak
+              
+              case 1: tex = 'https://srmcgann.github.io/Coordinates/spectrum_test.jpg'; break
+              case 2: tex = 'https://srmcgann.github.io/Coordinates/ultracloudsbase.jpg'; break
+              case 3: tex = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg'; break
+              case 4: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'; break
+              case 5: tex = 'https://srmcgann.github.io/Coordinates/ultracloudsbase.jpg'; break
+              case 6: tex = 'https://srmcgann.github.io/objs/tree/leaf_texture.png'; break
+              case 7: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/creepy_mansion.jpg'; break
+              //case 0: tex = 'https://srmcgann.github.io/Coordinates/custom shapes/ladybug texture.jpg'; break
+              case 8: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
+              //case 3: tex = 'https://srmcgann.github.io/Coordinates/ultracloudsbase.jpg'; break
+              case 9: tex = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'; break
+              default: tex = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg'; break
+            }
+            ct++
+            geos = [...geos, geometry]
+            await shader.ConnectGeometry(geometry, tex)
+          })
         })
 
         window.Draw = () => {
@@ -293,18 +276,18 @@
             var X, Y, Z, e
             renderer.Clear()
 
-            renderer.z = Math.min(300, Math.max(200, (.3 + C(t/4))*450))
+            renderer.z = Math.min(32, Math.max(3, (.3 + C(t/4))*50))
             //renderer.x = S(t*8) * 20
-            renderer.yaw   -=  .01
-            renderer.pitch = S(t/3) * Math.PI/5
+            renderer.yaw   =  S(t/2)  * .5 + t/5
+            renderer.pitch = .6 + S(t/3) * Math.PI/8
 
             geos.map((geometry, idx) => {
               switch(geometry.name){
                 case 'background':
                   //geometry.yaw += .005
                 break;
-                case 'solid':
-                  var tx = geometry.x
+                default:
+                  /*var tx = geometry.x
                   var ty = geometry.y
                   var tz = geometry.z
                   var p = Math.atan2(tx, ty) + S(t/2) * .025
@@ -315,12 +298,11 @@
                   var d = Math.hypot(tx, tz)
                   tx = geometry.x = S(p) * d
                   tz = geometry.z = C(p) * d
-                //break
-                //default: // objs
-                  geometry.yaw -= C(t/1.5 + idx) * .05 * (idx%2 ? -1 : 1)
+                  */
+                  //geometry.yaw -= C(t/1.5 + idx) * .05 * (idx%2 ? -1 : 1)
                   //geometry.pitch = C(t/2 + idx*2) * 4
-                  //geometry.yaw += S(t) * .025 + .02
-                  //geometry.pitch = C(t/2) * .5
+                  //geometry.yaw += .004
+                  //geometry.pitch += .002
                 break
               }
               renderer.Draw(geometry)
