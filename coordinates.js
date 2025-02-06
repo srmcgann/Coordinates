@@ -15,7 +15,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
   var x=0, y=0, z=0
   var roll=0, pitch=0, yaw=0, fov=2e3
   var attachToBody = true, margin = 10
-  var ambientLight = .5, alpha=false
+  var ambientLight = .5, alpha=false, clearColor = 0x000000
   var context = {
     mode: 'webgl',
     options: {
@@ -36,6 +36,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
         case 'pitch': pitch = options[key]; break
         case 'yaw': yaw = options[key]; break
         case 'fov': fov = options[key]; break
+        case 'clearColor': clearColor = options[key]; break
         case 'attachToBody': attachToBody = options[key]; break
         case 'margin': margin = options[key]; break
         case 'ambientLight': ambientLight = options[key]; break
@@ -106,6 +107,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
         c.width = ret.c.width
       break
       default:
+        ctx.clearColor(...HexToRGB(), 1.0)
         ctx.clear(ctx.COLOR_BUFFER_BIT);
       break
     }
@@ -129,6 +131,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
       
       ctx.uniform1f(dset.locT,               ret.t)
+      ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
       ctx.uniform1f(dset.locAmbientLight,    ret.ambientLight)
       ctx.uniform2f(dset.locResolution,      ret.width, ret.height)
       ctx.uniform1f(dset.locCamX,            ret.x)
@@ -361,6 +364,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var size             = 1
   var subs             = 2
   var sphereize        = 0
+  var color            = 0x333333
   var equirectangular  = false
   var flipNormals      = false
   var showNormals      = false
@@ -390,6 +394,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'scaley'          : scaleY = geoOptions[key]; break
       case 'scalez'          : scaleZ = geoOptions[key]; break
       case 'name'            : name = geoOptions[key]; break
+      case 'color'           : color = geoOptions[key]; break
       case 'exportshape'     : exportShape = !!geoOptions[key]; break
       case 'url'             : url = geoOptions[key]; break
     }
@@ -708,7 +713,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
 
   return {
     x, y, z,
-    roll, pitch, yaw,
+    roll, pitch, yaw, color,
     size, subs, name, url,
     showNormals, shapeType, exportShape,
     sphereize, equirectangular, flipNormals,
@@ -748,7 +753,12 @@ const ImageToPo2 = async (image) => {
   return ret
 }
 
-
+const HexToRGB = val => {
+    var b = ((val/256) - (val/256|0)) //* 256|0
+    var g = ((val/256**2) - (val/256**2|0)) //* 256|0
+    var r = ((val/256**3) - (val/256**3|0)) //* 256|0
+    return [r,g,b]
+}
 
 const BindImage = async (gl, image, binding) => {
   let texImage = await ImageToPo2(image)
@@ -890,7 +900,6 @@ var BasicShader = async (renderer, options=[]) => {
   }
   
   
-  gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.enable(gl.DEPTH_TEST)
   //gl.clear(gl.COLOR_BUFFER_BIT)
   gl.disable(gl.CULL_FACE)
@@ -919,6 +928,7 @@ var BasicShader = async (renderer, options=[]) => {
     attribute vec2 uv;
     ${uVertDeclaration}
     uniform float t;
+    uniform vec3 color;
     uniform float ambientLight;
     uniform float camX;
     uniform float camY;
@@ -947,6 +957,7 @@ var BasicShader = async (renderer, options=[]) => {
     varying vec3 fPosi;
     varying vec3 vnorm;
     varying float skip;
+    varying vec3 vColor;
     
     
     vec3 R(float X, float Y, float Z, float Rl, float Pt, float Yw){
@@ -961,6 +972,8 @@ var BasicShader = async (renderer, options=[]) => {
     }
     
     void main(){
+      vColor = color;
+      
       ${uVertCode}
       float cx, cy, cz;
       if(renderNormals == 1.0){
@@ -972,6 +985,7 @@ var BasicShader = async (renderer, options=[]) => {
         cy = position.y;
         cz = position.z;
       }
+      
       
       uvi = uv / 2.0;
       uvi = vec2(uvi.x, .5 - uvi.y);
@@ -1044,6 +1058,7 @@ var BasicShader = async (renderer, options=[]) => {
     uniform float geoRoll;
     uniform float geoPitch;
     uniform float geoYaw;
+    varying vec3 vColor;
     varying vec2 vUv;
     varying vec2 uvi;
     varying vec3 vnorm;
@@ -1079,9 +1094,9 @@ var BasicShader = async (renderer, options=[]) => {
       float X, Y, Z, p, d, i, j;
       
       vec2 coords = Coords(0.0);
-      float mixColorIp = 0.0;
-      float baseColorIp = 1.0;
-      vec4 mixColor = vec4(0.0, 0.0, 0.0, 0.0);
+      float mixColorIp = 0.5;
+      float baseColorIp = 1.0 - mixColorIp;
+      vec4 mixColor = vec4(vColor, 1.0);
       float light = ambientLight / 10.0;
       float colorMag = 1.0;
       float alpha = 1.0;
@@ -1109,7 +1124,7 @@ var BasicShader = async (renderer, options=[]) => {
 
 
   ret.ConnectGeometry = async ( geometry,
-                          textureURL = 'https://srmcgann.github.io/Coordinates/flat_grey.jpg' ) => {
+                          textureURL = 'flat_grey.jpg' ) => {
                             
     var dset = structuredClone(dataset)
     ret.datasets = [...ret.datasets, dset]
@@ -1197,6 +1212,11 @@ var BasicShader = async (renderer, options=[]) => {
         uniform.loc = gl.getUniformLocation(dset.program, uniform.name)
         gl[uniform.dataType](uniform.loc, uniform.value)
       })
+
+      dset.locColor = gl.getUniformLocation(dset.program, "color")
+      var rgb = HexToRGB(geometry.color)
+      console.log(rgb)
+      gl.uniform3f(dset.locColor, ...rgb)
 
       dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
       gl.uniform2f(dset.locResolution, renderer.width, renderer.height)
@@ -2123,4 +2143,5 @@ export {
   ImageToPo2,
   LoadOBJ,
   IsPowerOf2,
+  HexToRGB,
 }
