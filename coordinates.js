@@ -536,7 +536,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'obj':
-        console.log('reached obj')
         if(typeof objX     == 'undefined') objX     = 0
         if(typeof objY     == 'undefined') objY     = 0
         if(typeof objZ     == 'undefined') objZ     = 0
@@ -1380,7 +1379,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
         shape     = data.shape
         texCoords = data.texCoords
       })
-      console.log(`shape ${hint} loaded from pre-built file`)
+      //console.log(`shape ${hint} loaded from pre-built file`)
     }
   }
   if(!resolved){
