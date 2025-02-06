@@ -1,0 +1,125 @@
+<!--
+  TO DO
+  
+  ✔ add renderer object
+  ✔ add camera object
+  ✔ fix FOV
+  
+  * sprite sheet system / import basic+custom slicing
+  * add video texture capabilities
+  * cache for API, to include all network-callable items
+  
+  * shapes
+    └> ✔ add shapes (in addtion to Cube)
+       ✔ make non-cube UVs equirectangular
+       ✔ keep shape generation functions, but add 'precompiled' versions for ordinary calls
+       ✔ move rotation function into shader
+       * loading -> compression, direct output of
+                    usable format (no further processing needed)
+
+  * subdivision
+    └> ✔  add optional LOD param for all basic geometry
+       ✔ decouple polygons from UV subdivision (interpolate UVs @ sub)
+       
+  * shaders / textures
+    └> ✔ move shaders into Coordinates module
+       *  add '# tiling (x/y)' option
+       *  phong -> play nice with rectangle
+       ✔  move camera into vertex shader
+       ✔  create pseudo-phong shader
+       ✔  add 'reflectivity' & texture input for it
+       ✔  flat/smooth shading
+       ✔  integrate optional effect shaders
+
+  * functions / methods
+    └> ✔ begin separating module functions as optional includes
+       ✔ migrate functions to coordinates.js module
+       ✔ integrate obj loader
+
+  * geometry
+    └> ✔ generalize geometry function
+       * return "raw" geometry with inbuilt shapes, for 2d context
+       ✔ add 3-axis 'scale' function 
+       
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #102;
+        margin: 0;
+        min-height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://boss.mindhackers.org/Coordinates/coordinates.js"
+    
+      var renderer = Coordinates.Renderer()
+      renderer.z = 16
+      renderer.ambientLight = .6
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          enabled: false,
+          value: .5
+        } },
+        { uniform: {
+          type: 'reflection',
+          enabled: false,
+          map: 'https://srmcgann.github.io/skyboxes3/HDRI/pano1.jpg',
+          value: .5
+        } },
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+      var shapes = []
+      
+      var geoOptions
+      
+      geoOptions = {
+        shapeType: 'cube',
+        color: 0x440088,
+        colorMix: .25,
+        sphereize: 0,
+        subs: 2,
+        scaleX: 4,
+        scaley: 4,
+        scalez: .5,
+        x: 0,
+        y: 0,
+        z: 0,
+        size: 4,
+        equirectangular: false,
+        showNormals: false,
+        map: 'https://srmcgann.github.io/skyboxes3/HDRI/pano2.jpg',
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })  
+      
+      
+      window.Draw = () => {
+        renderer.Clear()
+        renderer.pitch = .2
+        shapes.forEach(shape => {
+          shape.yaw   += .01
+          shape.pitch += .005
+          renderer.Draw(shape)
+        })
+      }
+      
+    </script>
+  </body>
+</html>
