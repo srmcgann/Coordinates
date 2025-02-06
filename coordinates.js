@@ -131,6 +131,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
       
       ctx.uniform1f(dset.locT,               ret.t)
+      ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
       ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
       ctx.uniform1f(dset.locAmbientLight,    ret.ambientLight)
       ctx.uniform2f(dset.locResolution,      ret.width, ret.height)
@@ -145,7 +146,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.uniform1f(dset.locGeoZ,            geometry.z)
       ctx.uniform1f(dset.locGeoRoll,         geometry.roll)
       ctx.uniform1f(dset.locGeoPitch,        geometry.pitch)
-      ctx.uniform1f(dset.locGeoYaw,         geometry.yaw)
+      ctx.uniform1f(dset.locGeoYaw,          geometry.yaw)
       ctx.uniform1f(dset.locFov,             ret.fov)
       ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
       ctx.uniform1f(dset.locRenderNormals,   0)
@@ -366,6 +367,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var subs             = 2
   var sphereize        = 0
   var color            = 0x333333
+  var colorMix         = .5
   var equirectangular  = false
   var flipNormals      = false
   var showNormals      = false
@@ -396,6 +398,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'scalez'          : scaleZ = geoOptions[key]; break
       case 'name'            : name = geoOptions[key]; break
       case 'color'           : color = geoOptions[key]; break
+      case 'colormix'        : colorMix = geoOptions[key]; break
       case 'exportshape'     : exportShape = !!geoOptions[key]; break
       case 'url'             : url = geoOptions[key]; break
       case 'map'             : map = geoOptions[key]; break
@@ -477,9 +480,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
         X *= ip1 + d*ip2
         Y *= ip1 + d*ip2
         Z *= ip1 + d*ip2
-        vertices[i+0] = X * size
-        vertices[i+1] = Y * size
-        vertices[i+2] = Z * size
+        vertices[i+0] = X * size * scaleX
+        vertices[i+1] = Y * size * scaleY
+        vertices[i+2] = Z * size * scaleZ
         
         var ox = normals[i*2+0]
         var oy = normals[i*2+1]
@@ -491,6 +494,15 @@ const LoadGeometry = async (renderer, geoOptions) => {
         normals[i*2+3] += vertices[i+0] - ox
         normals[i*2+4] += vertices[i+1] - oy
         normals[i*2+5] += vertices[i+2] - oz
+
+        /*normals[i*2+0] *= scaleX
+        normals[i*2+1] *= scaleY
+        normals[i*2+2] *= scaleZ
+        normals[i*2+3] *= scaleX
+        normals[i*2+4] *= scaleY
+        normals[i*2+5] *= scaleZ
+        */
+        
         
       }
     //console.log(`shape ${hint} loaded from pre-built file`)
@@ -572,12 +584,21 @@ const LoadGeometry = async (renderer, geoOptions) => {
        vertices[i+2] *= scaleZ
     }
     
+    for(var i=0; i<normals.length; i+=6){
+      normals[i+0] *= scaleX
+      normals[i+1] *= scaleY
+      normals[i+2] *= scaleZ
+      normals[i+3] *= scaleX
+      normals[i+4] *= scaleY
+      normals[i+5] *= scaleZ
+    }
+    
     normalVecs    = []
     for(var i=0; i<normals.length; i+=6){
       let X = normals[i+3] - normals[i+0]
       let Y = normals[i+4] - normals[i+1]
       let Z = normals[i+5] - normals[i+2]
-      normalVecs = [...normalVecs, X, Y, Z]
+      normalVecs = [...normalVecs, X,Y,Z]
     }
   }
   
@@ -715,7 +736,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
 
   return {
     x, y, z,
-    roll, pitch, yaw, color,
+    roll, pitch, yaw, color, colorMix,
     size, subs, name, url,
     showNormals, shapeType, exportShape,
     sphereize, equirectangular, flipNormals,
@@ -753,13 +774,6 @@ const ImageToPo2 = async (image) => {
     ret.src = tCan.toDataURL()
   }
   return ret
-}
-
-const HexToRGB = val => {
-    var b = ((val/256) - (val/256|0)) //* 256|0
-    var g = ((val/256**2) - (val/256**2|0)) //* 256|0
-    var r = ((val/256**3) - (val/256**3|0)) //* 256|0
-    return [r,g,b]
 }
 
 const BindImage = async (gl, image, binding) => {
@@ -959,7 +973,6 @@ var BasicShader = async (renderer, options=[]) => {
     varying vec3 fPosi;
     varying vec3 vnorm;
     varying float skip;
-    varying vec3 vColor;
     
     
     vec3 R(float X, float Y, float Z, float Rl, float Pt, float Yw){
@@ -974,8 +987,6 @@ var BasicShader = async (renderer, options=[]) => {
     }
     
     void main(){
-      vColor = color;
-      
       ${uVertCode}
       float cx, cy, cz;
       if(renderNormals == 1.0){
@@ -1047,6 +1058,8 @@ var BasicShader = async (renderer, options=[]) => {
     uniform float ambientLight;
     uniform float renderNormals;
     uniform float equirectangular;
+    uniform float colorMix;
+    uniform vec3 color;
     uniform sampler2D baseTexture;
     uniform float camX;
     uniform float camY;
@@ -1060,7 +1073,6 @@ var BasicShader = async (renderer, options=[]) => {
     uniform float geoRoll;
     uniform float geoPitch;
     uniform float geoYaw;
-    varying vec3 vColor;
     varying vec2 vUv;
     varying vec2 uvi;
     varying vec3 vnorm;
@@ -1096,9 +1108,9 @@ var BasicShader = async (renderer, options=[]) => {
       float X, Y, Z, p, d, i, j;
       
       vec2 coords = Coords(0.0);
-      float mixColorIp = 0.5;
+      float mixColorIp = colorMix;
       float baseColorIp = 1.0 - mixColorIp;
-      vec4 mixColor = vec4(vColor, 1.0);
+      vec4 mixColor = vec4(color, 1.0);
       float light = ambientLight / 10.0;
       float colorMag = 1.0;
       float alpha = 1.0;
@@ -1218,6 +1230,9 @@ var BasicShader = async (renderer, options=[]) => {
       dset.locColor = gl.getUniformLocation(dset.program, "color")
       var rgb = HexToRGB(geometry.color)
       gl.uniform3f(dset.locColor, ...rgb)
+
+      dset.locColorMix = gl.getUniformLocation(dset.program, "colorMix")
+      gl.uniform1f(dset.locColorMix, geometry.colorMix)
 
       dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
       gl.uniform2f(dset.locResolution, renderer.width, renderer.height)
@@ -2128,6 +2143,67 @@ const AnimationLoop = (renderer, func) => {
     renderer.ready = true
     loop()
   })
+}
+
+const HSVFromRGB = (R, G, B) => {
+  let R_=R/255
+  let G_=G/255
+  let B_=B/255
+  let Cmin = Math.min(R_,G_,B_)
+  let Cmax = Math.max(R_,G_,B_)
+  let val = Cmax //(Cmax+Cmin) / 2
+  let delta = Cmax-Cmin
+  let sat = Cmax ? delta / Cmax: 0
+  let min=Math.min(R,G,B)
+  let max=Math.max(R,G,B)
+  let hue = 0
+  if(delta){
+    if(R>=G && R>=B) hue = (G-B)/(max-min)
+    if(G>=R && G>=B) hue = 2+(B-R)/(max-min)
+    if(B>=G && B>=R) hue = 4+(R-G)/(max-min)
+  }
+  hue*=60
+  while(hue<0) hue+=360;
+  while(hue>=360) hue-=360;
+  return [hue, sat, val]
+}
+
+const RGBFromHSV = (H, S, V) => {
+  while(H<0) H+=360;
+  while(H>=360) H-=360;
+  let C = V*S
+  let X = C * (1-Math.abs((H/60)%2-1))
+  let m = V-C
+  let R_, G_, B_
+  if(H>=0 && H < 60)    R_=C, G_=X, B_=0
+  if(H>=60 && H < 120)  R_=X, G_=C, B_=0
+  if(H>=120 && H < 180) R_=0, G_=C, B_=X
+  if(H>=180 && H < 240) R_=0, G_=X, B_=C
+  if(H>=240 && H < 300) R_=X, G_=0, B_=C
+  if(H>=300 && H < 360) R_=C, G_=0, B_=X
+  let R = (R_+m)*255
+  let G = (G_+m)*255
+  let B = (B_+m)*255
+  return [R,G,B]
+}
+
+const RGBtoHex = (R, G, B) => {
+  let a = '0123456789abcdef'
+  let ret = ''
+  ret += a[R/16|0]
+  ret += a[R-(R/16|0)*16|0]
+  ret += a[G/16|0]
+  ret += a[G-(G/16|0)*16|0]
+  ret += a[B/16|0]
+  ret += a[B-(B/16|0)*16|0]
+  return ret
+}
+
+const HexToRGB = val => {
+    var b = ((val/256) - (val/256|0)) //* 256|0
+    var g = ((val/256**2) - (val/256**2|0)) //* 256|0
+    var r = ((val/256**3) - (val/256**3|0)) //* 256|0
+    return [r,g,b]
 }
 
 export {
