@@ -186,10 +186,12 @@ var geoOptions = {
                       // • icosahedron
                       // • rectangle (is a squre, unless you use a scale above)
                       // • cylinder
-                         // accepts 'rows' and 'cols' parameters, optionally.
-                         // if omitted, high-res cylinder is quick-loaded.
-                         // recommend zero subs, omit rows/cols unless custom
-                         // cylinder is needed. Or create a custom shape.
+                      // • torus
+                         // cylinder & torus accept 'rows' and 'cols'
+                         // parameters, optionally. if omitted, high-res
+                         // shapes are quick-loaded. recommend zero subs,
+                         // omit rows/cols unless custom shape is needed.
+                         // Or export a custom shape & load it as such.
                       // • obj
                       // • custom shape
                          // "custom shapes" may be obtained from any
