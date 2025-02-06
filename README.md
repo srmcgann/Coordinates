@@ -174,6 +174,8 @@ var geoOptions = {
   objRoll: 0,         // for 'OBJ' format models, orient/rotate
   objPitch: 0,
   objYaw: 0,
+  color: 0x333333, // optional color
+  colorMix: .5,    // weight of the color, to mix with texture
   map: '',         // optional URL to an image/texture
   shapeType: '',   // required.
                    // supported types:
