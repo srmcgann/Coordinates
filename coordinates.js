@@ -1124,7 +1124,7 @@ var BasicShader = async (renderer, options=[]) => {
 
 
   ret.ConnectGeometry = async ( geometry,
-                          textureURL = 'flat_grey.jpg' ) => {
+                          textureURL = '' ) => {
                             
     var dset = structuredClone(dataset)
     ret.datasets = [...ret.datasets, dset]
