@@ -1236,14 +1236,16 @@ var BasicShader = async (renderer, options=[]) => {
       
       var image = new Image()
       dset.iURL = textureURL
-      let mTex
-      if((mTex = ret.datasets.filter(v=>v.iURL == dset.iURL)).length > 1){
-        dset.texture = mTex[0].texture
-      }else{
-        await fetch(dset.iURL).then(res=>res.blob()).then(data => {
-          image.src = URL.createObjectURL(data)
-        })
-        image.onload = async () => await BindImage(gl, image, dset.texture)
+      if(textureURL){
+        let mTex
+        if((mTex = ret.datasets.filter(v=>v.iURL == dset.iURL)).length > 1){
+          dset.texture = mTex[0].texture
+        }else{
+          await fetch(dset.iURL).then(res=>res.blob()).then(data => {
+            image.src = URL.createObjectURL(data)
+          })
+          image.onload = async () => await BindImage(gl, image, dset.texture)
+        }
       }
       
       gl.useProgram(dset.program)
