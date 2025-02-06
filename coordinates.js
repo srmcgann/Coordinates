@@ -376,7 +376,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'shapetype'       : shapeType = geoOptions[key]; break
       case 'size'            : size = geoOptions[key]; break
       case 'subs'            : subs = geoOptions[key]; break
-      case 'sphereize'       : sphereize = !!geoOptions[key]; break
+      case 'sphereize'       : sphereize = geoOptions[key]; break
       case 'equirectangular' : equirectangular = !!geoOptions[key]; break
       case 'flipnormals'     : flipNormals = !!geoOptions[key]; break
       case 'shownormals'     : showNormals = !!geoOptions[key]; break
@@ -456,21 +456,23 @@ const LoadGeometry = async (renderer, geoOptions) => {
     
     //if(shapeType != 'custom shape' && shapeType != 'obj'){
       var ip1 = sphereize
-      var ip2 = 1-sphereize
+      var ip2 = 1 -sphereize
       for(var i = 0; i< vertices.length; i+=3){
-
         var d, val
-        
-        var X1 = vertices[i+0]
-        var Y1 = vertices[i+1]
-        var Z1 = vertices[i+2]
-        d = Math.hypot(X1, Y1, Z1) + .0001
-        var X2 = X1 / d
-        var Y2 = Y1 / d
-        var Z2 = Z1 / d
-        vertices[i+0] = (X2 * ip1 + X1 * ip2) * size
-        vertices[i+1] = (Y2 * ip1 + Y1 * ip2) * size
-        vertices[i+2] = (Z2 * ip1 + Z1 * ip2) * size
+      
+        var X = vertices[i+0]
+        var Y = vertices[i+1]
+        var Z = vertices[i+2]
+        d = Math.hypot(X,Y,Z) //+ .0001
+        X /= d
+        Y /= d
+        Z /= d
+        X *= ip1 + d*ip2
+        Y *= ip1 + d*ip2
+        Z *= ip1 + d*ip2
+        vertices[i+0] = X * size
+        vertices[i+1] = Y * size
+        vertices[i+2] = Z * size
         
         var ox = normals[i*2+0]
         var oy = normals[i*2+1]
@@ -1686,102 +1688,17 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
 
 const Camera = (x=0, y=0, z=0, roll=0, pitch=0, yaw=0) => ({ x, y, z, roll, pitch, yaw })
 
+
 /*
-const  Cylinder = async (size = 1, rw, cl, ls1, ls2, caps=false, flipNormals=false) => {
-  let a = []
-  for(let i=rw;i--;){
-    let b = []
-    for(let j=cl;j--;){
-      X = S(p=Math.PI*2/cl*j) * ls1
-      Y = (1/rw*i-.5)*ls2
-      Z = C(p) * ls1
-      b = [...b, [X,Y,Z]]
-    }
-    if(caps) a = [...a, b]
-    for(let j=cl;j--;){
-      b = []
-      X = S(p=Math.PI*2/cl*j) * ls1
-      Y = (1/rw*i-.5)*ls2
-      Z = C(p) * ls1
-      b = [...b, [X,Y,Z]]
-      X = S(p=Math.PI*2/cl*(j+1)) * ls1
-      Y = (1/rw*i-.5)*ls2
-      Z = C(p) * ls1
-      b = [...b, [X,Y,Z]]
-      X = S(p=Math.PI*2/cl*(j+1)) * ls1
-      Y = (1/rw*(i+1)-.5)*ls2
-      Z = C(p) * ls1
-      b = [...b, [X,Y,Z]]
-      X = S(p=Math.PI*2/cl*j) * ls1
-      Y = (1/rw*(i+1)-.5)*ls2
-      Z = C(p) * ls1
-      b = [...b, [X,Y,Z]]
-      a = [...a, b]
-    }
-  }
-  b = []
-  for(let j=cl;j--;){
-    X = S(p=Math.PI*2/cl*j) * ls1
-    Y = ls2/2
-    Z = C(p) * ls1
-    //b = [...b, [X,Y,Z]]
-  }
-  if(caps) a = [...a, b]
+const Cylinder = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
   
-  var e = a
-  var texCoords = []
-  for(i = 0; i < e.length; i++){
-    a = []
-    for(var k = e[i].length; k--;){
-      switch(k) {
-        case 0: tx=0, ty=0; break
-        case 1: tx=1, ty=0; break
-        case 2: tx=1, ty=1; break
-        case 3: tx=0, ty=.5; break
-        case 4: tx=0, ty=1; break
-      }
-      a = [...a, [tx, ty]]
-    }
-    texCoords = [...texCoords, a]
-  }
-  
-  a = []
-  f = []
-  subbed(subs + 1, 1, sphereize, e, texCoords).map(v => {
-    v.verts.map(q=>{
-      X = q[0] *= size /  9
-      Y = q[1] *= size /  9
-      Z = q[2] *= size /  9
-    })
-    
-    a = [...a, ...v.verts]
-    f = [...f, ...v.uvs]
-  })
-  
-  for(i = 0; i < a.length; i++){
-    var normal
-    j = i/3 | 0
-    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
-    if(!(i%3)){
-      normal = Normal(b, true)
-      if(!flipNormals){
-        normal[3] = normal[0] + (normal[0]-normal[3])
-        normal[4] = normal[1] + (normal[1]-normal[4])
-        normal[5] = normal[2] + (normal[2]-normal[5])
-      }
-    }
-    l = flipNormals ? a.length - i - 1 : i
-    geometry = [...geometry, {
-      position: a[l],
-      normal,
-      texCoord: f[l],
-    }]
-  }
-  return {
-    geometry
-  }
+  var cl = 16
+  var rw = 8
+  var ret = []
+  for(var i=cl*rw; i
 }
 */
+
 
 const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
   var X, Y, Z, p, tx, ty, ax, ay, az
