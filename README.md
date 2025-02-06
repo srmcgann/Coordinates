@@ -217,7 +217,7 @@ Performs linkage between geometry created with the ``LoadGeometry`` method, and 
 #### Clear()
 Clears the viewport. Note, WebGL "swaps" buffers by default, resulting<br>
 in the clearing of drawn elements, but not the background. This clears<br>
-the background as well. See Renderer option 'clearColor', to set the color.
+the background as well. See Renderer option 'clearColor', to set the color.<br>
 ``renderer.Clear()``
 
 ##### Returns nothing
