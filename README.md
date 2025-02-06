@@ -176,22 +176,22 @@ var geoOptions = {
   objYaw: 0,
   color: 0x333333, // optional color
   colorMix: .5,    // weight of the color, to mix with texture
-  map: '',         // optional URL to an image/texture
+  map: '',         // optional texture, URL to an image
   shapeType: '',   // required.
                    // supported types:
-                      // tetrahedron
-                      // cube
-                      // octahedron
-                      // dodecahedron
-                      // icosahedron
-                      // rectangle (is a squre, unless you use a scale above)
-                      // cylinder
+                      // • tetrahedron
+                      // • cube
+                      // • octahedron
+                      // • dodecahedron
+                      // • icosahedron
+                      // • rectangle (is a squre, unless you use a scale above)
+                      // • cylinder
                          // accepts 'rows' and 'cols' parameters, optionally.
                          // if omitted, high-res cylinder is quick-loaded.
                          // recommend zero subs, omit rows/cols unless custom
                          // cylinder is needed. Or create a custom shape.
-                      // obj
-                      // custom shape
+                      // • obj
+                      // • custom shape
                          // "custom shapes" may be obtained from any
                          // shape, by enabling the 'exportShape' option.
                          // These files may then be loaded via the
