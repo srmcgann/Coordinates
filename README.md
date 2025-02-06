@@ -174,6 +174,7 @@ var geoOptions = {
   objRoll: 0,         // for 'OBJ' format models, orient/rotate
   objPitch: 0,
   objYaw: 0,
+  map: '',         // optional URL to an image/texture
   shapeType: '',   // required.
                    // supported types:
                       // tetrahedron
@@ -209,9 +210,9 @@ var geoOptions = {
 #### ConnectGeometry()
 Performs linkage between geometry created with the ``LoadGeometry`` method, and a shader created with the ``BasicShader`` method, and an optional texture.
 
-``shader.ConnectGeometry( geometry, texture = 'flat_grey.jpg' )``
+``shader.ConnectGeometry( geometry )``
 
-##### Returns nothing, optional async, optional texture
+##### Returns nothing, optional async
 <br><br>
 
 #### Clear()
