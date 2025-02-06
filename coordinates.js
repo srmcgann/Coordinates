@@ -361,6 +361,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var x = 0, y = 0, z = 0
   var roll = 0, pitch = 0, yaw = 0
   var scaleX=1, scaleY=1, scaleZ=1
+  var rows             = 16  
+  var cols             = 40  // must remain "16, 40" to trigger default quick torus/cylinder
   var map              = ''
   var url              = ''
   var size             = 1
@@ -402,6 +404,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'exportshape'     : exportShape = !!geoOptions[key]; break
       case 'url'             : url = geoOptions[key]; break
       case 'map'             : map = geoOptions[key]; break
+      case 'rows'            : rows = geoOptions[key]; break
+      case 'cols'            : cols = geoOptions[key]; break
     }
   })
 
@@ -449,9 +453,18 @@ const LoadGeometry = async (renderer, geoOptions) => {
         case 'icosahedron_2':
         case 'icosahedron_3':
         case 'icosahedron_4':
-          resolved = true;
-          url = `https://srmcgann.github.io/Coordinates/new%20shapes/`
-          fileURL = `${url}${hint}.json`
+        case 'cylinder_0':
+        case 'torus_0':
+          if(hint != 'cylinder_0' || hint != 'torus_0' ||
+             (hint == 'cylinder_0' && rows == 16 && cols == 40) ||
+             (hint == 'torus_0' && rows == 16 && cols == 40) 
+             ){
+            resolved = true;
+            url = `https://srmcgann.github.io/Coordinates/new%20shapes/`
+            fileURL = `${url}${hint}.json`
+          }else{
+            // unresolved shape
+          }
         break
       }
     }
@@ -530,6 +543,24 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'icosahedron':
         equirectangular = true
         shape = await Icosahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape.geometry.map(v => {
+          vertices = [...vertices, ...v.position]
+          normals  = [...normals,  ...v.normal]
+          uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'torus':
+        shape = await Torus(size, subs, sphereize,
+                      flipNormals, shapeType, rows, cols)
+        shape.geometry.map(v => {
+          vertices = [...vertices, ...v.position]
+          normals  = [...normals,  ...v.normal]
+          uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'cylinder':
+        shape = await Cylinder(size, subs, sphereize,
+                      flipNormals, shapeType, rows, cols)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
           normals  = [...normals,  ...v.normal]
@@ -1348,6 +1379,7 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
     j = i/3 | 0
     b = [a[j*3+0], a[j*3+1], a[j*3+2]]
     if(!(i%3)){
+      console.log(b)
       normal = Normal(b, true)
       if(!flipNormals){
         normal[3] = normal[0] + (normal[0]-normal[3])
@@ -1726,15 +1758,143 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
 const Camera = (x=0, y=0, z=0, roll=0, pitch=0, yaw=0) => ({ x, y, z, roll, pitch, yaw })
 
 
-/*
-const Cylinder = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
-  
-  var cl = 16
-  var rw = 8
+const Cylinder = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType, rw, cl) => {
   var ret = []
-  for(var i=cl*rw; i
+  var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
+  var TX1,TY1, TX2,TY2, TX3,TY3, TX4,TY4
+  var p
+  var texCoords = []
+  for(var j = 0; j < rw; j++){
+    var j2 = j-.5
+    for(var i = 0; i < cl; i++){
+      X1 = S(p=Math.PI*2/cl*i)
+      Y1 = -.5 + 1/rw*j2
+      Z1 = C(p=Math.PI*2/cl*i)
+      X2 = S(p=Math.PI*2/cl*(i+1))
+      Y2 = -.5 + 1/rw*j2
+      Z2 = C(p=Math.PI*2/cl*(i+1))
+      X3 = S(p=Math.PI*2/cl*(i+1))
+      Y3 = -.5 + 1/rw*(j2+1)
+      Z3 = C(p=Math.PI*2/cl*(i+1))
+      X4 = S(p=Math.PI*2/cl*i)
+      Y4 = -.5 + 1/rw*(j2+1)
+      Z4 = C(p=Math.PI*2/cl*i)
+      
+      var p1 = Math.atan2(X1,Z1)
+      var p2 = Math.atan2(X2,Z2)
+      var p3 = Math.atan2(X3,Z3)
+      var p4 = Math.atan2(X4,Z4)
+      
+      if(Math.abs(p1-p2) > Math.PI){
+        p1 -= Math.PI*2
+        p4 -= Math.PI*2
+      }
+      
+      TX1 = (p1+Math.PI) / Math.PI / 2
+      TY1 = Y1 + .5
+      TX2 = (p2+Math.PI) / Math.PI / 2
+      TY2 = Y2 + .5
+      TX3 = (p3+Math.PI) / Math.PI / 2
+      TY3 = Y3 + .5
+      TX4 = (p4+Math.PI) / Math.PI / 2
+      TY4 = Y4 + .5
+      
+      ret = [...ret, [[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]]]
+      texCoords = [...texCoords, [[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]]]
+      
+      /* //triangulate
+      ret = [...ret, [[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3]]]
+      texCoords = [...texCoords, [[TX1,TY1], [TX2,TY2], [TX3,TY3]]]
+      ret = [...ret, [[X3,Y3,Z3], [X4,Y4,Z4], [X1,Y1,Z1]]]
+      texCoords = [...texCoords, [[TX3,TY3], [TX4,TY4], [TX1,TY1]]]
+      */
+    }
+  }
+  return await GeometryFromRaw(ret, texCoords, size / 1.2, subs,
+                         sphereize, flipNormals, true, shapeType)
 }
-*/
+
+const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType, rw, cl) => {
+  var ret = []
+  var X, Y, Z
+  var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
+  var TX1,TY1, TX2,TY2, TX3,TY3, TX4,TY4
+  var p, d
+  var texCoords = []
+  var rw_ = rw // * 4
+  var rad1 = .5
+  var rad2 = 1
+  for(var j = 0; j < rw_; j++){
+    var j2 = j+.5
+    for(var i = 0; i < cl; i++){
+
+      X = S(p=Math.PI*2/cl*i) * rad1 + rad2
+      Y = C(p) * rad1
+      Z = 0
+      p = Math.atan2(X, Z) + Math.PI*2/rw_ * j2 + Math.PI/2
+      d = Math.hypot(X, Z)
+      X1 = S(p) * d
+      Y1 = Y
+      Z1 = C(p) * d
+
+      X = S(p=Math.PI*2/cl*(i+1)) * rad1 + rad2
+      Y = C(p) * rad1
+      p = Math.atan2(X, Z) + Math.PI*2/rw_ * j2 + Math.PI/2
+      d = Math.hypot(X, Z)
+      X2 = S(p) * d
+      Y2 = Y
+      Z2 = C(p) * d
+
+      X = S(p=Math.PI*2/cl*(i+1)) * rad1 + rad2
+      Y = C(p) * rad1
+      p = Math.atan2(X, Z) + Math.PI*2/rw_ * (j2+1) + Math.PI/2
+      d = Math.hypot(X, Z)
+      X3 = S(p) * d
+      Y3 = Y
+      Z3 = C(p) * d
+
+      X = S(p=Math.PI*2/cl*i) * rad1 + rad2
+      Y = C(p) * rad1
+      p = Math.atan2(X, Z) + Math.PI*2/rw_ * (j2+1) + Math.PI/2
+      d = Math.hypot(X, Z)
+      X4 = S(p) * d
+      Y4 = Y
+      Z4 = C(p) * d
+
+      var p1 = Math.atan2(X1,Z1)
+      var p2 = Math.atan2(X2,Z2)
+      var p3 = Math.atan2(X3,Z3)
+      var p4 = Math.atan2(X4,Z4)
+      
+      if(Math.abs(p1-p3) > Math.PI){
+        p3 += Math.PI*2
+        p4 += Math.PI*2
+      }
+      
+      TX1 = (p1+Math.PI) / Math.PI / 2
+      TY1 = Y1 + .5
+      TX2 = (p2+Math.PI) / Math.PI / 2
+      TY2 = Y2 + .5
+      TX3 = (p3+Math.PI) / Math.PI / 2
+      TY3 = Y3 + .5
+      TX4 = (p4+Math.PI) / Math.PI / 2
+      TY4 = Y4 + .5
+      
+      ret = [...ret, [[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]]]
+      texCoords = [...texCoords, [[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]]]
+      
+      /* //triangulate
+      ret = [...ret, [[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3]]]
+      texCoords = [...texCoords, [[TX1,TY1], [TX2,TY2], [TX3,TY3]]]
+      ret = [...ret, [[X3,Y3,Z3], [X4,Y4,Z4], [X1,Y1,Z1]]]
+      texCoords = [...texCoords, [[TX3,TY3], [TX4,TY4], [TX1,TY1]]]
+      */
+    }
+  }
+  return await GeometryFromRaw(ret, texCoords, size / 1.2, subs,
+                         sphereize, flipNormals, true, shapeType)
+}
+
 
 
 const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
@@ -2217,6 +2377,9 @@ export {
   Octahedron,
   Icosahedron,
   Dodecahedron,
+  Cylinder,
+  Torus,
+  Rectangle,
   Q, R,
   Normal,
   ImageToPo2,
