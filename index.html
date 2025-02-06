@@ -1,1 +1,53 @@
-1
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #333;
+        margin: 0;
+        min-height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.js"
+    
+      // instantiate a canvas. this is also our 'camera'
+      var renderer = Coordinates.Renderer()
+      
+      // back the camera away from the center (move it toward the viewer)
+      renderer.z = 10
+      
+      // tell the API where to find our animation function
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      // invoke a shader - phong in this case for a pseudo-lighting effect
+      var shaderOptions = [ { uniform: { type: 'phong' } } ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+      // create a scene (it's async, so we can 'await' each call, but that is optional)
+      var shapes = []
+        // load a cube
+      var geoOptions = { shapeType: 'cube', size: 5, color: 0x888888 }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })  
+      
+      
+      window.Draw = () => {
+        shapes.forEach(shape => {
+          shape.yaw   += .01
+          shape.pitch += .005
+          renderer.Draw(shape)
+        })
+      }
+      
+    </script>
+  </body>
+</html>
