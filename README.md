@@ -219,13 +219,15 @@ Clears the viewport.<br>
 Note: WebGL "swaps" buffers by default, resulting<br>
 in the clearing of drawn elements, but not the background. This clears<br>
 the background as well. See Renderer option 'clearColor', to set the color.<br>
+
 ``renderer.Clear()``
 
 ##### Returns nothing
 <br><br>
 
 #### Draw()
-Draws a single geometry created with the ``LoadGeometry`` method
+Draws a single geometry created with the ``LoadGeometry`` method<br>
+
 ``renderer.Draw( geometry)``
 
 ##### Returns nothing
