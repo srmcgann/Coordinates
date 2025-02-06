@@ -37,7 +37,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
     <script type="module">
     
       import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.js"
+      "./coordinates.js"
     
       // instantiate a canvas. this is also our 'camera'
       var renderer = Coordinates.Renderer()
@@ -185,6 +185,11 @@ var geoOptions = {
                       // dodecahedron
                       // icosahedron
                       // rectangle (is a squre, unless you use a scale above)
+                      // cylinder
+                         // accepts 'rows' and 'cols' parameters, optionally.
+                         // if omitted, high-res cylinder is quick-loaded.
+                         // recommend zero subs, omit rows/cols unless custom
+                         // cylinder is needed. Or create a custom shape.
                       // obj
                       // custom shape
                          // "custom shapes" may be obtained from any
