@@ -56,7 +56,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
       // create a scene (it's async, so we can 'await' each call, but that is optional)
       var shapes = []
         // load a cube
-      var geoOptions = { shapeType: 'cube', size: 5 }
+      var geoOptions = { shapeType: 'cube', size: 5, color: 0x333333 }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
