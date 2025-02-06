@@ -360,6 +360,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var x = 0, y = 0, z = 0
   var roll = 0, pitch = 0, yaw = 0
   var scaleX=1, scaleY=1, scaleZ=1
+  var map              = ''
   var url              = ''
   var size             = 1
   var subs             = 2
@@ -397,6 +398,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'color'           : color = geoOptions[key]; break
       case 'exportshape'     : exportShape = !!geoOptions[key]; break
       case 'url'             : url = geoOptions[key]; break
+      case 'map'             : map = geoOptions[key]; break
     }
   })
 
@@ -722,7 +724,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     normal_buffer, Normal_Index_Buffer,
     normalVec_buffer, NormalVec_Index_Buffer,
     nVecIndices, uv_buffer, UV_Index_Buffer,
-    vIndices, nIndices, uvIndices,
+    vIndices, nIndices, uvIndices, map
   }
 }
 
@@ -802,7 +804,7 @@ var BasicShader = async (renderer, options=[]) => {
                   name:                option.uniform.type,
                   map:                 option.uniform.map,
                   loc:                 'locReflection',
-                  value:               typeof option.uniform.map == 'undefined' ?
+                  value:               typeof option.uniform.value == 'undefined' ?
                                          .5 : option.uniform.value,
                   flatShading:         typeof option.uniform.flatShading == 'undefined' ?
                                          false : option.uniform.flatShading,
@@ -824,8 +826,6 @@ var BasicShader = async (renderer, options=[]) => {
                     varying vec3 reflectionPos;
                   `,
                   fragCode:            `
-                    mixColorIp = reflection;
-                    baseColorIp = 1.0 - mixColorIp;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
                       float px = reflectionPos.x;
@@ -839,7 +839,9 @@ var BasicShader = async (renderer, options=[]) => {
                     }
                     
                     vec2 refCoords = vec2(refP1, refP2);
-                    mixColor = vec4(texture2D( reflectionMap, vec2(refCoords.x, refCoords.y)).rgb, 1.0);
+                    mixColor = merge(vec4(mixColor.rgb, 1.0),
+                                vec4(texture2D( reflectionMap, vec2(refCoords.x, refCoords.y)).rgb, 1.0),
+                                1.0 - reflection, reflection);
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -1123,8 +1125,7 @@ var BasicShader = async (renderer, options=[]) => {
   gl.compileShader(fragmentShader)
 
 
-  ret.ConnectGeometry = async ( geometry,
-                          textureURL = '' ) => {
+  ret.ConnectGeometry = async ( geometry ) => {
                             
     var dset = structuredClone(dataset)
     ret.datasets = [...ret.datasets, dset]
@@ -1136,6 +1137,7 @@ var BasicShader = async (renderer, options=[]) => {
     gl.linkProgram(dset.program)
 
     geometry.shader = ret
+    var textureURL = geometry.map
     geometry.datasetIdx = ret.datasets.length - 1
 
     //gl.detachShader(dset.program, vertexShader)
