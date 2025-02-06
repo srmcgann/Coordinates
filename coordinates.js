@@ -1215,7 +1215,6 @@ var BasicShader = async (renderer, options=[]) => {
 
       dset.locColor = gl.getUniformLocation(dset.program, "color")
       var rgb = HexToRGB(geometry.color)
-      console.log(rgb)
       gl.uniform3f(dset.locColor, ...rgb)
 
       dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
