@@ -86,6 +86,7 @@ the result<br>
 ```js
 var rendererOptions = {
   alpha: false,
+  clearColor: 0x333333,  // grey
   fov: 2e3,  // "field of vision", the camera's focal length
              // useful range:
              //   500 (perspective) to 100,000 (orthographic)
@@ -211,6 +212,15 @@ Performs linkage between geometry created with the ``LoadGeometry`` method, and 
 ``shader.ConnectGeometry( geometry, texture = 'flat_grey.jpg' )``
 
 ##### Returns nothing, optional async, optional texture
+<br><br>
+
+#### Clear()
+Clears the viewport. Note, WebGL "swaps" buffers by default, resulting<br>
+in the clearing of drawn elements, but not the background. This clears<br>
+the background as well. See Renderer option 'clearColor', to set the color.
+``renderer.Clear()``
+
+##### Returns nothing
 <br><br>
 
 #### Draw()
