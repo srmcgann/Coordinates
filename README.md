@@ -165,18 +165,18 @@ var geoOptions = {
   roll: 0,            // orientation / rotation
   pitch: 0,
   yaw: 0,
-  scaleX: 1,          // resize (only at creation, at present)
+  scaleX: 1,          // resize (at creation)
   scaleY: 1,
   scaleZ: 1,
-  objX: 0,            // for 'OBJ' format models, initial offset
-  objY: 0,
-  objZ: 0,
-  objRoll: 0,         // for 'OBJ' format models, orient/rotate
-  objPitch: 0,
-  objYaw: 0,
-  color: 0x333333, // optional color
-  colorMix: .5,    // weight of the color, to mix with texture
-  map: '',         // optional texture, URL to an image
+  color: 0x333333,    // optional color
+  colorMix: .5,       // weight of the color, to mix with texture
+  map: '',            // optional texture, URL to an image
+  sphereize: 1,       // interpolate a polyhedron to a sphere (=1), and beyond
+                         // read more below about this feature
+  size: 1,            // not required, but the default may not be appropriate.
+  subs: 2,            // subdivides a polyhedron above, creating exponentially
+                      // more polygons/faces. Advise no more than 4!
+  equirectangular: false,  // if enabled, textures are assumed to be spherical
   shapeType: '',   // required.
                    // supported types:
                       // • tetrahedron
@@ -201,19 +201,28 @@ var geoOptions = {
                          // is streamlined for the fastest load times
   
   exportShape: false, // display popup for each geometry which has this option
+  objX: 0,            // for 'OBJ' format models, initial offset
+  objY: 0,
+  objZ: 0,
+  objRoll: 0,         // for 'OBJ' format models, orient/rotate
+  objPitch: 0,
+  objYaw: 0,
                       // enabled, to copy its raw data for later import as a
                       // 'custom shape'.
-  size: 1,            // not required, but the default may not be appropriate.
-  subs: 2,            // subdivides a polyhedron above, creating exponentially
-                      // more polygons/faces. Advise no more than 4!
-  sphereize: 1,       // interpolate a polyhedron to a sphere (=1), and beyond
-  equirectangular: false,  // if enabled, textures are assumed to be spherical
   flipNormals: false,    // invert normals
   showNormals: false,    // view normals on screen as red lines
   url: ''                // url for 'OBJ' format models, or 'custom shapes'.
                          // url is ignored otherwise.
 }
 ```
+<br><br>
+
+#### geometry.sphereize = [value]
+This value, when set as an option for LoadGeometry, interpolates a polyhedron
+between its normal shape (e.g. a cube), and sphere. A value of 0 (zero) is the
+shape's original, expected appearance, and 1 is a sphere. Values less than zero
+or more than 1 are accepted. NOTE! if sphereize is used, you should set
+``averageNormals: true``, to recompute the data used by reflections, lighting etc.
 <br><br>
 
 #### ConnectGeometry()
