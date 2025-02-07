@@ -107,7 +107,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
         c.width = ret.c.width
       break
       default:
-        ctx.clearColor(...HexToRGB(), 1.0)
+        ctx.clearColor(0,0,0,1) //...HexToRGB(), 1.0)
         ctx.clear(ctx.COLOR_BUFFER_BIT);
       break
     }
@@ -153,7 +153,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
       
       dset.optionalUniforms.map(uniform => {
         if(typeof uniform?.loc === 'object'){
-          ctx[uniform.dataType](uniform.loc,      uniform.value)
+          ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 3 : 1))
           ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
           switch(uniform.name){
             case 'reflection':
@@ -361,11 +361,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var x = 0, y = 0, z = 0
   var roll = 0, pitch = 0, yaw = 0
   var scaleX=1, scaleY=1, scaleZ=1
-  var rows             = 16  
+  var rows             = 16 
   var cols             = 40  // must remain "16, 40" to trigger default quick torus/cylinder
   var map              = ''
   var url              = ''
   var size             = 1
+  var averageNormals   = false
   var subs             = 2
   var sphereize        = 0
   var color            = 0x333333
@@ -406,6 +407,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'map'             : map = geoOptions[key]; break
       case 'rows'            : rows = geoOptions[key]; break
       case 'cols'            : cols = geoOptions[key]; break
+      case 'averagenormals'  : averageNormals = !!geoOptions[key]; break
     }
   })
 
@@ -461,7 +463,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
              ){
             resolved = true;
             url = `https://srmcgann.github.io/Coordinates/new%20shapes/`
-            fileURL = `${url}${hint}.json`
+            fileURL = `${url}${hint}.json?2`
           }else{
             // unresolved shape
           }
@@ -616,14 +618,21 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
     
     for(var i=0; i<normals.length; i+=6){
+      var nx = normals[i+3] - normals[i+0]
+      var ny = normals[i+4] - normals[i+1]
+      var nz = normals[i+5] - normals[i+2]
       normals[i+0] *= scaleX
       normals[i+1] *= scaleY
       normals[i+2] *= scaleZ
-      normals[i+3] *= scaleX
-      normals[i+4] *= scaleY
-      normals[i+5] *= scaleZ
+      normals[i+3] = normals[i+0] + nx
+      normals[i+4] = normals[i+1] + ny
+      normals[i+5] = normals[i+2] + nz
     }
     
+  }
+  
+  if(averageNormals || !resolved){
+    AverageNormals(normals)
     normalVecs    = []
     for(var i=0; i<normals.length; i+=6){
       let X = normals[i+3] - normals[i+0]
@@ -823,7 +832,48 @@ const BindImage = async (gl, image, binding) => {
 }
 
 
-var BasicShader = async (renderer, options=[]) => {
+const AverageNormals = ar => {
+  console.log('averaging...')
+  var ret = []
+  var modSrc = structuredClone(ar)
+  var a, ct, ax, ay, az
+  var X1a, Y1a, Z1a, X2a, Y2a, Z2a
+  var X1b, Y1b, Z1b, X2b, Y2b, Z2b
+  for(var i=0; i<ar.length; i+=6){
+    X1a = ar[i+0]
+    Y1a = ar[i+1]
+    Z1a = ar[i+2]
+    X2a = ar[i+3]
+    Y2a = ar[i+4]
+    Z2a = ar[i+5]
+    ax = X2a
+    ay = Y2a
+    az = Z2a
+    ct = 1
+    for(var j=0; j<ar.length; j+=6){
+      if(j!=i){
+        X1b = ar[j+0]
+        Y1b = ar[j+1]
+        Z1b = ar[j+2]
+        X2b = ar[j+3]
+        Y2b = ar[j+4]
+        Z2b = ar[j+5]
+        if(Math.hypot(X1a - X1b, Y1a - Y1b, Z1a - Z1b) < .01){
+          ax += X2b
+          ay += Y2b
+          az += Z2b
+          ct++
+        }
+      }
+    }
+    modSrc[i+3] = ax /= ct
+    modSrc[i+4] = ay /= ct
+    modSrc[i+5] = az /= ct
+  }
+  modSrc.map((v,i)=>ar[i]=v)
+}
+
+const BasicShader = async (renderer, options=[]) => {
   
   const gl = renderer.gl
   var program
@@ -859,9 +909,9 @@ var BasicShader = async (renderer, options=[]) => {
                     varying vec3 reflectionPos;
                   `,
                   vertCode:            `
-                    reflectionPos = vec3(position.x, position.y, position.z);
+                    reflectionPos = normalVec;
                     reflectionPos = R(reflectionPos.x, reflectionPos.y, reflectionPos.z,
-                                 0.0, geoPitch - camPitch / 2.0, geoYaw + camYaw);
+                                 geoRoll + camRoll, geoPitch - camPitch / 2.0, geoYaw + camYaw);
                   `,
                   fragDeclaration:     `
                     uniform float reflection;
@@ -871,12 +921,13 @@ var BasicShader = async (renderer, options=[]) => {
                     varying vec3 reflectionPos;
                   `,
                   fragCode:            `
+                    //light = light * 4.0;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
-                      refP1 = (atan(px, pz) - camYaw)/ M_PI / 2.0;
+                      refP1 = atan(px, pz)/ M_PI / 2.0;
                       refP2 = acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
                     } else {
                       refP1 = vUv.x;
@@ -910,10 +961,9 @@ var BasicShader = async (renderer, options=[]) => {
                     varying vec3 phongPos;
                   `,
                   vertCode:            `
-                  
-                    phongPos = vec3(position.x, position.y, position.z);
+                    phongPos = normalVec;
                     phongPos = R(phongPos.x, phongPos.y, phongPos.z,
-                                 0.0, geoPitch - camPitch / 2.0, geoYaw + camYaw);
+                                 geoRoll + camRoll, geoPitch - camPitch / 2.0, geoYaw + camYaw);
                   `,
                   fragDeclaration:     `
                     uniform float phong;
@@ -922,14 +972,21 @@ var BasicShader = async (renderer, options=[]) => {
                     varying vec3 phongPos;
                   `,
                   fragCode:            `
-                    light = light * 10.0;
-                    float px = phongPos.x;
-                    float py = phongPos.y;
-                    float pz = phongPos.z;
-                    float phongP1 = 1.0 + sin( atan(px, pz) + phongTheta + M_PI * 1.5) * 2.0;
-                    float phongP2 = acos( py / sqrt(px * px + py * py + pz * pz)) + 5.0;
-                    colorMag = light + pow((1.0+phongP1) * (cos(phongP2) + 1.0), 12.0) / 40000000000.0 * phong;
-                    light = max(light, colorMag);
+                    float phongP1, phongP2;
+                    float px, py, pz;
+                    if(flatShading != 0.0){
+                      px = nVec.x;
+                      py = nVec.y;
+                      pz = nVec.z;
+                    }else{
+                      px = phongPos.x;
+                      py = phongPos.y;
+                      pz = phongPos.z;
+                    }
+                    phongP1 = (atan(px, pz) - camYaw) + M_PI + phongTheta;
+                    phongP2 = -acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
+                    
+                    light = light + pow((1.0+cos(phongP1)) * (1.0+cos(phongP2)), 8.0) / 10000.0 * phong ;
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -1008,9 +1065,9 @@ var BasicShader = async (renderer, options=[]) => {
     
     vec3 R(float X, float Y, float Z, float Rl, float Pt, float Yw){
       float p, d;
-      X = sin(p=atan(X,Z)+Yw)*(d=sqrt(X*X+Z*Z));
-      Z = cos(p)*d;
       Y = sin(p=atan(Y,Z)+Pt)*(d=sqrt(Y*Y+Z*Z));
+      Z = cos(p)*d;
+      X = sin(p=atan(X,Z)+Yw)*(d=sqrt(X*X+Z*Z));
       Z = cos(p)*d;
       X = sin(p=atan(X,Y)+Rl)*(d=sqrt(X*X+Y*Y));
       Y = cos(p)*d;
@@ -1141,8 +1198,8 @@ var BasicShader = async (renderer, options=[]) => {
       vec2 coords = Coords(0.0);
       float mixColorIp = colorMix;
       float baseColorIp = 1.0 - mixColorIp;
-      vec4 mixColor = vec4(color, 1.0);
-      float light = ambientLight / 10.0;
+      vec4 mixColor = vec4(color.rgb, 1.0);
+      float light = ambientLight / 2.0;
       float colorMag = 1.0;
       float alpha = 1.0;
       if(skip != 1.0){
@@ -1259,8 +1316,7 @@ var BasicShader = async (renderer, options=[]) => {
       })
 
       dset.locColor = gl.getUniformLocation(dset.program, "color")
-      var rgb = HexToRGB(geometry.color)
-      gl.uniform3f(dset.locColor, ...rgb)
+      gl.uniform3f(dset.locColor, ...HexToRGB(geometry.color))
 
       dset.locColorMix = gl.getUniformLocation(dset.program, "colorMix")
       gl.uniform1f(dset.locColorMix, geometry.colorMix)
@@ -1355,7 +1411,17 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
   var shape
   switch(shapeType){
     case 'obj': shape = await subbed(0, 1, sphereize, e, texCoords, hint); break
-    default: shape = await subbed(subs + 1, 1, sphereize, e, texCoords, hint); break
+    default: shape = await subbed(subs + 0, 1, sphereize, e, texCoords, hint); break
+  }
+  var isPolyhedron
+  switch(shapeType){
+    case 'tetrahedron': isPolyhedron = true; break
+    case 'cube': isPolyhedron = true; break
+    case 'octahedron': isPolyhedron = true; break
+    case 'dodecahedron': isPolyhedron = true; break
+    case 'icosahedron': isPolyhedron = true; break
+    case 'tetrahedron': isPolyhedron = true; break
+    default: isPolyhedron = false; break
   }
   shape.map(v => {
     v.verts.map(q=>{
@@ -1379,8 +1445,7 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
     j = i/3 | 0
     b = [a[j*3+0], a[j*3+1], a[j*3+2]]
     if(!(i%3)){
-      console.log(b)
-      normal = Normal(b, true)
+      normal = Normal(b, isPolyhedron)
       if(!flipNormals){
         normal[3] = normal[0] + (normal[0]-normal[3])
         normal[4] = normal[1] + (normal[1]-normal[4])
@@ -1390,7 +1455,10 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
     l = flipNormals ? a.length - i - 1 : i
     geometry = [...geometry, {
       position: a[l],
-      normal,
+      normal: [...a[l],
+               a[l][0] + (normal[3]-normal[0]),
+               a[l][1] + (normal[4]-normal[1]),
+               a[l][2] + (normal[5]-normal[2])],
       texCoord: f[l],
     }]
   }
@@ -1821,7 +1889,7 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
   var TX1,TY1, TX2,TY2, TX3,TY3, TX4,TY4
   var p, d
   var texCoords = []
-  var rw_ = rw // * 4
+  var rw_ = rw * 4
   var rad1 = .5
   var rad2 = 1
   for(var j = 0; j < rw_; j++){
@@ -2229,6 +2297,7 @@ const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeT
     texCoords = [...texCoords, a]
   }
   
+  console.log('hm')
   let ret = await GeometryFromRaw(e, texCoords, size / 1.2, subs,
                          sphereize, flipNormals, true, shapeType)
                          
@@ -2363,7 +2432,7 @@ const HexToRGB = val => {
     var b = ((val/256) - (val/256|0)) //* 256|0
     var g = ((val/256**2) - (val/256**2|0)) //* 256|0
     var r = ((val/256**3) - (val/256**3|0)) //* 256|0
-    return [r,g,b]
+    return [r, g, b]
 }
 
 export {
