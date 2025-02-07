@@ -173,6 +173,7 @@ var geoOptions = {
   map: '',            // optional texture, URL to an image
   sphereize: 1,       // interpolate a polyhedron to a sphere (=1), and beyond
                          // read more below about this feature
+  averageNormals: false, // generate/recompute normals for any shape @ load
   size: 1,            // not required, but the default may not be appropriate.
   subs: 2,            // subdivides a polyhedron above, creating exponentially
                       // more polygons/faces. Advise no more than 4!
