@@ -20,8 +20,8 @@
       "https://boss.mindhackers.org/Coordinates/coordinates.js"
     
       var renderer = Coordinates.Renderer()
-      renderer.fov = 2e3
-      renderer.ambientLight = 1
+      renderer.fov = 1e3
+      renderer.ambientLight = 1.2
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
@@ -30,13 +30,13 @@
           type: 'phong',
           flatShading: false,
           enabled: true,
-          value: 1
+          value: .6
         } },
         { uniform: {
           type: 'reflection',
           flatShading: false,
           enabled: true,
-          map: 'resources/ultracloudsbase.jpg',
+          map: 'https://i.imgur.com/tZ8gfw2.mp4',
           value: 1
         } },
       ]
@@ -77,37 +77,60 @@
         z: 0,
         size: 1e3,
         equirectangular: true,
-        map: 'resources/nebugrid_po2.jpg',
+        map: 'https://i.imgur.com/tZ8gfw2.mp4',
+        videoSpeed: .5
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await backgroundShader.ConnectGeometry(geometry)
       })  
       
-      geoOptions = {
-        shapeType: 'torus knot',
-        name: 'solid',
-        color: 0x884400,
-        colorMix: 0,
-        //sphereize: 10,
-        //averageNormals: true,
-        subs: 0,
-        //cols: 16,
-        //rows: 3,
-        x: 0, y: 0, z: 0,
-        size: 4,
-        //scaleY: 4,
-        equirectangular: true,
-        showNormals: false,
-        flipNormals: false,
-        map: 'resources/nebugrid_po2.jpg',
-        exportShape: true,
+      for(var m = 0; m<2; m++){
+        var shapeType, size, subs=0
+        var sphereize = 0, averageNormals=false
+        switch(m){
+          case 0:
+            shapeType = 'torus knot';
+            size = 2;
+          break
+          case 1:
+            shapeType = 'torus';
+            size=.33
+            subs = 0
+            sphereize = 0
+            averageNormals = false
+          break
+          case 2: shapeType = 'octahedron'; break
+          case 3: shapeType = 'dodecahedron'; break
+          case 4: shapeType = 'icosahedron'; break
+        }
+        geoOptions = {
+          shapeType,
+          name: `${shapeType}`,
+          color: 0x000000,
+          colorMix: .5,
+          sphereize,
+          averageNormals,
+          subs,
+          //cols: 16,
+          //rows: 3,
+          yaw: 1,
+          x: 0,//(m-2) * 4,
+          y: 0,
+          z: 0,
+          size,
+          //scaleY: 4,
+          equirectangular: true,
+          showNormals: false,
+          flipNormals: false,
+          map: 'resources/nebugrid_po2.jpg',
+          exportShape: false,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await shader.ConnectGeometry(geometry)
+        })  
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })  
-      
       
       window.Draw = () => {
         var t = renderer.t
@@ -120,19 +143,20 @@
           }
         })
         
-        renderer.z = 12//Math.min(8, Math.max(.4, (.3 + C(t/2))*50))
-        //renderer.pitch = .2
-        //renderer.roll += .001
-        renderer.yaw += .001
-        shapes.forEach(shape => {
+        renderer.z = Math.min(10, Math.max(.7, (.3 + C(t/4))*20))
+        renderer.pitch += C(t) * .001
+        renderer.roll += .0005
+        renderer.yaw += .002
+        shapes.forEach((shape, idx) => {
           switch(shape.name){
             case 'skybox': break
             default:
-              shape.yaw   += S(t/2) * .01 + .005
-              shape.pitch +=  .02
-              shape.roll += .005
+              shape.yaw   += S(t/3+idx) * .015 + .002
+              shape.pitch +=  C(t/4+idx) * .002
+              shape.roll += S(t/8) * .005
               break
           }
+          
           renderer.Draw(shape)
         })
       }
@@ -146,7 +170,7 @@
   
   *** important ***
   
-  * re: 'sphereize', the problem exists of needing to average
+  ✔ re: 'sphereize', the problem exists of needing to average
          normals AFTER the shape is sphereized, as the degree is
          not known prior. Normal averaging is computationally
          expensive, so a solution, in the context of pre-built shapes,
@@ -154,13 +178,15 @@
          instruct users that sphereized shapes may use it, for
          reflections etc.
   
-  * re-export 'new shapes'
-      ✔  cube_0.json
-      ✔  cube_1.json
-      ✔  cube_2.json
-      ✔  cube_3.json
-      ✔  cube_4.json
+  * re-export 'new shapes' with unit size
+          cube_0.json
+          cube_1.json
+          cube_2.json
+          cube_3.json
+          cube_4.json
           cylinder_0.json
+          torus_0.json
+          torus knot_0.json
           dodecahedron_0.json
           dodecahedron_1.json
           dodecahedron_2.json
