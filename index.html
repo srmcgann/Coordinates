@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <link rel="icon" type="image/png" href="favicon.png" />
     <title>Coordinates boilerplate example</title>
     <style>
       body, html{
-        background: #333;
+        background: #111;
         margin: 0;
         min-height: 100vh;
       }
@@ -12,28 +13,96 @@
   </head>
   <body>
     <script type="module">
-    
+      var S = Math.sin
+      var C = Math.cos
+      
       import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.js"
+      "https://boss.mindhackers.org/Coordinates/coordinates.js"
     
-      // instantiate a canvas. this is also our 'camera'
       var renderer = Coordinates.Renderer()
+      renderer.fov = 2e3
+      renderer.ambientLight = 1
       
-      // back the camera away from the center (move it toward the viewer)
-      renderer.z = 10
-      
-      // tell the API where to find our animation function
       Coordinates.AnimationLoop(renderer, 'Draw')
 
-      // invoke a shader - phong in this case for a pseudo-lighting effect
-      var shaderOptions = [ { uniform: { type: 'phong' } } ]
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          flatShading: false,
+          enabled: true,
+          value: 1
+        } },
+        { uniform: {
+          type: 'reflection',
+          flatShading: false,
+          enabled: true,
+          map: 'resources/ultracloudsbase.jpg',
+          value: 1
+        } },
+      ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+      
+      shaderOptions = [  // skybox shader
+        { uniform: {
+          type: 'phong',
+          flatShading: false,
+          enabled: false,
+          value: 1
+        } },
+        { uniform: {
+          type: 'reflection',
+          flatShading: false,
+          enabled: false,
+          map: 'resources/nebugrid_po2.jpg',
+          value: 1
+        } },
+      ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
-      // create a scene (it's async, so we can 'await' each call, but that is optional)
       var shapes = []
-        // load a cube
-      var geoOptions = { shapeType: 'cube', size: 5, color: 0x888888 }
+      
+      var geoOptions
+      
+      geoOptions = { // skybox shape
+        shapeType: 'dodecahedron',
+        name: 'skybox',
+        color: 0x000000,
+        colorMix: 0,
+        sphereize: 1,
+        subs: 3,
+        averageNormals: false,
+        x: 0,
+        y: 0,
+        z: 0,
+        size: 1e3,
+        equirectangular: true,
+        map: 'resources/nebugrid_po2.jpg',
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await backgroundShader.ConnectGeometry(geometry)
+      })  
+      
+      geoOptions = {
+        shapeType: 'torus knot',
+        name: 'solid',
+        color: 0x884400,
+        colorMix: 0,
+        //sphereize: 10,
+        //averageNormals: true,
+        subs: 0,
+        //cols: 16,
+        //rows: 3,
+        x: 0, y: 0, z: 0,
+        size: 4,
+        //scaleY: 4,
+        equirectangular: true,
+        showNormals: false,
+        flipNormals: false,
+        map: 'resources/nebugrid_po2.jpg',
+        exportShape: true,
+      }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
@@ -41,9 +110,29 @@
       
       
       window.Draw = () => {
+        var t = renderer.t
+        renderer.Clear()
+  
+        if(1) for(var m=2;m--;) (m?backgroundShader:shader).datasets.map(v=>{
+          if(typeof v?.optionalUniforms != 'undefined'){
+            let phongShader = v.optionalUniforms.filter(v=>v.name=='phong')
+            if(phongShader.length) phongShader[0].theta = renderer.yaw + .5
+          }
+        })
+        
+        renderer.z = 12//Math.min(8, Math.max(.4, (.3 + C(t/2))*50))
+        //renderer.pitch = .2
+        //renderer.roll += .001
+        renderer.yaw += .001
         shapes.forEach(shape => {
-          shape.yaw   += .01
-          shape.pitch += .005
+          switch(shape.name){
+            case 'skybox': break
+            default:
+              shape.yaw   += S(t/2) * .01 + .005
+              shape.pitch +=  .02
+              shape.roll += .005
+              break
+          }
           renderer.Draw(shape)
         })
       }
@@ -51,3 +140,100 @@
     </script>
   </body>
 </html>
+
+<!--
+  TO DO
+  
+  *** important ***
+  
+  * re: 'sphereize', the problem exists of needing to average
+         normals AFTER the shape is sphereized, as the degree is
+         not known prior. Normal averaging is computationally
+         expensive, so a solution, in the context of pre-built shapes,
+         is to provide an optional function "AverageNormals", and
+         instruct users that sphereized shapes may use it, for
+         reflections etc.
+  
+  * re-export 'new shapes'
+      ✔  cube_0.json
+      ✔  cube_1.json
+      ✔  cube_2.json
+      ✔  cube_3.json
+      ✔  cube_4.json
+          cylinder_0.json
+          dodecahedron_0.json
+          dodecahedron_1.json
+          dodecahedron_2.json
+          dodecahedron_3.json
+          dodecahedron_4.json
+          icosahedron_0.json
+          icosahedron_1.json
+          icosahedron_2.json
+          icosahedron_3.json
+          icosahedron_4.json
+          octahedron_0.json
+          octahedron_1.json
+          octahedron_2.json
+          octahedron_3.json
+          octahedron_4.json
+          tetrahedron_0.json
+          tetrahedron_1.json
+          tetrahedron_2.json
+          tetrahedron_3.json
+          tetrahedron_4.json
+
+  * fix color mix
+  * come up with solution for averaging normals (for phong etc), with prebuilt shapes
+  
+  *****************
+  
+  * geometry
+    └> ✔ generalize geometry function
+       *  add shapeTypes: torus, cylinder, sphere
+       *  add method / shapeType for points/particles, lines
+       *  noise functions / deformation methods
+       ✔ return "raw" geometry with inbuilt shapes, for 2d context
+       ✔ add 3-axis 'scale' function 
+       
+  * README.md
+    └> *  add remaining exposed methods (e.g. color conversions, spatial)
+          as "supplemental"
+  
+  ✔ add renderer object
+  ✔ add camera object
+  ✔ fix FOV
+  ✔ README.md / documentation
+  
+  * sprite sheet system / import basic+custom slicing
+  * add video texture capabilities
+  * cache for API, to include all network-callable items
+  
+  * shapes
+    └> ✔ add shapes (in addtion to Cube)
+       ✔ make non-cube UVs equirectangular
+       ✔ keep shape generation functions, but add 'precompiled' versions for ordinary calls
+       ✔ move rotation function into shader
+       * loading -> compression, direct output of
+                    usable format (no further processing needed)
+
+  * subdivision
+    └> ✔  add optional LOD param for all basic geometry
+       ✔ decouple polygons from UV subdivision (interpolate UVs @ sub)
+       
+  * shaders / textures
+    └> ✔ move shaders into Coordinates module
+       *  bloom shader
+       *  add '# tiling (x/y)' option
+       ✔  phong -> play nice with rectangle
+       ✔  move camera into vertex shader
+       ✔  create pseudo-phong shader
+       ✔  add 'reflectivity' & texture input for it
+       ✔  flat/smooth shading
+       ✔  integrate optional effect shaders
+
+  * functions / methods
+    └> ✔ begin separating module functions as optional includes
+       ✔ migrate functions to coordinates.js module
+       ✔ integrate obj loader
+
+-->
