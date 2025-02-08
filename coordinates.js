@@ -705,7 +705,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     titleEl.innerHTML = `Export Coordinates File -> ${shapeType} ` + (geoOptions?.name ? `(${geoOptions.name})` : '') + '<br><br>'
     popup.appendChild(titleEl)
     var output = document.createElement('div')
-    output.id = 'shapeDataOutput'
+    //output.id = 'shapeDataOutput' + geometry.name + geometry.shapeType
     output.style.minWidth = 'calc(100% - 0px)'
     output.style.height = '300px'
     output.style.background = '#333'
@@ -727,7 +727,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     copyButton.title = "copy shape data to clipboard"
     copyButton.onclick = () => {
       var range = document.createRange()
-      range.selectNode(document.querySelectorAll('#shapeDataOutput')[0])
+      range.selectNode(output)
       window.getSelection().removeAllRanges()
       window.getSelection().addRange(range)
       document.execCommand("copy")
@@ -1650,7 +1650,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   var cx, cy, cz, ip1, ip2, a, ta
   var tcx, tcy, tv
   var resolved = false
-  if(subs > 1 && hint){
+  if(0 && subs > 1 && hint){
     var fileBase
     switch(hint){
       case 'tetrahedron_0': resolved = true; fileBase = hint; break
