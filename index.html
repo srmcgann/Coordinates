@@ -20,8 +20,8 @@
       "https://boss.mindhackers.org/Coordinates/coordinates.js"
     
       var renderer = Coordinates.Renderer()
-      renderer.fov = 1e3
-      renderer.ambientLight = 1.5
+      renderer.fov = 2e3
+      renderer.ambientLight = 1
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
@@ -42,18 +42,18 @@
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
       
-      shaderOptions = [  //background
+      shaderOptions = [  // skybox shader
         { uniform: {
           type: 'phong',
-          flatShading: true,
+          flatShading: false,
           enabled: false,
-          value: 1.5
+          value: 1
         } },
         { uniform: {
           type: 'reflection',
           flatShading: false,
           enabled: false,
-          map: 'resources/ultracloudsbase.jpg',
+          map: 'resources/nebugrid_po2.jpg',
           value: 1
         } },
       ]
@@ -64,7 +64,7 @@
       
       var geoOptions
       
-      geoOptions = {
+      geoOptions = { // skybox shape
         shapeType: 'dodecahedron',
         name: 'skybox',
         color: 0x000000,
@@ -77,7 +77,7 @@
         z: 0,
         size: 1e3,
         equirectangular: true,
-        map: 'resources/ultracloudsbase.jpg',
+        map: 'resources/nebugrid_po2.jpg',
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -85,21 +85,23 @@
       })  
       
       geoOptions = {
-        shapeType: 'torus',
+        shapeType: 'torus knot',
         name: 'solid',
-        color: 0xff0000,
-        colorMix: .5,
-        sphereize: 0,
+        color: 0x884400,
+        colorMix: 0,
+        //sphereize: 10,
+        //averageNormals: true,
         subs: 0,
         //cols: 16,
         //rows: 3,
         x: 0, y: 0, z: 0,
-        size: 1,
+        size: 4,
         //scaleY: 4,
-        equirectangular: false,
+        equirectangular: true,
         showNormals: false,
-        //map: 'resources/ultracloudsbase.jpg',
-        //exportShape: true,
+        flipNormals: false,
+        map: 'resources/nebugrid_po2.jpg',
+        exportShape: true,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -111,24 +113,24 @@
         var t = renderer.t
         renderer.Clear()
   
-        if(0) for(var m=2;m--;) (m?backgroundShader:shader).datasets.map(v=>{
+        if(1) for(var m=2;m--;) (m?backgroundShader:shader).datasets.map(v=>{
           if(typeof v?.optionalUniforms != 'undefined'){
             let phongShader = v.optionalUniforms.filter(v=>v.name=='phong')
-            if(phongShader.length) phongShader[0].theta += .02
+            if(phongShader.length) phongShader[0].theta = renderer.yaw + .5
           }
         })
         
         renderer.z = 12//Math.min(8, Math.max(.4, (.3 + C(t/2))*50))
-        renderer.pitch = .2
+        //renderer.pitch = .2
         //renderer.roll += .001
-        renderer.yaw += C(t/2) * .005
+        renderer.yaw += .001
         shapes.forEach(shape => {
           switch(shape.name){
             case 'skybox': break
             default:
               shape.yaw   += S(t/2) * .01 + .005
               shape.pitch +=  .02
-              shape.roll += .002
+              shape.roll += .005
               break
           }
           renderer.Draw(shape)
@@ -143,6 +145,14 @@
   TO DO
   
   *** important ***
+  
+  * re: 'sphereize', the problem exists of needing to average
+         normals AFTER the shape is sphereized, as the degree is
+         not known prior. Normal averaging is computationally
+         expensive, so a solution, in the context of pre-built shapes,
+         is to provide an optional function "AverageNormals", and
+         instruct users that sphereized shapes may use it, for
+         reflections etc.
   
   * re-export 'new shapes'
       ✔  cube_0.json
@@ -214,7 +224,7 @@
     └> ✔ move shaders into Coordinates module
        *  bloom shader
        *  add '# tiling (x/y)' option
-       *  phong -> play nice with rectangle
+       ✔  phong -> play nice with rectangle
        ✔  move camera into vertex shader
        ✔  create pseudo-phong shader
        ✔  add 'reflectivity' & texture input for it
