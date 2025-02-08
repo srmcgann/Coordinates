@@ -3,6 +3,9 @@
 // all rights reserved - ©2025
 
 const S = Math.sin, C = Math.cos
+const scratchCanvas = document.createElement('canvas')
+const sctx = scratchCanvas.getContext('2d')
+const scratchImage = new Image()
 
 const cache = {
   objFiles: [],
@@ -126,6 +129,12 @@ const Renderer = (width = 1920, height = 1080, options) => {
       
       // update uniforms
       
+
+
+      if(geometry.textureMode == 'video'){
+        BindImage(ctx, dset.video,  dset.texture, geometry.textureMode)
+      }
+      
       ctx.uniform1i(dset.locTexture, dset.texture)
       ctx.activeTexture(ctx.TEXTURE0)
       ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
@@ -157,8 +166,11 @@ const Renderer = (width = 1920, height = 1080, options) => {
           ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
           switch(uniform.name){
             case 'reflection':
-              ctx.uniform1i(uniform.locRefTexture, 1)
               ctx.activeTexture(ctx.TEXTURE1)
+              if(uniform.textureMode == 'video'){
+                BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode)
+              }
+              ctx.uniform1i(uniform.locRefTexture, 1)
               ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
               
               ctx.uniform1f(uniform.locRefOmitEquirectangular, geometry.shapeType == 'rectangle' ? 1.0 : 0.0)
@@ -350,7 +362,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
 
   var objX, objY, objZ, objRoll, objPitch, objYaw
   var vertex_buffer, Vertex_Index_Buffer
-  var normal_buffer, Normal_Index_Buffer
+  var normal_buffer, Normal_Index_Buffer, video
   var normalVec_buffer, NormalVec_Index_Buffer
   var uv_buffer, UV_Index_Buffer, name, shapeType
   var vIndices, nIndices, nVecIndices, uvIndices
@@ -376,6 +388,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var equirectangular  = false
   var flipNormals      = false
   var showNormals      = false
+  var muted            = true
+  var textureMode      = 'image'
   
   geoOptions = structuredClone(geoOptions)
   Object.keys(geoOptions).forEach((key, idx) => {
@@ -410,6 +424,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'map'             : map = geoOptions[key]; break
       case 'rows'            : rows = geoOptions[key]; break
       case 'cols'            : cols = geoOptions[key]; break
+      case 'muted'           : muted = !!geoOptions[key]; break
       case 'averagenormals'  : averageNormals = !!geoOptions[key]; break
     }
   })
@@ -803,17 +818,19 @@ const LoadGeometry = async (renderer, geoOptions) => {
   return {
     x, y, z,
     roll, pitch, yaw, color, colorMix,
-    size, subs, name, url,
+    size, subs, name, url, averageNormals,
     showNormals, shapeType, exportShape,
     sphereize, equirectangular, flipNormals,
     vertices, normals, normalVecs, uvs,
     vertex_buffer, Vertex_Index_Buffer,
-    normal_buffer, Normal_Index_Buffer,
+    normal_buffer, Normal_Index_Buffer, muted,
     normalVec_buffer, NormalVec_Index_Buffer,
     nVecIndices, uv_buffer, UV_Index_Buffer,
-    vIndices, nIndices, uvIndices, map
+    vIndices, nIndices, uvIndices, map, video,
+    textureMode
   }
 }
+
 
 const ImageToPo2 = async (image) => {
   let ret = image
@@ -842,12 +859,58 @@ const ImageToPo2 = async (image) => {
   return ret
 }
 
-const BindImage = async (gl, image, binding) => {
-  let texImage = await ImageToPo2(image)
+const VideoToImage = video => {
+  if(typeof video != 'undefined'){
+    
+    let tgtWidth = video.videoWidth
+    let tgtHeight = video.videoHeight
+
+    if ( !(IsPowerOf2(tgtWidth) && IsPowerOf2(tgtHeight)) ) {
+      let r = 8
+      let tsize=0
+      let mdif = 6e6
+      let d, j
+      let h = Math.hypot(tgtWidth, tgtHeight)
+      for(let i = 0; i<12; i++){
+        if((d=Math.abs(tsize-h)) < mdif){
+          mdif = d
+          tsize = r * 2**i
+          j=i
+        }
+      }
+      tsize -= r * 2**(j-1)
+      tsize = Math.min(2048, tsize)
+      tgtWidth = tsize / 2
+      tgtHeight = tsize / 4
+    }
+
+    scratchCanvas.width  = tgtWidth //video.videoWidth
+    scratchCanvas.height = tgtHeight //video.videoHeight
+    sctx.drawImage(video, 0, 0, scratchCanvas.width, scratchCanvas.height)
+    return scratchCanvas//.toDataURL('image/jpeg', .5)
+  }else{
+    scratchCanvas.width  = 1
+    scratchCanvas.height = 1
+    return scratchCanvas//.toDataURL('image/jpeg', .5)
+  }
+}
+
+const BindImage = async (gl, resource, binding, textureMode='image') => {
+  let texImage
+  switch(textureMode){
+    case 'video':
+     texImage = VideoToImage(resource)
+    break
+    case 'image':
+      texImage = await ImageToPo2(resource)
+    break
+    default:
+    break
+  }
   //gl.activeTexture(gl.TEXTURE1)
   gl.bindTexture(gl.TEXTURE_2D, binding)
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage);
-  gl.generateMipmap(gl.TEXTURE_2D)
+  //gl.generateMipmap(gl.TEXTURE_2D)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -927,8 +990,12 @@ const BasicShader = async (renderer, options=[]) => {
     iURL: null,
     locT: null,
     locUv: null,
+    //muted: null,
+    //video: null,
     locFov: null,
     program: null,
+    //texture: null,
+    //textureMode: null,
     optionalUniforms: [],
   }
   
@@ -942,6 +1009,8 @@ const BasicShader = async (renderer, options=[]) => {
                  !!option.uniform.enabled){
                 var uniformOption = {
                   name:                option.uniform.type,
+                  muted:               typeof option.uniform.muted == 'undefined' ?
+                                         true : option.uniform.muted,
                   map:                 option.uniform.map,
                   loc:                 'locReflection',
                   value:               typeof option.uniform.value == 'undefined' ?
@@ -1319,20 +1388,49 @@ const BasicShader = async (renderer, options=[]) => {
       dset.optionalUniforms.map(async (uniform) => {
         switch(uniform.name){
           case 'reflection':
-            var image = new Image()
             var url = uniform.map
             let mTex
             if((mTex = ret.datasets.filter(v=>v.iURL == url)).length > 1){
               uniform.refTexture = mTex[0].texture
             }else{
-              uniform.refTexture = gl.createTexture()
-              ret.datasets = [...ret.datasets, {
-                texture: uniform.refTexture, iURL: url }]
-              gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
-              await fetch(url).then(res=>res.blob()).then(data => {
-                image.src = URL.createObjectURL(data)
-              })
-              image.onload = async () => await BindImage(gl, image, uniform.refTexture)
+              
+              
+              if(url){
+                let mTex, l
+                let suffix = (l=url.split('.'))[l.length-1].toLowerCase()
+                uniform.refTexture = gl.createTexture()
+                switch(suffix){
+                  case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
+                    uniform.video = document.createElement('video')
+                    uniform.textureMode = 'video'
+                    ret.datasets = [...ret.datasets, {
+                      texture: uniform.refTexture, iURL: url }]
+                    uniform.video.loop = true
+                    if(uniform.muted) uniform.video.muted = true
+                    uniform.video.oncanplay = async () => {
+                      uniform.video.play()
+                      await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode)
+                    }
+                    await fetch(url).then(res=>res.blob()).then(data => {
+                      uniform.video.src = URL.createObjectURL(data)
+                    })
+                  break
+                  default:
+                  
+                    var image = new Image()
+                    uniform.textureMode = 'image'
+                    ret.datasets = [...ret.datasets, {
+                      texture: uniform.refTexture, iURL: url }]
+                    gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
+                    await fetch(url).then(res=>res.blob()).then(data => {
+                      image.src = URL.createObjectURL(data)
+                    })
+                    image.onload = async () => await BindImage(gl, image, uniform.refTexture, uniform.textureMode)
+                        
+                  break
+                }
+              }
+              
             }
             gl.useProgram(dset.program)
             uniform.locRefOmitEquirectangular = gl.getUniformLocation(dset.program, "refOmitEquirectangular")
@@ -1379,17 +1477,41 @@ const BasicShader = async (renderer, options=[]) => {
       gl.bindTexture(gl.TEXTURE_2D, dset.texture)
       dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
       
-      var image = new Image()
       dset.iURL = textureURL
       if(textureURL){
-        let mTex
-        if((mTex = ret.datasets.filter(v=>v.iURL == dset.iURL)).length > 1){
-          dset.texture = mTex[0].texture
-        }else{
-          await fetch(dset.iURL).then(res=>res.blob()).then(data => {
-            image.src = URL.createObjectURL(data)
-          })
-          image.onload = async () => await BindImage(gl, image, dset.texture)
+        let mTex, l
+        let suffix = (l=textureURL.split('.'))[l.length-1].toLowerCase()
+        switch(suffix){
+          case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
+            dset.video = document.createElement('video')
+            geometry.textureMode = 'video'
+            if((mTex = ret.datasets.filter(v=>v.iURL == dset.iURL)).length > 1){
+              dset.texture = mTex[0].texture
+            }else{
+              dset.video.loop = true
+              if(geometry.muted) dset.video.muted = true
+              dset.video.oncanplay = async () => {
+                dset.video.play()
+                await BindImage(gl, dset.video, dset.texture, geometry.textureMode)
+              }
+              await fetch(dset.iURL).then(res=>res.blob()).then(data => {
+                dset.video.src = URL.createObjectURL(data)
+              })
+            }
+          break
+          default:
+            var image = new Image()
+            geometry.textureMode = 'image'
+            if((mTex = ret.datasets.filter(v=>v.iURL == dset.iURL)).length > 1){
+              dset.texture = mTex[0].texture
+            }else{
+              await fetch(dset.iURL).then(res=>res.blob()).then(data => {
+                image.src = URL.createObjectURL(data)
+              })
+              image.onload = async () => await BindImage(gl, image,
+                                                   dset.texture, geometry.textureMode)
+            }
+          break
         }
       }
       
@@ -1464,12 +1586,12 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
   
   var hint = `${shapeType}_${subs}`;
   var shape
+  var isPolyhedron = IsPolyhedron(shapeType)
   switch(shapeType){
     case 'obj': shape = await subbed(0, 1, sphereize, e, texCoords, hint); break
-    default: shape = await subbed(subs + 0, 1, sphereize, e, texCoords, hint); break
+    default: shape = await subbed(subs + (isPolyhedron?1:0), 1, sphereize, e, texCoords, hint); break
   }
   
-  var isPolyhedron = IsPolyhedron(shapeType)
   shape.map(v => {
     v.verts.map(q=>{
       X = q[0] *= size //  (sphereize ? .5 : 1.5)
@@ -2016,7 +2138,8 @@ const TorusKnot = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
   var TX1,TY1, TX2,TY2, TX3,TY3, TX4,TY4
   var p, d
   var texCoords = []
-  var rw_ = rw * 4
+  var rw_ = rw * 8
+  cl /= 1
   var rad1 = .75, p1, p2, p1a, p1b, p1c, p2a, p2b
   var oya, oyb, oyc
   var tRad1 = 3
