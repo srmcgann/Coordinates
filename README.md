@@ -188,7 +188,8 @@ var geoOptions = {
                       // • rectangle (is a squre, unless you use a scale above)
                       // • cylinder
                       // • torus
-                         // cylinder & torus accept 'rows' and 'cols'
+                      // • torus knot
+                         // cylinder, torus [knot] accept 'rows' and 'cols'
                          // parameters, optionally. if omitted, high-res
                          // shapes are quick-loaded. recommend zero subs,
                          // omit rows/cols unless custom shape is needed.
