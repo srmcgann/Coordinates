@@ -275,7 +275,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
   var data;
   if((cacheItem = cache.filter(v=>v.objFiles.filter(q=>q.url==url).length)).length){
     data = cacheItem[0].data
-    console.log('found OBJ in cache... using it'
+    console.log('found OBJ in cache... using it')
   } else {
     await fetch(url, res => res).then(data=>data.text()).then(res=>data=res)
     cache.objFiles.push({ url, data })
@@ -1589,10 +1589,10 @@ const BasicShader = async (renderer, options=[]) => {
       dset.locGeoOri         = gl.getUniformLocation(dset.program, "geoOri")
       dset.locFov            = gl.getUniformLocation(dset.program, "fov")
       dset.locRenderNormals  = gl.getUniformLocation(dset.program, "renderNormals")
-      gl.uniform1f(dset.locCamPos,        renderer.x, renderer.y, renderer.z)
-      gl.uniform1f(dset.locCamOri,        renderer.roll, renderer.pitch, renderer.yaw)
-      gl.uniform1f(dset.locGeoPos,        renderer.x, renderer.y, renderer.z)
-      gl.uniform1f(dset.locGeoOri,        geometry.roll, geometry.pitch, geometry.yaw)
+      gl.uniform3f(dset.locCamPos,        renderer.x, renderer.y, renderer.z)
+      gl.uniform3f(dset.locCamOri,        renderer.roll, renderer.pitch, renderer.yaw)
+      gl.uniform3f(dset.locGeoPos,        renderer.x, renderer.y, renderer.z)
+      gl.uniform3f(dset.locGeoOri,        geometry.roll, geometry.pitch, geometry.yaw)
       gl.uniform1f(dset.locFov,           renderer.fov)
       gl.uniform1f(dset.locRenderNormals, 0)
     }else{
