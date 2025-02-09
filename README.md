@@ -186,6 +186,8 @@ var geoOptions = {
                       // • dodecahedron
                       // • icosahedron
                       // • rectangle (is a squre, unless you use a scale above)
+                      // • sprite
+                         // is a rectangle, with alpha blending enabled, depth-sorting off
                       // • cylinder
                       // • torus
                       // • torus knot
