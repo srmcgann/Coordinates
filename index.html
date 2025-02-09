@@ -18,9 +18,9 @@
       
       import * as Coordinates from
       "https://boss.mindhackers.org/Coordinates/coordinates.js"
-    
+
       var renderer = Coordinates.Renderer()
-      renderer.fov = 1e3
+      renderer.fov = 1500
       renderer.ambientLight = 1.2
       
       Coordinates.AnimationLoop(renderer, 'Draw')
@@ -30,13 +30,13 @@
           type: 'phong',
           flatShading: false,
           enabled: true,
-          value: .6
+          value: .5
         } },
         { uniform: {
           type: 'reflection',
           flatShading: false,
           enabled: true,
-          map: 'https://i.imgur.com/tZ8gfw2.mp4',
+          map: 'https://i.imgur.com/ecn0cv1.mp4',
           value: 1
         } },
       ]
@@ -77,7 +77,7 @@
         z: 0,
         size: 1e3,
         equirectangular: true,
-        map: 'https://i.imgur.com/tZ8gfw2.mp4',
+        map: 'https://i.imgur.com/ecn0cv1.mp4',
         videoSpeed: .5
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -86,19 +86,22 @@
       })  
       
       for(var m = 0; m<2; m++){
-        var shapeType, size, subs=0
-        var sphereize = 0, averageNormals=false
+        var shapeType, size, subs=0, url='', exportShape = false
+        var sphereize = 0, averageNormals=false, flipNormals = false
         switch(m){
           case 0:
             shapeType = 'torus knot';
             size = 2;
           break
           case 1:
-            shapeType = 'torus';
-            size=.33
+            shapeType = 'obj';
+            size=.05
+            url = 'https://srmcgann.github.io/objs/jet_medpoly.obj'
             subs = 0
             sphereize = 0
-            averageNormals = false
+            flipNormals = false
+            averageNormals = true
+            exportShape = true
           break
           case 2: shapeType = 'octahedron'; break
           case 3: shapeType = 'dodecahedron'; break
@@ -119,12 +122,13 @@
           y: 0,
           z: 0,
           size,
+          url,
           //scaleY: 4,
           equirectangular: true,
           showNormals: false,
-          flipNormals: false,
-          map: 'resources/nebugrid_po2.jpg',
-          exportShape: false,
+          flipNormals,
+          map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+          exportShape,
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
           shapes.push(geometry)
@@ -135,7 +139,7 @@
       window.Draw = () => {
         var t = renderer.t
         renderer.Clear()
-  
+
         if(1) for(var m=2;m--;) (m?backgroundShader:shader).datasets.map(v=>{
           if(typeof v?.optionalUniforms != 'undefined'){
             let phongShader = v.optionalUniforms.filter(v=>v.name=='phong')
@@ -143,15 +147,15 @@
           }
         })
         
-        renderer.z = Math.min(10, Math.max(.7, (.3 + C(t/4))*20))
+        renderer.z = Math.min(10, Math.max(1.5, (.3 + C(t/4))*20))
         renderer.pitch += C(t) * .001
         renderer.roll += .0005
-        renderer.yaw += .002
+        renderer.yaw += .005
         shapes.forEach((shape, idx) => {
           switch(shape.name){
             case 'skybox': break
             default:
-              shape.yaw   += S(t/3+idx) * .015 + .002
+              shape.yaw   += S(t/3+idx) * .015 - .01
               shape.pitch +=  C(t/4+idx) * .002
               shape.roll += S(t/8) * .005
               break
@@ -178,7 +182,7 @@
          instruct users that sphereized shapes may use it, for
          reflections etc.
   
-  * re-export 'new shapes' with unit size
+  ✔ re-export 'new shapes' with unit size
           cube_0.json
           cube_1.json
           cube_2.json
@@ -208,21 +212,21 @@
           tetrahedron_3.json
           tetrahedron_4.json
 
-  * fix color mix
-  * come up with solution for averaging normals (for phong etc), with prebuilt shapes
+  ✔ fix color mix
+  ✔ come up with solution for averaging normals (for phong etc), with prebuilt shapes
   
   *****************
   
   * geometry
     └> ✔ generalize geometry function
-       *  add shapeTypes: torus, cylinder, sphere
+       ✔ add shapeTypes: torus, cylinder
        *  add method / shapeType for points/particles, lines
        *  noise functions / deformation methods
        ✔ return "raw" geometry with inbuilt shapes, for 2d context
        ✔ add 3-axis 'scale' function 
        
-  * README.md
-    └> *  add remaining exposed methods (e.g. color conversions, spatial)
+  ✔ README.md
+    └> ✔  add remaining exposed methods (e.g. color conversions, spatial)
           as "supplemental"
   
   ✔ add renderer object
@@ -231,7 +235,7 @@
   ✔ README.md / documentation
   
   * sprite sheet system / import basic+custom slicing
-  * add video texture capabilities
+  ✔ add video texture capabilities
   * cache for API, to include all network-callable items
   
   * shapes
