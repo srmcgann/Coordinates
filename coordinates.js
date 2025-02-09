@@ -163,6 +163,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
       
       dset.optionalUniforms.map(uniform => {
         if(typeof uniform?.loc === 'object'){
+          console.log(uniform)
           ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 3 : 1))
           ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
           switch(uniform.name){
@@ -863,8 +864,17 @@ const ImageToPo2 = async (image) => {
 const VideoToImage = video => {
   if(typeof video != 'undefined'){
     
-    let tgtWidth = video.videoWidth
-    let tgtHeight = video.videoHeight
+    let tgtWidth
+    let tgtHeight
+    
+    if(scratchCanvas.width != video.videoWidth ||
+       scratchCanvas.height != video.videoHeight){
+       tgtWidth = video.videoWidth
+       tgtHeight = video.videoHeight
+    }else{
+       tgtWidth = scratchCanvas.width
+       tgtHeight= scratchCanvas.height
+    }
 
     if ( !(IsPowerOf2(tgtWidth) && IsPowerOf2(tgtHeight)) ) {
       let r = 8
@@ -1034,7 +1044,7 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 reflectionPos;
                   `,
                   fragCode:            `
-                    light = light * .75;
+                    light = light * .5;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
                       float px = reflectionPos.x;
@@ -1100,6 +1110,7 @@ const BasicShader = async (renderer, options=[]) => {
                     phongP2 = -acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
                     
                     light = light + pow((1.0+cos(phongP1)) * (1.0+cos(phongP2)), 8.0) / 20000.0 * phong ;
+                    mixColorIp = light;
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -1317,7 +1328,7 @@ const BasicShader = async (renderer, options=[]) => {
           gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
         }else{
           ${uFragCode}
-          vec4 texel = texture2D( baseTexture, coords);
+          vec4 texel = texture2D( baseTexture, coords) * 1.5;
           texel = vec4(texel.rgb * light * 2.0, 1.0);
           mixColor.a = mixColorIp;
           texel.a = baseColorIp;
@@ -1335,6 +1346,8 @@ const BasicShader = async (renderer, options=[]) => {
   const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
   gl.shaderSource(fragmentShader, ret.frag)
   gl.compileShader(fragmentShader)
+  console.log(ret.vert)
+  console.log(ret.frag)
 
 
   ret.ConnectGeometry = async ( geometry ) => {
