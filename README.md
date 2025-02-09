@@ -171,7 +171,7 @@ var geoOptions = {
   color: 0x333333,    // optional color
   colorMix: .5,       // weight of the color, to mix with texture
   map: '',            // optional texture, URL to an image, or video
-  playbackSpeed: 1.0  // if the texture (map) is a video, adjust the speed (.1 to 10)
+  playbackSpeed: 1.0, // if the texture (map) is a video, adjust the speed (.1 to 10)
   sphereize: 1,       // interpolate a polyhedron to a sphere (=1), and beyond
                          // read more below about this feature
   averageNormals: false, // generate/recompute normals for any shape @ load
