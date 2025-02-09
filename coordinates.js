@@ -163,7 +163,6 @@ const Renderer = (width = 1920, height = 1080, options) => {
       
       dset.optionalUniforms.map(uniform => {
         if(typeof uniform?.loc === 'object'){
-          console.log(uniform)
           ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 3 : 1))
           ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
           switch(uniform.name){
@@ -1346,9 +1345,6 @@ const BasicShader = async (renderer, options=[]) => {
   const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
   gl.shaderSource(fragmentShader, ret.frag)
   gl.compileShader(fragmentShader)
-  console.log(ret.vert)
-  console.log(ret.frag)
-
 
   ret.ConnectGeometry = async ( geometry ) => {
                             
