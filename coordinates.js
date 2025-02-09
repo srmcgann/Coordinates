@@ -3,6 +3,7 @@
 // all rights reserved - ©2025
 
 const S = Math.sin, C = Math.cos
+//new OffscreenCanvas(256, 256); * might be superior
 const scratchCanvas = document.createElement('canvas')
 const sctx = scratchCanvas.getContext('2d')
 const scratchImage = new Image()
@@ -23,9 +24,10 @@ const Renderer = (width = 1920, height = 1080, options) => {
   var context = {
     mode: 'webgl',
     options: {
-      alpha          : true,
-      antialias      : true,
-      desynchronized : true,
+      alpha                   : true,
+      //premultipliedAlphAlpha  : true,
+      antialias               : true,
+      desynchronized          : true,
     }
   }
   
@@ -142,6 +144,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
       
       ctx.uniform1f(dset.locT,               ret.t)
       ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
+      ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
       ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
       ctx.uniform1f(dset.locAmbientLight,    ret.ambientLight)
       ctx.uniform2f(dset.locResolution,      ret.width, ret.height)
@@ -161,6 +164,14 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
       ctx.uniform1f(dset.locRenderNormals,   0)
       
+      // enable alpha
+      if(geometry.shapeType == 'sprite'){
+          //ctx.pixelStorei(ctx.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+          ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE);
+          ctx.enable(ctx.BLEND)
+          ctx.disable(ctx.DEPTH_TEST)
+      }
+      
       dset.optionalUniforms.map(uniform => {
         if(typeof uniform?.loc === 'object'){
           ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 3 : 1))
@@ -174,7 +185,8 @@ const Renderer = (width = 1920, height = 1080, options) => {
               ctx.uniform1i(uniform.locRefTexture, 1)
               ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
               
-              ctx.uniform1f(uniform.locRefOmitEquirectangular, geometry.shapeType == 'rectangle' ? 1.0 : 0.0)
+              ctx.uniform1f(uniform.locRefOmitEquirectangular,
+                   ( geometry.shapeType == 'rectangle' || geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
             break
             case 'phong':
               uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
@@ -222,6 +234,14 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
 
 
+      // disable alpha
+      if(geometry.shapeType == 'sprite'){
+        ctx.blendFunc(ctx.ONE, ctx.ZERO)
+        ctx.disable(ctx.BLEND)
+        ctx.enable(ctx.DEPTH_TEST)
+      }
+
+
       // normals lines drawn, optionally
       if(geometry.showNormals){
         ctx.uniform1f(dset.locRenderNormals, 1)
@@ -236,7 +256,9 @@ const Renderer = (width = 1920, height = 1080, options) => {
         ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       }
     }
-    ret.t = performance.now() / 1000
+    ret.t += 1/60 //performance.now() / 1000
+
+    
   }
   ret['Draw'] = Draw
         
@@ -390,6 +412,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var flipNormals      = false
   var showNormals      = false
   var muted            = true
+  var isSprite         = 0.0
   var textureMode      = 'image'
   
   geoOptions = structuredClone(geoOptions)
@@ -426,6 +449,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'rows'            : rows = geoOptions[key]; break
       case 'cols'            : cols = geoOptions[key]; break
       case 'muted'           : muted = !!geoOptions[key]; break
+      case 'issprite'        : isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'averagenormals'  : averageNormals = !!geoOptions[key]; break
     }
   })
@@ -599,7 +623,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'cube':
-        //if(sphereize) equirectangular = true
         shape = await Cube(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
@@ -608,7 +631,15 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'rectangle':
-        //equirectangular = false
+        shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
+        shape.geometry.map(v => {
+          vertices = [...vertices, ...v.position]
+          normals  = [...normals,  ...v.normal]
+          uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'sprite':
+        isSprite = true
         shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
@@ -828,7 +859,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     normalVec_buffer, NormalVec_Index_Buffer,
     nVecIndices, uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices, map, video,
-    textureMode
+    textureMode, isSprite
   }
 }
 
@@ -1266,6 +1297,7 @@ const BasicShader = async (renderer, options=[]) => {
     uniform float t;
     uniform vec2 resolution;
     uniform float flatShading;
+    uniform float isSprite;
     uniform float ambientLight;
     uniform float renderNormals;
     uniform float equirectangular;
@@ -1327,12 +1359,16 @@ const BasicShader = async (renderer, options=[]) => {
           gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
         }else{
           ${uFragCode}
-          vec4 texel = texture2D( baseTexture, coords) * 1.5;
-          texel = vec4(texel.rgb * light * 2.0, 1.0);
-          mixColor.a = mixColorIp;
-          texel.a = baseColorIp;
-          vec4 col = merge(mixColor, texel);
-          gl_FragColor = vec4(col.rgb * colorMag, alpha);
+          vec4 texel = texture2D( baseTexture, coords);
+          if(isSprite != 0.0){
+            gl_FragColor = merge(gl_FragColor, vec4(texel.rgb, texel.a));
+          }else{
+            texel = vec4(texel.rgb * light * 2.0, 1.0);
+            mixColor.a = mixColorIp;
+            texel.a = baseColorIp;
+            vec4 col = merge(mixColor, texel);
+            gl_FragColor = vec4(col.rgb * colorMag, alpha);
+          }
         }
       }
     }
@@ -1459,7 +1495,8 @@ const BasicShader = async (renderer, options=[]) => {
             }
             gl.useProgram(dset.program)
             uniform.locRefOmitEquirectangular = gl.getUniformLocation(dset.program, "refOmitEquirectangular")
-            gl.uniform1f(uniform.locRefOmitEquirectangular, geometry.shapeType == 'rectangle' ? 1.0 : 0.0)
+            gl.uniform1f(uniform.locRefOmitEquirectangular,
+               ( geometry.shapeType == 'rectangle' || geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
             uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
             gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
             gl.uniform1i(uniform.locRefTexture, 1)
@@ -1485,6 +1522,9 @@ const BasicShader = async (renderer, options=[]) => {
 
       dset.locColorMix = gl.getUniformLocation(dset.program, "colorMix")
       gl.uniform1f(dset.locColorMix, geometry.colorMix)
+
+      dset.locIsSprite = gl.getUniformLocation(dset.program, "isSprite")
+      gl.uniform1f(dset.locIsSprite, geometry.isSprite)
 
       dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
       gl.uniform2f(dset.locResolution, renderer.width, renderer.height)
@@ -2655,7 +2695,7 @@ const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
   ]]
   
   
-  return await GeometryFromRaw(e, texCoords, size / 1.5,  subs,
+  return await GeometryFromRaw(e, texCoords, size / 1.5,  Math.max(2, subs),
                          sphereize, flipNormals, true, shapeType)
 }
 

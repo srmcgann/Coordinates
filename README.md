@@ -140,7 +140,7 @@ var shaderOptions = {
       type: 'reflection', // reflect an image on shape surfaces.
                           // works best with 'equirectangular' maps
       map: 'https://example.com/image.jpg',
-          // required. URL to an image (web formats accepted)
+          // required. URL to an image or video (web formats accepted)
           // "power of 2" (64, 128, 256 etc.) width & height
           // makes it load directly, or it will be
           // resized in the background for drawing
@@ -170,7 +170,8 @@ var geoOptions = {
   scaleZ: 1,
   color: 0x333333,    // optional color
   colorMix: .5,       // weight of the color, to mix with texture
-  map: '',            // optional texture, URL to an image
+  map: '',            // optional texture, URL to an image, or video
+  playbackSpeed: 1.0, // if the texture (map) is a video, adjust the speed (.1 to 10)
   sphereize: 1,       // interpolate a polyhedron to a sphere (=1), and beyond
                          // read more below about this feature
   averageNormals: false, // generate/recompute normals for any shape @ load
@@ -185,7 +186,9 @@ var geoOptions = {
                       // • octahedron
                       // • dodecahedron
                       // • icosahedron
-                      // • rectangle (is a squre, unless you use a scale above)
+                      // • rectangle (is a squre, unless you use a scale, shown above)
+                      // • sprite
+                         // is a rectangle, with alpha blending enabled, depth-sorting off
                       // • cylinder
                       // • torus
                       // • torus knot
