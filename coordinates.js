@@ -8,6 +8,7 @@ const scratchCanvas = document.createElement('canvas')
 const sctx = scratchCanvas.getContext('2d')
 const scratchImage = new Image()
 
+
 var cacheItem
 const cache = {
   objFiles     : [],
@@ -849,7 +850,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, uvIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
 
-  return {
+  var geometry = {
     x, y, z,
     roll, pitch, yaw, color, colorMix,
     size, subs, name, url, averageNormals,
@@ -863,6 +864,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
     vIndices, nIndices, uvIndices, map, video,
     textureMode, isSprite, playbackSpeed
   }
+  
+  const nullShader = await BasicShader(renderer, [ ] )
+  await nullShader.ConnectGeometry(geometry)
+  
+  return geometry
 }
 
 const GenericPopup = async (msg='', isPrompt=false, callback=()=>{}) => {

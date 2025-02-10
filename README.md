@@ -233,7 +233,7 @@ or more than 1 are accepted. NOTE! if sphereize is used, you should set
 <br><br>
 
 #### ConnectGeometry()
-Performs linkage between geometry created with the ``LoadGeometry`` method, and a shader created with the ``BasicShader`` method, and an optional texture.
+Performs linkage between geometry created with the ``LoadGeometry`` method, and a shader created with the ``BasicShader`` method. If not called, <b>Coordinates</b> will use a null shader (no effects) so the shape can be drawn. Connecting geometry to a shader removes it from any previous connections.
 
 ``shader.ConnectGeometry( geometry )``
 
