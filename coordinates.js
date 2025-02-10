@@ -124,7 +124,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
   ret['Clear'] = Clear
   
   
-  const Draw = geometry => {
+  const Draw = async geometry => {
     
     if(typeof geometry?.shader != 'undefined'){
       
@@ -138,7 +138,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
 
 
       if(geometry.textureMode == 'video'){
-        BindImage(ctx, dset.video,  dset.texture, geometry.textureMode, ret.t)
+        await BindImage(ctx, dset.video,  dset.texture, geometry.textureMode, ret.t, geometry.map)
       }
       
       ctx.uniform1i(dset.locTexture, dset.texture)
@@ -167,7 +167,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
           ctx.disable(ctx.DEPTH_TEST)
       }
       
-      dset.optionalUniforms.map(uniform => {
+      dset.optionalUniforms.map(async (uniform) => {
         if(typeof uniform?.loc === 'object'){
           ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 3 : 1))
           ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
@@ -175,7 +175,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
             case 'reflection':
               ctx.activeTexture(ctx.TEXTURE1)
               if(uniform.textureMode == 'video'){
-                BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, ret.t)
+                await BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, ret.t, uniform.map)
               }
               ctx.uniform1i(uniform.locRefTexture, 1)
               ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
@@ -275,7 +275,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
     uvs:      [],
   }
   var data;
-  if((cacheItem = cache.objFiles.filter(q=>q.url==url)).length){
+  if((cacheItem=cache.objFiles.filter(q=>q.url==url)).length){
     data = cacheItem[0].data
     console.log('found OBJ in cache... using it')
   } else {
@@ -996,23 +996,34 @@ const VideoToImage = video => {
   }
 }
 
-const BindImage = async (gl, resource, binding, textureMode='image', tval=-1) => {
+const BindImage = async (gl, resource, binding, textureMode='image', tval=-1,url='') => {
   let texImage
   switch(textureMode){
     case 'video':
-      if((cacheItem = cache.texImages.filter(v=>v.url==resource && tval != -1 && v.tVal == tval)).length){
-        texImage = cacheItem.texImage
+      if((cacheItem=cache.texImages.filter(v=>v.url==url && tval != -1 && v.tVal == tval)).length){
+        console.log('found video texture in cache... using it')
+        texImage = cacheItem[0].texImage
       }else{
         texImage = VideoToImage(resource)
         cache.texImages.push({
-          url: resource,
+          url,
           tval,
           texImage
         })
       }
     break
     case 'image':
-      texImage = await ImageToPo2(resource)
+      if((cacheItem = cache.texImages.filter(v=>v.url==url)).length){
+        console.log('found image texture in cache... using it')
+        texImage = cacheItem[0].texImage
+      }else{
+        texImage = await ImageToPo2(resource)
+        cache.texImages.push({
+          url,
+          tval,
+          texImage
+        })
+      }
     break
     default:
     break
@@ -1257,6 +1268,7 @@ const BasicShader = async (renderer, options=[]) => {
     uniform vec3 camOri;
     uniform vec3 geoPos;
     uniform vec3 geoOri;
+    uniform float isSprite;
     uniform float fov;
     uniform float equirectangular;
     uniform float renderNormals;
@@ -1310,16 +1322,26 @@ const BasicShader = async (renderer, options=[]) => {
       
       // camera rotation
       
-      vec3 geo = R(geoPos, camOri);
-      vec3 pos = R(vec3(cx, cy, cz), geoOri);
-                               
-      pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+      vec3 geo, pos;
       
-      nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-      nVec = R(nVec, geoOri);
-                                          
-      nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-                                          
+      if(isSprite != 0.0){
+        geo = R(geoPos, camOri);
+        pos = R(vec3(cx, cy, cz),
+                 vec3(0.0, -camOri.y, 0.0));
+        pos = R(vec3(pos.x, pos.y, pos.z),
+                 vec3(-camOri.x, 0.0, -camOri.z ));
+        pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+        nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+        nVec = R(nVec, geoOri);
+        nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+      }else{
+        geo = R(geoPos, camOri);
+        pos = R(vec3(cx, cy, cz), geoOri);
+        pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+        nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+        nVec = R(nVec, geoOri);
+        nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+      }
       
       ${uVertCode}
       
@@ -1484,12 +1506,11 @@ const BasicShader = async (renderer, options=[]) => {
               switch(suffix){
                 case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
                   uniform.textureMode = 'video'
-                  if(cache.textures.filter(v=>v.url == url).length){
+                  if((cacheItem=cache.textures.filter(v=>v.url==url)).length){
                     console.log('found video in cache... using it')
-                    cacheItem = cache.textures.filter(v=>v.url == url)[0]
-                    uniform.video = cacheItem.resource
-                    ret.datasets = [...ret.datasets, {texture: cacheItem.texture, iURL: url }]
-                    await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode)
+                    uniform.video = cacheItem[0].resource
+                    ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                    await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
                   }else{
                     uniform.video = document.createElement('video')
                     uniform.video.muted = true
@@ -1507,7 +1528,7 @@ const BasicShader = async (renderer, options=[]) => {
                     }
                     uniform.video.oncanplay = async () => {
                       uniform.video.play()
-                      await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode)
+                      await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
                     }
                     await fetch(url).then(res=>res.blob()).then(data => {
                       uniform.video.src = URL.createObjectURL(data)
@@ -1521,12 +1542,11 @@ const BasicShader = async (renderer, options=[]) => {
                 break
                 default:
                   uniform.textureMode = 'image'
-                  if(cache.textures.filter(v=>v.url == url).length){
+                  if((cacheItem=cache.textures.filter(v=>v.url==url)).length){
                     console.log('found video in cache... using it')
-                    cacheItem = cache.textures.filter(v=>v.url == url)[0]
-                    image = cacheItem.resource
-                    ret.datasets = [...ret.datasets, {texture: cacheItem.texture, iURL: url }]
-                    await BindImage(gl, image, uniform.refTexture, uniform.textureMode)
+                    image = cacheItem[0].resource
+                    ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                    await BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                   }else{
                     image = new Image()
                     ret.datasets = [...ret.datasets, {
@@ -1535,7 +1555,7 @@ const BasicShader = async (renderer, options=[]) => {
                     await fetch(url).then(res=>res.blob()).then(data => {
                       image.src = URL.createObjectURL(data)
                     })
-                    image.onload = async () => await BindImage(gl, image, uniform.refTexture, uniform.textureMode)
+                    image.onload = async () => await BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                     cache.textures.push({
                       url,
                       resource: image,
@@ -1605,12 +1625,11 @@ const BasicShader = async (renderer, options=[]) => {
             dset.video.playbackRate = geometry.playbackSpeed
             dset.video.defaultPlaybackRate = geometry.playbackSpeed
             geometry.textureMode = 'video'
-            if(cache.textures.filter(v=>v.url == dset.iURL).length > 1){
+            if((cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
               console.log('found video in cache... using it')
-              cacheItem = cache.textures.filter(v=>v.url == dset.iURL)[0]
-              dset.video = cacheItem.resource
-              dset.texture = cacheItem.texture
-              await BindImage(gl, dset.video, dset.texture, geometry.textureMode)
+              dset.video = cacheItem[0].resource
+              dset.texture = cacheItem[0].texture
+              await BindImage(gl, dset.video, dset.texture, geometry.textureMode, -1, dset.iURL)
             }else{
               dset.video.loop = true
               if(!geometry.muted) {
@@ -1624,7 +1643,7 @@ const BasicShader = async (renderer, options=[]) => {
 
               dset.video.oncanplay = async () => {
                 dset.video.play()
-                await BindImage(gl, dset.video, dset.texture, geometry.textureMode)
+                await BindImage(gl, dset.video, dset.texture, geometry.textureMode, -1, dset.iURL)
               }
               await fetch(dset.iURL).then(res=>res.blob()).then(data => {
                 dset.video.src = URL.createObjectURL(data)
@@ -1638,23 +1657,24 @@ const BasicShader = async (renderer, options=[]) => {
           break
           default:
             geometry.textureMode = 'image'
-            if(cache.textures.filter(v=>v.url == dset.iURL).length > 1){
-              cacheItem = cache.textures.filter(v=>v.url == dset.iURL)[0]
-              dset.texture = cacheItem.texture
-              image = cacheItem.resource
-              await BindImage(gl, image, dset.texture, geometry.textureMode)
+            if((cacheItem=cache.textures.filter(v=>v.url==dset.iURL)).length){
+              dset.texture = cacheItem[0].texture
+              image = cacheItem[0].resource
+              await BindImage(gl, image, dset.texture, geometry.textureMode, -1, dset.iURL)
             }else{
               image = new Image()
               await fetch(dset.iURL).then(res=>res.blob()).then(data => {
                 image.src = URL.createObjectURL(data)
               })
-              image.onload = async () => await BindImage(gl, image,
-                                                dset.texture, geometry.textureMode)
-              cache.textures.push({
-                url: dset.iURL,
-                resource: image,
-                texture: dset.texture
-              })
+              image.onload = async () => {
+                await BindImage(gl, image,
+                        dset.texture, geometry.textureMode, -1, dset.iURL)
+                cache.textures.push({
+                  url: dset.iURL,
+                  resource: image,
+                  texture: dset.texture
+                })
+              }
             }
           break
         }
