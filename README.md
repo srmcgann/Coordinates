@@ -1,5 +1,5 @@
 # Coordinates
-<b>Coordinates</b> is a graphics API for JavaScript enabled web browsers. It has methods for leveraging the HTML5 canvas API to create <b>images</b>, <b>animations</b>, <b>games</b> or <b>artwork</b>. At this time, <b>WebGL</b> is the only supported context, but 2d canvas support is also planned.<br>
+<b>Coordinates</b> is a graphics API for JavaScript enabled web browsers. It has methods for leveraging the HTML5 canvas API to create <b>images</b>, <b>animations</b>, <b>games</b> or <b>artwork</b>. At this time, <b>WebGL</b> is the only supported context, but 2d canvas support is also planned. Note that Coordinates is under active development, and is in alpha stage, subject to architectural revisions that frequently break backward compatibility. It is recommended to fork the project or coordinates.js file at least, if you are building something so as to avoid function parameters changing, etc. <br>
 <center>
   
 ![example0](README_g0.gif) </center>
@@ -170,7 +170,9 @@ var geoOptions = {
   scaleZ: 1,
   color: 0x333333,    // optional color
   colorMix: .5,       // weight of the color, to mix with texture
-  map: '',            // optional texture, URL to an image, or video
+  map: '',            // optional texture, URL to an image, or video.
+                         // for videos, use ``muted: false`` to prompt
+                         // the user to play audio, if desired.
   playbackSpeed: 1.0, // if the texture (map) is a video, adjust the speed (.1 to 10)
   sphereize: 1,       // interpolate a polyhedron to a sphere (=1), and beyond
                          // read more below about this feature
@@ -188,7 +190,7 @@ var geoOptions = {
                       // • icosahedron
                       // • rectangle (is a squre, unless you use a scale, shown above)
                       // • sprite
-                         // is a rectangle, with alpha blending enabled, depth-sorting off
+                         // supports alpha channel (png source)
                       // • cylinder
                       // • torus
                       // • torus knot
@@ -231,7 +233,7 @@ or more than 1 are accepted. NOTE! if sphereize is used, you should set
 <br><br>
 
 #### ConnectGeometry()
-Performs linkage between geometry created with the ``LoadGeometry`` method, and a shader created with the ``BasicShader`` method, and an optional texture.
+Performs linkage between geometry created with the ``LoadGeometry`` method, and a shader created with the ``BasicShader`` method. If not called, <b>Coordinates</b> will use a null shader (no effects) so the shape can be drawn. Connecting geometry to a shader removes it from any previous connections.
 
 ``shader.ConnectGeometry( geometry )``
 
