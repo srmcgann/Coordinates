@@ -2762,9 +2762,9 @@ const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
     [0, 1],
   ]]
   
-  
-  return await GeometryFromRaw(e, texCoords, size / 1.5,  Math.max(2, subs),
-                         sphereize, flipNormals, true, shapeType)
+  return await GeometryFromRaw(e, texCoords, size / 1.5,
+       Math.max(shapeType == 'sprite' ? 1 : 2, subs),
+             sphereize, flipNormals, true, shapeType)
 }
 
 const IsPowerOf2 = (v, d=0) => {
