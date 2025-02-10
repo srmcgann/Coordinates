@@ -18,9 +18,10 @@ const cache = {
   texImages    : []
 }
 
-const Renderer = (width = 1920, height = 1080, options) => {
+const Renderer = async options => {
 
   var x=0, y=0, z=0
+  var width = 1920, height = 1080
   var roll=0, pitch=0, yaw=0, fov=2e3
   var attachToBody = true, margin = 10
   var ambientLight = .5, alpha=false, clearColor = 0x000000
@@ -28,7 +29,6 @@ const Renderer = (width = 1920, height = 1080, options) => {
     mode: 'webgl',
     options: {
       alpha                   : true,
-      //premultipliedAlphAlpha  : true,
       antialias               : true,
       desynchronized          : true,
     }
@@ -37,6 +37,8 @@ const Renderer = (width = 1920, height = 1080, options) => {
   if(typeof options != 'undefined'){
     Object.keys(options).forEach((key, idx) =>{
       switch(key){
+        case 'width': width = options[key]; break
+        case 'height': height = options[key]; break
         case 'alpha': alpha = options[key]; break
         case 'x': x = options[key]; break
         case 'y': y = options[key]; break
@@ -403,6 +405,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
                
   var map              = ''
   var url              = ''
+  var name             = ''
   var size             = 1
   var averageNormals   = false
   var subs             = 0
