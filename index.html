@@ -13,29 +13,43 @@
   <body>
     <script type="module">
     
-      import * as Coordinates from
-      "./coordinates.js"
+      import * as Coordinates from "./coordinates.js"
     
       var renderer = Coordinates.Renderer()
       
-      renderer.z = 10
-      
+      renderer.z = 16
       Coordinates.AnimationLoop(renderer, 'Draw')
-
-      var shaderOptions = [ { uniform: { type: 'phong' } } ]
-      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+      //var shaderOptions = [ { uniform: { type: 'phong' } } ]
+      //var shader = await Coordinates.BasicShader(renderer, shaderOptions)
       
       
       var shapes = []
-        // load a cube
-      var geoOptions = { shapeType: 'cube', size: 5, color: 0x888888 }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        //await shader.ConnectGeometry(geometry)
-      })  
-      
+      var cl = 11
+      var rw = 11
+      var br = 11
+      var sp = 4
+      var x, y, z
+      Array(cl*rw*br).fill().map(async (v,i) => {
+        x = ((i%cl)-cl/2+.5) * sp
+        y = (((i/cl|0)%rw)-rw/2+.5) * sp
+        z = ((i/cl/rw|0)-br/2+.5) * sp
+        var geoOptions = {
+          shapeType: 'sprite', size: 2,
+          map: 'https://srmcgann.github.io/stars/star5.png',
+          x, y, z,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          //await shader.ConnectGeometry(geometry)
+        })  
+      })
       
       window.Draw = () => {
+      
+        renderer.Clear()
+        renderer.yaw += .01
+        renderer.pitch -= .005
+      
         shapes.forEach(shape => {
           shape.yaw   += .01
           shape.pitch += .005
