@@ -10,9 +10,11 @@ const scratchImage = new Image()
 
 var cacheItem
 const cache = {
-  objFiles: [],
-  textures: [],
-  geometry: []
+  objFiles     : [],
+  customShapes : [],
+  textures     : [],
+  geometry     : [],
+  texImages    : []
 }
 
 const Renderer = (width = 1920, height = 1080, options) => {
@@ -135,7 +137,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
 
 
       if(geometry.textureMode == 'video'){
-        BindImage(ctx, dset.video,  dset.texture, geometry.textureMode)
+        BindImage(ctx, dset.video,  dset.texture, geometry.textureMode, ret.t)
       }
       
       ctx.uniform1i(dset.locTexture, dset.texture)
@@ -148,18 +150,10 @@ const Renderer = (width = 1920, height = 1080, options) => {
       ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
       ctx.uniform1f(dset.locAmbientLight,    ret.ambientLight)
       ctx.uniform2f(dset.locResolution,      ret.width, ret.height)
-      ctx.uniform1f(dset.locCamX,            ret.x)
-      ctx.uniform1f(dset.locCamY,            ret.y)
-      ctx.uniform1f(dset.locCamZ,            ret.z)
-      ctx.uniform1f(dset.locCamRoll,         ret.roll)
-      ctx.uniform1f(dset.locCamPitch,        ret.pitch)
-      ctx.uniform1f(dset.locCamYaw,          ret.yaw)
-      ctx.uniform1f(dset.locGeoX,            geometry.x)
-      ctx.uniform1f(dset.locGeoY,            geometry.y)
-      ctx.uniform1f(dset.locGeoZ,            geometry.z)
-      ctx.uniform1f(dset.locGeoRoll,         geometry.roll)
-      ctx.uniform1f(dset.locGeoPitch,        geometry.pitch)
-      ctx.uniform1f(dset.locGeoYaw,          geometry.yaw)
+      ctx.uniform3f(dset.locCamPos,          ret.x, ret.y, ret.z)
+      ctx.uniform3f(dset.locCamOri,          ret.roll, ret.pitch, ret.yaw)
+      ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
+      ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
       ctx.uniform1f(dset.locFov,             ret.fov)
       ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
       ctx.uniform1f(dset.locRenderNormals,   0)
@@ -180,7 +174,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
             case 'reflection':
               ctx.activeTexture(ctx.TEXTURE1)
               if(uniform.textureMode == 'video'){
-                BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode)
+                BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, ret.t)
               }
               ctx.uniform1i(uniform.locRefTexture, 1)
               ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
@@ -279,84 +273,90 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
     normals:  [],
     uvs:      [],
   }
-  await fetch(url, res => res).then(data=>data.text()).then(data=>{
-
-    var faceLines   = []
-    var normalLines = []
-    var vertLines   = []
-    var uvLines     = []
-    
-    data.split("\n").forEach(line => {
-      if(line.substr(0, 2) == 'v ') vertLines.push(line.substr(2))
-      if(line.substr(0, 3) == 'vn ') normalLines.push(line.substr(3))
-      if(line.substr(0, 3) == 'vt ') uvLines.push(line.substr(3))
-      if(line.substr(0, 2) == 'f ') faceLines.push(line.substr(2))
-    })
-    faceLines.forEach(line => {
-      let verts = line.split(' ')
-      var tverts   = []
-      var tnormals = []
-      var tuvs     = []
-      verts.forEach((vertex, idx) => {
-        var vidx = vertex.split('/')[0]-1
-        var nidx = vertex.split('/')[2]-1
-        var tidx = vertex.split('/')[1]-1
-        
-        var tvert = vertLines[vidx].split(' ')
-        for(var i = 0; i<tvert.length; i+=3){
-          var X = tvert[i+0] * scale + tx
-          var Y = tvert[i+1] * scale + ty
-          var Z = tvert[i+2] * scale + tz
-          var r = R(X, Y, Z, {x:0, y:0, z:0,
-                             roll:  rl,
-                             pitch: pt,
-                             yaw:   yw})
-          
-          tvert[i+0] = r[0]
-          tvert[i+1] = r[1]
-          tvert[i+2] = r[2]
-        }
-        
-        var tnormal = normalLines.length ? normalLines[nidx].split(' ').map(q=>+q) : []
-        
-        var nx1 = tvert[0]
-        var ny1 = tvert[1]
-        var nz1 = tvert[2]
-        var nx2 = tvert[0] + tnormal[0]
-        var ny2 = tvert[1] + tnormal[1]
-        var nz2 = tvert[2] + tnormal[2]
-        var tuv = uvLines.length && tidx < uvLines.length ? uvLines[tidx].split(' ').map(q=>+q) : []
-        
-        tverts.push(tvert)
-        tuvs.push(tuv)
-        tnormals.push([nx1, ny1, nz1, nx2, ny2, nz2])
-      })
-      switch(verts.length){
-        case 3:
-          tverts.map(v=> rawGeometry.vertices.push(...v))
-          tnormals.map(v=> rawGeometry.normals.push(...v))
-          tuvs.map(v=> rawGeometry.uvs.push(...v))
-        break
-        case 4:  // split quads, if found
-          tverts.filter((v,i)=>i<3).map(v=>{
-            rawGeometry.vertices.push(...v)
-          })
-          tnormals.filter((v,i)=>i<3).map(v=>{
-            rawGeometry.normals.push(...v)
-          })
-          tuvs.filter((v,i)=>i<3).map(v=>{
-            rawGeometry.uvs.push(...v)
-          });
-          
-          ([2,3,0]).map(idx => {
-            tverts[idx].forEach(v=>rawGeometry.vertices.push(v))
-            tnormals[idx].forEach(v=>rawGeometry.normals.push(v))
-            tuvs[idx].forEach(v=>rawGeometry.uvs.push(v))
-          })
-        break
-      }
-    })
+  var data;
+  if((cacheItem = cache.objFiles.filter(q=>q.url==url)).length){
+    data = cacheItem[0].data
+    console.log('found OBJ in cache... using it')
+  } else {
+    await fetch(url, res => res).then(data=>data.text()).then(res=>data=res)
+    cache.objFiles.push({ url, data })
+  }
+  var faceLines   = []
+  var normalLines = []
+  var vertLines   = []
+  var uvLines     = []
+  
+  data.split("\n").forEach(line => {
+    if(line.substr(0, 2) == 'v ') vertLines.push(line.substr(2))
+    if(line.substr(0, 3) == 'vn ') normalLines.push(line.substr(3))
+    if(line.substr(0, 3) == 'vt ') uvLines.push(line.substr(3))
+    if(line.substr(0, 2) == 'f ') faceLines.push(line.substr(2))
   })
+  faceLines.forEach(line => {
+    let verts = line.split(' ')
+    var tverts   = []
+    var tnormals = []
+    var tuvs     = []
+    verts.forEach((vertex, idx) => {
+      var vidx = vertex.split('/')[0]-1
+      var nidx = vertex.split('/')[2]-1
+      var tidx = vertex.split('/')[1]-1
+      
+      var tvert = vertLines[vidx].split(' ')
+      for(var i = 0; i<tvert.length; i+=3){
+        var X = tvert[i+0] * scale + tx
+        var Y = tvert[i+1] * scale + ty
+        var Z = tvert[i+2] * scale + tz
+        var r = R(X, Y, Z, {x:0, y:0, z:0,
+                           roll:  rl,
+                           pitch: pt,
+                           yaw:   yw})
+        
+        tvert[i+0] = r[0]
+        tvert[i+1] = r[1]
+        tvert[i+2] = r[2]
+      }
+      
+      var tnormal = normalLines.length ? normalLines[nidx].split(' ').map(q=>+q) : []
+      
+      var nx1 = tvert[0]
+      var ny1 = tvert[1]
+      var nz1 = tvert[2]
+      var nx2 = tvert[0] + tnormal[0]
+      var ny2 = tvert[1] + tnormal[1]
+      var nz2 = tvert[2] + tnormal[2]
+      var tuv = uvLines.length && tidx < uvLines.length ? uvLines[tidx].split(' ').map(q=>+q) : []
+      
+      tverts.push(tvert)
+      tuvs.push(tuv)
+      tnormals.push([nx1, ny1, nz1, nx2, ny2, nz2])
+    })
+    switch(verts.length){
+      case 3:
+        tverts.map(v=> rawGeometry.vertices.push(...v))
+        tnormals.map(v=> rawGeometry.normals.push(...v))
+        tuvs.map(v=> rawGeometry.uvs.push(...v))
+      break
+      case 4:  // split quads, if found
+        tverts.filter((v,i)=>i<3).map(v=>{
+          rawGeometry.vertices.push(...v)
+        })
+        tnormals.filter((v,i)=>i<3).map(v=>{
+          rawGeometry.normals.push(...v)
+        })
+        tuvs.filter((v,i)=>i<3).map(v=>{
+          rawGeometry.uvs.push(...v)
+        });
+        
+        ([2,3,0]).map(idx => {
+          tverts[idx].forEach(v=>rawGeometry.vertices.push(v))
+          tnormals[idx].forEach(v=>rawGeometry.normals.push(v))
+          tuvs[idx].forEach(v=>rawGeometry.uvs.push(v))
+        })
+      break
+    }
+  })
+  
   return rawGeometry
 }
 
@@ -413,6 +413,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var showNormals      = false
   var muted            = true
   var isSprite         = 0.0
+  var playbackSpeed    = 1.0
   var textureMode      = 'image'
   
   geoOptions = structuredClone(geoOptions)
@@ -450,6 +451,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'cols'            : cols = geoOptions[key]; break
       case 'muted'           : muted = !!geoOptions[key]; break
       case 'issprite'        : isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
+      case 'playbackspeed'   : playbackSpeed = geoOptions[key]; break
       case 'averagenormals'  : averageNormals = !!geoOptions[key]; break
     }
   })
@@ -859,10 +861,62 @@ const LoadGeometry = async (renderer, geoOptions) => {
     normalVec_buffer, NormalVec_Index_Buffer,
     nVecIndices, uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices, map, video,
-    textureMode, isSprite
+    textureMode, isSprite, playbackSpeed
   }
 }
 
+const GenericPopup = async (msg='', isPrompt=false, callback=()=>{}) => {
+  var popup = document.createElement('div')
+  popup.style.position = 'fixed'
+  popup.style.zIndex = 100000
+  popup.style.left = '50%'
+  popup.style.top = '50%'
+  popup.style.transform = 'translate(-50%, -50%)'
+  popup.style.background = '#0008'
+  popup.style.padding = '20px'
+  popup.style.width = '700px'
+  popup.style.height = '450px'
+  popup.style.border = '1px solid #fff4'
+  popup.style.borderRadius = '5px'
+  popup.style.fontFamily = 'monospace'
+  popup.style.fontSize = '20px'
+  popup.style.color = '#fff'
+  var titleEl = document.createElement('div')
+  titleEl.style.fontSize = '24px'
+  titleEl.style.color = '#0f8c'
+  titleEl.innerHTML = msg
+  popup.appendChild(titleEl)
+  if(isPrompt){
+    var OKButton = document.createElement('button')
+    OKButton.onclick = () => {
+      callback()
+      popup.remove()
+    }
+    OKButton.style.border = 'none'
+    OKButton.style.padding = '3px'
+    OKButton.style.cursor = 'pointer'
+    OKButton.fontSize = '20px'
+    OKButton.style.borderRadius = '10px'
+    OKButton.style.margin = '10px'
+    OKButton.style.background = '#faa'
+    OKButton.style.minWidth = '100px'
+    OKButton.innerHTML = 'SURE!'
+    popup.appendChild(OKButton)
+  }
+  var closeButton = document.createElement('button')
+  closeButton.onclick = () => popup.remove()
+  closeButton.style.border = 'none'
+  closeButton.style.padding = '3px'
+  closeButton.style.cursor = 'pointer'
+  closeButton.fontSize = '20px'
+  closeButton.style.borderRadius = '10px'
+  closeButton.style.margin = '10px'
+  closeButton.style.background = '#faa'
+  closeButton.style.minWidth = '100px'
+  closeButton.innerHTML = 'close'
+  popup.appendChild(closeButton)
+  document.body.appendChild(popup)
+}
 
 const ImageToPo2 = async (image) => {
   let ret = image
@@ -936,11 +990,20 @@ const VideoToImage = video => {
   }
 }
 
-const BindImage = async (gl, resource, binding, textureMode='image') => {
+const BindImage = async (gl, resource, binding, textureMode='image', tval=-1) => {
   let texImage
   switch(textureMode){
     case 'video':
-     texImage = VideoToImage(resource)
+      if((cacheItem = cache.texImages.filter(v=>v.url==resource && tval != -1 && v.tVal == tval)).length){
+        texImage = cacheItem.texImage
+      }else{
+        texImage = VideoToImage(resource)
+        cache.texImages.push({
+          url: resource,
+          tval,
+          texImage
+        })
+      }
     break
     case 'image':
       texImage = await ImageToPo2(resource)
@@ -1031,12 +1094,8 @@ const BasicShader = async (renderer, options=[]) => {
     iURL: null,
     locT: null,
     locUv: null,
-    //muted: null,
-    //video: null,
     locFov: null,
     program: null,
-    //texture: null,
-    //textureMode: null,
     optionalUniforms: [],
   }
   
@@ -1080,7 +1139,7 @@ const BasicShader = async (renderer, options=[]) => {
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
-                      refP1 = -atan(px, pz)/ M_PI / 2.0 + camYaw / M_PI / 2.0;
+                      refP1 = -atan(px, pz)/ M_PI / 2.0 + camOri.z / M_PI / 2.0;
                       refP2 = acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
                     } else {
                       refP1 = vUv.x;
@@ -1136,7 +1195,7 @@ const BasicShader = async (renderer, options=[]) => {
                       py = phongPos.y;
                       pz = phongPos.z;
                     }
-                    phongP1 = (atan(px, pz) - camYaw) + M_PI + phongTheta;
+                    phongP1 = (atan(px, pz) - camOri.z) + M_PI + phongTheta;
                     phongP2 = -acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
                     
                     light = light + pow((1.0+cos(phongP1)) * (1.0+cos(phongP2)), 8.0) / 20000.0 * phong ;
@@ -1188,18 +1247,10 @@ const BasicShader = async (renderer, options=[]) => {
     uniform float t;
     uniform vec3 color;
     uniform float ambientLight;
-    uniform float camX;
-    uniform float camY;
-    uniform float camZ;
-    uniform float camRoll;
-    uniform float camPitch;
-    uniform float camYaw;
-    uniform float geoX;
-    uniform float geoY;
-    uniform float geoZ;
-    uniform float geoRoll;
-    uniform float geoPitch;
-    uniform float geoYaw;
+    uniform vec3 camPos;
+    uniform vec3 camOri;
+    uniform vec3 geoPos;
+    uniform vec3 geoOri;
     uniform float fov;
     uniform float equirectangular;
     uniform float renderNormals;
@@ -1217,15 +1268,15 @@ const BasicShader = async (renderer, options=[]) => {
     varying float skip;
     
     
-    vec3 R(float X, float Y, float Z, float Rl, float Pt, float Yw){
+    vec3 R(vec3 pos, vec3 rot){
       float p, d;
-      X = sin(p=atan(X,Z)+Yw)*(d=sqrt(X*X+Z*Z));
-      Z = cos(p)*d;
-      Y = sin(p=atan(Y,Z)+Pt)*(d=sqrt(Y*Y+Z*Z));
-      Z = cos(p)*d;
-      X = sin(p=atan(X,Y)+Rl)*(d=sqrt(X*X+Y*Y));
-      Y = cos(p)*d;
-      return vec3(X, Y, Z);
+      pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
+      pos.z = cos(p)*d;
+      pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
+      pos.z = cos(p)*d;
+      pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
+      pos.y = cos(p)*d;
+      return pos;
     }
     
     void main(){
@@ -1253,33 +1304,25 @@ const BasicShader = async (renderer, options=[]) => {
       
       // camera rotation
       
-      vec3 geo = R(geoX, geoY, geoZ, camRoll, camPitch, camYaw);
-      vec3 pos = R(cx, cy, cz, geoRoll,
-                               geoPitch,
-                               geoYaw);
+      vec3 geo = R(geoPos, camOri);
+      vec3 pos = R(vec3(cx, cy, cz), geoOri);
                                
-      pos = R(pos.x, pos.y, pos.z, camRoll,
-                                   camPitch,
-                                   camYaw);
+      pos = R(vec3(pos.x, pos.y, pos.z), camOri);
       
       nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-      nVec = R(nVec.x, nVec.y, nVec.z, geoRoll, 
-                                       geoPitch,
-                                       geoYaw);
+      nVec = R(nVec, geoOri);
                                           
-      nVec = R(nVec.x, nVec.y, nVec.z, 0.0, 
-                                       camPitch,
-                                       camYaw);
+      nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
                                           
       
       ${uVertCode}
       
-      float camz = camZ / 1e3 * pow(5.0, (log(fov) / 1.609438));
+      float camz = camPos.z / 1e3 * pow(5.0, (log(fov) / 1.609438));
       
       float Z = pos.z + camz + geo.z;
       if(Z > 0.0) {
-        float X = ((pos.x + camX + geo.x) / Z * fov / resolution.x);
-        float Y = ((pos.y + camY + geo.y) / Z * fov / resolution.y);
+        float X = ((pos.x + camPos.x + geo.x) / Z * fov / resolution.x);
+        float Y = ((pos.y + camPos.y + geo.y) / Z * fov / resolution.y);
         //gl_PointSize = 100.0 / Z;
         gl_Position = vec4(X, Y, Z/10000.0, 1.0);
         skip = 0.0;
@@ -1304,18 +1347,10 @@ const BasicShader = async (renderer, options=[]) => {
     uniform float colorMix;
     uniform vec3 color;
     uniform sampler2D baseTexture;
-    uniform float camX;
-    uniform float camY;
-    uniform float camZ;
-    uniform float camRoll;
-    uniform float camPitch;
-    uniform float camYaw;
-    uniform float geoX;
-    uniform float geoY;
-    uniform float geoZ;
-    uniform float geoRoll;
-    uniform float geoPitch;
-    uniform float geoYaw;
+    uniform vec3 camPos;
+    uniform vec3 camOri;
+    uniform vec3 geoPos;
+    uniform vec3 geoOri;
     varying vec2 vUv;
     varying vec2 uvi;
     varying vec3 vnorm;
@@ -1444,16 +1479,26 @@ const BasicShader = async (renderer, options=[]) => {
                 case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
                   uniform.textureMode = 'video'
                   if(cache.textures.filter(v=>v.url == url).length){
+                    console.log('found video in cache... using it')
                     cacheItem = cache.textures.filter(v=>v.url == url)[0]
                     uniform.video = cacheItem.resource
                     ret.datasets = [...ret.datasets, {texture: cacheItem.texture, iURL: url }]
                     await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode)
                   }else{
                     uniform.video = document.createElement('video')
+                    uniform.video.muted = true
+                    uniform.video.playbackRate = geometry.playbackSpeed
+                    uniform.video.defaultPlaybackRate = geometry.playbackSpeed
                     ret.datasets = [...ret.datasets, {
                       texture: uniform.refTexture, iURL: url }]
                     uniform.video.loop = true
-                    if(uniform.muted) uniform.video.muted = true
+                    if(!uniform.muted) {
+                      GenericPopup('play audio OK?', true, ()=>{
+                        cache.textures.filter(v=>v.url == url)[0].resource.muted = false
+                        cache.textures.filter(v=>v.url == url)[0].resource.currentTime = 0
+                        cache.textures.filter(v=>v.url == url)[0].resource.play()
+                      })
+                    }
                     uniform.video.oncanplay = async () => {
                       uniform.video.play()
                       await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode)
@@ -1471,6 +1516,7 @@ const BasicShader = async (renderer, options=[]) => {
                 default:
                   uniform.textureMode = 'image'
                   if(cache.textures.filter(v=>v.url == url).length){
+                    console.log('found video in cache... using it')
                     cacheItem = cache.textures.filter(v=>v.url == url)[0]
                     image = cacheItem.resource
                     ret.datasets = [...ret.datasets, {texture: cacheItem.texture, iURL: url }]
@@ -1549,15 +1595,27 @@ const BasicShader = async (renderer, options=[]) => {
         switch(suffix){
           case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
             dset.video = document.createElement('video')
+            dset.video.muted = true
+            dset.video.playbackRate = geometry.playbackSpeed
+            dset.video.defaultPlaybackRate = geometry.playbackSpeed
             geometry.textureMode = 'video'
             if(cache.textures.filter(v=>v.url == dset.iURL).length > 1){
+              console.log('found video in cache... using it')
               cacheItem = cache.textures.filter(v=>v.url == dset.iURL)[0]
               dset.video = cacheItem.resource
               dset.texture = cacheItem.texture
               await BindImage(gl, dset.video, dset.texture, geometry.textureMode)
             }else{
               dset.video.loop = true
-              if(geometry.muted) dset.video.muted = true
+              if(!geometry.muted) {
+                GenericPopup('play audio OK?', true, ()=>{
+                  cache.textures.filter(v=>v.url == dset.iURL)[0].resource.muted = false
+                  cache.textures.filter(v=>v.url == dset.iURL)[0].resource.currentTime = 0
+                  cache.textures.filter(v=>v.url == dset.iURL)[0].resource.play()
+                })
+              }
+
+
               dset.video.oncanplay = async () => {
                 dset.video.play()
                 await BindImage(gl, dset.video, dset.texture, geometry.textureMode)
@@ -1602,32 +1660,16 @@ const BasicShader = async (renderer, options=[]) => {
       gl.bindTexture(gl.TEXTURE_2D, dset.texture)
       
 
-      dset.locCamX           = gl.getUniformLocation(dset.program, "camX")
-      dset.locCamY           = gl.getUniformLocation(dset.program, "camY")
-      dset.locCamZ           = gl.getUniformLocation(dset.program, "camZ")
-      dset.locCamRoll        = gl.getUniformLocation(dset.program, "camRoll")
-      dset.locCamPitch       = gl.getUniformLocation(dset.program, "camPitch")
-      dset.locCamYaw         = gl.getUniformLocation(dset.program, "camYaw")
-      dset.locGeoX           = gl.getUniformLocation(dset.program, "geoX")
-      dset.locGeoY           = gl.getUniformLocation(dset.program, "geoY")
-      dset.locGeoZ           = gl.getUniformLocation(dset.program, "geoZ")
-      dset.locGeoRoll        = gl.getUniformLocation(dset.program, "geoRoll")
-      dset.locGeoPitch       = gl.getUniformLocation(dset.program, "geoPitch")
-      dset.locGeoYaw         = gl.getUniformLocation(dset.program, "geoYaw")
+      dset.locCamPos         = gl.getUniformLocation(dset.program, "camPos")
+      dset.locCamOri         = gl.getUniformLocation(dset.program, "camOri")
+      dset.locGeoPos         = gl.getUniformLocation(dset.program, "geoPos")
+      dset.locGeoOri         = gl.getUniformLocation(dset.program, "geoOri")
       dset.locFov            = gl.getUniformLocation(dset.program, "fov")
       dset.locRenderNormals  = gl.getUniformLocation(dset.program, "renderNormals")
-      gl.uniform1f(dset.locCamX,          renderer.x)
-      gl.uniform1f(dset.locCamY,          renderer.y)
-      gl.uniform1f(dset.locCamZ,          renderer.z)
-      gl.uniform1f(dset.locCamRoll,       renderer.roll)
-      gl.uniform1f(dset.locCamPitch,      renderer.pitch)
-      gl.uniform1f(dset.locCamYaw,        renderer.yaw)
-      gl.uniform1f(dset.locGeoX,          geometry.x)
-      gl.uniform1f(dset.locGeoY,          geometry.y)
-      gl.uniform1f(dset.locGeoZ,          geometry.z)
-      gl.uniform1f(dset.locGeoRoll,       geometry.roll)
-      gl.uniform1f(dset.locGeoPitch,      geometry.pitch)
-      gl.uniform1f(dset.locGeoYaw,        geometry.yaw)
+      gl.uniform3f(dset.locCamPos,        renderer.x, renderer.y, renderer.z)
+      gl.uniform3f(dset.locCamOri,        renderer.roll, renderer.pitch, renderer.yaw)
+      gl.uniform3f(dset.locGeoPos,        renderer.x, renderer.y, renderer.z)
+      gl.uniform3f(dset.locGeoOri,        geometry.roll, geometry.pitch, geometry.yaw)
       gl.uniform1f(dset.locFov,           renderer.fov)
       gl.uniform1f(dset.locRenderNormals, 0)
     }else{
