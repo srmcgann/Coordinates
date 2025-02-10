@@ -15,6 +15,7 @@ const cache = {
   customShapes : [],
   textures     : [],
   geometry     : [],
+  customShapes : [],
   texImages    : []
 }
 
@@ -126,7 +127,7 @@ const Renderer = async options => {
   ret['Clear'] = Clear
   
   
-  const Draw = async geometry => {
+  const Draw = geometry => {
     
     if(typeof geometry?.shader != 'undefined'){
       
@@ -140,7 +141,7 @@ const Renderer = async options => {
 
 
       if(geometry.textureMode == 'video'){
-        await BindImage(ctx, dset.video,  dset.texture, geometry.textureMode, ret.t, geometry.map)
+        BindImage(ctx, dset.video,  dset.texture, geometry.textureMode, ret.t, geometry.map)
       }
       
       ctx.uniform1i(dset.locTexture, dset.texture)
@@ -177,7 +178,7 @@ const Renderer = async options => {
             case 'reflection':
               ctx.activeTexture(ctx.TEXTURE1)
               if(uniform.textureMode == 'video'){
-                await BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, ret.t, uniform.map)
+                 BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, ret.t, uniform.map)
               }
               ctx.uniform1i(uniform.locRefTexture, 1)
               ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
@@ -253,7 +254,7 @@ const Renderer = async options => {
         ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       }
     }
-    ret.t += 1/60 //performance.now() / 1000
+    ret.t = performance.now() / 1000
 
     
   }
@@ -514,7 +515,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
              ){
             resolved = true;
             url = `https://srmcgann.github.io/Coordinates/new%20shapes/`
-            fileURL = `${url}${hint}.json?2`
+            fileURL = `${url}${hint}.json`
           }else{
             // unresolved shape
           }
@@ -523,14 +524,37 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   if(resolved){
-    await fetch(fileURL).then(res=>res.json()).then(data=>{
-      vertices    = data.vertices
-      normals     = data.normals
-      normalVecs  = data.normalVecs
-      uvs         = data.uvs
-    })
     
-    //if(shapeType != 'custom shape' && shapeType != 'obj'){
+    
+    // involve cache
+    switch(shapeType){
+      case 'custom shape':
+        if((cacheItem = cache.customShapes.filter(v=>v.url==fileURL)).length){
+          var data   = cacheItem[0].data
+          vertices   = data.vertices
+          normals    = data.normals
+          normalVecs = data.normalVecs
+          uvs        = data.uvs
+          console.log('custom shape found in cache. using it')
+          resolved = true
+        }
+      break
+    }
+    
+    if(!resolved){
+      await fetch(fileURL).then(res=>res.json()).then(data=>{
+        vertices    = data.vertices
+        normals     = data.normals
+        normalVecs  = data.normalVecs
+        uvs         = data.uvs
+        switch(shapeType){
+          case 'custom shape':
+            cache.customShapes.push({data, url: fileURL})
+          break
+        }
+      })
+      
+      
       var ip1 = sphereize
       var ip2 = 1 -sphereize
       for(var i = 0; i< vertices.length; i+=3){
@@ -568,9 +592,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
         normals[i*2+4] *= scaleY
         normals[i*2+5] *= scaleZ
         */
-        
-        
+
       }
+    }
   }
   if(!resolved){
     switch(shapeType){
@@ -695,10 +719,17 @@ const LoadGeometry = async (renderer, geoOptions) => {
       normals[i+5] = normals[i+2] + nz
     }
     
+  }else{
+    switch(shapeType){
+      case 'tetrahedron': case 'octahedron':
+      case 'dodecahedron': case 'icosahedron':
+      equirectangular = true
+      break
+    }
   }
   
   if(averageNormals) AverageNormals(vertices, normals, shapeType)
-  if(!resolved || averageNormals){
+  if(!resolved || averageNormals || exportShape){
     normalVecs    = []
     for(var i=0; i<normals.length; i+=6){
       let X = normals[i+3] - normals[i+0]
@@ -730,8 +761,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     popup.style.transform = 'translate(-50%, -50%)'
     popup.style.background = '#0008'
     popup.style.padding = '20px'
-    popup.style.width = '700px'
-    popup.style.height = '450px'
+    popup.style.width = '600px'
+    popup.style.height = '350px'
     popup.style.border = '1px solid #fff4'
     popup.style.borderRadius = '5px'
     popup.style.fontFamily = 'monospace'
@@ -744,8 +775,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     popup.appendChild(titleEl)
     var output = document.createElement('div')
     //output.id = 'shapeDataOutput' + geometry.name + geometry.shapeType
-    output.style.minWidth = 'calc(100% - 0px)'
-    output.style.height = '300px'
+    output.style.minWidth = '100%'
+    output.style.height = '250px'
     output.style.background = '#333'
     output.style.border = '1px solid #fff4'
     output.style.overflowY = 'auto'
@@ -874,7 +905,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   return geometry
 }
 
-const GenericPopup = async (msg='', isPrompt=false, callback=()=>{}) => {
+const GenericPopup = async (msg='', isPrompt=false, callback=()=>{},
+                             width=400, height= 300) => {
   var popup = document.createElement('div')
   popup.style.position = 'fixed'
   popup.style.zIndex = 100000
@@ -883,8 +915,8 @@ const GenericPopup = async (msg='', isPrompt=false, callback=()=>{}) => {
   popup.style.transform = 'translate(-50%, -50%)'
   popup.style.background = '#0008'
   popup.style.padding = '20px'
-  popup.style.width = '700px'
-  popup.style.height = '450px'
+  popup.style.width = `${width}px`
+  popup.style.height = `${height}px`
   popup.style.border = '1px solid #fff4'
   popup.style.borderRadius = '5px'
   popup.style.fontFamily = 'monospace'
@@ -983,7 +1015,7 @@ const VideoToImage = video => {
         }
       }
       tsize -= r * 2**(j-1)
-      tsize = Math.min(2048, tsize)
+      tsize = Math.min(1024, tsize)
       tgtWidth = tsize / 1
       tgtHeight = tsize / 1
     }
@@ -1166,7 +1198,7 @@ const BasicShader = async (renderer, options=[]) => {
                       refP2 = vUv.y;
                     }
                     
-                    vec2 refCoords = vec2(refP1, refP2);
+                    vec2 refCoords = vec2(1.0 - refP1, refP2);
                     mixColor.a = mixColorIp;
                     vec4 refCol = vec4(texture2D(reflectionMap, vec2(refCoords.x, refCoords.y)).rgb * 1.5, reflection / 2.0);
                     mixColor = merge(mixColor, refCol);
@@ -1330,7 +1362,7 @@ const BasicShader = async (renderer, options=[]) => {
       if(isSprite != 0.0){
         geo = R(geoPos, camOri);
         pos = R(vec3(cx, cy, cz),
-                 vec3(0.0, -camOri.y, 0.0));
+                 vec3(0.0, -camOri.y + M_PI, 0.0));
         pos = R(vec3(pos.x, pos.y, pos.z),
                  vec3(-camOri.x, 0.0, -camOri.z ));
         pos = R(vec3(pos.x, pos.y, pos.z), camOri);
@@ -1513,7 +1545,7 @@ const BasicShader = async (renderer, options=[]) => {
                     console.log('found video in cache... using it')
                     uniform.video = cacheItem[0].resource
                     ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
-                    await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
+                    BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
                   }else{
                     uniform.video = document.createElement('video')
                     uniform.video.muted = true
@@ -1531,7 +1563,7 @@ const BasicShader = async (renderer, options=[]) => {
                     }
                     uniform.video.oncanplay = async () => {
                       uniform.video.play()
-                      await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
+                      BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
                     }
                     await fetch(url).then(res=>res.blob()).then(data => {
                       uniform.video.src = URL.createObjectURL(data)
@@ -1549,7 +1581,7 @@ const BasicShader = async (renderer, options=[]) => {
                     console.log('found video in cache... using it')
                     image = cacheItem[0].resource
                     ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
-                    await BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
+                    BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                   }else{
                     image = new Image()
                     ret.datasets = [...ret.datasets, {
@@ -1558,7 +1590,7 @@ const BasicShader = async (renderer, options=[]) => {
                     await fetch(url).then(res=>res.blob()).then(data => {
                       image.src = URL.createObjectURL(data)
                     })
-                    image.onload = async () => await BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
+                    image.onload = async () => BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                     cache.textures.push({
                       url,
                       resource: image,
@@ -1632,21 +1664,21 @@ const BasicShader = async (renderer, options=[]) => {
               console.log('found video in cache... using it')
               dset.video = cacheItem[0].resource
               dset.texture = cacheItem[0].texture
-              await BindImage(gl, dset.video, dset.texture, geometry.textureMode, -1, dset.iURL)
+              BindImage(gl, dset.video, dset.texture, geometry.textureMode, -1, dset.iURL)
             }else{
               dset.video.loop = true
               if(!geometry.muted) {
                 GenericPopup('play audio OK?', true, ()=>{
-                  cache.textures.filter(v=>v.url == dset.iURL)[0].resource.muted = false
-                  cache.textures.filter(v=>v.url == dset.iURL)[0].resource.currentTime = 0
-                  cache.textures.filter(v=>v.url == dset.iURL)[0].resource.play()
+                  dset.video.muted = false
+                  dset.video.currentTime = 0
+                  dset.video.play()
                 })
               }
 
 
               dset.video.oncanplay = async () => {
                 dset.video.play()
-                await BindImage(gl, dset.video, dset.texture, geometry.textureMode, -1, dset.iURL)
+                BindImage(gl, dset.video, dset.texture, geometry.textureMode, -1, dset.iURL)
               }
               await fetch(dset.iURL).then(res=>res.blob()).then(data => {
                 dset.video.src = URL.createObjectURL(data)
@@ -1663,14 +1695,14 @@ const BasicShader = async (renderer, options=[]) => {
             if((cacheItem=cache.textures.filter(v=>v.url==dset.iURL)).length){
               dset.texture = cacheItem[0].texture
               image = cacheItem[0].resource
-              await BindImage(gl, image, dset.texture, geometry.textureMode, -1, dset.iURL)
+              BindImage(gl, image, dset.texture, geometry.textureMode, -1, dset.iURL)
             }else{
               image = new Image()
               await fetch(dset.iURL).then(res=>res.blob()).then(data => {
                 image.src = URL.createObjectURL(data)
               })
               image.onload = async () => {
-                await BindImage(gl, image,
+                BindImage(gl, image,
                         dset.texture, geometry.textureMode, -1, dset.iURL)
                 cache.textures.push({
                   url: dset.iURL,
