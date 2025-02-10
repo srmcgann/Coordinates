@@ -40,7 +40,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
       "./coordinates.js"
     
       // instantiate a canvas. this is also our 'camera'
-      var renderer = Coordinates.Renderer()
+      var renderer = await Coordinates.Renderer()
       
       // back the camera away from the center (move it toward the viewer)
       renderer.z = 10
@@ -81,11 +81,13 @@ the result<br>
 
 ## methods, options, and their defaults
 #### Renderer()
-``Coordinates.Renderer( width = 1920, height = 1080, rendererOptions )``
-##### returns a camera object, creates a canvas
+``Coordinates.Renderer( rendererOptions )``
+##### returns a camera object, creates a canvas, async
 ```js
 var rendererOptions = {
   alpha: false,
+  width: 1920,  // the interior viewport dimensions (pixels)
+  height: 1080,
   clearColor: 0x333333,  // grey
   fov: 2e3,  // "field of vision", the camera's focal length
              // useful range:
