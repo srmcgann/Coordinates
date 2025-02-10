@@ -21,36 +21,58 @@
       
       // back the camera away from the center (move it toward the viewer)
       renderer.z = 10
+      renderer.ambientLight = .5
       
       // tell the API where to find our animation function
       Coordinates.AnimationLoop(renderer, 'Draw')
 
+      var vidSrc = 'https://i.imgur.com/jQ2Lk2G.mp4'
+
       // invoke a shader - phong in this case for a pseudo-lighting effect
-      var shaderOptions = [ { uniform: { type: 'phong' } } ]
+      var shaderOptions = [
+        { uniform: { type: 'phong', value: .5 } },
+        { uniform: { type: 'reflection', value: 1, map: vidSrc } },
+      ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+      var shaderOptions = []
+      var nullShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+      var C = Math.cos
+      var S = Math.sin
+      var Rn = Math.random
+      
       var shapes = []
 
       var geoOptions = {
         shapeType: 'sprite', size: 1000, color: 0x888888,
-        scaleX: 1.777777778,
-        z: 1000,
-        playbackSpeed: .5,
-        map: 'https://i.imgur.com/cR8S2TC.mp4',
+        scaleX: 1/1.777777778,
+        muted: false,
+        z: 1200,
+        pitch: Math.PI,
+        playbackSpeed: 1,
+        map: vidSrc,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
       })  
       
-      sp = 3
-      for(var m = 10; m--; ){
+      var sp = 11
+      var cl = 5
+      var rw = 3
+      for(var m = cl*rw; m--; ){
         var geoOptions = {
-          shapeType: 'cube',
-          size: 2.5,
-          color: 0x888888,
-          x: (-4.5 + m) * sp,
+          shapeType: 'dodecahedron',
+          url: 'https://srmcgann.github.io/Coordinates/custom shapes/teapot.json',
+          size: 4,
+          subs: 2,
+          
+          averageNormals: true,
+          sphereize: -.5,
+          //color: 0xff0000,
+          x: ((m%cl)-cl/2+.5) * sp,
+          y: ((m/cl|0)-rw/2+.5) * sp,
           z: 10,
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -61,12 +83,19 @@
       
       
       window.Draw = () => {
-        shapes.forEach(shape => {
+      
+        var t = renderer.t
+      
+        renderer.Clear()
+        renderer.z = Math.min(10, Math.max(.5, (.3+C(t/6))*20))
+      
+        shapes.forEach((shape, idx) => {
           switch(shape.shapeType){
             case 'sprite': break
             default:
-              shape.yaw   += .01
-              shape.pitch += .005
+              shape.yaw   += S(t + idx)  * .005 - .01
+              shape.pitch += C(idx + t) * .01 - .01
+              shape.roll += .01
             break
           }
           renderer.Draw(shape)

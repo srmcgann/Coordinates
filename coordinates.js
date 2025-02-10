@@ -13,7 +13,8 @@ const cache = {
   objFiles     : [],
   customShapes : [],
   textures     : [],
-  geometry     : []
+  geometry     : [],
+  texImages    : []
 }
 
 const Renderer = (width = 1920, height = 1080, options) => {
@@ -136,7 +137,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
 
 
       if(geometry.textureMode == 'video'){
-        BindImage(ctx, dset.video,  dset.texture, geometry.textureMode)
+        BindImage(ctx, dset.video,  dset.texture, geometry.textureMode, ret.t)
       }
       
       ctx.uniform1i(dset.locTexture, dset.texture)
@@ -173,7 +174,7 @@ const Renderer = (width = 1920, height = 1080, options) => {
             case 'reflection':
               ctx.activeTexture(ctx.TEXTURE1)
               if(uniform.textureMode == 'video'){
-                BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode)
+                BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, ret.t)
               }
               ctx.uniform1i(uniform.locRefTexture, 1)
               ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
@@ -273,7 +274,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
     uvs:      [],
   }
   var data;
-  if((cacheItem = cache.filter(v=>v.objFiles.filter(q=>q.url==url).length)).length){
+  if((cacheItem = cache.objFiles.filter(q=>q.url==url)).length){
     data = cacheItem[0].data
     console.log('found OBJ in cache... using it')
   } else {
@@ -864,6 +865,58 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
 }
 
+const GenericPopup = async (msg='', isPrompt=false, callback=()=>{}) => {
+  var popup = document.createElement('div')
+  popup.style.position = 'fixed'
+  popup.style.zIndex = 100000
+  popup.style.left = '50%'
+  popup.style.top = '50%'
+  popup.style.transform = 'translate(-50%, -50%)'
+  popup.style.background = '#0008'
+  popup.style.padding = '20px'
+  popup.style.width = '700px'
+  popup.style.height = '450px'
+  popup.style.border = '1px solid #fff4'
+  popup.style.borderRadius = '5px'
+  popup.style.fontFamily = 'monospace'
+  popup.style.fontSize = '20px'
+  popup.style.color = '#fff'
+  var titleEl = document.createElement('div')
+  titleEl.style.fontSize = '24px'
+  titleEl.style.color = '#0f8c'
+  titleEl.innerHTML = msg
+  popup.appendChild(titleEl)
+  if(isPrompt){
+    var OKButton = document.createElement('button')
+    OKButton.onclick = () => {
+      callback()
+      popup.remove()
+    }
+    OKButton.style.border = 'none'
+    OKButton.style.padding = '3px'
+    OKButton.style.cursor = 'pointer'
+    OKButton.fontSize = '20px'
+    OKButton.style.borderRadius = '10px'
+    OKButton.style.margin = '10px'
+    OKButton.style.background = '#faa'
+    OKButton.style.minWidth = '100px'
+    OKButton.innerHTML = 'SURE!'
+    popup.appendChild(OKButton)
+  }
+  var closeButton = document.createElement('button')
+  closeButton.onclick = () => popup.remove()
+  closeButton.style.border = 'none'
+  closeButton.style.padding = '3px'
+  closeButton.style.cursor = 'pointer'
+  closeButton.fontSize = '20px'
+  closeButton.style.borderRadius = '10px'
+  closeButton.style.margin = '10px'
+  closeButton.style.background = '#faa'
+  closeButton.style.minWidth = '100px'
+  closeButton.innerHTML = 'close'
+  popup.appendChild(closeButton)
+  document.body.appendChild(popup)
+}
 
 const ImageToPo2 = async (image) => {
   let ret = image
@@ -937,11 +990,20 @@ const VideoToImage = video => {
   }
 }
 
-const BindImage = async (gl, resource, binding, textureMode='image') => {
+const BindImage = async (gl, resource, binding, textureMode='image', tval=-1) => {
   let texImage
   switch(textureMode){
     case 'video':
-     texImage = VideoToImage(resource)
+      if((cacheItem = cache.texImages.filter(v=>v.url==resource && tval != -1 && v.tVal == tval)).length){
+        texImage = cacheItem.texImage
+      }else{
+        texImage = VideoToImage(resource)
+        cache.texImages.push({
+          url: resource,
+          tval,
+          texImage
+        })
+      }
     break
     case 'image':
       texImage = await ImageToPo2(resource)
@@ -1032,12 +1094,8 @@ const BasicShader = async (renderer, options=[]) => {
     iURL: null,
     locT: null,
     locUv: null,
-    //muted: null,
-    //video: null,
     locFov: null,
     program: null,
-    //texture: null,
-    //textureMode: null,
     optionalUniforms: [],
   }
   
@@ -1421,18 +1479,26 @@ const BasicShader = async (renderer, options=[]) => {
                 case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
                   uniform.textureMode = 'video'
                   if(cache.textures.filter(v=>v.url == url).length){
+                    console.log('found video in cache... using it')
                     cacheItem = cache.textures.filter(v=>v.url == url)[0]
                     uniform.video = cacheItem.resource
                     ret.datasets = [...ret.datasets, {texture: cacheItem.texture, iURL: url }]
                     await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode)
                   }else{
                     uniform.video = document.createElement('video')
+                    uniform.video.muted = true
                     uniform.video.playbackRate = geometry.playbackSpeed
                     uniform.video.defaultPlaybackRate = geometry.playbackSpeed
                     ret.datasets = [...ret.datasets, {
                       texture: uniform.refTexture, iURL: url }]
                     uniform.video.loop = true
-                    if(uniform.muted) uniform.video.muted = true
+                    if(!uniform.muted) {
+                      GenericPopup('play audio OK?', true, ()=>{
+                        cache.textures.filter(v=>v.url == url)[0].resource.muted = false
+                        cache.textures.filter(v=>v.url == url)[0].resource.currentTime = 0
+                        cache.textures.filter(v=>v.url == url)[0].resource.play()
+                      })
+                    }
                     uniform.video.oncanplay = async () => {
                       uniform.video.play()
                       await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode)
@@ -1450,6 +1516,7 @@ const BasicShader = async (renderer, options=[]) => {
                 default:
                   uniform.textureMode = 'image'
                   if(cache.textures.filter(v=>v.url == url).length){
+                    console.log('found video in cache... using it')
                     cacheItem = cache.textures.filter(v=>v.url == url)[0]
                     image = cacheItem.resource
                     ret.datasets = [...ret.datasets, {texture: cacheItem.texture, iURL: url }]
@@ -1528,17 +1595,27 @@ const BasicShader = async (renderer, options=[]) => {
         switch(suffix){
           case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
             dset.video = document.createElement('video')
+            dset.video.muted = true
             dset.video.playbackRate = geometry.playbackSpeed
             dset.video.defaultPlaybackRate = geometry.playbackSpeed
             geometry.textureMode = 'video'
             if(cache.textures.filter(v=>v.url == dset.iURL).length > 1){
+              console.log('found video in cache... using it')
               cacheItem = cache.textures.filter(v=>v.url == dset.iURL)[0]
               dset.video = cacheItem.resource
               dset.texture = cacheItem.texture
               await BindImage(gl, dset.video, dset.texture, geometry.textureMode)
             }else{
               dset.video.loop = true
-              if(geometry.muted) dset.video.muted = true
+              if(!geometry.muted) {
+                GenericPopup('play audio OK?', true, ()=>{
+                  cache.textures.filter(v=>v.url == dset.iURL)[0].resource.muted = false
+                  cache.textures.filter(v=>v.url == dset.iURL)[0].resource.currentTime = 0
+                  cache.textures.filter(v=>v.url == dset.iURL)[0].resource.play()
+                })
+              }
+
+
               dset.video.oncanplay = async () => {
                 dset.video.play()
                 await BindImage(gl, dset.video, dset.texture, geometry.textureMode)
