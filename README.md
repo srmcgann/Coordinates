@@ -197,7 +197,7 @@ var geoOptions = {
                          // has optional properties:
                               'pointLightValue'   [0.0 to 1.0...],
                               'pointLightVisible' [true/false]
-                              * ignores shader, if one is connected
+                              //* ignores shader, if one is connected
                       // • cylinder
                       // • torus
                       // • torus knot
