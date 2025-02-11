@@ -183,26 +183,35 @@ var geoOptions = {
   subs: 0,            // subdivides a polyhedron above, creating exponentially
                       // more polygons/faces. Advise no more than 4!
   equirectangular: false,  // if enabled, textures are assumed to be spherical
-  shapeType: '',   // required.
+  shapeType: ''    // required.
                    // supported types:
-                      // • tetrahedron
-                      // • cube
-                      // • octahedron
-                      // • dodecahedron
-                      // • icosahedron
-                      // • rectangle (is a squre, unless you use a scale, shown above)
-                      // • sprite
+                       • 'tetrahedron'
+                       • 'cube'
+                       • 'octahedron'
+                       • 'dodecahedron'
+                       • 'icosahedron'
+                       • 'rectangle'
+                         // is a squre, unless scaled
+                       • 'sprite'
                          // supports alpha channel (png source)
-                      // • cylinder
-                      // • torus
-                      // • torus knot
-                         // cylinder, torus [knot] accept 'rows' and 'cols'
-                         // parameters, optionally. if omitted, high-res
+                      // LIGHTS
+                         //- other objects require phong shader for
+                         //  lights to affect them, except for
+                         //  ambient light
+                       • 'point light'
+                         // has optional properties:
+                              'pointLightValue': .5, // 0.0 to 1.0...
+                              'pointLightShowSource': true/false
+                              // ignores shader, if one is connected
+                       • 'cylinder'
+                       • 'torus'
+                       • 'torus knot'
+                         // cylinder, torus [knot] accept 'rows' and 'cols', optionally. if omitted, high-res
                          // shapes are quick-loaded. recommend zero subs,
                          // omit rows/cols unless custom shape is needed.
                          // Or export a custom shape & load it as such.
-                      // • obj
-                      // • custom shape
+                       • 'obj'
+                       • 'custom shape',
                          // "custom shapes" may be obtained from any
                          // shape, by enabling the 'exportShape' option.
                          // These files may then be loaded via the
