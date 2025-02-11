@@ -200,7 +200,7 @@ var geoOptions = {
                          //  ambient light
                        • 'point light'
                          // has optional properties:
-                              'pointLightValue': .5, // 0.0 to 1.0...
+                              'size': .5, // brightness, 0.0 to 1.0...
                               'pointLightShowSource': true/false
                               // ignores shader, if one is connected
                        • 'cylinder'
