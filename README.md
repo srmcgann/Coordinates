@@ -193,6 +193,7 @@ var geoOptions = {
                       // • rectangle (is a squre, unless you use a scale, shown above)
                       // • sprite
                          // supports alpha channel (png source)
+                      // LIGHTS - require phong shader
                       // • point light
                          // has optional properties:
                               'pointLightValue'   [0.0 to 1.0...],
