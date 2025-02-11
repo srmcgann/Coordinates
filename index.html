@@ -13,53 +13,116 @@
   <body>
     <script type="module">
     
-      import * as Coordinates from "./coordinates.js"
+      import * as Coordinates from
+      "./coordinates.js"
     
-      var renderer = Coordinates.Renderer()
+      // instantiate a canvas. this is also our 'camera'
+      var renderer = await Coordinates.Renderer()
       
-      renderer.z = 16
+      // back the camera away from the center (move it toward the viewer)
+      renderer.z = 10
+      renderer.ambientLight = 1
+      
+      // tell the API where to find our animation function
       Coordinates.AnimationLoop(renderer, 'Draw')
-      //var shaderOptions = [ { uniform: { type: 'phong' } } ]
-      //var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-      
+
+      var vidSrc = 'https://srmcgann.github.io/skyboxes5/videos/cylindricalTurtles.mp4'
+
+      // invoke a shader - phong in this case for a pseudo-lighting effect
+      var shaderOptions = [
+        { uniform: { type: 'phong', value: .85 } },
+        { uniform: { type: 'reflection', value: .5, map: vidSrc, enabled: true } },
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = []
+      var nullShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var C = Math.cos
+      var S = Math.sin
+      var Rn = Math.random
       
       var shapes = []
-      var cl = 11
-      var rw = 11
-      var br = 11
-      var sp = 4
-      var x, y, z
-      Array(cl*rw*br).fill().map(async (v,i) => {
-        x = ((i%cl)-cl/2+.5) * sp
-        y = (((i/cl|0)%rw)-rw/2+.5) * sp
-        z = ((i/cl/rw|0)-br/2+.5) * sp
+
+      var geoOptions = {
+        shapeType: 'dodecahedron', subs: 2,
+        size: 1500,
+        name: 'background',
+        //equirectangular: true,
+        //scaleX: 1.777777778,
+        //muted: false,
+        sphereize: 1,
+        averageNormals: true,
+        z: 0,
+        pitch: 0,
+        playbackSpeed: 1,
+        map: vidSrc,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })  
+      
+      var sp = 40
+      var cl = 3
+      var rw = 1
+      for(var m = cl*rw; m--; ){
         var geoOptions = {
-          shapeType: 'sprite', size: 2,
-          map: 'https://srmcgann.github.io/stars/star5.png',
-          x, y, z,
+          shapeType: 'custom shape',
+          url: 'https://srmcgann.github.io/Coordinates/custom shapes/ladybug.json',
+          size: 1,
+          //subs: 2,
+          
+          //averageNormals: true,
+          //sphereize: 1,
+          //color: 0xff0000,
+          //objY: 10,
+          equirectangular: true,
+          //showNormals: true,
+          //flipNormals: true,
+          x: ((m%cl)-cl/2+.5) * sp,
+          y: ((m/cl|0)-rw/2+.5) * sp,
+          z: 0,
+          map: 'https://srmcgann.github.io/Coordinates/custom%20shapes/LADYBUG.jpg',
+          //exportShape: true
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
           shapes.push(geometry)
-          //await shader.ConnectGeometry(geometry)
-        })  
-      })
-      
-      window.Draw = () => {
-      
-        renderer.Clear()
-        renderer.yaw += .01
-        renderer.pitch -= .005
-      
-        shapes.forEach(shape => {
-          shape.yaw   += .01
-          shape.pitch += .005
-          renderer.Draw(shape)
+          await shader.ConnectGeometry(geometry)
         })
       }
       
+      window.Draw = () => {
+      
+        var t = renderer.t
+        shader.datasets.map(data=>{
+          if(data?.optionalUniforms != 'undefined'){
+            if(data.optionalUniforms?.length) data.optionalUniforms.filter(q=>q.name == 'phong').map(n=>{
+              n.theta -= .075
+            })
+          }
+        })
+      
+        renderer.Clear()
+        renderer.z = Math.min(32, Math.max(10, (.3+C(t/6))*90))
+        renderer.yaw += .005
+      
+        shapes.forEach((shape, idx) => {
+          switch(shape.name){
+            case 'background': break
+            default:
+              shape.yaw   += S(t + idx)  * .005 - .01
+              shape.pitch += C(idx + t*2) * .01 - .01
+              shape.roll += C(idx + t/2) * .02
+            break
+          }
+          renderer.Draw(shape)
+        })
+      }
     </script>
   </body>
 </html>
+
 
 <!--
   TO DO
@@ -75,6 +138,9 @@
   ✔ re-export 'new shapes' with unit size
   ✔ fix color mix
   ✔ come up with solution for averaging normals (for phong etc), with prebuilt shapes
+  
+  * 'grouping' / 'ungrouping' option
+        for geometry, which makes drawing buffers contiguous
   
   ✔ sprites [transparent rectangle?]
   
