@@ -183,7 +183,7 @@ var geoOptions = {
   subs: 0,            // subdivides a polyhedron above, creating exponentially
                       // more polygons/faces. Advise no more than 4!
   equirectangular: false,  // if enabled, textures are assumed to be spherical
-  shapeType: '',   // required.
+  shapeType: ''    // required.
                    // supported types:
                        • 'tetrahedron'
                        • 'cube'
@@ -211,7 +211,7 @@ var geoOptions = {
                          // omit rows/cols unless custom shape is needed.
                          // Or export a custom shape & load it as such.
                        • 'obj'
-                       • 'custom shape'
+                       • 'custom shape',
                          // "custom shapes" may be obtained from any
                          // shape, by enabling the 'exportShape' option.
                          // These files may then be loaded via the
