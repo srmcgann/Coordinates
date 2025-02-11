@@ -92,7 +92,6 @@
         })
       }
       
-      console.log(shader)
       window.Draw = () => {
       
         var t = renderer.t
@@ -105,7 +104,7 @@
         })
       
         renderer.Clear()
-        renderer.z = Math.min(20, Math.max(10, (.3+C(t/6))*50))
+        renderer.z = Math.min(32, Math.max(10, (.3+C(t/6))*90))
         renderer.yaw += .005
       
         shapes.forEach((shape, idx) => {

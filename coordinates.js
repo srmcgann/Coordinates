@@ -15,7 +15,6 @@ const cache = {
   customShapes : [],
   textures     : [],
   geometry     : [],
-  customShapes : [],
   texImages    : []
 }
 
@@ -474,7 +473,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   if(shapeType.indexOf('custom shape') != -1){
     fileURL = url
     hint = `${shapeType} ${name} (${url})`
-    resolved = true
   }else{
     hint = `${shapeType}_${subs}`
     if(subs < 5 && hint){
@@ -524,12 +522,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   if(resolved){
-    
-    
     // involve cache
     switch(shapeType){
       case 'custom shape':
-        if((cacheItem = cache.customShapes.filter(v=>v.url==fileURL)).length){
+        if((cacheItem = cache.customShapes.filter(v=>v.url==url)).length){
           var data   = cacheItem[0].data
           vertices   = data.vertices
           normals    = data.normals
@@ -539,61 +535,74 @@ const LoadGeometry = async (renderer, geoOptions) => {
           resolved = true
         }
       break
+      default:
+        await fetch(fileURL).then(res=>res.json()).then(data=>{
+          vertices    = data.vertices
+          normals     = data.normals
+          normalVecs  = data.normalVecs
+          uvs         = data.uvs
+          resolved    = true
+          //switch(shapeType){
+          //  case 'custom shape':
+          //    cache.customShapes.push({data, url})
+          //  break
+          //}
+        })
+      break;
     }
-    
-    if(!resolved){
-      await fetch(fileURL).then(res=>res.json()).then(data=>{
-        vertices    = data.vertices
-        normals     = data.normals
-        normalVecs  = data.normalVecs
-        uvs         = data.uvs
-        switch(shapeType){
-          case 'custom shape':
-            cache.customShapes.push({data, url: fileURL})
-          break
-        }
-      })
-      
-      
-      var ip1 = sphereize
-      var ip2 = 1 -sphereize
-      for(var i = 0; i< vertices.length; i+=3){
-        var d, val
-      
-        var X = vertices[i+0]
-        var Y = vertices[i+1]
-        var Z = vertices[i+2]
-        d = Math.hypot(X,Y,Z) //+ .0001
-        X /= d
-        Y /= d
-        Z /= d
-        X *= ip1 + d*ip2
-        Y *= ip1 + d*ip2
-        Z *= ip1 + d*ip2
-        vertices[i+0] = X * size * scaleX
-        vertices[i+1] = Y * size * scaleY
-        vertices[i+2] = Z * size * scaleZ
-        
-        var ox = normals[i*2+0]
-        var oy = normals[i*2+1]
-        var oz = normals[i*2+2]
-
-        normals[i*2+0] += vertices[i+0] - ox
-        normals[i*2+1] += vertices[i+1] - oy
-        normals[i*2+2] += vertices[i+2] - oz
-        normals[i*2+3] += vertices[i+0] - ox
-        normals[i*2+4] += vertices[i+1] - oy
-        normals[i*2+5] += vertices[i+2] - oz
-
-        /*normals[i*2+0] *= scaleX
-        normals[i*2+1] *= scaleY
-        normals[i*2+2] *= scaleZ
-        normals[i*2+3] *= scaleX
-        normals[i*2+4] *= scaleY
-        normals[i*2+5] *= scaleZ
-        */
-
+  }else{
+    await fetch(fileURL).then(res=>res.json()).then(data=>{
+      vertices    = data.vertices
+      normals     = data.normals
+      normalVecs  = data.normalVecs
+      uvs         = data.uvs
+      resolved    = true
+      switch(shapeType){
+        case 'custom shape':
+          cache.customShapes.push({data, url})
+        break
       }
+    })
+  }
+
+  if(shapeType != 'custom shape'){
+    var ip1 = sphereize
+    var ip2 = 1 -sphereize
+    for(var i = 0; i< vertices.length; i+=3){
+      var d, val
+    
+      var X = vertices[i+0]
+      var Y = vertices[i+1]
+      var Z = vertices[i+2]
+      d = Math.hypot(X,Y,Z) //+ .0001
+      X /= d
+      Y /= d
+      Z /= d
+      X *= ip1 + d*ip2
+      Y *= ip1 + d*ip2
+      Z *= ip1 + d*ip2
+      vertices[i+0] = X * size * scaleX
+      vertices[i+1] = Y * size * scaleY
+      vertices[i+2] = Z * size * scaleZ
+      
+      var ox = normals[i*2+0]
+      var oy = normals[i*2+1]
+      var oz = normals[i*2+2]
+
+      normals[i*2+0] += vertices[i+0] - ox
+      normals[i*2+1] += vertices[i+1] - oy
+      normals[i*2+2] += vertices[i+2] - oz
+      normals[i*2+3] += vertices[i+0] - ox
+      normals[i*2+4] += vertices[i+1] - oy
+      normals[i*2+5] += vertices[i+2] - oz
+
+      /*normals[i*2+0] *= scaleX
+      normals[i*2+1] *= scaleY
+      normals[i*2+2] *= scaleZ
+      normals[i*2+3] *= scaleX
+      normals[i*2+4] *= scaleY
+      normals[i*2+5] *= scaleZ
+      */
     }
   }
   if(!resolved){
