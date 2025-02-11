@@ -18,7 +18,7 @@ const cache = {
   texImages    : []
 }
 
-const Renderer = async options => {
+const Renderer = options => {
 
   var x=0, y=0, z=0
   var width = 1920, height = 1080
@@ -521,7 +521,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       }
     }
   }
-  if(resolved){
+  if(!resolved){
     // involve cache
     switch(shapeType){
       case 'custom shape':
@@ -531,24 +531,21 @@ const LoadGeometry = async (renderer, geoOptions) => {
           normals    = data.normals
           normalVecs = data.normalVecs
           uvs        = data.uvs
-          console.log('custom shape found in cache. using it')
+          console.log('found custom shape found in cache. using it')
           resolved = true
         }
+        if(!resolved){
+          await fetch(fileURL).then(res=>res.json()).then(data=>{
+            vertices    = data.vertices
+            normals     = data.normals
+            normalVecs  = data.normalVecs
+            uvs         = data.uvs
+            resolved    = true
+            cache.customShapes.push({data, url})
+          })
+        }
       break
-      default:
-        await fetch(fileURL).then(res=>res.json()).then(data=>{
-          vertices    = data.vertices
-          normals     = data.normals
-          normalVecs  = data.normalVecs
-          uvs         = data.uvs
-          resolved    = true
-          //switch(shapeType){
-          //  case 'custom shape':
-          //    cache.customShapes.push({data, url})
-          //  break
-          //}
-        })
-      break;
+      default: break
     }
   }else{
     await fetch(fileURL).then(res=>res.json()).then(data=>{
@@ -557,11 +554,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       normalVecs  = data.normalVecs
       uvs         = data.uvs
       resolved    = true
-      switch(shapeType){
-        case 'custom shape':
-          cache.customShapes.push({data, url})
-        break
-      }
+      //cache.customShapes.push({data, url})
     })
   }
 
