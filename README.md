@@ -194,7 +194,9 @@ var geoOptions = {
                       // • sprite
                          // supports alpha channel (png source)
                       // LIGHTS
-                         - require phong shader, except for ambient light
+                         - other objects require phong shader for
+                           lights to affect them, except for
+                           ambient light
                       // • point light
                          // has optional properties:
                               'pointLightValue'   [0.0 to 1.0...],
