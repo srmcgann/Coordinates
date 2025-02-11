@@ -185,33 +185,33 @@ var geoOptions = {
   equirectangular: false,  // if enabled, textures are assumed to be spherical
   shapeType: '',   // required.
                    // supported types:
-                      // • tetrahedron
-                      // • cube
-                      // • octahedron
-                      // • dodecahedron
-                      // • icosahedron
-                      // • rectangle (is a squre, unless you use a scale, shown above)
-                      // • sprite
+                       • tetrahedron
+                       • cube
+                       • octahedron
+                       • dodecahedron
+                       • icosahedron
+                       • rectangle (is a squre, unless you use a scale, shown above)
+                       • sprite
                          // supports alpha channel (png source)
                       // LIGHTS
                          //- other objects require phong shader for
                          //  lights to affect them, except for
                          //  ambient light
-                      // • point light
+                       • point light
                          // has optional properties:
-                              'pointLightValue'   [0.0 to 1.0...],
-                              'pointLightShowSource' [true/false]
+                              pointLightValue:   0.0 to 1.0...
+                              pointLightShowSource: true/false
                               //* ignores shader, if one is connected
-                      // • cylinder
-                      // • torus
-                      // • torus knot
+                       • cylinder
+                       • torus
+                       • torus knot
                          // cylinder, torus [knot] accept 'rows' and 'cols'
                          // parameters, optionally. if omitted, high-res
                          // shapes are quick-loaded. recommend zero subs,
                          // omit rows/cols unless custom shape is needed.
                          // Or export a custom shape & load it as such.
-                      // • obj
-                      // • custom shape
+                       • obj
+                       • custom shape
                          // "custom shapes" may be obtained from any
                          // shape, by enabling the 'exportShape' option.
                          // These files may then be loaded via the
