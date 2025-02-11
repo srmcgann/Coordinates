@@ -195,8 +195,8 @@ var geoOptions = {
                          // supports alpha channel (png source)
                       // • point light
                          // has optional properties:
-                              ``pointLightValue``   [0.0 to 1.0...],
-                              ``pointLightVisible`` [true/false]
+                              'pointLightValue'   [0.0 to 1.0...],
+                              'pointLightVisible' [true/false]
                               * ignores shader, if one is connected
                       // • cylinder
                       // • torus
