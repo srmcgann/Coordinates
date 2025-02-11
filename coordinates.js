@@ -126,7 +126,7 @@ const Renderer = options => {
   ret['Clear'] = Clear
   
   
-  const Draw = geometry => {
+  const Draw = async geometry => {
     
     if(typeof geometry?.shader != 'undefined'){
       
@@ -140,9 +140,10 @@ const Renderer = options => {
 
 
       if(geometry.textureMode == 'video'){
-        BindImage(ctx, dset.video,  dset.texture, geometry.textureMode, ret.t, geometry.map)
+        await BindImage(ctx, dset.video,  dset.texture, geometry.textureMode, ret.t, geometry.map)
       }
       
+      ctx.useProgram( sProg )
       ctx.uniform1i(dset.locTexture, dset.texture)
       ctx.activeTexture(ctx.TEXTURE0)
       ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
