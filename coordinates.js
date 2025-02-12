@@ -7,7 +7,7 @@ const S = Math.sin, C = Math.cos
 const scratchCanvas = document.createElement('canvas')
 const sctx = scratchCanvas.getContext('2d')
 const scratchImage = new Image()
-const moduleBase = '.'
+const moduleBase = 'https://srmcgann.github.io/Coordinates'
 
 var cacheItem
 const cache = {
