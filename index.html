@@ -12,129 +12,84 @@
   </head>
   <body>
     <script type="module">
-
+    
       import * as Coordinates from
       "./coordinates.js"
-
-      // instantiate a canvas. this is also our 'camera'
-      var renderer = await Coordinates.Renderer({ambientLight:.8})
-      
-      // back the camera away from the center (move it toward the viewer)
-      renderer.z = 10
-      renderer.ambientLight = 1
-      
-      // tell the API where to find our animation function
+    
+      var renderer = await Coordinates.Renderer({ambientLight: 0})
+      renderer.z = 16
       Coordinates.AnimationLoop(renderer, 'Draw')
-
-      var vidSrc = 'https://srmcgann.github.io/skyboxes5/videos/cylindricalTurtles.mp4'
-
-      // invoke a shader - phong in this case for a pseudo-lighting effect
       var shaderOptions = [
-        { uniform: { type: 'phong', value: .85 } },
-        { uniform: { type: 'reflection', value: .5, map: vidSrc, enabled: true } },
+        { uniform: { type: 'phong', value: .5 } },
+        { uniform: { type: 'reflection', value: 0, map:"https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg" } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      
-      shaderOptions = [
-        { uniform: { type: 'phong', value: 1 } },
-        { uniform: { type: 'reflection', value: .5, map: vidSrc, enabled: false } },
-      ]
-      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var C = Math.cos
-      var S = Math.sin
-      var Rn = Math.random
-      
       var shapes = []
 
       var geoOptions = {
-        shapeType: 'cube', subs: 1,
-        size: 1500,
-        name: 'background',
-        //equirectangular: true,
-        //scaleX: 1.777777778,
-        //muted: false,
-        sphereize: 1,
-        equirectangular: true,
-        averageNormals: true,
+        shapeType: 'custom shape',
+        size: 1,
+        url: './custom shapes/ladybug.json',
+        color: 0xffffff,
+        colorMix: 1.0,
+        x: 0,
+        y: -3,
         z: 0,
-        pitch: 0,
-        playbackSpeed: 1,
-        map: vidSrc,
+        //subs: 2,
+        //sphereize: -.5,
+        //averageNormals: true,
+        equirectangular: true,
+        //map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await backgroundShader.ConnectGeometry(geometry)
-      })  
+        await shader.ConnectGeometry(geometry)
+      })
       
-      var sp = 40
-      var cl = 3
-      var rw = 1
-      var br = 3
-      for(var m = cl*rw*br; m--; ){
+      var S = Math.sin
+      var C = Math.cos
+      var sd = 6
+      var ls = 8
+      var p, x, y, z
+      for(var i=0; i<sd; i++){
+        x = S(p=Math.PI*2/sd*i) * ls
+        y = 0
+        z = C(p) * ls
         var geoOptions = {
-          shapeType: 'custom shape',
-          url: 'https://srmcgann.github.io/Coordinates/custom shapes/ladybug.json',
-          size: 1.5,
-          //subs: 2,
-          
-          //averageNormals: true,
-          //sphereize: 1,
-          //color: 0xff0000,
-          //objY: 10,
-          equirectangular: true,
-          //showNormals: true,
-          //flipNormals: true,
-          x: ((m%cl)-cl/2+.5) * sp,
-          y: (((m/cl|0)%rw)-rw/2+.5) * sp - 0,
-          z: ((m/cl/rw|0)-br/2+.5) * sp,
-          map: 'https://srmcgann.github.io/Coordinates/custom%20shapes/LADYBUG.jpg',
-          //exportShape: true
+          color: Coordinates.HSVToHex(360/sd*i,.5,.5),
+          shapeType: 'point light',
+          x, y, z,
+          size: 3,
+          pointLightShowSource: true
         }
-        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-          shapes.push(geometry)
-          await shader.ConnectGeometry(geometry)
-        })
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => { shapes.push(geometry) })
       }
       
       window.Draw = () => {
-      
-        var t = renderer.t
-        shader.datasets.map(data=>{
-          if(data?.optionalUniforms != 'undefined'){
-            if(data.optionalUniforms?.length) data.optionalUniforms.filter(q=>q.name == 'phong').map(n=>{
-              n.theta -= .075
-            })
-          }
-        })
-        backgroundShader.datasets.map(data=>{
-          if(data?.optionalUniforms != 'undefined'){
-            if(data.optionalUniforms?.length) data.optionalUniforms.filter(q=>q.name == 'phong').map(n=>{
-              n.theta -= .075
-            })
-          }
-        })
-      
-        //renderer.Clear()
-        renderer.z = Math.min(42, Math.max(10, (.3+C(t/6))*90))
-        renderer.yaw += .005
-        renderer.pitch = .25 + Math.cos(renderer.t/3) 
-      
-        shapes.forEach(async (shape, idx) => {
-          switch(shape.name){
-            case 'background': break
-            default:
-              shape.yaw   += S(t + idx)  * .005 - .01
-              shape.pitch += C(idx*8 + t*2) * .03 - .02
-              shape.roll += C(idx + t/2) * .02
+        renderer.pitch = C(renderer.t/2) / 2 + .25
+        //renderer.yaw +=  .01
+        shapes.forEach((shape, idx) => {
+          switch(shape.shapeType){
+            case 'point light':
+              color: 
+              var X = shape.x
+              var Y = shape.y
+              var Z = shape.z
+              var p = Math.atan2(X, Z) + S(renderer.t/2)* .05
+              var d = Math.hypot(X, Z)
+              shape.x = S(p) * d
+              shape.y = C(renderer.t + idx) * 3
+              shape.z = C(p) * d
             break
           }
-          await renderer.Draw(shape)
+          shape.yaw   += .01
+          //shape.roll   += .01
+          //shape.pitch -= .02
+          renderer.Draw(shape)
         })
       }
+      
     </script>
-
   </body>
 </html>
 

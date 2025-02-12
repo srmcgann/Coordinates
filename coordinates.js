@@ -7,7 +7,7 @@ const S = Math.sin, C = Math.cos
 const scratchCanvas = document.createElement('canvas')
 const sctx = scratchCanvas.getContext('2d')
 const scratchImage = new Image()
-
+const moduleBase = '.'
 
 var cacheItem
 const cache = {
@@ -33,6 +33,9 @@ const Renderer = options => {
       desynchronized          : true,
     }
   }
+  
+  var pointLights = []
+  var pointLightCols = []
   
   if(typeof options != 'undefined'){
     Object.keys(options).forEach((key, idx) =>{
@@ -80,7 +83,7 @@ const Renderer = options => {
     c.style.top        = '50vh'
     c.style.transform  = 'translate(-50%, -50%)'
     c.style.border     = '1px solid #fff3'
-    c.style.background = '#04f1'
+    c.style.background = '#000'
     document.body.appendChild(c)
   }
   
@@ -105,25 +108,28 @@ const Renderer = options => {
     c, contextType, t:0, alpha,
     width, height, x, y, z,
     roll, pitch, yaw, fov,
-    ready: false, ambientLight
+    ready: false, ambientLight,
+    pointLights, pointLightCols
     
     // functions
     // ...
   }
   ret[contextType == '2d' ? 'ctx' : 'gl'] = ctx
+  var renderer = ret
   
   const Clear = () => {
     switch(contextType){
       case '2d': 
-        c.width = ret.c.width
+        c.width = renderer.c.width
       break
       default:
         ctx.clearColor(0,0,0,1) //...HexToRGB(), 1.0)
-        ctx.clear(ctx.COLOR_BUFFER_BIT);
+        ctx.clear(ctx.COLOR_BUFFER_BIT)
+        ctx.clear(GL_DEPTH_BUFFER_BIT)
       break
     }
   }
-  ret['Clear'] = Clear
+  renderer['Clear'] = Clear
   
   
   const Draw = async geometry => {
@@ -137,10 +143,9 @@ const Renderer = options => {
       
       // update uniforms
       
-
-
+      
       if(geometry.textureMode == 'video'){
-        await BindImage(ctx, dset.video,  dset.texture, geometry.textureMode, ret.t, geometry.map)
+        await BindImage(ctx, dset.video,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
       }
       
       ctx.useProgram( sProg )
@@ -148,26 +153,50 @@ const Renderer = options => {
       ctx.activeTexture(ctx.TEXTURE0)
       ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
       
-      ctx.uniform1f(dset.locT,               ret.t)
+      
+      // point lights
+      ctx.uniform1i(dset.locPointLightCount, renderer.pointLights.length)
+      var pldata = []
+      var plcols = []
+      renderer.pointLights.map(geometry => {
+        pldata = [...pldata, geometry.x, geometry.y, geometry.z, geometry.size]
+        let col = HexToRGB(geometry.color)
+        plcols = [...plcols, ...HexToRGB(geometry.color), 1.0]
+      })
+      ctx.uniform4fv(dset.locPointLights, pldata)
+      ctx.uniform4fv(dset.locPointLightCols, plcols)
+      
+
+      // other uniforms
+      
+      ctx.uniform1f(dset.locT,               renderer.t)
       ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
       ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
+      ctx.uniform1f(dset.locIsLight,         geometry.isLight)
+      
       ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
-      ctx.uniform1f(dset.locAmbientLight,    ret.ambientLight)
-      ctx.uniform2f(dset.locResolution,      ret.width, ret.height)
-      ctx.uniform3f(dset.locCamPos,          ret.x, ret.y, ret.z)
-      ctx.uniform3f(dset.locCamOri,          ret.roll, ret.pitch, ret.yaw)
+      ctx.uniform1f(dset.locAmbientLight,    renderer.ambientLight)
+      ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
+      ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
+      ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
       ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
       ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
-      ctx.uniform1f(dset.locFov,             ret.fov)
+      ctx.uniform1f(dset.locFov,             renderer.fov)
       ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
       ctx.uniform1f(dset.locRenderNormals,   0)
       
       // enable alpha
-      if(geometry.shapeType == 'sprite'){
-          //ctx.pixelStorei(ctx.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+      switch(geometry.shapeType){
+        case 'sprite':
           ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE);
           ctx.enable(ctx.BLEND)
           ctx.disable(ctx.DEPTH_TEST)
+        break
+        case 'point light':
+          ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE);
+          ctx.enable(ctx.BLEND)
+          //ctx.disable(ctx.DEPTH_TEST)
+        break
       }
       
       dset.optionalUniforms.map(async (uniform) => {
@@ -178,7 +207,7 @@ const Renderer = options => {
             case 'reflection':
               ctx.activeTexture(ctx.TEXTURE1)
               if(uniform.textureMode == 'video'){
-                 BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, ret.t, uniform.map)
+                 BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform.map)
               }
               ctx.uniform1i(uniform.locRefTexture, 1)
               ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
@@ -233,10 +262,17 @@ const Renderer = options => {
 
 
       // disable alpha
-      if(geometry.shapeType == 'sprite'){
-        ctx.blendFunc(ctx.ONE, ctx.ZERO)
-        ctx.disable(ctx.BLEND)
-        ctx.enable(ctx.DEPTH_TEST)
+      switch(geometry.shapeType){
+        case 'sprite':
+          ctx.blendFunc(ctx.ONE, ctx.ZERO)
+          ctx.disable(ctx.BLEND)
+          ctx.enable(ctx.DEPTH_TEST)
+        break
+        case 'point light':
+          ctx.blendFunc(ctx.ONE, ctx.ZERO)
+          ctx.enable(ctx.BLEND)
+          //ctx.enable(ctx.DEPTH_TEST)
+        break
       }
 
 
@@ -254,13 +290,13 @@ const Renderer = options => {
         ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       }
     }
-    ret.t = performance.now() / 1000
+    renderer.t = performance.now() / 1000
 
     
   }
-  ret['Draw'] = Draw
+  renderer['Draw'] = Draw
         
-  return ret
+  return renderer
 }
 
 const DestroyViewport = el => {
@@ -404,24 +440,34 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var cols             = 40
                // must remain "16, 40" to trigger default quick torus/cylinder
                
-  var map              = ''
-  var url              = ''
-  var name             = ''
-  var size             = 1
-  var averageNormals   = false
-  var subs             = 0
-  var sphereize        = 0
-  var color            = 0x333333
-  var colorMix         = .5
-  var equirectangular  = false
-  var flipNormals      = false
-  var showNormals      = false
-  var muted            = true
-  var isSprite         = 0.0
-  var playbackSpeed    = 1.0
-  var textureMode      = 'image'
+  
+  var url                  = ''
+  var name                 = ''
+  var size                 = 1
+  var averageNormals       = false
+  var subs                 = 0
+  var sphereize            = 0
+  var color                = 0x333333
+  var colorMix             = .5
+  var equirectangular      = false
+  var flipNormals          = false
+  var showNormals          = false
+  var map                  = ''
+  var muted                = true
+  var isSprite             = 0.0
+  var isLight              = 0.0
+  var playbackSpeed        = 1.0
+  var textureMode          = 'image'
+  var pointLightShowSource = false
   
   geoOptions = structuredClone(geoOptions)
+  // must precede
+  Object.keys(geoOptions).forEach((key, idx) => {
+    switch(key.toLowerCase()){
+      case 'pointlightshowsource':
+        pointLightShowSource = !!geoOptions[key]; break
+    }
+  })
   Object.keys(geoOptions).forEach((key, idx) => {
     switch(key.toLowerCase()){
       case 'x'               : x = geoOptions[key]; break
@@ -430,7 +476,15 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'roll'            : roll = geoOptions[key]; break
       case 'pitch'           : pitch = geoOptions[key]; break
       case 'yaw'             : yaw = geoOptions[key]; break
-      case 'shapetype'       : shapeType = geoOptions[key]; break
+      case 'shapetype'       :
+        shapeType = geoOptions[key].toLowerCase();
+        switch(shapeType){
+          case 'point light':
+            map = pointLightShowSource ? 
+              `${moduleBase}/resources/stars/star.png` : ''
+          break
+        }
+      break
       case 'size'            : size = geoOptions[key]; break
       case 'subs'            : subs = geoOptions[key]; break
       case 'sphereize'       : sphereize = geoOptions[key]; break
@@ -455,9 +509,14 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'rows'            : rows = geoOptions[key]; break
       case 'cols'            : cols = geoOptions[key]; break
       case 'muted'           : muted = !!geoOptions[key]; break
-      case 'issprite'        : isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
-      case 'playbackspeed'   : playbackSpeed = geoOptions[key]; break
-      case 'averagenormals'  : averageNormals = !!geoOptions[key]; break
+      case 'issprite'        :
+        isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
+      case 'islight'        :
+        isLight = (!!geoOptions[key]) ? 1.0: 0.0; break
+      case 'playbackspeed'   :
+        playbackSpeed = geoOptions[key]; break
+      case 'averagenormals'  :
+        averageNormals = !!geoOptions[key]; break
     }
   })
 
@@ -467,7 +526,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var normalVecs  = []
   var uvs         = []
   
-  shapeType = shapeType.toLowerCase()
   var resolved = false
   var fileURL, hint
   
@@ -513,7 +571,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
              (hint == 'torus knot_0' && rows == 16 && cols == 40) 
              ){
             resolved = true;
-            url = `https://srmcgann.github.io/Coordinates/new%20shapes/`
+            url = `${moduleBase}/new%20shapes/`
             fileURL = `${url}${hint}.json`
           }else{
             // unresolved shape
@@ -674,6 +732,15 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'sprite':
         isSprite = true
         shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
+        shape.geometry.map(v => {
+          vertices = [...vertices, ...v.position]
+          normals  = [...normals,  ...v.normal]
+          uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'point light':
+        isLight = true
+        shape = await Rectangle(Math.max(size / 4, .5), subs-1, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
           normals  = [...normals,  ...v.normal]
@@ -899,7 +966,14 @@ const LoadGeometry = async (renderer, geoOptions) => {
     normalVec_buffer, NormalVec_Index_Buffer,
     nVecIndices, uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices, map, video,
-    textureMode, isSprite, playbackSpeed
+    textureMode, isSprite, isLight, playbackSpeed
+  }
+  
+  if(shapeType == 'point light'){
+    if(typeof geoOptions.color == 'undefined'){
+      geometry.color = 0xaaaaaa
+    }
+    renderer.pointLights.push(geometry)
   }
   
   const nullShader = await BasicShader(renderer, [ ] )
@@ -1188,7 +1262,7 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 reflectionPos;
                   `,
                   fragCode:            `
-                    light = light * .5;
+                    light = vec4(light.r * .5, light.g * .5, light.b * .5, 1.0);
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
                       float px = reflectionPos.x;
@@ -1205,7 +1279,7 @@ const BasicShader = async (renderer, options=[]) => {
                     mixColor.a = mixColorIp;
                     vec4 refCol = vec4(texture2D(reflectionMap, vec2(refCoords.x, refCoords.y)).rgb * 1.5, reflection / 2.0);
                     mixColor = merge(mixColor, refCol);
-                    mixColorIp = light;
+                    mixColorIp = (light.r + light.g + light.b) / 3.0;
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -1238,7 +1312,7 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 phongPos;
                   `,
                   fragCode:            `
-                    light = light * .75;
+                    light = vec4(light.r * .5, light.g * .75, light.b * .75, 1.0);
                     float phongP1, phongP2;
                     float px, py, pz;
                     if(flatShading != 0.0){
@@ -1250,11 +1324,12 @@ const BasicShader = async (renderer, options=[]) => {
                       py = phongPos.y;
                       pz = phongPos.z;
                     }
-                    phongP1 = (atan(px, pz) - camOri.z) + M_PI + phongTheta;
+                    phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
                     phongP2 = -acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
                     
-                    light = light + pow((1.0+cos(phongP1)) * (1.0+cos(phongP2)), 8.0) / 20000.0 * phong ;
-                    mixColorIp = light;
+                    float fact = pow((1.0+cos(phongP1)) * (1.0+cos(phongP2 + .25)), 8.0) / 100000.0 * phong ;
+                    light = vec4(light.rgb + fact, 1.0);
+                    mixColorIp = fact + (light.r + light.g + light.b) / 3.0;
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -1299,6 +1374,9 @@ const BasicShader = async (renderer, options=[]) => {
     #define M_PI 3.14159265358979323
     attribute vec2 uv;
     ${uVertDeclaration}
+    
+    
+    
     uniform float t;
     uniform vec3 color;
     uniform float ambientLight;
@@ -1307,6 +1385,8 @@ const BasicShader = async (renderer, options=[]) => {
     uniform vec3 geoPos;
     uniform vec3 geoOri;
     uniform float isSprite;
+    uniform float isLight;
+    //uniform vec4 pointLightPos[16];
     uniform float fov;
     uniform float equirectangular;
     uniform float renderNormals;
@@ -1353,7 +1433,6 @@ const BasicShader = async (renderer, options=[]) => {
       
       nVeci = normalVec;
       
-      fPos = vec3(position.x, position.y, position.z);
       fPosi = position;
       vnorm = normal;
       
@@ -1362,7 +1441,8 @@ const BasicShader = async (renderer, options=[]) => {
       
       vec3 geo, pos;
       
-      if(isSprite != 0.0){
+      if(isSprite != 0.0 || isLight != 0.0){
+        
         geo = R(geoPos, camOri);
         pos = R(vec3(cx, cy, cz),
                  vec3(0.0, -camOri.y + M_PI, 0.0));
@@ -1372,6 +1452,7 @@ const BasicShader = async (renderer, options=[]) => {
         nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
         nVec = R(nVec, geoOri);
         nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+
       }else{
         geo = R(geoPos, camOri);
         pos = R(vec3(cx, cy, cz), geoOri);
@@ -1380,6 +1461,7 @@ const BasicShader = async (renderer, options=[]) => {
         nVec = R(nVec, geoOri);
         nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
       }
+      fPos = vec3(pos.x, pos.y, pos.z);
       
       ${uVertCode}
       
@@ -1407,6 +1489,10 @@ const BasicShader = async (renderer, options=[]) => {
     uniform vec2 resolution;
     uniform float flatShading;
     uniform float isSprite;
+    uniform float isLight;
+    uniform vec4 pointLightPos[128];
+    uniform vec4 pointLightCol[128];
+    uniform int pointLightCount;
     uniform float ambientLight;
     uniform float renderNormals;
     uniform float equirectangular;
@@ -1446,13 +1532,49 @@ const BasicShader = async (renderer, options=[]) => {
       }
     }
 
+    vec3 R(vec3 pos, vec3 rot){
+      float p, d;
+      pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
+      pos.z = cos(p)*d;
+      pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
+      pos.z = cos(p)*d;
+      pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
+      pos.y = cos(p)*d;
+      return pos;
+    }
+    
+    vec4 GetPointLight(){
+      float ret = 0.0;
+      vec4 rgba = vec4(0.0, 0.0, 0.0, 1.0);
+      for(int i=0; i < 16; i++){
+        if(i >= pointLightCount) break;
+        vec3 lpos = pointLightPos[i].xyz;
+        lpos = R(lpos, vec3(camOri.x, 0.0, camOri.z ));
+        lpos = R(lpos, vec3(0.0, camOri.y, 0.0));
+        lpos -= geoPos;
+
+        float mag = pointLightPos[i].w;
+        ret = mag / (1.0 + pow(1.0 + sqrt((lpos.x-fPos.x) * (lpos.x-fPos.x) +
+                     (lpos.y-fPos.y) * (lpos.y-fPos.y) +
+                     (lpos.z-fPos.z) * (lpos.z-fPos.z)), 2.0) / 1.0) * 10.0;
+        
+        rgba.r += ret * pointLightCol[i].r;
+        rgba.g += ret * pointLightCol[i].g;
+        rgba.b += ret * pointLightCol[i].b;
+      }
+      return rgba;
+    }
+
     void main() {
       float X, Y, Z, p, d, i, j;
       vec2 coords = Coords(0.0);
       float mixColorIp = colorMix;
       float baseColorIp = 1.0 - mixColorIp;
       vec4 mixColor = vec4(color.rgb, 1.0);
-      float light = ambientLight / 2.0;
+      vec4 gpl = GetPointLight();
+      vec4 light = vec4(ambientLight + gpl.r,
+                    ambientLight + gpl.g,
+                    ambientLight + gpl.b, 1.0);
       float colorMag = 1.0;
       float alpha = 1.0;
       if(skip != 1.0){
@@ -1461,13 +1583,14 @@ const BasicShader = async (renderer, options=[]) => {
         }else{
           ${uFragCode}
           vec4 texel = texture2D( baseTexture, coords);
-          if(isSprite != 0.0){
+          if(isSprite != 0.0 || isLight != 0.0){
             gl_FragColor = merge(gl_FragColor, vec4(texel.rgb, texel.a));
           }else{
-            texel = vec4(texel.rgb * light * 2.0, 1.0);
+            //texel = vec4(texel.rgb * (1.0+light.rgb), 1.0);
             mixColor.a = mixColorIp;
             texel.a = baseColorIp;
             vec4 col = merge(mixColor, texel);
+            col = merge(col, light);
             gl_FragColor = vec4(col.rgb * colorMag, alpha);
           }
         }
@@ -1484,7 +1607,7 @@ const BasicShader = async (renderer, options=[]) => {
   gl.compileShader(fragmentShader)
 
   ret.ConnectGeometry = async ( geometry ) => {
-                            
+
     var dset = structuredClone(dataset)
     ret.datasets = [...ret.datasets, dset]
     
@@ -1533,100 +1656,99 @@ const BasicShader = async (renderer, options=[]) => {
       gl.enableVertexAttribArray(dset.locNormalVec)
       
       let image
-      dset.optionalUniforms.map(async (uniform) => {
-        switch(uniform.name){
-          case 'reflection':
-            var url = uniform.map
-            if(url){
-              let l
-              let suffix = (l=url.split('.'))[l.length-1].toLowerCase()
-              uniform.refTexture = gl.createTexture()
-              switch(suffix){
-                case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
-                  uniform.textureMode = 'video'
-                  if((cacheItem=cache.textures.filter(v=>v.url==url)).length){
-                    console.log('found video in cache... using it')
-                    uniform.video = cacheItem[0].resource
-                    ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
-                    BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
-                  }else{
-                    uniform.video = document.createElement('video')
-                    uniform.video.muted = true
-                    uniform.video.playbackRate = geometry.playbackSpeed
-                    uniform.video.defaultPlaybackRate = geometry.playbackSpeed
-                    ret.datasets = [...ret.datasets, {
-                      texture: uniform.refTexture, iURL: url }]
-                    uniform.video.loop = true
-                    if(!uniform.muted) {
-                      GenericPopup('play audio OK?', true, ()=>{
-                        cache.textures.filter(v=>v.url == url)[0].resource.muted = false
-                        cache.textures.filter(v=>v.url == url)[0].resource.currentTime = 0
-                        cache.textures.filter(v=>v.url == url)[0].resource.play()
+      if(!geometry.isLight){
+        dset.optionalUniforms.map(async (uniform) => {
+          switch(uniform.name){
+            case 'reflection':
+              var url = uniform.map
+              if(url){
+                let l
+                let suffix = (l=url.split('.'))[l.length-1].toLowerCase()
+                uniform.refTexture = gl.createTexture()
+                switch(suffix){
+                  case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
+                    uniform.textureMode = 'video'
+                    if((cacheItem=cache.textures.filter(v=>v.url==url)).length){
+                      console.log('found video in cache... using it')
+                      uniform.video = cacheItem[0].resource
+                      ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                      BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
+                    }else{
+                      uniform.video = document.createElement('video')
+                      uniform.video.muted = true
+                      uniform.video.playbackRate = geometry.playbackSpeed
+                      uniform.video.defaultPlaybackRate = geometry.playbackSpeed
+                      ret.datasets = [...ret.datasets, {
+                        texture: uniform.refTexture, iURL: url }]
+                      uniform.video.loop = true
+                      if(!uniform.muted) {
+                        GenericPopup('play audio OK?', true, ()=>{
+                          cache.textures.filter(v=>v.url == url)[0].resource.muted = false
+                          cache.textures.filter(v=>v.url == url)[0].resource.currentTime = 0
+                          cache.textures.filter(v=>v.url == url)[0].resource.play()
+                        })
+                      }
+                      uniform.video.oncanplay = async () => {
+                        uniform.video.play()
+                        BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
+                      }
+                      await fetch(url).then(res=>res.blob()).then(data => {
+                        uniform.video.src = URL.createObjectURL(data)
+                      })
+                      cache.textures.push({
+                        url,
+                        resource: uniform.video,
+                        texture: uniform.refTexture
                       })
                     }
-                    uniform.video.oncanplay = async () => {
-                      uniform.video.play()
-                      BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
-                    }
-                    await fetch(url).then(res=>res.blob()).then(data => {
-                      uniform.video.src = URL.createObjectURL(data)
-                    })
-                    cache.textures.push({
-                      url,
-                      resource: uniform.video,
-                      texture: uniform.refTexture
-                    })
-                  }
-                break
-                default:
-                  uniform.textureMode = 'image'
-                  if((cacheItem=cache.textures.filter(v=>v.url==url)).length){
-                    console.log('found video in cache... using it')
-                    image = cacheItem[0].resource
-                    ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
-                    BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
-                  }else{
-                    image = new Image()
-                    ret.datasets = [...ret.datasets, {
-                      texture: uniform.refTexture, iURL: url }]
-                    gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
-                    await fetch(url).then(res=>res.blob()).then(data => {
-                      image.src = URL.createObjectURL(data)
-                    })
-                    image.onload = async () => BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
-                    cache.textures.push({
-                      url,
-                      resource: image,
-                      texture: uniform.refTexture
-                    })
-                  }                        
-                break
+                  break
+                  default:
+                    uniform.textureMode = 'image'
+                    if((cacheItem=cache.textures.filter(v=>v.url==url)).length){
+                      console.log('found video in cache... using it')
+                      image = cacheItem[0].resource
+                      ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                      BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
+                    }else{
+                      image = new Image()
+                      ret.datasets = [...ret.datasets, {
+                        texture: uniform.refTexture, iURL: url }]
+                      gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
+                      await fetch(url).then(res=>res.blob()).then(data => {
+                        image.src = URL.createObjectURL(data)
+                      })
+                      image.onload = async () => BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
+                      cache.textures.push({
+                        url,
+                        resource: image,
+                        texture: uniform.refTexture
+                      })
+                    }                        
+                  break
+                }
               }
-            }
-            gl.useProgram(dset.program)
-            uniform.locRefOmitEquirectangular = gl.getUniformLocation(dset.program, "refOmitEquirectangular")
-            gl.uniform1f(uniform.locRefOmitEquirectangular,
-               ( geometry.shapeType == 'rectangle' || geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
-            uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
-            gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
-            gl.uniform1i(uniform.locRefTexture, 1)
-            gl.activeTexture(gl.TEXTURE1)
-            gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
-          break
-          case 'phong':
-            uniform.locPhongTheta = gl.getUniformLocation(dset.program, uniform.theta)
-            gl.uniform1f(uniform.locPhongTheta, uniform.theta)
-          break
-        }
-        uniform.locFlatShading = gl.getUniformLocation(dset.program, uniform.flatShadingUniform)
-        gl.uniform1f(uniform.locFlatShading , uniform.flatShading ? 1.0 : 0.0)
-        
-        
-        
-        uniform.loc = gl.getUniformLocation(dset.program, uniform.name)
-        gl[uniform.dataType](uniform.loc, uniform.value)
-      })
-
+              gl.useProgram(dset.program)
+              uniform.locRefOmitEquirectangular = gl.getUniformLocation(dset.program, "refOmitEquirectangular")
+              gl.uniform1f(uniform.locRefOmitEquirectangular,
+                 ( geometry.shapeType == 'rectangle' || geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
+              uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
+              gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
+              gl.uniform1i(uniform.locRefTexture, 1)
+              gl.activeTexture(gl.TEXTURE1)
+              gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
+            break
+            case 'phong':
+              uniform.locPhongTheta = gl.getUniformLocation(dset.program, uniform.theta)
+              gl.uniform1f(uniform.locPhongTheta, uniform.theta)
+            break
+          }
+          uniform.locFlatShading = gl.getUniformLocation(dset.program, uniform.flatShadingUniform)
+          gl.uniform1f(uniform.locFlatShading , uniform.flatShading ? 1.0 : 0.0)
+          
+          uniform.loc = gl.getUniformLocation(dset.program, uniform.name)
+          gl[uniform.dataType](uniform.loc, uniform.value)
+        })
+      }
       dset.locColor = gl.getUniformLocation(dset.program, "color")
       gl.uniform3f(dset.locColor, ...HexToRGB(geometry.color))
 
@@ -1635,6 +1757,16 @@ const BasicShader = async (renderer, options=[]) => {
 
       dset.locIsSprite = gl.getUniformLocation(dset.program, "isSprite")
       gl.uniform1f(dset.locIsSprite, geometry.isSprite)
+
+      dset.locIsLight = gl.getUniformLocation(dset.program, "isLight")
+      gl.uniform1f(dset.locIsLight, geometry.isLight)
+
+      dset.locPointLights = gl.getUniformLocation(dset.program, "pointLightPos[0]")
+
+      dset.locPointLightCols = gl.getUniformLocation(dset.program, "pointLightCol[0]")
+
+      dset.locPointLightCount = gl.getUniformLocation(dset.program, "pointLightCount")
+      gl.uniform1i(dset.locPointLightCount, 0)
 
       dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
       gl.uniform2f(dset.locResolution, renderer.width, renderer.height)
@@ -1868,7 +2000,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     }
     
     if(resolved){
-      var url = `https://srmcgann.github.io/Coordinates/prebuilt%20shapes/`
+      var url = `${moduleBase}/prebuilt%20shapes/`
       await fetch(`${url}${fileBase}_full.json`).then(res=>res.json()).then(data=>{
         shape     = data.shape
         texCoords = data.texCoords
@@ -2846,6 +2978,8 @@ const AnimationLoop = (renderer, func) => {
   })
 }
 
+const RGBToHSV = (R, G, B) => HSVFromRGB(R, G, B)
+
 const HSVFromRGB = (R, G, B) => {
   let R_=R/255
   let G_=G/255
@@ -2869,6 +3003,15 @@ const HSVFromRGB = (R, G, B) => {
   return [hue, sat, val]
 }
 
+const HSVToHex = (H, S, V) => HexFromHSV(H, S, V)
+
+const HexFromHSV = (H, S, V) => {
+  let ret = RGBFromHSV(H, S, V)
+  return RGBToHex(...ret)
+}
+
+const HSVToRGB = (H, S, V) => RGBFromHSV(H, S, V)
+
 const RGBFromHSV = (H, S, V) => {
   while(H<0) H+=360;
   while(H>=360) H-=360;
@@ -2888,7 +3031,9 @@ const RGBFromHSV = (H, S, V) => {
   return [R,G,B]
 }
 
-const RGBtoHex = (R, G, B) => {
+const HexFromRGB = (R, G, B) => RGBToHex(R, G, B)
+
+const RGBToHex = (R, G, B) => {
   let a = '0123456789abcdef'
   let ret = ''
   ret += a[R/16|0]
@@ -2897,9 +3042,10 @@ const RGBtoHex = (R, G, B) => {
   ret += a[G-(G/16|0)*16|0]
   ret += a[B/16|0]
   ret += a[B-(B/16|0)*16|0]
-  return ret
+  return Number('0x' + ret)
 }
 
+const RGBFromHex = val => HexToRGB(val)
 const HexToRGB = val => {
     var b = ((val/256) - (val/256|0)) //* 256|0
     var g = ((val/256**2) - (val/256**2|0)) //* 256|0
@@ -2927,5 +3073,13 @@ export {
   ImageToPo2,
   LoadOBJ,
   IsPowerOf2,
+  RGBToHSV,
+  HSVToHex,
+  HexFromHSV,
+  HSVToRGB,
+  RGBFromHSV,
+  HexFromRGB,
+  RGBToHex,
+  RGBFromHex,
   HexToRGB,
 }
