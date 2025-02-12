@@ -188,9 +188,10 @@ const Renderer = options => {
       // enable alpha
       switch(geometry.shapeType){
         case 'sprite':
-          ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE);
+          //ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE);
+          ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
           ctx.enable(ctx.BLEND)
-          ctx.disable(ctx.DEPTH_TEST)
+          //ctx.disable(ctx.DEPTH_TEST)
         break
         case 'point light':
           ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
@@ -266,7 +267,7 @@ const Renderer = options => {
         case 'sprite':
           ctx.blendFunc(ctx.ONE, ctx.ZERO)
           ctx.disable(ctx.BLEND)
-          ctx.enable(ctx.DEPTH_TEST)
+          //ctx.enable(ctx.DEPTH_TEST)
         break
         case 'point light':
           ctx.blendFunc(ctx.ONE, ctx.ZERO)
@@ -1304,6 +1305,7 @@ const BasicShader = async (renderer, options=[]) => {
                   `,
                   vertCode:            `
                     phongPos = nVec;
+                    hasPhong = 1.0;
                   `,
                   fragDeclaration:     `
                     uniform float phong;
@@ -1375,8 +1377,6 @@ const BasicShader = async (renderer, options=[]) => {
     attribute vec2 uv;
     ${uVertDeclaration}
     
-    
-    
     uniform float t;
     uniform vec3 color;
     uniform float ambientLight;
@@ -1402,6 +1402,7 @@ const BasicShader = async (renderer, options=[]) => {
     varying vec3 fPosi;
     varying vec3 vnorm;
     varying float skip;
+    varying float hasPhong;
     
     
     vec3 R(vec3 pos, vec3 rot){
@@ -1416,6 +1417,8 @@ const BasicShader = async (renderer, options=[]) => {
     }
     
     void main(){
+      hasPhong = 0.0;
+      
       float cx, cy, cz;
       if(renderNormals == 1.0){
         cx = normal.x;
@@ -1511,6 +1514,7 @@ const BasicShader = async (renderer, options=[]) => {
     varying vec3 fPos;
     varying vec3 fPosi;
     varying float skip;
+    varying float hasPhong;
 
     vec4 merge (vec4 col1, vec4 col2){
       return vec4((col1.rgb * col1.a) + (col2.rgb * col2.a), 1.0);
@@ -1575,7 +1579,7 @@ const BasicShader = async (renderer, options=[]) => {
       float mixColorIp = colorMix;
       float baseColorIp = 1.0 - mixColorIp;
       vec4 mixColor = vec4(color.rgb, 1.0);
-      vec4 gpl = GetPointLight();
+      vec4 gpl = hasPhong == 1.0 ? GetPointLight() : vec4(.2,.2,.2,1.0);
       vec4 light = vec4(ambientLight + gpl.r,
                     ambientLight + gpl.g,
                     ambientLight + gpl.b, 1.0);

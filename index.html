@@ -16,15 +16,33 @@
       import * as Coordinates from
       "./coordinates.js"
     
-      var renderer = await Coordinates.Renderer({ambientLight: .1, fov: 1e3})
+      var renderer = await Coordinates.Renderer({ambientLight: -.2, fov: 1200})
       renderer.z = 20
-      renderer.yaw = Math.PI
+      renderer.yaw = 0
       Coordinates.AnimationLoop(renderer, 'Draw')
       var shaderOptions = [
-        { uniform: { type: 'phong', value: .25 } },
-        { uniform: { type: 'reflection', value: .5, map:"https://i.imgur.com/cR8S2TC.mp4" } }
+        { uniform: { type: 'phong', value: .5 } },
+        { uniform: { type: 'reflection', value: .5,
+          map:"https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg"
+          } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+      
+      var floorShader = await Coordinates.BasicShader(renderer,
+          [
+            { uniform: { type: 'phong', value: .1 }},
+            { uniform: { type: 'reflection', value: 1, enabled: false,
+          map:"https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg"
+            }},
+          ] )
+            
+      var reflectionOnlyShader = await Coordinates.BasicShader(renderer,
+          [
+            { uniform: { type: 'reflection', value: 3, enabled: true,
+          map:"https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg"
+            }},
+          ] )
+            
       var shapes = []
       
       var S = Math.sin
@@ -32,44 +50,71 @@
       var shapeType
       var x=0, y=0, z=0
       
-      /*var geoOptions = {
-        //color: 0xffffff,
-        //colorMix: 1.0,
+      var geoOptions = {
+        color: 0x888888,
+        colorMix: .2,
         shapeType: 'dodecahedron',
         name: 'background',
-        subs: 2,
+        subs: 3,
         sphereize: 1,
-        averageNormals: true,
-        map: 'https://i.imgur.com/cR8S2TC.mp4',
-        x, y, z,
-        size: 1e3,
+        equirectangular: true,
+        //averageNormals: true,
+        //flipNormals: true,
+        map: 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg',
+        showNormals: false,
+        x,
+        y,
+        z,
+        size: 5000,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })*/
+        //await floorShader.ConnectGeometry(geometry)
+      })
       
+      var geoOptions = {
+        color: 0xffffff,
+        colorMix: .75,
+        shapeType: 'rectangle',
+        name: 'floor',
+        subs: 4,
+        sphereize: 0,
+        //averageNormals: true,
+        //map: 'https://i.imgur.com/cR8S2TC.mp4',
+        showNormals: false,
+        x,
+        y: -50,
+        z,
+        size: 300,
+        pitch: Math.PI/2,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await floorShader.ConnectGeometry(geometry)
+      })
       
-      for(var i = 0; i<5; i++){
-        switch(i){
+
+      for(var i = 0; i<3; i++){
+        switch(i%1){
           case 0: shapeType = 'tetrahedron'; break
-          case 1: shapeType = 'cube'; break
+          case 1: shapeType = 'tetrahedron'; break
           case 2: shapeType = 'octahedron'; break
           case 3: shapeType = 'dodecahedron'; break
           case 4: shapeType = 'icosahedron'; break
         }
-        x = S(p=Math.PI*2/5*i) * 16
+        x = S(p=Math.PI*2/3*i) * 64
         y = 0
-        z = C(p) * 16
+        z = C(p) * 64
         var geoOptions = {
-          color: 0xffffff,
-          colorMix: 1.0,
+          //color: 0xffffff,
+          //colorMix: 1.0,
           shapeType,
-          subs: 2,
-          sphereize: -.2,
+          subs: 3,
+          sphereize: 8,
           averageNormals: true,
           x, y, z,
           size: 6,
+          map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
           shapes.push(geometry)
@@ -78,68 +123,118 @@
       }
 
       var geoOptions = {
-        shapeType: 'custom shape',
-        size: 1,
-        url: './custom shapes/ladybug.json',
-        color: 0xffffff,
-        colorMix: 1.0,
+        shapeType: 'torus knot',
+        name: 'centerpiece',
+        //url: './custom shapes/ladybug.json',
+        size: 4,
+        color: 0x000000,
+        colorMix: .5,
         x: 0,
-        y: -4,
+        y: 0,
         z: 0,
         //subs: 2,
         //sphereize: -.5,
         //averageNormals: true,
+        showNormals: false,
+        flipNormals: false,
         equirectangular: true,
-        //map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
+        map: 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.jpg'
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
+        await reflectionOnlyShader.ConnectGeometry(geometry)
       })
       
       var sd = 3
-      var ls = 10
+      var ls = 120
       var p, x, y, z
       for(var i=0; i<sd; i++){
         x = S(p=Math.PI*2/sd*i) * ls
         y = 0
         z = C(p) * ls
         var geoOptions = {
-          color: Coordinates.HSVToHex(360/sd*i,1,.66),
+          color: Coordinates.HSVToHex(360/sd*i,1,1),
           shapeType: 'point light',
-          x, y, z,
-          size: 10,
+          x,
+          y: 10,
+          z,
+          size: 36,
           pointLightShowSource: true
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => { shapes.push(geometry) })
       }
       
+      var geoOptions = {
+        color: 0xffaa00,
+        //colorMix: 1.0,
+        name: 'star',
+        shapeType: 'point light',
+        subs: 0,
+        //sphereize: 8,
+        //averageNormals: true,
+        x:0,
+        y:0,
+        z:0,
+        size: 16,
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png'
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        //await shader.ConnectGeometry(geometry)
+      })
+      
+
       window.Draw = () => {
         //renderer.pitch =  .5
-        renderer.pitch = C(renderer.t/4) / 3 + .66
-        renderer.yaw +=  .01
+        renderer.z = Math.min(200, Math.max(20, (.3+C(renderer.t/8))*250))
+        renderer.pitch = Math.min(1, Math.max(.3, (.3+C(renderer.t/2)) * 1.5))
+        renderer.yaw +=  .005
+        var ct = 0, X, Y, Z, d
         shapes.forEach((shape, idx) => {
           switch(shape.shapeType){
             case 'point light':
-              color: 
-              var X = shape.x
-              var Y = shape.y
-              var Z = shape.z
-              var p = Math.atan2(X, Z) + S(renderer.t/2)* .05
+              if(shape.name == 'star') break
+              ct++
+              shape.color = Coordinates.HSVToHex(360/sd*ct+renderer.t*20,1,1)
+              X = shape.x
+              Y = shape.y
+              Z = shape.z
+              var p = Math.atan2(X, Z) + S(renderer.t/4)* .05
               var d = Math.hypot(X, Z)
               shape.x = S(p) * d
-              shape.y = C(renderer.t + idx) * 3
+              shape.y = C(renderer.t*4) * 32
               shape.z = C(p) * d
             break
           }
           
           switch(shape.name){
-            case 'background':
+            case 'star':
+              var mag = (1 + C(renderer.t*32) / 9) * shape.size * 1
+              d = 0
+              for(var i = 0; i<shape.vertices.length; i+=3){
+                d += Math.hypot(shape.vertices[i+0],
+                                shape.vertices[i+1],
+                                shape.vertices[i+2])
+              }
+              d /= shape.vertices.length/3
+              for(var i = 0; i<shape.vertices.length; i+=3){
+                X = shape.vertices[i+0] / d
+                Y = shape.vertices[i+1] / d
+                Z = shape.vertices[i+2] / d
+                shape.vertices[i+0] =  X * mag
+                shape.vertices[i+1] =  Y * mag
+                shape.vertices[i+2] =  Z * mag
+              }
             break
+            case 'background': case 'floor':
+            break
+            //case 'centerpiece':
+            //  shape.yaw   += .02
+            //break
             default:
-              shape.yaw   += .02
-              //shape.roll   += .01
-              //shape.pitch -= .02
+              shape.yaw   += S(idx + renderer.t) * .01
+              shape.roll   += C(idx + renderer.t) * .02
+              shape.pitch += .005
             break
           }
           renderer.Draw(shape)
