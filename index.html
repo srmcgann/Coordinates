@@ -16,15 +16,66 @@
       import * as Coordinates from
       "./coordinates.js"
     
-      var renderer = await Coordinates.Renderer({ambientLight: 0})
-      renderer.z = 16
+      var renderer = await Coordinates.Renderer({ambientLight: .1, fov: 1e3})
+      renderer.z = 20
+      renderer.yaw = Math.PI
       Coordinates.AnimationLoop(renderer, 'Draw')
       var shaderOptions = [
-        { uniform: { type: 'phong', value: .5 } },
-        { uniform: { type: 'reflection', value: 0, map:"https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg" } }
+        { uniform: { type: 'phong', value: .25 } },
+        { uniform: { type: 'reflection', value: .5, map:"https://i.imgur.com/cR8S2TC.mp4" } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
       var shapes = []
+      
+      var S = Math.sin
+      var C = Math.cos
+      var shapeType
+      var x=0, y=0, z=0
+      
+      /*var geoOptions = {
+        //color: 0xffffff,
+        //colorMix: 1.0,
+        shapeType: 'dodecahedron',
+        name: 'background',
+        subs: 2,
+        sphereize: 1,
+        averageNormals: true,
+        map: 'https://i.imgur.com/cR8S2TC.mp4',
+        x, y, z,
+        size: 1e3,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })*/
+      
+      
+      for(var i = 0; i<5; i++){
+        switch(i){
+          case 0: shapeType = 'tetrahedron'; break
+          case 1: shapeType = 'cube'; break
+          case 2: shapeType = 'octahedron'; break
+          case 3: shapeType = 'dodecahedron'; break
+          case 4: shapeType = 'icosahedron'; break
+        }
+        x = S(p=Math.PI*2/5*i) * 16
+        y = 0
+        z = C(p) * 16
+        var geoOptions = {
+          color: 0xffffff,
+          colorMix: 1.0,
+          shapeType,
+          subs: 2,
+          sphereize: -.2,
+          averageNormals: true,
+          x, y, z,
+          size: 6,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await shader.ConnectGeometry(geometry)
+        })
+      }
 
       var geoOptions = {
         shapeType: 'custom shape',
@@ -33,7 +84,7 @@
         color: 0xffffff,
         colorMix: 1.0,
         x: 0,
-        y: -3,
+        y: -4,
         z: 0,
         //subs: 2,
         //sphereize: -.5,
@@ -46,28 +97,27 @@
         await shader.ConnectGeometry(geometry)
       })
       
-      var S = Math.sin
-      var C = Math.cos
-      var sd = 6
-      var ls = 8
+      var sd = 3
+      var ls = 10
       var p, x, y, z
       for(var i=0; i<sd; i++){
         x = S(p=Math.PI*2/sd*i) * ls
         y = 0
         z = C(p) * ls
         var geoOptions = {
-          color: Coordinates.HSVToHex(360/sd*i,.5,.5),
+          color: Coordinates.HSVToHex(360/sd*i,1,.66),
           shapeType: 'point light',
           x, y, z,
-          size: 3,
+          size: 10,
           pointLightShowSource: true
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => { shapes.push(geometry) })
       }
       
       window.Draw = () => {
-        renderer.pitch = C(renderer.t/2) / 2 + .25
-        //renderer.yaw +=  .01
+        //renderer.pitch =  .5
+        renderer.pitch = C(renderer.t/4) / 3 + .66
+        renderer.yaw +=  .01
         shapes.forEach((shape, idx) => {
           switch(shape.shapeType){
             case 'point light':
@@ -82,9 +132,16 @@
               shape.z = C(p) * d
             break
           }
-          shape.yaw   += .01
-          //shape.roll   += .01
-          //shape.pitch -= .02
+          
+          switch(shape.name){
+            case 'background':
+            break
+            default:
+              shape.yaw   += .02
+              //shape.roll   += .01
+              //shape.pitch -= .02
+            break
+          }
           renderer.Draw(shape)
         })
       }

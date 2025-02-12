@@ -195,7 +195,7 @@ const Renderer = options => {
         case 'point light':
           ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE);
           ctx.enable(ctx.BLEND)
-          //ctx.disable(ctx.DEPTH_TEST)
+          ctx.disable(ctx.DEPTH_TEST)
         break
       }
       
@@ -270,8 +270,8 @@ const Renderer = options => {
         break
         case 'point light':
           ctx.blendFunc(ctx.ONE, ctx.ZERO)
-          ctx.enable(ctx.BLEND)
-          //ctx.enable(ctx.DEPTH_TEST)
+          ctx.disable(ctx.BLEND)
+          ctx.enable(ctx.DEPTH_TEST)
         break
       }
 
@@ -740,7 +740,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'point light':
         isLight = true
-        shape = await Rectangle(Math.max(size / 4, .5), subs-1, sphereize, flipNormals, shapeType)
+        shape = await Rectangle(Math.max(size / 2, .5), subs-1, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
           normals  = [...normals,  ...v.normal]
@@ -1549,9 +1549,13 @@ const BasicShader = async (renderer, options=[]) => {
       for(int i=0; i < 16; i++){
         if(i >= pointLightCount) break;
         vec3 lpos = pointLightPos[i].xyz;
+        lpos.x -= geoPos.x;
+        lpos.y -= geoPos.y;
+        lpos.z -= geoPos.z;
         lpos = R(lpos, vec3(camOri.x, 0.0, camOri.z ));
         lpos = R(lpos, vec3(0.0, camOri.y, 0.0));
-        lpos -= geoPos;
+        //lpos = R(lpos, vec3(0.0, -geoOri.y, 0.0));
+        //lpos = R(lpos, vec3(-geoOri.x, 0.0, -geoOri.z ));
 
         float mag = pointLightPos[i].w;
         ret = mag / (1.0 + pow(1.0 + sqrt((lpos.x-fPos.x) * (lpos.x-fPos.x) +
