@@ -193,9 +193,9 @@ const Renderer = options => {
           ctx.disable(ctx.DEPTH_TEST)
         break
         case 'point light':
-          ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE);
+          ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
           ctx.enable(ctx.BLEND)
-          ctx.disable(ctx.DEPTH_TEST)
+          //ctx.disable(ctx.DEPTH_TEST)
         break
       }
       
@@ -271,7 +271,7 @@ const Renderer = options => {
         case 'point light':
           ctx.blendFunc(ctx.ONE, ctx.ZERO)
           ctx.disable(ctx.BLEND)
-          ctx.enable(ctx.DEPTH_TEST)
+          //ctx.enable(ctx.DEPTH_TEST)
         break
       }
 
@@ -617,7 +617,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     })
   }
 
-  if(shapeType != 'custom shape'){
+  if(1||shapeType != 'custom shape'){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
     for(var i = 0; i< vertices.length; i+=3){
@@ -1560,7 +1560,7 @@ const BasicShader = async (renderer, options=[]) => {
         float mag = pointLightPos[i].w;
         ret = mag / (1.0 + pow(1.0 + sqrt((lpos.x-fPos.x) * (lpos.x-fPos.x) +
                      (lpos.y-fPos.y) * (lpos.y-fPos.y) +
-                     (lpos.z-fPos.z) * (lpos.z-fPos.z)), 2.0) / 1.0) * 10.0;
+                     (lpos.z-fPos.z) * (lpos.z-fPos.z)), 2.0) / 3.0) * 40.0;
         
         rgba.r += ret * pointLightCol[i].r;
         rgba.g += ret * pointLightCol[i].g;
@@ -1588,7 +1588,7 @@ const BasicShader = async (renderer, options=[]) => {
           ${uFragCode}
           vec4 texel = texture2D( baseTexture, coords);
           if(isSprite != 0.0 || isLight != 0.0){
-            gl_FragColor = merge(gl_FragColor, vec4(texel.rgb, texel.a));
+            gl_FragColor = merge(gl_FragColor, vec4(texel.rgb * 2.0, texel.a));
           }else{
             //texel = vec4(texel.rgb * (1.0+light.rgb), 1.0);
             mixColor.a = mixColorIp;
