@@ -1298,7 +1298,7 @@ const BasicShader = async (renderer, options=[]) => {
                                          false : option.uniform.flatShading,
                   flatShadingUniform:  'phongFlatShading',
                   theta:                typeof option.uniform.theta == 'undefined' ?
-                                          .6 : option.uniform.theta,
+                                          .6 + Math.PI: option.uniform.theta,
                   dataType:            'uniform1f',
                   vertDeclaration:     `
                     varying vec3 phongPos;
