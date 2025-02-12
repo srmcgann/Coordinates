@@ -269,3 +269,15 @@ Draws a single geometry created with the ``LoadGeometry`` method<br>
 ``renderer.Draw( geometry)``
 
 ##### Returns nothing
+<br><br>
+These color helper methods are also exposed
+```
+  HSVToHex
+  HexFromHSV
+  HSVToRGB
+  RGBFromHSV
+  HexFromRGB
+  RGBtoHex
+  RGBFromHex
+  HexToRGB
+```
