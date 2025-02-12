@@ -277,7 +277,7 @@ These color helper methods are also exposed
   HSVToRGB
   RGBFromHSV
   HexFromRGB
-  RGBtoHex
+  RGBToHex
   RGBFromHex
   HexToRGB
 ```
