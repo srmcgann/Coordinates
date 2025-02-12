@@ -199,7 +199,7 @@ var geoOptions = {
                          //  lights to affect them, except for
                          //  ambient light
                        • 'point light'
-                         // may have up to 16 in a scene.
+                         // may have up to 128 in a scene.
                          // has optional properties:
                               'size': .5, // brightness, 0.0 to 1.0...
                               'pointLightShowSource': true/false
