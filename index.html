@@ -12,129 +12,141 @@
   </head>
   <body>
     <script type="module">
-
+    
       import * as Coordinates from
       "./coordinates.js"
-
-      // instantiate a canvas. this is also our 'camera'
-      var renderer = await Coordinates.Renderer({ambientLight:.8})
-      
-      // back the camera away from the center (move it toward the viewer)
-      renderer.z = 10
-      renderer.ambientLight = 1
-      
-      // tell the API where to find our animation function
+    
+      var renderer = await Coordinates.Renderer({ambientLight: .1, fov: 1e3})
+      renderer.z = 20
+      renderer.yaw = Math.PI
       Coordinates.AnimationLoop(renderer, 'Draw')
-
-      var vidSrc = 'https://srmcgann.github.io/skyboxes5/videos/cylindricalTurtles.mp4'
-
-      // invoke a shader - phong in this case for a pseudo-lighting effect
       var shaderOptions = [
-        { uniform: { type: 'phong', value: .85 } },
-        { uniform: { type: 'reflection', value: .5, map: vidSrc, enabled: true } },
+        { uniform: { type: 'phong', value: .25 } },
+        { uniform: { type: 'reflection', value: .5, map:"https://i.imgur.com/cR8S2TC.mp4" } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      
-      shaderOptions = [
-        { uniform: { type: 'phong', value: 1 } },
-        { uniform: { type: 'reflection', value: .5, map: vidSrc, enabled: false } },
-      ]
-      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var C = Math.cos
-      var S = Math.sin
-      var Rn = Math.random
-      
       var shapes = []
-
-      var geoOptions = {
-        shapeType: 'cube', subs: 1,
-        size: 1500,
+      
+      var S = Math.sin
+      var C = Math.cos
+      var shapeType
+      var x=0, y=0, z=0
+      
+      /*var geoOptions = {
+        //color: 0xffffff,
+        //colorMix: 1.0,
+        shapeType: 'dodecahedron',
         name: 'background',
-        //equirectangular: true,
-        //scaleX: 1.777777778,
-        //muted: false,
+        subs: 2,
         sphereize: 1,
-        equirectangular: true,
         averageNormals: true,
-        z: 0,
-        pitch: 0,
-        playbackSpeed: 1,
-        map: vidSrc,
+        map: 'https://i.imgur.com/cR8S2TC.mp4',
+        x, y, z,
+        size: 1e3,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await backgroundShader.ConnectGeometry(geometry)
-      })  
+        await shader.ConnectGeometry(geometry)
+      })*/
       
-      var sp = 40
-      var cl = 3
-      var rw = 1
-      var br = 3
-      for(var m = cl*rw*br; m--; ){
+      
+      for(var i = 0; i<5; i++){
+        switch(i){
+          case 0: shapeType = 'tetrahedron'; break
+          case 1: shapeType = 'cube'; break
+          case 2: shapeType = 'octahedron'; break
+          case 3: shapeType = 'dodecahedron'; break
+          case 4: shapeType = 'icosahedron'; break
+        }
+        x = S(p=Math.PI*2/5*i) * 16
+        y = 0
+        z = C(p) * 16
         var geoOptions = {
-          shapeType: 'custom shape',
-          url: 'https://srmcgann.github.io/Coordinates/custom shapes/ladybug.json',
-          size: 1.5,
-          //subs: 2,
-          
-          //averageNormals: true,
-          //sphereize: 1,
-          //color: 0xff0000,
-          //objY: 10,
-          equirectangular: true,
-          //showNormals: true,
-          //flipNormals: true,
-          x: ((m%cl)-cl/2+.5) * sp,
-          y: (((m/cl|0)%rw)-rw/2+.5) * sp - 0,
-          z: ((m/cl/rw|0)-br/2+.5) * sp,
-          map: 'https://srmcgann.github.io/Coordinates/custom%20shapes/LADYBUG.jpg',
-          //exportShape: true
+          color: 0xffffff,
+          colorMix: 1.0,
+          shapeType,
+          subs: 2,
+          sphereize: -.2,
+          averageNormals: true,
+          x, y, z,
+          size: 6,
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
           shapes.push(geometry)
           await shader.ConnectGeometry(geometry)
         })
       }
+
+      var geoOptions = {
+        shapeType: 'custom shape',
+        size: 1,
+        url: './custom shapes/ladybug.json',
+        color: 0xffffff,
+        colorMix: 1.0,
+        x: 0,
+        y: -4,
+        z: 0,
+        //subs: 2,
+        //sphereize: -.5,
+        //averageNormals: true,
+        equirectangular: true,
+        //map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      
+      var sd = 3
+      var ls = 10
+      var p, x, y, z
+      for(var i=0; i<sd; i++){
+        x = S(p=Math.PI*2/sd*i) * ls
+        y = 0
+        z = C(p) * ls
+        var geoOptions = {
+          color: Coordinates.HSVToHex(360/sd*i,1,.66),
+          shapeType: 'point light',
+          x, y, z,
+          size: 10,
+          pointLightShowSource: true
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => { shapes.push(geometry) })
+      }
       
       window.Draw = () => {
-      
-        var t = renderer.t
-        shader.datasets.map(data=>{
-          if(data?.optionalUniforms != 'undefined'){
-            if(data.optionalUniforms?.length) data.optionalUniforms.filter(q=>q.name == 'phong').map(n=>{
-              n.theta -= .075
-            })
-          }
-        })
-        backgroundShader.datasets.map(data=>{
-          if(data?.optionalUniforms != 'undefined'){
-            if(data.optionalUniforms?.length) data.optionalUniforms.filter(q=>q.name == 'phong').map(n=>{
-              n.theta -= .075
-            })
-          }
-        })
-      
-        //renderer.Clear()
-        renderer.z = Math.min(42, Math.max(10, (.3+C(t/6))*90))
-        renderer.yaw += .005
-        renderer.pitch = .25 + Math.cos(renderer.t/3) 
-      
-        shapes.forEach(async (shape, idx) => {
-          switch(shape.name){
-            case 'background': break
-            default:
-              shape.yaw   += S(t + idx)  * .005 - .01
-              shape.pitch += C(idx*8 + t*2) * .03 - .02
-              shape.roll += C(idx + t/2) * .02
+        //renderer.pitch =  .5
+        renderer.pitch = C(renderer.t/4) / 3 + .66
+        renderer.yaw +=  .01
+        shapes.forEach((shape, idx) => {
+          switch(shape.shapeType){
+            case 'point light':
+              color: 
+              var X = shape.x
+              var Y = shape.y
+              var Z = shape.z
+              var p = Math.atan2(X, Z) + S(renderer.t/2)* .05
+              var d = Math.hypot(X, Z)
+              shape.x = S(p) * d
+              shape.y = C(renderer.t + idx) * 3
+              shape.z = C(p) * d
             break
           }
-          await renderer.Draw(shape)
+          
+          switch(shape.name){
+            case 'background':
+            break
+            default:
+              shape.yaw   += .02
+              //shape.roll   += .01
+              //shape.pitch -= .02
+            break
+          }
+          renderer.Draw(shape)
         })
       }
+      
     </script>
-
   </body>
 </html>
 

@@ -199,8 +199,9 @@ var geoOptions = {
                          //  lights to affect them, except for
                          //  ambient light
                        • 'point light'
+                         // may have up to 128 in a scene.
                          // has optional properties:
-                              'pointLightValue': .5, // 0.0 to 1.0...
+                              'size': .5, // brightness, 0.0 to 1.0...
                               'pointLightShowSource': true/false
                               // ignores shader, if one is connected
                        • 'cylinder'
@@ -268,3 +269,15 @@ Draws a single geometry created with the ``LoadGeometry`` method<br>
 ``renderer.Draw( geometry)``
 
 ##### Returns nothing
+<br><br>
+These color helper methods are also exposed
+```
+  HSVToHex
+  HexFromHSV
+  HSVToRGB
+  RGBFromHSV
+  HexFromRGB
+  RGBToHex
+  RGBFromHex
+  HexToRGB
+```
