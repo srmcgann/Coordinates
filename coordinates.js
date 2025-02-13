@@ -25,15 +25,16 @@ const Renderer = options => {
   var roll=0, pitch=0, yaw=0, fov=2e3
   var attachToBody = true, margin = 10
   var ambientLight = .5, alpha=false, clearColor = 0x000000
+  var exportGPUSpecs = false
   var context = {
-    mode: 'webgl',
+    mode: 'webgl2',
     options: {
-      alpha                   : true,
-      antialias               : true,
-      desynchronized          : true,
+      alpha                   : false,
+      antialias               : false,
+      desynchronized          : false,
     }
   }
-  
+
   var pointLights = []
   var pointLightCols = []
   
@@ -51,8 +52,9 @@ const Renderer = options => {
         case 'yaw': yaw = options[key]; break
         case 'fov': fov = options[key]; break
         case 'clearColor': clearColor = options[key]; break
-        case 'attachToBody': attachToBody = options[key]; break
+        case 'attachToBody': attachToBody = !!options[key]; break
         case 'margin': margin = options[key]; break
+        case 'exportgpuspecs': exportGPUSpecs = !!options[key]; break
         case 'ambientLight': ambientLight = options[key]; break
         case 'context':
           context.mode = options[key].mode
@@ -67,6 +69,9 @@ const Renderer = options => {
   c.width  = width
   c.height = height
   const contextType = context[0]
+  
+  console.log(`GLSL version: ${ctx.getParameter(ctx.SHADING_LANGUAGE_VERSION)}`)
+  if(exportGPUSpecs) getParams(ctx)
   
   switch(contextType){
     case '2d':
@@ -125,7 +130,7 @@ const Renderer = options => {
       default:
         ctx.clearColor(0,0,0,1) //...HexToRGB(), 1.0)
         ctx.clear(ctx.COLOR_BUFFER_BIT)
-        ctx.clear(GL_DEPTH_BUFFER_BIT)
+        ctx.clear(ctx.DEPTH_BUFFER_BIT)
       break
     }
   }
@@ -163,8 +168,10 @@ const Renderer = options => {
         let col = HexToRGB(geometry.color)
         plcols = [...plcols, ...HexToRGB(geometry.color), 1.0]
       })
-      ctx.uniform4fv(dset.locPointLights, pldata)
-      ctx.uniform4fv(dset.locPointLightCols, plcols)
+      if(pldata.length){
+        ctx.uniform4fv(dset.locPointLights, pldata)
+        ctx.uniform4fv(dset.locPointLightCols, plcols)
+      }
       
 
       // other uniforms
@@ -291,9 +298,6 @@ const Renderer = options => {
         ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       }
     }
-    renderer.t = performance.now() / 1000
-
-    
   }
   renderer['Draw'] = Draw
         
@@ -1329,7 +1333,7 @@ const BasicShader = async (renderer, options=[]) => {
                     phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
                     phongP2 = -acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
                     
-                    float fact = pow((1.0+cos(phongP1)) * (1.0+cos(phongP2 + .25)), 8.0) / 100000.0 * phong ;
+                    float fact = pow((1.0+cos(phongP1)) * (1.0+cos(phongP2 + .25)), 4.0) / 250.0 * phong ;
                     light = vec4(light.rgb + fact, 1.0);
                     mixColorIp = fact + (light.r + light.g + light.b) / 3.0;
                   `,
@@ -1475,7 +1479,7 @@ const BasicShader = async (renderer, options=[]) => {
         float X = ((pos.x + camPos.x + geo.x) / Z * fov / resolution.x);
         float Y = ((pos.y + camPos.y + geo.y) / Z * fov / resolution.y);
         //gl_PointSize = 100.0 / Z;
-        gl_Position = vec4(X, Y, Z/10000.0, 1.0);
+        gl_Position = vec4(X, Y, Z/100000.0, 1.0);
         skip = 0.0;
         vUv = uv;
       }else{
@@ -1528,8 +1532,8 @@ const BasicShader = async (renderer, options=[]) => {
         float p1;
         p1 = p / M_PI / 2.0;
         p2 = flatShading == 1.0 ?
-              acos(nVec.y / (sqrt(nVeci.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) / M_PI   :
-              p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.00001)) / M_PI;
+              acos(nVec.y / (sqrt(nVeci.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.0001)) / M_PI   :
+              p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.0001)) / M_PI;
         return vec2(p1, p2);
       }else{
         return vUv;
@@ -1579,7 +1583,7 @@ const BasicShader = async (renderer, options=[]) => {
       float mixColorIp = colorMix;
       float baseColorIp = 1.0 - mixColorIp;
       vec4 mixColor = vec4(color.rgb, 1.0);
-      vec4 gpl = hasPhong == 1.0 ? GetPointLight() : vec4(.2,.2,.2,1.0);
+      vec4 gpl = hasPhong == 1.0 ? GetPointLight() : vec4(.2,.2,.2, 1.0);
       vec4 light = vec4(ambientLight + gpl.r,
                     ambientLight + gpl.g,
                     ambientLight + gpl.b, 1.0);
@@ -1883,6 +1887,9 @@ const BasicShader = async (renderer, options=[]) => {
       console.error(`bad shader :( ${info}`)
       console.error(`vShader info : ${vshaderInfo}`)
       console.error(`fShader info : ${fshaderInfo}`)
+      alert(`bad shader :( ${info}`)
+      alert(`vShader info : ${vshaderInfo}`)
+      alert(`fShader info : ${fshaderInfo}`)
     }
   }
   
@@ -2978,6 +2985,7 @@ const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
 const AnimationLoop = (renderer, func) => {
   const loop = () => {
     if(renderer.ready && typeof window[func] != 'undefined') window[func]()
+    renderer.t += 1/60  //performance.now() / 1000
     requestAnimationFrame(loop)
   }
   window.addEventListener('load', () => {
@@ -3060,6 +3068,88 @@ const HexToRGB = val => {
     var r = ((val/256**3) - (val/256**3|0)) //* 256|0
     return [r, g, b]
 }
+
+
+const getParams = ctx => {
+  var paramNames = ['COPY_READ_BUFFER_BINDING','COPY_WRITE_BUFFER_BINDING','DRAW_BUFFERi','DRAW_FRAMEBUFFER_BINDING','FRAGMENT_SHADER_DERIVATIVE_HINT','MAX_3D_TEXTURE_SIZE','MAX_ARRAY_TEXTURE_LAYERS','MAX_CLIENT_WAIT_TIMEOUT_WEBGL','MAX_COLOR_ATTACHMENTS','MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS','MAX_COMBINED_UNIFORM_BLOCKS','MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS','MAX_DRAW_BUFFERS','MAX_ELEMENT_INDEX','MAX_ELEMENTS_INDICES','MAX_ELEMENTS_VERTICES','MAX_FRAGMENT_INPUT_COMPONENTS','MAX_FRAGMENT_UNIFORM_BLOCKS','MAX_FRAGMENT_UNIFORM_COMPONENTS','MAX_PROGRAM_TEXEL_OFFSET','MAX_SAMPLES','MAX_SERVER_WAIT_TIMEOUT','MAX_TEXTURE_LOD_BIAS','MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS','MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS','MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS','MAX_UNIFORM_BLOCK_SIZE','MAX_UNIFORM_BUFFER_BINDINGS','MAX_VARYING_COMPONENTS','MAX_VERTEX_OUTPUT_COMPONENTS','MAX_VERTEX_UNIFORM_BLOCKS','MAX_VERTEX_UNIFORM_COMPONENTS','MIN_PROGRAM_TEXEL_OFFSET','PACK_ROW_LENGTH','PACK_SKIP_PIXELS','PACK_SKIP_ROWS','PIXEL_PACK_BUFFER_BINDING','PIXEL_UNPACK_BUFFER_BINDING','RASTERIZER_DISCARD','READ_BUFFER','READ_FRAMEBUFFER_BINDING','SAMPLE_ALPHA_TO_COVERAGE','SAMPLE_COVERAGE','SAMPLER_BINDING','TEXTURE_BINDING_2D_ARRAY','TEXTURE_BINDING_3D','TRANSFORM_FEEDBACK_ACTIVE','TRANSFORM_FEEDBACK_BINDING','TRANSFORM_FEEDBACK_BUFFER_BINDING','TRANSFORM_FEEDBACK_PAUSED','UNIFORM_BUFFER_BINDING','UNIFORM_BUFFER_OFFSET_ALIGNMENT','UNPACK_IMAGE_HEIGHT','UNPACK_ROW_LENGTH','UNPACK_SKIP_IMAGES','UNPACK_SKIP_PIXELS','UNPACK_SKIP_ROWS','VERTEX_ARRAY_BINDING']
+  
+  var params = []
+  paramNames.map(name => {
+    params.push({ name, val: ctx.getParameter(ctx[name]) })
+  })
+
+  var popup = document.createElement('div')
+  popup.style.position = 'fixed'
+  popup.style.zIndex = 100000
+  popup.style.left = '50%'
+  popup.style.top = '50%'
+  popup.style.transform = 'translate(-50%, -50%)'
+  popup.style.background = '#0008'
+  popup.style.padding = '20px'
+  popup.style.width = '600px'
+  popup.style.height = '350px'
+  popup.style.border = '1px solid #fff4'
+  popup.style.borderRadius = '5px'
+  popup.style.fontFamily = 'monospace'
+  popup.style.fontSize = '20px'
+  popup.style.color = '#fff'
+  var titleEl = document.createElement('div')
+  titleEl.style.fontSize = '24px'
+  titleEl.style.color = '#0f8c'
+  titleEl.innerHTML = `rendering context parameters` + '<br><br>'
+  popup.appendChild(titleEl)
+  var output = document.createElement('div')
+  //output.id = 'shapeDataOutput' + geometry.name + geometry.shapeType
+  output.style.minWidth = '100%'
+  output.style.height = '250px'
+  output.style.background = '#333'
+  output.style.border = '1px solid #fff4'
+  output.style.overflowY = 'auto'
+  output.style.wordWrap = 'break-word'
+  output.style.color = '#888'
+  output.style.fontSize = '10px'
+  popup.appendChild(output)
+  var copyButton = document.createElement('button')
+  copyButton.style.border = 'none'
+  copyButton.style.padding = '3px'
+  copyButton.style.cursor = 'pointer'
+  copyButton.fontSize = '20px'
+  copyButton.style.borderRadius = '10px'
+  copyButton.style.margin = '10px'
+  copyButton.style.minWidth = '100px'
+  copyButton.innerHTML = '📋 copy'
+  copyButton.title = "copy shape data to clipboard"
+  copyButton.onclick = () => {
+    var range = document.createRange()
+    range.selectNode(output)
+    window.getSelection().removeAllRanges()
+    window.getSelection().addRange(range)
+    document.execCommand("copy")
+    window.getSelection().removeAllRanges()
+    copyButton.innerHTML = 'COPIED!'
+    setTimeout(() => {
+      copyButton.innerHTML = '📋 copy'
+    } , 1000)
+  }
+  popup.appendChild(copyButton)
+  var closeButton = document.createElement('button')
+  closeButton.onclick = () => popup.remove()
+  
+  closeButton.style.border = 'none'
+  closeButton.style.padding = '3px'
+  closeButton.style.cursor = 'pointer'
+  closeButton.fontSize = '20px'
+  closeButton.style.borderRadius = '10px'
+  closeButton.style.margin = '10px'
+  closeButton.style.background = '#faa'
+  closeButton.style.minWidth = '100px'
+  closeButton.innerHTML = 'close'
+  popup.appendChild(closeButton)
+  
+  output.innerHTML = JSON.stringify(params)
+  document.body.appendChild(popup)
+}
+
 
 export {
   Renderer,
