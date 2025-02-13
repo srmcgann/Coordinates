@@ -24,7 +24,7 @@ const Renderer = options => {
   var width = 1920, height = 1080
   var roll=0, pitch=0, yaw=0, fov=2e3
   var attachToBody = true, margin = 10
-  var ambientLight = .5, alpha=false, clearColor = 0x000000
+  var ambientLight = .2, alpha=false, clearColor = 0x000000
   var exportGPUSpecs = false
   var context = {
     mode: 'webgl2',
@@ -1302,7 +1302,7 @@ const BasicShader = async (renderer, options=[]) => {
                                          false : option.uniform.flatShading,
                   flatShadingUniform:  'phongFlatShading',
                   theta:                typeof option.uniform.theta == 'undefined' ?
-                                          .6 + Math.PI: option.uniform.theta,
+                                          .5 + Math.PI: option.uniform.theta,
                   dataType:            'uniform1f',
                   vertDeclaration:     `
                     varying vec3 phongPos;
@@ -1317,7 +1317,7 @@ const BasicShader = async (renderer, options=[]) => {
                     uniform float phongFlatShading;
                     varying vec3 phongPos;
                   `,
-                  fragCode:            `
+                  fragCode:   `
                     light = vec4(light.r * .5, light.g * .75, light.b * .75, 1.0);
                     float phongP1, phongP2;
                     float px, py, pz;
@@ -1331,9 +1331,9 @@ const BasicShader = async (renderer, options=[]) => {
                       pz = phongPos.z;
                     }
                     phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
-                    phongP2 = -acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
+                    phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
                     
-                    float fact = pow((1.0+cos(phongP1)) * (1.0+cos(phongP2 + .25)), 4.0) / 250.0 * phong ;
+                    float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.3)), 2.0), 2.0) / 500.0 * phong ;
                     light = vec4(light.rgb + fact, 1.0);
                     mixColorIp = fact + (light.r + light.g + light.b) / 3.0;
                   `,
@@ -1376,7 +1376,7 @@ const BasicShader = async (renderer, options=[]) => {
   dataset.optionalUniforms.map(v=>{ uFragCode += ("\n" + v.fragCode + "\n") })
 
   ret.vert = `
-    precision mediump float;
+    precision highp float;
     #define M_PI 3.14159265358979323
     attribute vec2 uv;
     ${uVertDeclaration}
@@ -1476,8 +1476,8 @@ const BasicShader = async (renderer, options=[]) => {
       
       float Z = pos.z + camz + geo.z;
       if(Z > 0.0) {
-        float X = ((pos.x + camPos.x + geo.x) / Z * fov / resolution.x);
-        float Y = ((pos.y + camPos.y + geo.y) / Z * fov / resolution.y);
+        float X = (pos.x + camPos.x + geo.x) / Z * fov / resolution.x;
+        float Y = (pos.y + camPos.y + geo.y) / Z * fov / resolution.y;
         //gl_PointSize = 100.0 / Z;
         gl_Position = vec4(X, Y, Z/100000.0, 1.0);
         skip = 0.0;
@@ -1489,7 +1489,7 @@ const BasicShader = async (renderer, options=[]) => {
   `
   
   ret.frag = `
-    precision mediump float;
+    precision highp float;
     #define M_PI 3.14159265358979323
     ${uFragDeclaration}
     uniform float t;
@@ -1497,8 +1497,8 @@ const BasicShader = async (renderer, options=[]) => {
     uniform float flatShading;
     uniform float isSprite;
     uniform float isLight;
-    uniform vec4 pointLightPos[128];
-    uniform vec4 pointLightCol[128];
+    uniform vec4 pointLightPos[16];
+    uniform vec4 pointLightCol[16];
     uniform int pointLightCount;
     uniform float ambientLight;
     uniform float renderNormals;
@@ -1532,7 +1532,7 @@ const BasicShader = async (renderer, options=[]) => {
         float p1;
         p1 = p / M_PI / 2.0;
         p2 = flatShading == 1.0 ?
-              acos(nVec.y / (sqrt(nVeci.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.0001)) / M_PI   :
+              acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.0001)) / M_PI   :
               p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.0001)) / M_PI;
         return vec2(p1, p2);
       }else{
@@ -1574,22 +1574,21 @@ const BasicShader = async (renderer, options=[]) => {
         rgba.g += ret * pointLightCol[i].g;
         rgba.b += ret * pointLightCol[i].b;
       }
-      return rgba;
+      return pointLightCount > 0 ? vec4(rgba.rgb + ambientLight, 1.0) : vec4(ambientLight,
+                                               ambientLight,
+                                               ambientLight, 1.0);
     }
 
     void main() {
-      float X, Y, Z, p, d, i, j;
-      vec2 coords = Coords(0.0);
-      float mixColorIp = colorMix;
-      float baseColorIp = 1.0 - mixColorIp;
-      vec4 mixColor = vec4(color.rgb, 1.0);
-      vec4 gpl = hasPhong == 1.0 ? GetPointLight() : vec4(.2,.2,.2, 1.0);
-      vec4 light = vec4(ambientLight + gpl.r,
-                    ambientLight + gpl.g,
-                    ambientLight + gpl.b, 1.0);
-      float colorMag = 1.0;
-      float alpha = 1.0;
       if(skip != 1.0){
+        float X, Y, Z, p, d, i, j;
+        vec2 coords = Coords(0.0);
+        float mixColorIp = colorMix;
+        float baseColorIp = 1.0 - mixColorIp;
+        vec4 mixColor = vec4(color.rgb, 1.0);
+        vec4 light = GetPointLight();
+        float colorMag = 1.0;
+        float alpha = 1.0;
         if(renderNormals == 1.0){
           gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
         }else{
