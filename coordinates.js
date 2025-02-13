@@ -23,18 +23,17 @@ const Renderer = options => {
   var x=0, y=0, z=0
   var width = 1920, height = 1080
   var roll=0, pitch=0, yaw=0, fov=2e3
-  var attachToBody = true, margin = 10
-  var ambientLight = .2, alpha=false, clearColor = 0x000000
-  var exportGPUSpecs = false
+  var attachToBody = true, margin = 10, exportGPUSpecs = false
+  var ambientLight = .5, alpha=false, clearColor = 0x000000
   var context = {
     mode: 'webgl2',
     options: {
-      alpha                   : false,
-      antialias               : false,
-      desynchronized          : false,
+      alpha                   : true,
+      antialias               : true,
+      desynchronized          : true,
     }
   }
-
+  
   var pointLights = []
   var pointLightCols = []
   
@@ -53,8 +52,8 @@ const Renderer = options => {
         case 'fov': fov = options[key]; break
         case 'clearColor': clearColor = options[key]; break
         case 'attachToBody': attachToBody = !!options[key]; break
-        case 'margin': margin = options[key]; break
         case 'exportgpuspecs': exportGPUSpecs = !!options[key]; break
+        case 'margin': margin = options[key]; break
         case 'ambientLight': ambientLight = options[key]; break
         case 'context':
           context.mode = options[key].mode
@@ -69,7 +68,7 @@ const Renderer = options => {
   c.width  = width
   c.height = height
   const contextType = context[0]
-  
+
   console.log(`GLSL version: ${ctx.getParameter(ctx.SHADING_LANGUAGE_VERSION)}`)
   if(exportGPUSpecs) getParams(ctx)
   
@@ -172,7 +171,6 @@ const Renderer = options => {
         ctx.uniform4fv(dset.locPointLights, pldata)
         ctx.uniform4fv(dset.locPointLightCols, plcols)
       }
-      
 
       // other uniforms
       
@@ -232,11 +230,15 @@ const Renderer = options => {
       })
       
       
+      ctx.disable(ctx.CULL_FACE)
+      //ctx.cullFace(ctx.BACK)
+     
       // bind buffers
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
       ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW)
+      //ctx.vertexAttribDivisor(dset.locUv, 0)
       ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
@@ -244,27 +246,43 @@ const Renderer = options => {
       
       // vertices
 
-        //ctx.uniform1f(dset.locRenderNormals, 1.0)
-
 
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
       ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nVecIndices, ctx.STATIC_DRAW)
+      //ctx.vertexAttribDivisor(dset.locNormalVec, 0)
       ctx.vertexAttribPointer(dset.locNormalVec, 3, ctx.FLOAT, true, 0, 0)
       ctx.enableVertexAttribArray(dset.locNormalVec)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
         
 
+      /*
       ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
       ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
       ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
+      //ctx.vertexAttribDivisor(dset.locPosition, 0)
+      ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+      ctx.enableVertexAttribArray(dset.locPosition)
+      ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
+      //ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
+      */
+
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+      ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+      ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
+      ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+      ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+      dset.locPosition = ctx.getAttribLocation(dset.program, "position")
       ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
       ctx.enableVertexAttribArray(dset.locPosition)
-      ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
-      //ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_SHORT,0)
+      ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
+
       ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
       ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
 
@@ -284,19 +302,22 @@ const Renderer = options => {
       }
 
 
+      /*
       // normals lines drawn, optionally
+      ctx.uniform1f(dset.locRenderNormals, geometry.showNormals ? 1 : 0)
       if(geometry.showNormals){
-        ctx.uniform1f(dset.locRenderNormals, 1)
         ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
         ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
         ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
         ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
+        //ctx.vertexAttribDivisor(dset.locNormal, 0)
         ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, true, 0, 0)
         ctx.enableVertexAttribArray(dset.locNormal)
-        ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_SHORT,0)
+        ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_INT,0)
         ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
         ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
       }
+      */
     }
   }
   renderer['Draw'] = Draw
@@ -920,7 +941,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer)
   gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
-  vIndices = new Uint16Array( Array(vertices.length/3).fill().map((v,i)=>i) )
+  vIndices = new Uint32Array( Array(vertices.length/3).fill().map((v,i)=>i) )
   Vertex_Index_Buffer = gl.createBuffer()
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, vIndices, gl.STATIC_DRAW)
@@ -931,29 +952,31 @@ const LoadGeometry = async (renderer, geoOptions) => {
   gl.bindBuffer(gl.ARRAY_BUFFER, normalVec_buffer)
   gl.bufferData(gl.ARRAY_BUFFER, normalVecs, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
-  nVecIndices = new Uint16Array( Array(normalVecs.length/3).fill().map((v,i)=>i) )
+  nVecIndices = new Uint32Array( Array(normalVecs.length/3).fill().map((v,i)=>i) )
   NormalVec_Index_Buffer = gl.createBuffer()
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, NormalVec_Index_Buffer)
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, nVecIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
   
   //normal lines for drawing, indices
+  /*
   normal_buffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
   gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
-  nIndices = new Uint16Array( Array(normals.length/3).fill().map((v,i)=>i) )
+  nIndices = new Uint32Array( Array(normals.length/3).fill().map((v,i)=>i) )
   Normal_Index_Buffer = gl.createBuffer()
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, nIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  */
 
   //uvs, indices
   uv_buffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer)
   gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
-  uvIndices = new Uint16Array( Array(uvs.length/2).fill().map((v,i)=>i) )
+  uvIndices = new Uint32Array( Array(uvs.length/2).fill().map((v,i)=>i) )
   UV_Index_Buffer = gl.createBuffer()
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, uvIndices, gl.STATIC_DRAW)
@@ -1302,7 +1325,7 @@ const BasicShader = async (renderer, options=[]) => {
                                          false : option.uniform.flatShading,
                   flatShadingUniform:  'phongFlatShading',
                   theta:                typeof option.uniform.theta == 'undefined' ?
-                                          .5 + Math.PI: option.uniform.theta,
+                                          .6 + Math.PI: option.uniform.theta,
                   dataType:            'uniform1f',
                   vertDeclaration:     `
                     varying vec3 phongPos;
@@ -1317,7 +1340,7 @@ const BasicShader = async (renderer, options=[]) => {
                     uniform float phongFlatShading;
                     varying vec3 phongPos;
                   `,
-                  fragCode:   `
+                  fragCode:            `
                     light = vec4(light.r * .5, light.g * .75, light.b * .75, 1.0);
                     float phongP1, phongP2;
                     float px, py, pz;
@@ -1331,9 +1354,9 @@ const BasicShader = async (renderer, options=[]) => {
                       pz = phongPos.z;
                     }
                     phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
-                    phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
+                    phongP2 = -acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
                     
-                    float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.3)), 2.0), 2.0) / 500.0 * phong ;
+                    float fact = pow((1.0+cos(phongP1)) * (1.0+cos(phongP2 + .25)), 8.0) / 100000.0 * phong ;
                     light = vec4(light.rgb + fact, 1.0);
                     mixColorIp = fact + (light.r + light.g + light.b) / 3.0;
                   `,
@@ -1476,10 +1499,10 @@ const BasicShader = async (renderer, options=[]) => {
       
       float Z = pos.z + camz + geo.z;
       if(Z > 0.0) {
-        float X = (pos.x + camPos.x + geo.x) / Z * fov / resolution.x;
-        float Y = (pos.y + camPos.y + geo.y) / Z * fov / resolution.y;
+        float X = ((pos.x + camPos.x + geo.x) / Z * fov / resolution.x);
+        float Y = ((pos.y + camPos.y + geo.y) / Z * fov / resolution.y);
         //gl_PointSize = 100.0 / Z;
-        gl_Position = vec4(X, Y, Z/100000.0, 1.0);
+        gl_Position = vec4(X, Y, Z/1000000.0, 1.0);
         skip = 0.0;
         vUv = uv;
       }else{
@@ -1497,8 +1520,8 @@ const BasicShader = async (renderer, options=[]) => {
     uniform float flatShading;
     uniform float isSprite;
     uniform float isLight;
-    uniform vec4 pointLightPos[16];
-    uniform vec4 pointLightCol[16];
+    uniform vec4 pointLightPos[128];
+    uniform vec4 pointLightCol[128];
     uniform int pointLightCount;
     uniform float ambientLight;
     uniform float renderNormals;
@@ -1532,8 +1555,8 @@ const BasicShader = async (renderer, options=[]) => {
         float p1;
         p1 = p / M_PI / 2.0;
         p2 = flatShading == 1.0 ?
-              acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.0001)) / M_PI   :
-              p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.0001)) / M_PI;
+              acos(nVec.y / (sqrt(nVeci.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) / M_PI   :
+              p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.00001)) / M_PI;
         return vec2(p1, p2);
       }else{
         return vUv;
@@ -1552,6 +1575,33 @@ const BasicShader = async (renderer, options=[]) => {
     }
     
     vec4 GetPointLight(){
+      /*
+      float ret = 0.0;
+      vec4 rgba = vec4(0.0, 0.0, 0.0, 1.0);
+      for(int i=0; i < 16; i++){
+        if(i >= pointLightCount) break;
+        vec3 lpos = pointLightPos[i].xyz;
+        lpos.x -= geoPos.x;
+        lpos.y -= geoPos.y;
+        lpos.z -= geoPos.z;
+        lpos = R(lpos, vec3(camOri.x, 0.0, camOri.z ));
+        lpos = R(lpos, vec3(0.0, camOri.y, 0.0));
+        //lpos = R(lpos, vec3(0.0, -geoOri.y, 0.0));
+        //lpos = R(lpos, vec3(-geoOri.x, 0.0, -geoOri.z ));
+
+        float mag = pointLightPos[i].w;
+        ret = mag / (1.0 + pow(1.0 + sqrt((lpos.x-fPos.x) * (lpos.x-fPos.x) +
+                     (lpos.y-fPos.y) * (lpos.y-fPos.y) +
+                     (lpos.z-fPos.z) * (lpos.z-fPos.z)), 2.0) / 3.0) * 40.0;
+        
+        rgba.r += ret * pointLightCol[i].r;
+        rgba.g += ret * pointLightCol[i].g;
+        rgba.b += ret * pointLightCol[i].b;
+      }
+      return rgba;
+      */
+      
+      
       float ret = 0.0;
       vec4 rgba = vec4(0.0, 0.0, 0.0, 1.0);
       for(int i=0; i < 16; i++){
@@ -1577,18 +1627,23 @@ const BasicShader = async (renderer, options=[]) => {
       return pointLightCount > 0 ? vec4(rgba.rgb + ambientLight, 1.0) : vec4(ambientLight,
                                                ambientLight,
                                                ambientLight, 1.0);
+
     }
 
     void main() {
+      /*
+      float X, Y, Z, p, d, i, j;
+      vec2 coords = Coords(0.0);
+      float mixColorIp = colorMix;
+      float baseColorIp = 1.0 - mixColorIp;
+      vec4 mixColor = vec4(color.rgb, 1.0);
+      vec4 gpl = hasPhong == 1.0 ? GetPointLight() : vec4(.2,.2,.2,1.0);
+      vec4 light = vec4(ambientLight + gpl.r,
+                    ambientLight + gpl.g,
+                    ambientLight + gpl.b, 1.0);
+      float colorMag = 1.0;
+      float alpha = 1.0;
       if(skip != 1.0){
-        float X, Y, Z, p, d, i, j;
-        vec2 coords = Coords(0.0);
-        float mixColorIp = colorMix;
-        float baseColorIp = 1.0 - mixColorIp;
-        vec4 mixColor = vec4(color.rgb, 1.0);
-        vec4 light = GetPointLight();
-        float colorMag = 1.0;
-        float alpha = 1.0;
         if(renderNormals == 1.0){
           gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
         }else{
@@ -1606,6 +1661,35 @@ const BasicShader = async (renderer, options=[]) => {
           }
         }
       }
+      */
+      
+      float X, Y, Z, p, d, i, j;
+      vec2 coords = Coords(0.0);
+      float mixColorIp = colorMix;
+      float baseColorIp = 1.0 - mixColorIp;
+      vec4 mixColor = vec4(color.rgb, 1.0);
+      vec4 light = hasPhong == 1.0 ? GetPointLight() : vec4(.2,.2,.2,1.0);
+      float colorMag = 1.0;
+      float alpha = 1.0;
+      if(skip != 1.0){
+        if(renderNormals == 1.0){
+          gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
+        }else{
+          ${uFragCode}
+          vec4 texel = texture2D( baseTexture, coords);
+          if(isSprite != 0.0 || isLight != 0.0){
+            gl_FragColor = merge(gl_FragColor, vec4(texel.rgb * 2.0, texel.a));
+          }else{
+            //texel = vec4(texel.rgb * (1.0+light.rgb), 1.0);
+            mixColor.a = mixColorIp;
+            texel.a = baseColorIp;
+            vec4 col = merge(mixColor, texel);
+            col = merge(col, light);
+            gl_FragColor = vec4(col.rgb * colorMag, alpha);
+          }
+        }
+      }
+
     }
   `
   
@@ -1654,11 +1738,11 @@ const BasicShader = async (renderer, options=[]) => {
       gl.vertexAttribPointer(dset.locUv , 2, gl.FLOAT, false, 0, 0)
       gl.enableVertexAttribArray(dset.locUv)
 
-      gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normal_buffer)
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
-      dset.locNormal = gl.getAttribLocation(dset.program, "normal")
-      gl.vertexAttribPointer(dset.locNormal, 3, gl.FLOAT, true, 0, 0)
-      gl.enableVertexAttribArray(dset.locNormal)
+      //gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normal_buffer)
+      //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
+      //dset.locNormal = gl.getAttribLocation(dset.program, "normal")
+      //gl.vertexAttribPointer(dset.locNormal, 3, gl.FLOAT, true, 0, 0)
+      //gl.enableVertexAttribArray(dset.locNormal)
       
       gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normalVec_buffer)
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
@@ -1886,9 +1970,6 @@ const BasicShader = async (renderer, options=[]) => {
       console.error(`bad shader :( ${info}`)
       console.error(`vShader info : ${vshaderInfo}`)
       console.error(`fShader info : ${fshaderInfo}`)
-      alert(`bad shader :( ${info}`)
-      alert(`vShader info : ${vshaderInfo}`)
-      alert(`fShader info : ${fshaderInfo}`)
     }
   }
   
@@ -2984,7 +3065,7 @@ const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
 const AnimationLoop = (renderer, func) => {
   const loop = () => {
     if(renderer.ready && typeof window[func] != 'undefined') window[func]()
-    renderer.t += 1/60  //performance.now() / 1000
+    renderer.t += 1/60 //performance.now() / 1000
     requestAnimationFrame(loop)
   }
   window.addEventListener('load', () => {
@@ -3076,7 +3157,6 @@ const getParams = ctx => {
   paramNames.map(name => {
     params.push({ name, val: ctx.getParameter(ctx[name]) })
   })
-
   var popup = document.createElement('div')
   popup.style.position = 'fixed'
   popup.style.zIndex = 100000
