@@ -161,7 +161,6 @@ const Renderer = options => {
       
       // point lights
       ctx.uniform1i(dset.locPointLightCount, renderer.pointLights.length)
-      console.log(renderer.pointLights.length)
       var pldata = []
       var plcols = []
       renderer.pointLights.map(geometry => {
@@ -1377,7 +1376,7 @@ const BasicShader = async (renderer, options=[]) => {
   dataset.optionalUniforms.map(v=>{ uFragCode += ("\n" + v.fragCode + "\n") })
 
   ret.vert = `
-    precision mediump float;
+    precision highp float;
     #define M_PI 3.14159265358979323
     attribute vec2 uv;
     ${uVertDeclaration}
@@ -1477,8 +1476,8 @@ const BasicShader = async (renderer, options=[]) => {
       
       float Z = pos.z + camz + geo.z;
       if(Z > 0.0) {
-        float X = ((pos.x + camPos.x + geo.x) / Z * fov / resolution.x);
-        float Y = ((pos.y + camPos.y + geo.y) / Z * fov / resolution.y);
+        float X = (pos.x + camPos.x + geo.x) / Z * fov / resolution.x;
+        float Y = (pos.y + camPos.y + geo.y) / Z * fov / resolution.y;
         //gl_PointSize = 100.0 / Z;
         gl_Position = vec4(X, Y, Z/100000.0, 1.0);
         skip = 0.0;
@@ -1490,7 +1489,7 @@ const BasicShader = async (renderer, options=[]) => {
   `
   
   ret.frag = `
-    precision mediump float;
+    precision highp float;
     #define M_PI 3.14159265358979323
     ${uFragDeclaration}
     uniform float t;
@@ -1533,7 +1532,7 @@ const BasicShader = async (renderer, options=[]) => {
         float p1;
         p1 = p / M_PI / 2.0;
         p2 = flatShading == 1.0 ?
-              acos(nVec.y / (sqrt(nVeci.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.0001)) / M_PI   :
+              acos(nVec.y / (sqrt(nVec.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.0001)) / M_PI   :
               p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.0001)) / M_PI;
         return vec2(p1, p2);
       }else{
@@ -1581,15 +1580,15 @@ const BasicShader = async (renderer, options=[]) => {
     }
 
     void main() {
-      float X, Y, Z, p, d, i, j;
-      vec2 coords = Coords(0.0);
-      float mixColorIp = colorMix;
-      float baseColorIp = 1.0 - mixColorIp;
-      vec4 mixColor = vec4(color.rgb, 1.0);
-      vec4 light = GetPointLight();
-      float colorMag = 1.0;
-      float alpha = 1.0;
       if(skip != 1.0){
+        float X, Y, Z, p, d, i, j;
+        vec2 coords = Coords(0.0);
+        float mixColorIp = colorMix;
+        float baseColorIp = 1.0 - mixColorIp;
+        vec4 mixColor = vec4(color.rgb, 1.0);
+        vec4 light = GetPointLight();
+        float colorMag = 1.0;
+        float alpha = 1.0;
         if(renderNormals == 1.0){
           gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
         }else{
