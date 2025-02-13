@@ -229,7 +229,6 @@ var geoOptions = {
                       // enabled, to copy its raw data for later import as a
                       // 'custom shape'.
   flipNormals: false,    // invert normals
-  showNormals: false,    // view normals on screen as red lines
   url: ''                // url for 'OBJ' format models, or 'custom shapes'.
                          // url is ignored otherwise.
 }
