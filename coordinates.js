@@ -24,7 +24,7 @@ const Renderer = options => {
   var width = 1920, height = 1080
   var roll=0, pitch=0, yaw=0, fov=2e3
   var attachToBody = true, margin = 10
-  var ambientLight = .5, alpha=false, clearColor = 0x000000
+  var ambientLight = .2, alpha=false, clearColor = 0x000000
   var exportGPUSpecs = false
   var context = {
     mode: 'webgl2',
@@ -161,6 +161,7 @@ const Renderer = options => {
       
       // point lights
       ctx.uniform1i(dset.locPointLightCount, renderer.pointLights.length)
+      console.log(renderer.pointLights.length)
       var pldata = []
       var plcols = []
       renderer.pointLights.map(geometry => {
@@ -1302,7 +1303,7 @@ const BasicShader = async (renderer, options=[]) => {
                                          false : option.uniform.flatShading,
                   flatShadingUniform:  'phongFlatShading',
                   theta:                typeof option.uniform.theta == 'undefined' ?
-                                          .6 + Math.PI: option.uniform.theta,
+                                          .5 + Math.PI: option.uniform.theta,
                   dataType:            'uniform1f',
                   vertDeclaration:     `
                     varying vec3 phongPos;
@@ -1317,7 +1318,7 @@ const BasicShader = async (renderer, options=[]) => {
                     uniform float phongFlatShading;
                     varying vec3 phongPos;
                   `,
-                  fragCode:            `
+                  fragCode:   `
                     light = vec4(light.r * .5, light.g * .75, light.b * .75, 1.0);
                     float phongP1, phongP2;
                     float px, py, pz;
@@ -1331,9 +1332,9 @@ const BasicShader = async (renderer, options=[]) => {
                       pz = phongPos.z;
                     }
                     phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
-                    phongP2 = -acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
+                    phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
                     
-                    float fact = pow((1.0+cos(phongP1)) * (1.0+cos(phongP2 + .25)), 4.0) / 250.0 * phong ;
+                    float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.3)), 2.0), 2.0) / 500.0 * phong ;
                     light = vec4(light.rgb + fact, 1.0);
                     mixColorIp = fact + (light.r + light.g + light.b) / 3.0;
                   `,
@@ -1497,8 +1498,8 @@ const BasicShader = async (renderer, options=[]) => {
     uniform float flatShading;
     uniform float isSprite;
     uniform float isLight;
-    uniform vec4 pointLightPos[128];
-    uniform vec4 pointLightCol[128];
+    uniform vec4 pointLightPos[16];
+    uniform vec4 pointLightCol[16];
     uniform int pointLightCount;
     uniform float ambientLight;
     uniform float renderNormals;
@@ -1574,7 +1575,9 @@ const BasicShader = async (renderer, options=[]) => {
         rgba.g += ret * pointLightCol[i].g;
         rgba.b += ret * pointLightCol[i].b;
       }
-      return rgba;
+      return pointLightCount > 0 ? vec4(rgba.rgb + ambientLight, 1.0) : vec4(ambientLight,
+                                               ambientLight,
+                                               ambientLight, 1.0);
     }
 
     void main() {
@@ -1583,10 +1586,7 @@ const BasicShader = async (renderer, options=[]) => {
       float mixColorIp = colorMix;
       float baseColorIp = 1.0 - mixColorIp;
       vec4 mixColor = vec4(color.rgb, 1.0);
-      vec4 gpl = hasPhong == 1.0 ? GetPointLight() : vec4(.2,.2,.2, 1.0);
-      vec4 light = vec4(ambientLight + gpl.r,
-                    ambientLight + gpl.g,
-                    ambientLight + gpl.b, 1.0);
+      vec4 light = GetPointLight();
       float colorMag = 1.0;
       float alpha = 1.0;
       if(skip != 1.0){
