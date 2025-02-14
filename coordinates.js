@@ -207,7 +207,7 @@ const Renderer = options => {
       
       dset.optionalUniforms.map(async (uniform) => {
         if(typeof uniform?.loc === 'object'){
-          ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 3 : 1))
+          ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 10 : 1))
           ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
           switch(uniform.name){
             case 'reflection':
@@ -1297,7 +1297,7 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 reflectionPos;
                   `,
                   fragCode:            `
-                    light = vec4(light.r * .85 + .2, light.g * .85 + .2, light.b * .85 + .2, 1.0);
+                    light = vec4(light.r * .85 + .05, light.g * .85 + .05, light.b * .85 + .05, 1.0);
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
                       float px = reflectionPos.x;
