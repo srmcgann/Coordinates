@@ -196,12 +196,12 @@ const Renderer = options => {
           //ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE);
           ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
           ctx.enable(ctx.BLEND)
-          //ctx.disable(ctx.DEPTH_TEST)
+          if(geometry.disableDepthTest) ctx.disable(ctx.DEPTH_TEST)
         break
         case 'point light':
           ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
           ctx.enable(ctx.BLEND)
-          //ctx.disable(ctx.DEPTH_TEST)
+          if(geometry.disableDepthTest) ctx.disable(ctx.DEPTH_TEST)
         break
       }
       
@@ -213,8 +213,9 @@ const Renderer = options => {
             case 'reflection':
               ctx.activeTexture(ctx.TEXTURE1)
               if(uniform.textureMode == 'video'){
-                 BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform.map)
+                 await BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform.map)
               }
+              ctx.useProgram( sProg )
               ctx.uniform1i(uniform.locRefTexture, 1)
               ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
               
@@ -292,12 +293,12 @@ const Renderer = options => {
         case 'sprite':
           ctx.blendFunc(ctx.ONE, ctx.ZERO)
           ctx.disable(ctx.BLEND)
-          //ctx.enable(ctx.DEPTH_TEST)
+          if(geometry.disableDepthTest) ctx.enable(ctx.DEPTH_TEST)
         break
         case 'point light':
           ctx.blendFunc(ctx.ONE, ctx.ZERO)
           ctx.disable(ctx.BLEND)
-          //ctx.enable(ctx.DEPTH_TEST)
+          if(geometry.disableDepthTest) ctx.enable(ctx.DEPTH_TEST)
         break
       }
 
@@ -485,6 +486,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var playbackSpeed        = 1.0
   var textureMode          = 'image'
   var pointLightShowSource = false
+  var disableDepthTest     = false
   
   geoOptions = structuredClone(geoOptions)
   // must precede
@@ -511,37 +513,38 @@ const LoadGeometry = async (renderer, geoOptions) => {
           break
         }
       break
-      case 'size'            : size = geoOptions[key]; break
-      case 'subs'            : subs = geoOptions[key]; break
-      case 'sphereize'       : sphereize = geoOptions[key]; break
-      case 'equirectangular' : equirectangular = !!geoOptions[key]; break
-      case 'flipnormals'     : flipNormals = !!geoOptions[key]; break
-      case 'shownormals'     : showNormals = !!geoOptions[key]; break
-      case 'objx'            : objX = geoOptions[key]; break
-      case 'objy'            : objY = geoOptions[key]; break
-      case 'objz'            : objZ = geoOptions[key]; break
-      case 'objroll'         : objRoll = geoOptions[key]; break
-      case 'objpitch'        : objPitch = geoOptions[key]; break
-      case 'objyaw'          : objYaw = geoOptions[key]; break
-      case 'scalex'          : scaleX = geoOptions[key]; break
-      case 'scaley'          : scaleY = geoOptions[key]; break
-      case 'scalez'          : scaleZ = geoOptions[key]; break
-      case 'name'            : name = geoOptions[key]; break
-      case 'color'           : color = geoOptions[key]; break
-      case 'colormix'        : colorMix = geoOptions[key]; break
-      case 'exportshape'     : exportShape = !!geoOptions[key]; break
-      case 'url'             : url = geoOptions[key]; break
-      case 'map'             : map = geoOptions[key]; break
-      case 'rows'            : rows = geoOptions[key]; break
-      case 'cols'            : cols = geoOptions[key]; break
-      case 'muted'           : muted = !!geoOptions[key]; break
-      case 'issprite'        :
+      case 'size'             : size = geoOptions[key]; break
+      case 'subs'             : subs = geoOptions[key]; break
+      case 'sphereize'        : sphereize = geoOptions[key]; break
+      case 'equirectangular'  : equirectangular = !!geoOptions[key]; break
+      case 'flipnormals'      : flipNormals = !!geoOptions[key]; break
+      case 'shownormals'      : showNormals = !!geoOptions[key]; break
+      case 'objx'             : objX = geoOptions[key]; break
+      case 'objy'             : objY = geoOptions[key]; break
+      case 'objz'             : objZ = geoOptions[key]; break
+      case 'objroll'          : objRoll = geoOptions[key]; break
+      case 'objpitch'         : objPitch = geoOptions[key]; break
+      case 'objyaw'           : objYaw = geoOptions[key]; break
+      case 'scalex'           : scaleX = geoOptions[key]; break
+      case 'scaley'           : scaleY = geoOptions[key]; break
+      case 'scalez'           : scaleZ = geoOptions[key]; break
+      case 'name'             : name = geoOptions[key]; break
+      case 'color'            : color = geoOptions[key]; break
+      case 'colormix'         : colorMix = geoOptions[key]; break
+      case 'exportshape'      : exportShape = !!geoOptions[key]; break
+      case 'url'              : url = geoOptions[key]; break
+      case 'map'              : map = geoOptions[key]; break
+      case 'rows'             : rows = geoOptions[key]; break
+      case 'disabledepthtest' : disableDepthTest = geoOptions[key]; break
+      case 'cols'             : cols = geoOptions[key]; break
+      case 'muted'            : muted = !!geoOptions[key]; break
+      case 'issprite'         :
         isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
-      case 'islight'        :
+      case 'islight'          :
         isLight = (!!geoOptions[key]) ? 1.0: 0.0; break
-      case 'playbackspeed'   :
+      case 'playbackspeed'    :
         playbackSpeed = geoOptions[key]; break
-      case 'averagenormals'  :
+      case 'averagenormals'   :
         averageNormals = !!geoOptions[key]; break
     }
   })
@@ -766,7 +769,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'point light':
         isLight = true
-        shape = await Rectangle(Math.max(size / 2, .5), subs-1, sphereize, flipNormals, shapeType)
+        shape = await Rectangle(Math.max(size, .5), subs-1, sphereize, flipNormals, shapeType)
+        if(!pointLightShowSource){
+          shape.geometry = []
+        }
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
           normals  = [...normals,  ...v.normal]
@@ -994,7 +1000,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     normalVec_buffer, NormalVec_Index_Buffer,
     nVecIndices, uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices, map, video,
-    textureMode, isSprite, isLight, playbackSpeed
+    textureMode, isSprite, isLight, playbackSpeed,
+    disableDepthTest
   }
   
   if(shapeType == 'point light'){
@@ -1091,7 +1098,7 @@ const ImageToPo2 = async (image) => {
   return ret
 }
 
-const VideoToImage = video => {
+const VideoToImage = async video => {
   if(typeof video != 'undefined'){
     
     let tgtWidth
@@ -1128,11 +1135,11 @@ const VideoToImage = video => {
     scratchCanvas.width  = tgtWidth //video.videoWidth
     scratchCanvas.height = tgtHeight //video.videoHeight
     sctx.drawImage(video, 0, 0, scratchCanvas.width, scratchCanvas.height)
-    return scratchCanvas//.toDataURL('image/jpeg', .5)
+    return scratchCanvas //.toDataURL('image/jpeg', .5)
   }else{
     scratchCanvas.width  = 1
     scratchCanvas.height = 1
-    return scratchCanvas//.toDataURL('image/jpeg', .5)
+    return scratchCanvas //.toDataURL('image/jpeg', .5)
   }
 }
 
@@ -1144,7 +1151,7 @@ const BindImage = async (gl, resource, binding, textureMode='image', tval=-1,url
         console.log('found video texture in cache... using it')
         texImage = cacheItem[0].texImage
       }else{
-        texImage = VideoToImage(resource)
+        texImage = await VideoToImage(resource)
         cache.texImages.push({
           url,
           tval,
@@ -1290,7 +1297,7 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 reflectionPos;
                   `,
                   fragCode:            `
-                    light = vec4(light.r * .5, light.g * .5, light.b * .5, 1.0);
+                    light = vec4(light.r * .85 + .2, light.g * .85 + .2, light.b * .85 + .2, 1.0);
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
                       float px = reflectionPos.x;
@@ -1341,7 +1348,7 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 phongPos;
                   `,
                   fragCode:            `
-                    light = vec4(light.r * .5, light.g * .75, light.b * .75, 1.0);
+                    light = vec4(light.r * .5, light.g * .5, light.b * .5, 1.0);
                     float phongP1, phongP2;
                     float px, py, pz;
                     if(flatShading != 0.0){
