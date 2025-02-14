@@ -1509,7 +1509,7 @@ const BasicShader = async (renderer, options=[]) => {
         float X = ((pos.x + camPos.x + geo.x) / Z * fov / resolution.x);
         float Y = ((pos.y + camPos.y + geo.y) / Z * fov / resolution.y);
         //gl_PointSize = 100.0 / Z;
-        gl_Position = vec4(X, Y, Z/1000000.0, 1.0);
+        gl_Position = vec4(X, Y, Z/100000.0, 1.0);
         skip = 0.0;
         vUv = uv;
       }else{
