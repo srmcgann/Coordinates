@@ -193,10 +193,10 @@ var geoOptions = {
                        • 'rectangle'
                          // is a squre, unless scaled
                        • 'sprite'
-                         // supports alpha channel (png source)
                          map: [url] (required)
+                         alpha: 0-1 // supports alpha channel (png source)
                          size: 1.0 (squre, always camera-facing)
-                         subs: 0 - 5 (subdivisions, for finer resolution)
+                         subs: 0 - 5 (poly subdivisions, for finer resolution)
                       // LIGHTS
                          //- other objects require phong shader for
                          //  lights to affect them, except for
@@ -205,8 +205,8 @@ var geoOptions = {
                          // is both a 'sprite' (optionally) and a light source.
                          // may have up to 16 in a scene.
                          // has optional parameters:
-                              size: .5,
                               lum : 0.0 to ...
+                              size: .5
                               color: 0xffffff e.g.
                               pointLightShowSource: true/false
                               // ignores shader, if one is connected
