@@ -25,6 +25,7 @@ const Renderer = options => {
   var roll=0, pitch=0, yaw=0, fov=2e3
   var attachToBody = true, margin = 10, exportGPUSpecs = false
   var ambientLight = .5, alpha=false, clearColor = 0x000000
+  var doubleDraw = false
   var context = {
     mode: 'webgl2',
     options: {
@@ -40,7 +41,7 @@ const Renderer = options => {
   
   if(typeof options != 'undefined'){
     Object.keys(options).forEach((key, idx) =>{
-      switch(key){
+      switch(key.toLowerCase()){
         case 'width': width = options[key]; break
         case 'height': height = options[key]; break
         case 'alpha': alpha = options[key]; break
@@ -51,14 +52,17 @@ const Renderer = options => {
         case 'pitch': pitch = options[key]; break
         case 'yaw': yaw = options[key]; break
         case 'fov': fov = options[key]; break
-        case 'clearColor': clearColor = options[key]; break
-        case 'attachToBody': attachToBody = !!options[key]; break
+        case 'clearcolor': clearColor = options[key]; break
+        case 'attachTobody': attachToBody = !!options[key]; break
         case 'exportgpuspecs': exportGPUSpecs = !!options[key]; break
         case 'margin': margin = options[key]; break
-        case 'ambientLight': ambientLight = options[key]; break
+        case 'ambientlight': ambientLight = options[key]; break
+        case 'doubledraw': doubleDraw = !!options[key]; break
         case 'context':
           context.mode = options[key].mode
           context.options = options[key]['options']
+        break
+        default:
         break
       }
     })
@@ -114,7 +118,8 @@ const Renderer = options => {
     width, height, x, y, z,
     roll, pitch, yaw, fov,
     ready: false, ambientLight,
-    pointLights, pointLightCols
+    pointLights, pointLightCols,
+    doubleDraw,
     
     // functions
     // ...
@@ -494,6 +499,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var textureMode          = 'image'
   var pointLightShowSource = false
   var disableDepthTest     = false
+
+  var geometry = {}
   
   geoOptions = structuredClone(geoOptions)
   // must precede
@@ -553,6 +560,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
         playbackSpeed = geoOptions[key]; break
       case 'averagenormals'   :
         averageNormals = !!geoOptions[key]; break
+      default:
+        geometry[key] = geoOptions[key]
+      break
     }
   })
 
@@ -995,7 +1005,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, uvIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
 
-  var geometry = {
+
+  var updateGeometry = {
     x, y, z,
     roll, pitch, yaw, color, colorMix,
     size, subs, name, url, averageNormals,
@@ -1010,6 +1021,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
     textureMode, isSprite, isLight, playbackSpeed,
     disableDepthTest
   }
+  Object.keys(updateGeometry).forEach((key, idx) => {
+    geometry[key] = updateGeometry[key]
+  })
   
   if(shapeType == 'point light'){
     if(typeof geoOptions.color == 'undefined'){
@@ -3084,10 +3098,12 @@ const AnimationLoop = (renderer, func) => {
     renderer.spriteQueue = []
     if(renderer.ready && typeof window[func] != 'undefined') window[func]()
       
-    renderer.ctx.clear(renderer.ctx.DEPTH_BUFFER_BIT)
-    renderer.spriteQueue.map(async (sprite, idx) => {
-      await renderer.Draw(sprite)
-    })
+    if(renderer.doubleDraw){
+      renderer.ctx.clear(renderer.ctx.DEPTH_BUFFER_BIT)
+      renderer.spriteQueue.map(async (sprite, idx) => {
+        await renderer.Draw(sprite)
+      })
+    }
     
     renderer.t += 1/60 //performance.now() / 1000
     requestAnimationFrame(loop)
