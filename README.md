@@ -199,9 +199,12 @@ var geoOptions = {
                          //  lights to affect them, except for
                          //  ambient light
                        • 'point light'
-                         // may have up to 128 in a scene.
-                         // has optional properties:
-                              'size': .5, // brightness, 0.0 to 1.0...
+                         // is both a 'sprite' (optionally) and a light source.
+                         // may have up to 16 in a scene.
+                         // has optional parameters:
+                              'size': .5,
+                              'lum' : 0.0 to ...
+                              'color': 0xffffff e.g.
                               'pointLightShowSource': true/false
                               // ignores shader, if one is connected
                        • 'cylinder'
