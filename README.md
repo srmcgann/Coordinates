@@ -204,9 +204,8 @@ var geoOptions = {
                        • 'point light'
                          // is both a 'sprite' (optionally) and a light source.
                          // may have up to 16 in a scene.
-                         // has optional parameters:
+                         // has optional parameters, in addition to sprite params:
                               lum : 0.0 to ...
-                              size: .5
                               color: 0xffffff e.g.
                               pointLightShowSource: true/false
                               // ignores shader, if one is connected
