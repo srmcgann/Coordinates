@@ -5,7 +5,7 @@
 const S = Math.sin, C = Math.cos
 //new OffscreenCanvas(256, 256); * might be superior
 const scratchCanvas = document.createElement('canvas')
-const sctx = scratchCanvas.getContext('2d')
+const sctx = scratchCanvas.getContext('2d', {alpha: true})
 const scratchImage = new Image()
 const moduleBase = 'https://srmcgann.github.io/Coordinates'
 
@@ -34,6 +34,7 @@ const Renderer = options => {
     }
   }
   
+  var spriteQueue = []
   var pointLights = []
   var pointLightCols = []
   
@@ -109,7 +110,7 @@ const Renderer = options => {
   
   var ret = {
     // vars & objects
-    c, contextType, t:0, alpha,
+    c, ctx, contextType, t:0, alpha,
     width, height, x, y, z,
     roll, pitch, yaw, fov,
     ready: false, ambientLight,
@@ -172,7 +173,13 @@ const Renderer = options => {
         ctx.uniform4fv(dset.locPointLightCols, plcols)
       }
 
+      // depth + alpha bugfix
+      //if(!geometry.disableDepthTest && geometry.isSprite) {
+        renderer.spriteQueue = [geometry, ...renderer.spriteQueue]
+      //}
+
       // other uniforms
+      
       
       ctx.uniform1f(dset.locT,               renderer.t)
       ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
@@ -193,13 +200,13 @@ const Renderer = options => {
       // enable alpha
       switch(geometry.shapeType){
         case 'sprite':
-          //ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE);
-          ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
+          ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE);
+          //ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
           ctx.enable(ctx.BLEND)
           if(geometry.disableDepthTest) ctx.disable(ctx.DEPTH_TEST)
         break
         case 'point light':
-          ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
+          ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE);
           ctx.enable(ctx.BLEND)
           if(geometry.disableDepthTest) ctx.disable(ctx.DEPTH_TEST)
         break
@@ -760,7 +767,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'sprite':
         isSprite = true
-        shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
+        shape = await Rectangle(size, subs-1, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
           normals  = [...normals,  ...v.normal]
@@ -1348,24 +1355,27 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 phongPos;
                   `,
                   fragCode:            `
-                    light = vec4(light.r * .5, light.g * .5, light.b * .5, 1.0);
-                    float phongP1, phongP2;
-                    float px, py, pz;
-                    if(flatShading != 0.0){
-                      px = nVec.x;
-                      py = nVec.y;
-                      pz = nVec.z;
-                    }else{
-                      px = phongPos.x;
-                      py = phongPos.y;
-                      pz = phongPos.z;
+                    if(isLight == 0.0 && isSprite == 0.0){
+                      light = vec4(light.r * .5, light.g * .5, light.b * .5, 1.0);
+                      float phongP1, phongP2;
+                      float px, py, pz;
+                      if(flatShading != 0.0){
+                        px = nVec.x;
+                        py = nVec.y;
+                        pz = nVec.z;
+                      }else{
+                        px = phongPos.x;
+                        py = phongPos.y;
+                        pz = phongPos.z;
+                      }
+                      phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
+                      phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
+
+                      
+                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.3)), 2.0), 2.0) / 500.0 * phong ;
+                      light = vec4(light.rgb + fact, 1.0);
+                      mixColorIp = fact + (light.r + light.g + light.b) / 3.0;
                     }
-                    phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
-                    phongP2 = -acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
-                    
-                    float fact = pow((1.0+cos(phongP1)) * (1.0+cos(phongP2 + .25)), 8.0) / 100000.0 * phong ;
-                    light = vec4(light.rgb + fact, 1.0);
-                    mixColorIp = fact + (light.r + light.g + light.b) / 3.0;
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -1685,7 +1695,7 @@ const BasicShader = async (renderer, options=[]) => {
           ${uFragCode}
           vec4 texel = texture2D( baseTexture, coords);
           if(isSprite != 0.0 || isLight != 0.0){
-            gl_FragColor = merge(gl_FragColor, vec4(texel.rgb * 2.0, texel.a));
+            gl_FragColor = vec4(texel.rgb * 2.0, texel.a);//merge(gl_FragColor, vec4(texel.rgb * 2.0, texel.a));
           }else{
             //texel = vec4(texel.rgb * (1.0+light.rgb), 1.0);
             mixColor.a = mixColorIp;
@@ -3071,7 +3081,14 @@ const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
 
 const AnimationLoop = (renderer, func) => {
   const loop = () => {
+    renderer.spriteQueue = []
     if(renderer.ready && typeof window[func] != 'undefined') window[func]()
+      
+    renderer.ctx.clear(renderer.ctx.DEPTH_BUFFER_BIT)
+    renderer.spriteQueue.map(async (sprite, idx) => {
+      await renderer.Draw(sprite)
+    })
+    
     renderer.t += 1/60 //performance.now() / 1000
     requestAnimationFrame(loop)
   }
