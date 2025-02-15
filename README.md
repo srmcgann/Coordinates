@@ -194,9 +194,9 @@ var geoOptions = {
                          // is a squre, unless scaled
                        • 'sprite'
                          // supports alpha channel (png source)
-                         // map: [url] (required)
-                         // size: 1.0 (squre, always camera-facing)
-                         // subs: 0 - 5 (subdivisions, for finer resolution)
+                         map: [url] (required)
+                         size: 1.0 (squre, always camera-facing)
+                         subs: 0 - 5 (subdivisions, for finer resolution)
                       // LIGHTS
                          //- other objects require phong shader for
                          //  lights to affect them, except for
