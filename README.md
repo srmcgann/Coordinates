@@ -205,10 +205,10 @@ var geoOptions = {
                          // is both a 'sprite' (optionally) and a light source.
                          // may have up to 16 in a scene.
                          // has optional parameters:
-                              'size': .5,
-                              'lum' : 0.0 to ...
-                              'color': 0xffffff e.g.
-                              'pointLightShowSource': true/false
+                              size: .5,
+                              lum : 0.0 to ...
+                              color: 0xffffff e.g.
+                              pointLightShowSource: true/false
                               // ignores shader, if one is connected
                        • 'cylinder'
                        • 'torus'
