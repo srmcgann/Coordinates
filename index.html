@@ -13,140 +13,128 @@
   <body>
     <script type="module">
     
-      import * as Coordinates from "./coordinates.js"
-    
-      var renderer = await Coordinates.Renderer({fov:1e3, ambientLight: 0})
+      var shapes = []
       
-      renderer.z = 1500
+      import * as Coordinates from"./coordinates.js"
+      var renderer = await Coordinates.Renderer({
+        fov: 1000,
+        ambientLight: 0
+      })
+      
+      renderer.z = 16
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
       var S = Math.sin
       var C = Math.cos
       
-      Coordinates.AnimationLoop(renderer, 'Draw')
-
-      var shaderOptions = [ { uniform: { type: 'phong', value: 2 } } ]
+      var shaderOptions = [
+        { uniform: { type: 'phong', value: 0 } },
+        { uniform: { type: 'reflection', map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg', value: 0 } },
+      ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      console.log(shader)
-
-      var shaderOptions = [ { uniform: { type: 'phong', value: 0 } } ]
-      var skyboxShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-
-      var shapes = []
-      var geoOptions
-
-      geoOptions = {
-        shapeType: 'icosahedron',
-        name: 'background',
-        averageNormals: true,
-        subs: 1,
+      
+      
+      var x, y, z
+      /*
+      x = 0
+      y = -10
+      z = 0
+      await Coordinates.LoadGeometry(renderer, {
+        shapeType: 'obj',
+        url: 'https://srmcgann.github.io/objs/dude.obj?2',
+        map: 'https://srmcgann.github.io/objs/dude.jpg',
+        size: 3,
+        name: 'dude',
+        x,y,z,
+        //color: 0xffffff,
         colorMix: 0,
-        sphereize: 1,
-        size: 1e4,
-        map: 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg'
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        //exportShape: true
+      }).then(async (geometry) => {
         shapes.push(geometry)
-        await skyboxShader.ConnectGeometry(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      */
+      
+      x = 0
+      y = 0
+      z = 0
+      await Coordinates.LoadGeometry(renderer, {
+        shapeType: 'icosahedron',
+        map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg',
+        size: 1e3,
+        subs: 1,
+        sphereize: 1,
+        name: 'background',
+        x,y,z,
+        color: 0xffffff,
+        colorMix: 0,
+        //exportShape: true
+      }).then(async (geometry) => {
+        shapes.push(geometry)
+        //await shader.ConnectGeometry(geometry)
       })  
       
-      var sizes = [
-        500,    // mercury
-        40,    // venus
-        50,    // earf
-        30,    // mars
-        90,    // saturn
-        120,   // jupiter
-        100,   // uranus
-        90,    // neptune
-        90,    // pluto
-      ]
-
-      for(var i =0; i<9; i++){
-        geoOptions = {
-          shapeType: 'icosahedron',
-          subs: 1,
-          name: 'planet',
-          planetID: i,
-          size: sizes[i],
-          x: 0,
-          y: 0,
-          z: (300*(i + 2))**1.2,
-          averageNormals: true,
-          sphereize: 1,
-          color: Coordinates.HexFromHSV(360/9*i, 1, 1),
-          colorMix: .5,
-        }
-        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-          shapes.push(geometry)
-          await shader.ConnectGeometry(geometry)
-        })
-      }
-            
-      var p, d, x, y, z
-      var cl = 1
-      var rw = 1
-      var br = 1
-      var sp = 1e3
-      Array(cl*rw*br).fill().map(async (v, i) => {
-        x = ((i%cl)-cl/2 + .5) * sp
-        y = (((i/cl|0)%rw)-rw/2 + .5) * sp
-        z = ((i/cl/rw|0)-br/2 + .5) * sp
-        if(Math.hypot(x,y,z) < 11000){
-          for(var m = 1; m--;){
-            geoOptions = {
-              shapeType: m<2 ? 'point light' : 'point light',
-              name: 'star',
-              color: 0xffffff,
-              pointLightShowSource: true,
-              size: 1e3,
-              lum: 1e4,
-              subs: -1,
-              disableDepthTest: false,
-              x, y, z,
-              map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
-            }
-            await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-              shapes.push(geometry)
-              //await shader.ConnectGeometry(geometry)
-            })
-          }
-        }
-      })
-
-      window.Draw = () => {
       
-        //renderer.Clear()
-        renderer.z = Math.min(5000, Math.max(1e3, (.3-C(renderer.t/8))*1e4))
-        renderer.yaw += .002
-        renderer.pitch = Math.min(.75, Math.max(.1, (.3+C(renderer.t/4))*1.2))
+      x = 0
+      y = 0
+      z = 0
+      await Coordinates.LoadGeometry(renderer, {
+        shapeType: 'icosahedron',
+        //map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg',
+        size: 7,
+        subs: 2,
+        averageNormals: true,
+        sphereize: 1,
+        name: 'sphere',
+        x,y,z,
+        color: 0x333333,
+        colorMix: .5,
+      }).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })  
+      
+      var iBc = 16
+      let structure = Coordinates.GeoSphere(0,0,0, iBc, 10)[4]
+      structure.map(async (v, idx) => {
+        x = v[0]
+        y = v[1]
+        z = v[2]
+        await Coordinates.LoadGeometry(renderer, {
+          shapeType: 'point light',
+          name: 'light',
+          color: Coordinates.HexFromHSV(360/ iBc * idx, 1, 1),
+          map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+          size: 2,
+          lum: .12,
+          x, y, z,
+          pointLightShowSource: true,
+        }).then(async (geometry) => {
+          shapes.push(geometry)
+          //await shader.ConnectGeometry(geometry)
+        })
+      })
+      
+      
+      window.Draw = () => {
+        renderer.yaw -= .001
         shapes.forEach(shape => {
           switch(shape.name){
-            case 'star':
+            case 'light':
+              var x = shape.x
+              var y = shape.y
+              var z = shape.z
+              var p = Math.atan2(x, z) + .05
+              var d = Math.hypot(x, z)
+              shape.x = S(p)*d
+              shape.z = C(p)*d
             break
-            case 'background':
-            break
-            case 'planet':
-              shader.datasets.map(v=>{
-                if(typeof v?.optionalUniforms != 'undefined'){
-                  let phongShader = v.optionalUniforms.filter(v=>v.name=='phong')
-                  if(phongShader.length) phongShader[0].theta = -Math.atan2(shape.x, shape.z) + Math.PI
-                }
-              })
-              var X = shape.x
-              var Y = shape.y
-              var Z = shape.z
-              var p = Math.atan2(X, Z) + .2 * (1/(3 + shape.planetID)**2)
-              var d = Math.hypot(X, Z)
-              shape.x = S(p) * d
-              shape.z = C(p) * d
+            case 'dude':
+              console.log(shape)
             break
             default:
-            
             break
           }
-          //shape.yaw   += .01
-          //shape.pitch += .005
           renderer.Draw(shape)
         })
       }
@@ -155,8 +143,12 @@
   </body>
 </html>
 
+
 <!--
   TO DO
+  
+  * re make OBJLoader method, to spec
+
   
   ✔ re: 'sphereize', the problem exists of needing to average
          normals AFTER the shape is sphereized, as the degree is
@@ -179,7 +171,7 @@
   
   * lights
     └> ✔ ambient
-       *  point
+       ✔  point
        *  directional
   
   * geometry
@@ -217,7 +209,7 @@
        
   * shaders / textures
     └> ✔ move shaders into Coordinates module
-       *  bloom shader
+       *  bloom / glow shader
        *  add '# tiling (x/y)' option
        ✔  phong -> play nice with rectangle
        ✔  move camera into vertex shader
