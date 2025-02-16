@@ -2,7 +2,7 @@
 // Scott McGann - whitehotrobot@gmail.com
 // all rights reserved - ©2025
 
-const S = Math.sin, C = Math.cos
+const S = Math.sin, C = Math.cos, Rn = Math.random
 //new OffscreenCanvas(256, 256); * might be superior
 const scratchCanvas = document.createElement('canvas')
 const sctx = scratchCanvas.getContext('2d', {alpha: true})
@@ -191,7 +191,7 @@ const Renderer = options => {
         ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
         ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
         ctx.uniform1f(dset.locIsLight,         geometry.isLight)
-        
+        ctx.uniform1f(dset.locAlpha,           geometry.alpha)
         ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
         ctx.uniform1f(dset.locAmbientLight,    renderer.ambientLight)
         ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
@@ -329,8 +329,10 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
     data = cacheItem[0].data
     console.log('found OBJ in cache... using it')
   } else {
-    await fetch(url, res => res).then(data=>data.text()).then(res=>data=res)
-    cache.objFiles.push({ url, data })
+    await fetch(url, res => res).then(data=>data.text()).then(res=>{
+      data=res
+      cache.objFiles.push({ url, data })
+    })
   }
   var faceLines   = []
   var normalLines = []
@@ -362,7 +364,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
                            roll:  rl,
                            pitch: pt,
                            yaw:   yw})
-        
+
         tvert[i+0] = r[0]
         tvert[i+1] = r[1]
         tvert[i+2] = r[2]
@@ -376,10 +378,10 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
       var nx2 = tvert[0] + tnormal[0]
       var ny2 = tvert[1] + tnormal[1]
       var nz2 = tvert[2] + tnormal[2]
-      var tuv = uvLines.length && tidx < uvLines.length ? uvLines[tidx].split(' ').map(q=>+q) : []
+      var tuv = uvLines.length ? uvLines[tidx].split(' ').map(q=>+q) : []
       
       tverts.push(tvert)
-      tuvs.push(tuv)
+      tuvs.push([tuv[0], tuv[1]])
       tnormals.push([nx1, ny1, nz1, nx2, ny2, nz2])
     })
     switch(verts.length){
@@ -459,7 +461,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var subs                 = 0
   var sphereize            = 0
   var color                = 0x333333
-  var colorMix             = .5
+  var colorMix             = .1
   var equirectangular      = false
   var flipNormals          = false
   var showNormals          = false
@@ -472,6 +474,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var pointLightShowSource = false
   var disableDepthTest     = false
   var lum                  = 1
+  var alpha                = 1
 
   var geometry = {}
   
@@ -526,6 +529,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'cols'             : cols = geoOptions[key]; break
       case 'muted'            : muted = !!geoOptions[key]; break
       case 'lum'              : lum = geoOptions[key]; break
+      case 'alpha'            : alpha = geoOptions[key]; break
       case 'issprite'         :
         isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'islight'          :
@@ -994,7 +998,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     nVecIndices, uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices, map, video,
     textureMode, isSprite, isLight, playbackSpeed,
-    disableDepthTest, lum
+    disableDepthTest, lum, alpha
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -1007,7 +1011,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
     renderer.pointLights.push(geometry)
   }
   
-  const nullShader = await BasicShader(renderer, [ ] )
+  const nullShader = await BasicShader(renderer, [ 
+  {uniform: {type: 'phong', value: 0} }
+  ] )
   await nullShader.ConnectGeometry(geometry)
   
   return geometry
@@ -1535,6 +1541,7 @@ const BasicShader = async (renderer, options=[]) => {
     uniform float colorMix;
     uniform vec3 color;
     uniform sampler2D baseTexture;
+    uniform float alpha;
     uniform vec3 camPos;
     uniform vec3 camOri;
     uniform vec3 geoPos;
@@ -1648,7 +1655,6 @@ const BasicShader = async (renderer, options=[]) => {
                     ambientLight + gpl.g,
                     ambientLight + gpl.b, 1.0);
       float colorMag = 1.0;
-      float alpha = 1.0;
       if(skip != 1.0){
         if(renderNormals == 1.0){
           gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
@@ -1676,22 +1682,21 @@ const BasicShader = async (renderer, options=[]) => {
       vec4 mixColor = vec4(color.rgb, 1.0);
       vec4 light = hasPhong == 1.0 ? GetPointLight() : vec4(.2,.2,.2,1.0);
       float colorMag = 1.0;
-      float alpha = .5;
       if(skip != 1.0){
         if(renderNormals == 1.0){
-          gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
+          gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5);
         }else{
           ${uFragCode}
           vec4 texel = texture2D( baseTexture, coords);
           if(isSprite != 0.0 || isLight != 0.0){
-            gl_FragColor = vec4(texel.rgb * 2.0, texel.a);//merge(gl_FragColor, vec4(texel.rgb * 2.0, texel.a));
+            gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
           }else{
             //texel = vec4(texel.rgb * (1.0+light.rgb), 1.0);
             mixColor.a = mixColorIp;
             texel.a = baseColorIp;
             vec4 col = merge(mixColor, texel);
             col = merge(col, light);
-            gl_FragColor = vec4(col.rgb * colorMag, alpha);
+            gl_FragColor = vec4(col.rgb * colorMag, 1.0);
           }
         }
       }
@@ -1806,7 +1811,7 @@ const BasicShader = async (renderer, options=[]) => {
                   default:
                     uniform.textureMode = 'image'
                     if((cacheItem=cache.textures.filter(v=>v.url==url)).length){
-                      console.log('found video in cache... using it')
+                      console.log('found image in cache... using it')
                       image = cacheItem[0].resource
                       ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
                       BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
@@ -1861,6 +1866,9 @@ const BasicShader = async (renderer, options=[]) => {
 
       dset.locIsLight = gl.getUniformLocation(dset.program, "isLight")
       gl.uniform1f(dset.locIsLight, geometry.isLight)
+
+      dset.locAlpha = gl.getUniformLocation(dset.program, "alpha")
+      gl.uniform1f(dset.locAlpha, geometry.alpha)
 
       dset.locPointLights = gl.getUniformLocation(dset.program, "pointLightPos[0]")
 
@@ -2413,6 +2421,85 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
 
 const Camera = (x=0, y=0, z=0, roll=0, pitch=0, yaw=0) => ({ x, y, z, roll, pitch, yaw })
 
+const GeoSphere = (mx, my, mz, iBc, size) => {
+  let X, Y, Z, X1, Y1, Z1, X2, Y2, Z2
+  let collapse=0, mind, d, a, b, e
+  let B=Array(iBc).fill().map(v=>{
+    X = Rn()-.5
+    Y = Rn()-.5
+    Z = Rn()-.5
+    return  [X,Y,Z]
+  })
+  for(let m=32;m--;){
+    B.map((v,i)=>{
+      X = v[0]
+      Y = v[1]
+      Z = v[2]
+      B.map((q,j)=>{
+        if(j!=i){
+          X2=q[0]
+          Y2=q[1]
+          Z2=q[2]
+          d=1+(Math.hypot(X-X2,Y-Y2,Z-Z2)*(3+iBc/99)*3)**3
+          X+=(X-X2)*9/d
+          Y+=(Y-Y2)*9/d
+          Z+=(Z-Z2)*9/d
+        }
+      })
+      d=Math.hypot(X,Y,Z)
+      v[0]=X/d
+      v[1]=Y/d
+      v[2]=Z/d
+      if(collapse){
+        d=25+Math.hypot(X,Y,Z)
+        v[0]=(X-X/d)/1.1
+        v[1]=(Y-Y/d)/1.1         
+        v[2]=(Z-Z/d)/1.1
+      }
+    })
+  }
+  mind = 6e6
+  B.map((v,i)=>{
+    X1 = v[0]
+    Y1 = v[1]
+    Z1 = v[2]
+    B.map((q,j)=>{
+      X2 = q[0]
+      Y2 = q[1]
+      Z2 = q[2]
+      if(i!=j){
+        d = Math.hypot(a=X1-X2, b=Y1-Y2, e=Z1-Z2)
+        if(d<mind) mind = d
+      }
+    })
+  })
+  a = []
+  B.map((v,i)=>{
+    X1 = v[0]
+    Y1 = v[1]
+    Z1 = v[2]
+    B.map((q,j)=>{
+      X2 = q[0]
+      Y2 = q[1]
+      Z2 = q[2]
+      if(i!=j){
+        d = Math.hypot(X1-X2, Y1-Y2, Z1-Z2)
+        if(d<mind*2){
+          if(!a.filter(q=>q[0]==X2&&q[1]==Y2&&q[2]==Z2&&q[3]==X1&&q[4]==Y1&&q[5]==Z1).length) a = [...a, [X1*size,Y1*size,Z1*size,X2*size,Y2*size,Z2*size]]
+        }
+      }
+    })
+  })
+  B.map(v=>{
+    v[0]*=size/1.3333
+    v[1]*=size/1.3333
+    v[2]*=size/1.3333
+    v[0]+=mx
+    v[1]+=my
+    v[2]+=mz
+  })
+  return [mx, my, mz, size, B, a]
+}
 
 const Cylinder = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType, rw, cl) => {
   var ret = []
@@ -3091,12 +3178,12 @@ const AnimationLoop = (renderer, func) => {
       renderer.ctx.enable(renderer.ctx.BLEND)
 
       renderer.spriteQueue.map(async (sprite, idx) => {
-        if(forSort[idx].z > 0){
+        //if(forSort[idx].z > 0){
           var shape = renderer.spriteQueue[forSort[idx].idx]
           if(shape.disableDepthTest) ctx.disable(ctx.DEPTH_TEST)
           await renderer.Draw(shape, true)
           if(shape.disableDepthTest) ctx.enable(ctx.DEPTH_TEST)
-        }
+        //}
       })
     
       // disable alpha
@@ -3300,4 +3387,5 @@ export {
   RGBToHex,
   RGBFromHex,
   HexToRGB,
+  GeoSphere,
 }
