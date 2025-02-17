@@ -11,135 +11,135 @@
     </style>
   </head>
   <body>
-    <script type="module">
-    
-      var shapes = []
-      
-      import * as Coordinates from"./coordinates.js"
-      var renderer = await Coordinates.Renderer({
-        fov: 1000,
-        ambientLight: 0
-      })
-      
-      renderer.z = 16
-      Coordinates.AnimationLoop(renderer, 'Draw')
+<script type="module">
 
-      var S = Math.sin
-      var C = Math.cos
-      
-      var shaderOptions = [
-        { uniform: { type: 'phong', value: 0 } },
-        { uniform: { type: 'reflection', map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg', value: 0 } },
-      ]
-      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-      
-      
-      var x, y, z
-      /*
-      x = 0
-      y = -10
-      z = 0
-      await Coordinates.LoadGeometry(renderer, {
-        shapeType: 'obj',
-        url: 'https://srmcgann.github.io/objs/dude.obj?2',
-        map: 'https://srmcgann.github.io/objs/dude.jpg',
-        size: 3,
-        name: 'dude',
-        x,y,z,
-        //color: 0xffffff,
-        colorMix: 0,
-        //exportShape: true
-      }).then(async (geometry) => {
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })
-      */
-      
-      x = 0
-      y = 0
-      z = 0
-      await Coordinates.LoadGeometry(renderer, {
-        shapeType: 'icosahedron',
-        map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg',
-        size: 1e3,
-        subs: 1,
-        sphereize: 1,
-        name: 'background',
-        x,y,z,
-        color: 0xffffff,
-        colorMix: 0,
-        //exportShape: true
-      }).then(async (geometry) => {
-        shapes.push(geometry)
-        //await shader.ConnectGeometry(geometry)
-      })  
-      
-      
-      x = 0
-      y = 0
-      z = 0
-      await Coordinates.LoadGeometry(renderer, {
-        shapeType: 'icosahedron',
-        //map: 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg',
-        size: 7,
-        subs: 2,
-        averageNormals: true,
-        sphereize: 1,
-        name: 'sphere',
-        x,y,z,
-        color: 0x333333,
-        colorMix: .5,
-      }).then(async (geometry) => {
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })  
-      
-      var iBc = 16
-      let structure = Coordinates.GeoSphere(0,0,0, iBc, 10)[4]
-      structure.map(async (v, idx) => {
-        x = v[0]
-        y = v[1]
-        z = v[2]
-        await Coordinates.LoadGeometry(renderer, {
-          shapeType: 'point light',
-          name: 'light',
-          color: Coordinates.HexFromHSV(360/ iBc * idx, 1, 1),
-          map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
-          size: 2,
-          lum: .12,
-          x, y, z,
-          pointLightShowSource: true,
-        }).then(async (geometry) => {
-          shapes.push(geometry)
-          //await shader.ConnectGeometry(geometry)
-        })
-      })
-      
-      
-      window.Draw = () => {
-        renderer.yaw -= .001
-        shapes.forEach(shape => {
-          switch(shape.name){
-            case 'light':
-              var x = shape.x
-              var y = shape.y
-              var z = shape.z
-              var p = Math.atan2(x, z) + .05
-              var d = Math.hypot(x, z)
-              shape.x = S(p)*d
-              shape.z = C(p)*d
-            break
-            case 'dude':
-              console.log(shape)
-            break
-            default:
-            break
-          }
-          renderer.Draw(shape)
-        })
+  var shapes = []
+  
+  import * as Coordinates from"https://srmcgann.github.io/Coordinates/coordinates.js"
+  var renderer = await Coordinates.Renderer({
+    fov: 1400,
+    ambientLight: 0
+  })
+  
+  renderer.z = 32
+  renderer.yaw = Math.PI
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var S = Math.sin
+  var C = Math.cos
+  
+  var shaderOptions
+  
+  shaderOptions = [
+    { uniform: { type: 'phong', value: -1 } },
+    { uniform: { type: 'reflection', map: 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg', value: 2 } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+  
+  shaderOptions = [
+    { uniform: { type: 'phong', value: 0 } },
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+  
+  
+  var x, y, z
+  
+  x = 0
+  y = 0
+  z = 0
+  await Coordinates.LoadGeometry(renderer, {
+    shapeType: 'icosahedron',
+    map: 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg',
+    size: 1e3,
+    subs: 1,
+    sphereize: 1,
+    name: 'background',
+    x,y,z,
+    color: 0xffffff,
+    colorMix: 0,
+    //exportShape: true
+  }).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+ 
+  var cl = 2
+  var rw = 2
+  var br = 3
+  var sp = 16
+  Array(cl*rw*br).fill().map(async (v,i)=>{
+    x = ((i%cl)-cl/2 + .5) * sp
+    y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    z = ((i/cl/rw|0)-br/2 + .5) * sp
+    var geoOptions = {
+      name: 'dude',
+      shapeType: 'custom shape',
+      size: 1, x, y: y+15, z,
+      map: 'https://srmcgann.github.io/Coordinates/custom shapes/dude.jpg',
+      url: 'https://srmcgann.github.io/Coordinates/custom shapes/dude.json',
+      exportShape: false
+    }
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      shapes.push(geometry)
+      await shader.ConnectGeometry(geometry)
+    })  
+  })
+  
+  var iBc = 3
+  let structure = Coordinates.GeoSphere(0,0,0, iBc, 20)[4]
+  structure.map(async (v, idx) => {
+    x = v[0]
+    y = v[1]
+    z = v[2]
+    await Coordinates.LoadGeometry(renderer, {
+      shapeType: 'point light',
+      name: 'light',
+      color: Coordinates.HexFromHSV(360/ iBc * idx, 1, 1),
+      map: 'https://srmcgann.github.io/Coordinates/resources/stars/star.png',
+      size: 4,
+      lum: 1,
+      x, y, z,
+      pointLightShowSource: true,
+    }).then(async (geometry) => {
+      shapes.push(geometry)
+      //await shader.ConnectGeometry(geometry)
+    })
+  })
+  
+  
+  window.Draw = () => {
+    renderer.yaw -= .005
+    shapes.forEach((shape, idx) => {
+      switch(shape.name){
+        case 'background':
+        break
+        case 'light':
+          shape.color = Coordinates.HexFromHSV(360/ iBc * idx + renderer.t * 20, 1, 1)
+          var x = shape.x
+          var y = shape.y
+          var z = shape.z
+          var p = Math.atan2(x, z) + .05
+          var d = Math.hypot(x, z)
+          shape.x = S(p)*d
+          z = shape.z = C(p)*d
+          p = Math.atan2(y, z) + S(renderer.t/2) / 20
+          d = Math.hypot(y, z)
+          shape.y = S(p)*d
+          shape.z = C(p)*d
+        break
+        case 'dude':
+        break
+        default:
+          shape.yaw += .005
+          //shape.pitch -= .01
+        break
       }
-      
-    </script>
+      renderer.Draw(shape)
+    })
+  }
+  
+</script>
+
   </body>
 </html>
 

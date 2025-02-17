@@ -399,8 +399,10 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
     cache.objFiles = [...cache.objFiles, {url, ret}]
   }
   for(var i = 0; i<ret.uvs.length; i+=2){
-    //ret.uvs[i+0] = 1-ret.uvs[i+0]
     ret.uvs[i+1] = 1-ret.uvs[i+1]
+  }
+  for(var i = 0; i<ret.normals.length; i+=3){
+    ret.normals[i+1] = -ret.normals[i+1]
   }
   for(var i = 0; i<ret.vertices.length; i+=3){
     ret.vertices[i+0] += tx
