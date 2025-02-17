@@ -315,102 +315,102 @@ const DestroyViewport = el => {
 }
 
 const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
-  var res, flipNormals = false
-  var a, e, f, ax, ay, az, X, Y, Z, p, d, i, j, b, l
-  var geometry = []
 
-  var rawGeometry = {
-    vertices: [],
-    normals:  [],
-    uvs:      [],
-  }
-  var data;
-  if((cacheItem=cache.objFiles.filter(q=>q.url==url)).length){
-    data = cacheItem[0].data
-    console.log('found OBJ in cache... using it')
-  } else {
-    await fetch(url, res => res).then(data=>data.text()).then(res=>{
-      data=res
-      cache.objFiles.push({ url, data })
+  var ret = { vertices: [], normals: [], uvs: [] }
+  if((cacheItem = cache.objFiles.filter(v=>v.url == url)).length){
+    ret = cacheItem[0].ret
+  }else{
+    var vInd = []
+    var nInd = []
+    var uInd = []
+    var fInd = []
+    await fetch(url).then(res=>res.text()).then(data => {
+      data.split("\n").forEach(line => {
+        var lineParts = line.split(' ')
+        var lineType = lineParts[0]
+        switch(lineType){
+          case 'v':
+            lineParts.shift()
+            vInd = [...vInd, lineParts.map(v=>+v)]
+          break
+          case 'vt':
+            lineParts.shift()
+            uInd = [...uInd, lineParts.map(v=>+v)]
+          break
+          case 'vn':
+            lineParts.shift()
+            nInd = [...nInd, lineParts.map(v=>+v)]
+          break
+          case 'f':
+            lineParts.shift()
+            fInd = [...fInd, lineParts.map(v=>v)]
+          break
+        }
+      })
+      fInd.map(face => {
+        var v = [], u = [], n = []
+        var vidx, uidx, nidx
+        face.map(vertex => {
+          var vertexParts = vertex.split('/')
+          switch(vertexParts.length){
+            case 1: // only verts
+              vidx = vertexParts[0]
+              v = [...v, vInd[vidx-1]]
+            break
+            case 2: // verts, uvs
+              vidx = vertexParts[0]
+              uidx = vertexParts[1]
+              v = [...v, vInd[vidx-1]]
+              u = [...u, uInd[uidx-1]]
+            break
+            case 3: // verts, uvs, normals
+              vidx = vertexParts[0]
+              uidx = vertexParts[1]
+              nidx = vertexParts[2]
+              v = [...v, vInd[vidx-1]]
+              u = [...u, uInd[uidx-1]]
+              n = [...n, nInd[nidx-1]]
+            break
+          }
+        })
+        switch(v.length) {
+          case 3:
+            ret.vertices = [...ret.vertices,
+                            ...v[0], ...v[1], ...v[2]]
+            ret.uvs      = [...ret.uvs,
+                            ...u[0], ...u[1], ...u[2]]
+            ret.normals  = [...ret.normals,
+                            ...n[0], ...n[1], ...n[2]]
+          break
+          case 4: // split quad
+            ret.vertices             = [...ret.vertices,
+                            ...v[0], ...v[1], ...v[2],
+                            ...v[2], ...v[3], ...v[0]]
+            if(u.length) ret.uvs     = [...ret.uvs,
+                            ...u[0], ...u[1], ...u[2],
+                            ...u[2], ...u[3], ...u[0]]
+            if(n.length) ret.normals = [...ret.normals,
+                            ...n[0], ...n[1], ...n[2],
+                            ...n[2], ...n[3], ...n[0]]
+          break
+        }
+      })
     })
+    cache.objFiles = [...cache.objFiles, {url, ret}]
   }
-  var faceLines   = []
-  var normalLines = []
-  var vertLines   = []
-  var uvLines     = []
-  
-  data.split("\n").forEach(line => {
-    if(line.substr(0, 2) == 'v ') vertLines.push(line.substr(2))
-    if(line.substr(0, 3) == 'vn ') normalLines.push(line.substr(3))
-    if(line.substr(0, 3) == 'vt ') uvLines.push(line.substr(3))
-    if(line.substr(0, 2) == 'f ') faceLines.push(line.substr(2))
-  })
-  faceLines.forEach(line => {
-    let verts = line.split(' ')
-    var tverts   = []
-    var tnormals = []
-    var tuvs     = []
-    verts.forEach((vertex, idx) => {
-      var vidx = vertex.split('/')[0]-1
-      var nidx = vertex.split('/')[2]-1
-      var tidx = vertex.split('/')[1]-1
-      
-      var tvert = vertLines[vidx].split(' ')
-      for(var i = 0; i<tvert.length; i+=3){
-        var X = tvert[i+0] * scale + tx
-        var Y = tvert[i+1] * scale + ty
-        var Z = tvert[i+2] * scale + tz
-        var r = R(X, Y, Z, {x:0, y:0, z:0,
-                           roll:  rl,
-                           pitch: pt,
-                           yaw:   yw})
-
-        tvert[i+0] = r[0]
-        tvert[i+1] = r[1]
-        tvert[i+2] = r[2]
-      }
-      
-      var tnormal = normalLines.length ? normalLines[nidx].split(' ').map(q=>+q) : []
-      
-      var nx1 = tvert[0]
-      var ny1 = tvert[1]
-      var nz1 = tvert[2]
-      var nx2 = tvert[0] + tnormal[0]
-      var ny2 = tvert[1] + tnormal[1]
-      var nz2 = tvert[2] + tnormal[2]
-      var tuv = uvLines.length ? uvLines[tidx].split(' ').map(q=>+q) : []
-      
-      tverts.push(tvert)
-      tuvs.push([tuv[0], tuv[1]])
-      tnormals.push([nx1, ny1, nz1, nx2, ny2, nz2])
-    })
-    switch(verts.length){
-      case 3:
-        tverts.map(v=> rawGeometry.vertices.push(...v))
-        tnormals.map(v=> rawGeometry.normals.push(...v))
-        tuvs.map(v=> rawGeometry.uvs.push(...v))
-      break
-      case 4:  // split quads, if found
-        tverts.filter((v,i)=>i<3).map(v=>{
-          rawGeometry.vertices.push(...v)
-        })
-        tnormals.filter((v,i)=>i<3).map(v=>{
-          rawGeometry.normals.push(...v)
-        })
-        tuvs.filter((v,i)=>i<3).map(v=>{
-          rawGeometry.uvs.push(...v)
-        });
-        
-        ([2,3,0]).map(idx => {
-          tverts[idx].forEach(v=>rawGeometry.vertices.push(v))
-          tnormals[idx].forEach(v=>rawGeometry.normals.push(v))
-          tuvs[idx].forEach(v=>rawGeometry.uvs.push(v))
-        })
-      break
-    }
-  })
-  
-  return rawGeometry
+  for(var i = 0; i<ret.uvs.length; i+=2){
+    //ret.uvs[i+0] = 1-ret.uvs[i+0]
+    ret.uvs[i+1] = 1-ret.uvs[i+1]
+  }
+  for(var i = 0; i<ret.vertices.length; i+=3){
+    ret.vertices[i+0] += tx
+    ret.vertices[i+1] += ty
+    ret.vertices[i+2] += tz
+    ret.vertices[i+0] *= scale
+    ret.vertices[i+1] *= scale
+    ret.vertices[i+2] *= scale
+  }
+  return ret
 }
 
 const Q = (X, Y, Z, c, AR=700) => [c.width/2+X/Z*AR, c.height/2+Y/Z*AR]
@@ -785,8 +785,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
         shape = await LoadOBJ(url, size, objX, objY, objZ,
                               objRoll, objPitch, objYaw, false)
         vertices = shape.vertices
-        normals = shape.normals
-        uvs     = shape.uvs
+        normals  = shape.normals
+        uvs      = shape.uvs
       break
       case 'dodecahedron':
         equirectangular = true
