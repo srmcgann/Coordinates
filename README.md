@@ -37,10 +37,14 @@ verbatim, into a file named ``index.html``, and see the result...<br>
     <script type="module">
     
       import * as Coordinates from
-      "./coordinates.js"
+      "https://srmcgann.github.io/Coordinates/coordinates.js"
     
-      // instantiate a canvas. this is also our 'camera'
-      var renderer = await Coordinates.Renderer()
+      // instantiate a canvas, 'renderer'. this is also our 'camera'
+      var rendererOptions = {
+        ambientLight: .2,
+        fov: 1500
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
       
       // back the camera away from the center (move it toward the viewer)
       renderer.z = 10
@@ -49,14 +53,23 @@ verbatim, into a file named ``index.html``, and see the result...<br>
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       // invoke a shader - phong in this case for a pseudo-lighting effect
-      var shaderOptions = [ { uniform: { type: 'phong' } } ]
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .75
+        } }
+      ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
       // create a scene (it's async, so we can 'await' each call, but that is optional)
       var shapes = []
         // load a cube
-      var geoOptions = { shapeType: 'cube', size: 5, color: 0x888888 }
+      var geoOptions = {
+        shapeType: 'cube',
+        size: 5,
+        color: 0x888888
+      }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
@@ -65,7 +78,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
       
       window.Draw = () => {
         shapes.forEach(shape => {
-          shape.yaw   += .01
+          shape.yaw += .01
           shape.pitch += .005
           renderer.Draw(shape)
         })
