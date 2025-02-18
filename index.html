@@ -11,216 +11,56 @@
     </style>
   </head>
   <body>
-<script type="module">
-
-  var shapes = []
-  
-  import * as Coordinates from"https://srmcgann.github.io/Coordinates/coordinates.js"
-  var renderer = await Coordinates.Renderer({
-    fov: 1400,
-    ambientLight: 0
-  })
-  
-  renderer.z = 32
-  renderer.yaw = Math.PI
-  Coordinates.AnimationLoop(renderer, 'Draw')
-
-  var S = Math.sin
-  var C = Math.cos
-  
-  var shaderOptions
-  
-  shaderOptions = [
-    { uniform: { type: 'phong', value: -1 } },
-    { uniform: { type: 'reflection', map: 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg', value: 2 } },
-  ]
-  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-  
-  shaderOptions = [
-    { uniform: { type: 'phong', value: 0 } },
-  ]
-  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
-  
-  
-  var x, y, z
-  
-  x = 0
-  y = 0
-  z = 0
-  await Coordinates.LoadGeometry(renderer, {
-    shapeType: 'icosahedron',
-    map: 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg',
-    size: 1e3,
-    subs: 1,
-    sphereize: 1,
-    name: 'background',
-    x,y,z,
-    color: 0xffffff,
-    colorMix: 0,
-    //exportShape: true
-  }).then(async (geometry) => {
-    shapes.push(geometry)
-    await backgroundShader.ConnectGeometry(geometry)
-  })  
- 
-  var cl = 2
-  var rw = 2
-  var br = 3
-  var sp = 16
-  Array(cl*rw*br).fill().map(async (v,i)=>{
-    x = ((i%cl)-cl/2 + .5) * sp
-    y = (((i/cl|0)%rw)-rw/2 + .5) * sp
-    z = ((i/cl/rw|0)-br/2 + .5) * sp
-    var geoOptions = {
-      name: 'dude',
-      shapeType: 'custom shape',
-      size: 1, x, y: y+15, z,
-      map: 'https://srmcgann.github.io/Coordinates/custom shapes/dude.jpg',
-      url: 'https://srmcgann.github.io/Coordinates/custom shapes/dude.json',
-      exportShape: false
-    }
-    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      shapes.push(geometry)
-      await shader.ConnectGeometry(geometry)
-    })  
-  })
-  
-  var iBc = 3
-  let structure = Coordinates.GeoSphere(0,0,0, iBc, 20)[4]
-  structure.map(async (v, idx) => {
-    x = v[0]
-    y = v[1]
-    z = v[2]
-    await Coordinates.LoadGeometry(renderer, {
-      shapeType: 'point light',
-      name: 'light',
-      color: Coordinates.HexFromHSV(360/ iBc * idx, 1, 1),
-      map: 'https://srmcgann.github.io/Coordinates/resources/stars/star.png',
-      size: 4,
-      lum: 1,
-      x, y, z,
-      pointLightShowSource: true,
-    }).then(async (geometry) => {
-      shapes.push(geometry)
-      //await shader.ConnectGeometry(geometry)
-    })
-  })
-  
-  
-  window.Draw = () => {
-    renderer.yaw -= .005
-    shapes.forEach((shape, idx) => {
-      switch(shape.name){
-        case 'background':
-        break
-        case 'light':
-          shape.color = Coordinates.HexFromHSV(360/ iBc * idx + renderer.t * 20, 1, 1)
-          var x = shape.x
-          var y = shape.y
-          var z = shape.z
-          var p = Math.atan2(x, z) + .05
-          var d = Math.hypot(x, z)
-          shape.x = S(p)*d
-          z = shape.z = C(p)*d
-          p = Math.atan2(y, z) + S(renderer.t/2) / 20
-          d = Math.hypot(y, z)
-          shape.y = S(p)*d
-          shape.z = C(p)*d
-        break
-        case 'dude':
-        break
-        default:
-          shape.yaw += .005
-          //shape.pitch -= .01
-        break
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.js"
+    
+      // instantiate a canvas, 'renderer'. this is also our 'camera'
+      var rendererOptions = {
+        ambientLight: .2,
+        fov: 1500
       }
-      renderer.Draw(shape)
-    })
-  }
-  
-</script>
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      // back the camera away from the center (move it toward the viewer)
+      renderer.z = 10
+      
+      // tell the API where to find our animation function
+      Coordinates.AnimationLoop(renderer, 'Draw')
 
+      // invoke a shader - phong in this case for a pseudo-lighting effect
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .75
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+      // create a scene (it's async, so we can 'await' each call, but that is optional)
+      var shapes = []
+        // load a cube
+      var geoOptions = {
+        shapeType: 'cube',
+        size: 5,
+        color: 0x888888
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })  
+      
+      
+      window.Draw = () => {
+        shapes.forEach(shape => {
+          shape.yaw += .01
+          shape.pitch += .005
+          renderer.Draw(shape)
+        })
+      }
+      
+    </script>
   </body>
 </html>
-
-
-<!--
-  TO DO
-  
-  * re make OBJLoader method, to spec
-
-  
-  ✔ re: 'sphereize', the problem exists of needing to average
-         normals AFTER the shape is sphereized, as the degree is
-         not known prior. Normal averaging is computationally
-         expensive, so a solution, in the context of pre-built shapes,
-         is to provide an optional function "AverageNormals", and
-         instruct users that sphereized shapes may use it, for
-         reflections etc.
-  
-  ✔ re-export 'new shapes' with unit size
-  ✔ fix color mix
-  ✔ come up with solution for averaging normals (for phong etc), with prebuilt shapes
-  
-  * 'grouping' / 'ungrouping' option
-        for geometry, which makes drawing buffers contiguous
-  
-  ✔ sprites [transparent rectangle?]
-  
-  ✔ make uniforms: position, normal etc vec3, vs separate floats
-  
-  * lights
-    └> ✔ ambient
-       ✔  point
-       *  directional
-  
-  * geometry
-    └> ✔ generalize geometry function
-       ✔ add shapeTypes: torus, cylinder
-       *  add method / shapeType for points/particles, lines
-       *  noise functions / deformation methods
-       ✔ return "raw" geometry with inbuilt shapes, for 2d context
-       ✔ add 3-axis 'scale' function 
-       
-  ✔ README.md
-    └> ✔  add remaining exposed methods (e.g. color conversions, spatial)
-          as "supplemental"
-  
-  ✔ add renderer object
-  ✔ add camera object
-  ✔ fix FOV
-  ✔ README.md / documentation
-  
-  * sprite sheet system / import basic+custom slicing
-  ✔ add video texture capabilities
-  * cache for API, to include all network-callable items
-  
-  * shapes
-    └> ✔ add shapes (in addtion to Cube)
-       ✔ make non-cube UVs equirectangular
-       ✔ keep shape generation functions, but add 'precompiled' versions for ordinary calls
-       ✔ move rotation function into shader
-       * loading -> compression, direct output of
-                    usable format (no further processing needed)
-
-  * subdivision
-    └> ✔  add optional LOD param for all basic geometry
-       ✔ decouple polygons from UV subdivision (interpolate UVs @ sub)
-       
-  * shaders / textures
-    └> ✔ move shaders into Coordinates module
-       *  bloom / glow shader
-       *  add '# tiling (x/y)' option
-       ✔  phong -> play nice with rectangle
-       ✔  move camera into vertex shader
-       ✔  create pseudo-phong shader
-       ✔  add 'reflectivity' & texture input for it
-       ✔  flat/smooth shading
-       ✔  integrate optional effect shaders
-
-  * functions / methods
-    └> ✔ begin separating module functions as optional includes
-       ✔ migrate functions to coordinates.js module
-       ✔ integrate obj loader
-
--->
