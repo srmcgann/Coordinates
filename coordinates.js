@@ -409,9 +409,11 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
             n = a
             ret.vertices = [...ret.vertices,
                             ...v[0], ...v[1], ...v[2]]
-            ret.uvs      = [...ret.uvs,
+            if(u.length && typeof u[0] != 'undefined')
+              ret.uvs      = [...ret.uvs,
                             ...u[0], ...u[1], ...u[2]]
-            ret.normals  = [...ret.normals,
+            if(n.length && typeof n[0] != 'undefined')
+              ret.normals  = [...ret.normals,
                             ...n[0], ...n[1], ...n[2]]
           break
           case 4: // split quad
@@ -546,6 +548,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
 
   var geometry = {}
   
+  console.log(geoOptions)
   geoOptions = structuredClone(geoOptions)
   // must precede
   Object.keys(geoOptions).forEach((key, idx) => {
@@ -1351,7 +1354,6 @@ const BasicShader = async (renderer, options=[]) => {
                   value: typeof option[key].value == 'undefined' ?
                           renderer.ambientLight : option[key].value,
                 }
-                console.log(lightingOption)
                 dataset.optionalLighting.push( lightingOption )
               }
             break
