@@ -548,7 +548,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
 
   var geometry = {}
   
-  console.log(geoOptions)
   geoOptions = structuredClone(geoOptions)
   // must precede
   Object.keys(geoOptions).forEach((key, idx) => {
@@ -2088,7 +2087,6 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
       texCoord: f[l],
     }]
   }
-  console.log('geometry', geometry)
   return {
     geometry
   }
@@ -3149,7 +3147,6 @@ const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
        Math.max(shapeType == 'sprite' ? 1 : 2, subs),
              sphereize, flipNormals, true, shapeType)
              
-  console.log(ret)
   return ret
 }
 
