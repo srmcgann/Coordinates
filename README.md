@@ -121,8 +121,10 @@ var rendererOptions = {
 Ambient light is available, optionally, as a parameter for shader instances, or globally as a Renderer parameter. If the renderer parameter is set, it will be overridden by a shader setting.<br>
 
 Point lights are invoked as shapes, currently.
+<br>
 
-## other methods
+
+## Other Methods
 
 
 ### AnimationLoop()
