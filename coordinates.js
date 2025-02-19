@@ -859,7 +859,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
 
   //sphereize
-  if(IsPolyhedron(shapeType)){
+  if(1||IsPolyhedron(shapeType)){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
     for(var i = 0; i< vertices.length; i+=3){
