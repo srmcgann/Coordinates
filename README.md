@@ -113,7 +113,7 @@ var rendererOptions = {
 ```
 <br>
 
-## Lighting()
+## Lighting
 
 #### Ambient Light
 
@@ -122,16 +122,17 @@ Ambient light is available, optionally, as a parameter for shader instances, or 
 
 Point lights are invoked as shapes, currently.
 
+<br>
 
 
-#### AnimationLoop()
+### AnimationLoop()
 ``Coordinates.AnimationLoop( renderer, 'Draw' )``<br>
 ##### Returns nothing. Takes no options
 The function named should be a<br>
 window global  ``window.Draw = () => { ... }``, as to be callable
 <br><br>
 
-#### BasicShader()
+### BasicShader()
 ``Coordinates.BasicShader(renderer, shaderOptions)``<br>
 
 ##### Returns basic shader object, optional async
@@ -167,7 +168,7 @@ var shaderOptions = {
 ```
 <br><br>
 
-#### LoadGeometry()
+### LoadGeometry()
 ``Coordinates.LoadGeometry( renderer, geoOptions )``<br>
 
 ##### Returns a mesh object, optional async
@@ -251,7 +252,7 @@ var geoOptions = {
 ```
 <br><br>
 
-#### geometry.sphereize = [value]
+### geometry.sphereize = [value]
 This value, when set as an option for LoadGeometry, interpolates a polyhedron
 between its normal shape (e.g. a cube), and sphere. A value of 0 (zero) is the
 shape's original, expected appearance, and 1 is a sphere. Values less than zero
@@ -259,7 +260,7 @@ or more than 1 are accepted. NOTE! if sphereize is used, you should set
 ``averageNormals: true``, to recompute the data used by reflections, lighting etc.
 <br><br>
 
-#### ConnectGeometry()
+### ConnectGeometry()
 Performs linkage between geometry created with the ``LoadGeometry`` method, and a shader created with the ``BasicShader`` method. If not called, <b>Coordinates</b> will use a null shader (no effects) so the shape can be drawn. Connecting geometry to a shader removes it from any previous connections.
 
 ``shader.ConnectGeometry( geometry )``
@@ -267,7 +268,7 @@ Performs linkage between geometry created with the ``LoadGeometry`` method, and 
 ##### Returns nothing, optional async
 <br><br>
 
-#### Clear()
+### Clear()
 Clears the viewport.<br>
 Note: WebGL "swaps" buffers by default, resulting<br>
 in the clearing of drawn elements, but not the background. This clears<br>
@@ -278,7 +279,7 @@ the background as well. See Renderer option 'clearColor', to set the color.<br>
 ##### Returns nothing
 <br><br>
 
-#### Draw()
+### Draw()
 Draws a single geometry created with the ``LoadGeometry`` method<br>
 
 ``renderer.Draw( geometry)``
