@@ -37,14 +37,10 @@ verbatim, into a file named ``index.html``, and see the result...<br>
     <script type="module">
     
       import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.js"
+      "./coordinates.js"
     
-      // instantiate a canvas, 'renderer'. this is also our 'camera'
-      var rendererOptions = {
-        ambientLight: .2,
-        fov: 1500
-      }
-      var renderer = await Coordinates.Renderer(rendererOptions)
+      // instantiate a canvas. this is also our 'camera'
+      var renderer = await Coordinates.Renderer()
       
       // back the camera away from the center (move it toward the viewer)
       renderer.z = 10
@@ -53,23 +49,14 @@ verbatim, into a file named ``index.html``, and see the result...<br>
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       // invoke a shader - phong in this case for a pseudo-lighting effect
-      var shaderOptions = [
-        { uniform: {
-          type: 'phong',
-          value: .75
-        } }
-      ]
+      var shaderOptions = [ { uniform: { type: 'phong' } } ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
       // create a scene (it's async, so we can 'await' each call, but that is optional)
       var shapes = []
         // load a cube
-      var geoOptions = {
-        shapeType: 'cube',
-        size: 5,
-        color: 0x888888
-      }
+      var geoOptions = { shapeType: 'cube', size: 5, color: 0x888888 }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
@@ -78,7 +65,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
       
       window.Draw = () => {
         shapes.forEach(shape => {
-          shape.yaw += .01
+          shape.yaw   += .01
           shape.pitch += .005
           renderer.Draw(shape)
         })
@@ -125,6 +112,17 @@ var rendererOptions = {
 }
 ```
 <br>
+
+## Lighting()
+
+#### Ambient Light
+
+``ambientLight: [0 to ...]``<br>
+Ambient light is available, optionally, as a parameter for shader instances, or globally as a Renderer parameter. If the renderer parameter is set, it will be overridden by a shader setting.<br>
+
+Point lights are invoked as shapes, currently.
+
+
 
 #### AnimationLoop()
 ``Coordinates.AnimationLoop( renderer, 'Draw' )``<br>
