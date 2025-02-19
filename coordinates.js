@@ -787,7 +787,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'sprite':
         isSprite = true
-        shape = await Rectangle(size, subs-1, sphereize, flipNormals, shapeType)
+        shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
           normals  = [...normals,  ...v.normal]
@@ -797,7 +797,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'point light':
         isLight = true
         if(!pointLightShowSource){
-          shape.geometry = []
+          shape = { geometry: [] }
         }else{
           shape = await Rectangle(Math.max(size, .5) , subs-1, sphereize, flipNormals, shapeType)
         }
@@ -871,7 +871,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       var X = vertices[i+0]
       var Y = vertices[i+1]
       var Z = vertices[i+2]
-      d = Math.hypot(X,Y,Z) //+ .0001
+      d = Math.hypot(X,Y,Z) + .0001
       X /= d
       Y /= d
       Z /= d
@@ -1400,17 +1400,17 @@ const BasicShader = async (renderer, options=[]) => {
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
                       refP1 = -atan(px, pz)/ M_PI / 2.0 + camOri.z / M_PI / 2.0;
-                      refP2 = acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
+                      refP2 = 1.0-acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
                     } else {
                       refP1 = vUv.x;
                       refP2 = vUv.y;
                     }
                     
                     vec2 refCoords = vec2(1.0 - refP1, refP2);
-                    vec4 refCol = vec4(texture2D(reflectionMap, vec2(refCoords.x, refCoords.y)).rgb * 1.25, .1 + reflection * 2.0);
+                    vec4 refCol = vec4(texture2D(reflectionMap, vec2(refCoords.x, refCoords.y)).rgb * 1.25, reflection / 2.0);
                     mixColor = merge(mixColor, refCol);
                     baseColorIp = 1.0 - reflection;
-                    light += reflection / 4.0;
+                    //light += reflection / 4.0;
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -1849,8 +1849,8 @@ const BasicShader = async (renderer, options=[]) => {
                       gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
                       await fetch(url).then(res=>res.blob()).then(data => {
                         image.src = URL.createObjectURL(data)
+                        image.onload = () => BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                       })
-                      image.onload = () => BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                       cache.textures.push({
                         url,
                         resource: image,
@@ -2088,6 +2088,7 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
       texCoord: f[l],
     }]
   }
+  console.log('geometry', geometry)
   return {
     geometry
   }
@@ -3144,9 +3145,12 @@ const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
     [0, 1],
   ]]
   
-  return await GeometryFromRaw(e, texCoords, size / 1.5,
+  var ret = await GeometryFromRaw(e, texCoords, size / 1.5,
        Math.max(shapeType == 'sprite' ? 1 : 2, subs),
              sphereize, flipNormals, true, shapeType)
+             
+  console.log(ret)
+  return ret
 }
 
 const IsPowerOf2 = (v, d=0) => {
@@ -3184,7 +3188,6 @@ const AnimationLoop = (renderer, func) => {
     if(renderer.ready && typeof window[func] != 'undefined') window[func]()
       
     if(renderer.spriteQueue.length){
-
       var forSort = []
       
       // mimic shader rotation function, for z-sorting.
@@ -3209,9 +3212,9 @@ const AnimationLoop = (renderer, func) => {
       renderer.spriteQueue.map(async (sprite, idx) => {
         //if(forSort[idx].z > 0){
           var shape = renderer.spriteQueue[forSort[idx].idx]
-          if(shape.disableDepthTest) ctx.disable(ctx.DEPTH_TEST)
+          if(shape.disableDepthTest) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
           await renderer.Draw(shape, true)
-          if(shape.disableDepthTest) ctx.enable(ctx.DEPTH_TEST)
+          if(shape.disableDepthTest) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
         //}
       })
     
