@@ -24,7 +24,7 @@ const Renderer = options => {
   var width = 1920, height = 1080
   var roll=0, pitch=0, yaw=0, fov=2e3
   var attachToBody = true, margin = 10, exportGPUSpecs = false
-  var ambientLight = .5, alpha=false, clearColor = 0x000000
+  var ambientLight = .2, alpha=false, clearColor = 0x000000
   var context = {
     mode: 'webgl2',
     options: {
@@ -183,29 +183,21 @@ const Renderer = options => {
           ctx.uniform4fv(dset.locPointLightCols, plcols)
         }
 
+        var ambLight = renderer.ambientLight
 
-        // other uniforms
-        
-        
-        ctx.uniform1f(dset.locT,               renderer.t)
-        ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
-        ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
-        ctx.uniform1f(dset.locIsLight,         geometry.isLight)
-        ctx.uniform1f(dset.locAlpha,           geometry.alpha)
-        ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
-        ctx.uniform1f(dset.locAmbientLight,    renderer.ambientLight)
-        ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
-        ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
-        ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
-        ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
-        ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
-        ctx.uniform1f(dset.locFov,             renderer.fov)
-        ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
-        ctx.uniform1f(dset.locRenderNormals,   0)
+        dset.optionalLighting.map(lighting => {
+          switch(lighting.name){
+            case 'ambientLight':
+              ambLight = lighting.value
+            break
+            default:
+            break
+          }
+        })
         
         dset.optionalUniforms.map(async (uniform) => {
           if(typeof uniform?.loc === 'object'){
-            ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 10 : 1))
+            ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 1 : 1))
             ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
             switch(uniform.name){
               case 'reflection':
@@ -218,7 +210,9 @@ const Renderer = options => {
                 ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
                 
                 ctx.uniform1f(uniform.locRefOmitEquirectangular,
-                     ( geometry.shapeType == 'rectangle' || geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
+                     ( geometry.shapeType == 'rectangle' ||
+                       geometry.shapeType == 'point light' ||
+                       geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
               break
               case 'phong':
                 uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
@@ -227,6 +221,24 @@ const Renderer = options => {
             }
           }
         })
+        
+        // other uniforms
+        
+        ctx.uniform1f(dset.locT,               renderer.t)
+        ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
+        ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
+        ctx.uniform1f(dset.locIsLight,         geometry.isLight)
+        ctx.uniform1f(dset.locAlpha,           geometry.alpha)
+        ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
+        ctx.uniform1f(dset.locAmbientLight,    ambLight / 8)
+        ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
+        ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
+        ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
+        ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
+        ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
+        ctx.uniform1f(dset.locFov,             renderer.fov)
+        ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
+        ctx.uniform1f(dset.locRenderNormals,   0)
         
         
         ctx.disable(ctx.CULL_FACE)
@@ -237,7 +249,6 @@ const Renderer = options => {
         ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
         ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
         ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW)
-        //ctx.vertexAttribDivisor(dset.locUv, 0)
         ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
         ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
         ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
@@ -250,58 +261,43 @@ const Renderer = options => {
         ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
         ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
         ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nVecIndices, ctx.STATIC_DRAW)
-        //ctx.vertexAttribDivisor(dset.locNormalVec, 0)
         ctx.vertexAttribPointer(dset.locNormalVec, 3, ctx.FLOAT, true, 0, 0)
         ctx.enableVertexAttribArray(dset.locNormalVec)
         ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
         ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-          
 
-        /*
-        ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-        ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
-        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-        ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
-        //ctx.vertexAttribDivisor(dset.locPosition, 0)
-        ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
-        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-        ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-        ctx.enableVertexAttribArray(dset.locPosition)
-        ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
-        //ctx.drawElements(ctx.LINES, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
-        */
+        if(geometry?.vertices?.length){
+          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+          ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
+          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+          ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
+          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+          dset.locPosition = ctx.getAttribLocation(dset.program, "position")
+          ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
+          ctx.enableVertexAttribArray(dset.locPosition)
+          ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
 
-        ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-        ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
-        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-        ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
-        ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-        dset.locPosition = ctx.getAttribLocation(dset.program, "position")
-        ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
-        ctx.enableVertexAttribArray(dset.locPosition)
-        ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
+          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+          ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+        }
 
-        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-        ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-
-
-        /*
         // normals lines drawn, optionally
         ctx.uniform1f(dset.locRenderNormals, geometry.showNormals ? 1 : 0)
-        if(geometry.showNormals){
+        if(geometry.showNormals && geometry?.normals?.length){
           ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
           ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
           ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
           ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
-          //ctx.vertexAttribDivisor(dset.locNormal, 0)
-          ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, true, 0, 0)
+          ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, false, 0, 0)
+          dset.locNormal = ctx.getAttribLocation(dset.program, "normal")
+          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
+          ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
           ctx.enableVertexAttribArray(dset.locNormal)
           ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_INT,0)
           ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
           ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
         }
-        */
       }
     }
   }
@@ -317,6 +313,7 @@ const DestroyViewport = el => {
 const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
 
   var ret = { vertices: [], normals: [], uvs: [] }
+  var a, X, Y, Z
   if((cacheItem = cache.objFiles.filter(v=>v.url == url)).length){
     ret = cacheItem[0].ret
   }else{
@@ -373,8 +370,43 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
             break
           }
         })
+        var X1 = v[0][0]
+        var Y1 = v[0][1]
+        var Z1 = v[0][2]
+        var X2 = v[1][0]
+        var Y2 = v[1][1]
+        var Z2 = v[1][2]
+        var X3 = v[2][0]
+        var Y3 = v[2][1]
+        var Z3 = v[2][2]
+        var NX1 = n[0][0]
+        var NY1 = n[0][1]
+        var NZ1 = n[0][2]
+        var NX2 = n[1][0]
+        var NY2 = n[1][1]
+        var NZ2 = n[1][2]
+        var NX3 = n[2][0]
+        var NY3 = n[2][1]
+        var NZ3 = n[2][2]
+        if(v.length == 4){
+          var X4 = v[3][0]
+          var Y4 = v[3][1]
+          var Z4 = v[3][2]
+          var NX4 = n[3][0]
+          var NY4 = n[3][1]
+          var NZ4 = n[3][2]
+        }
+        
         switch(v.length) {
           case 3:
+            a = []
+            n.map((q, j) => {
+              a = [...a,
+               [X1,Y1,Z1, X1+NX1, Y1+NY1, Z1+NZ1],
+               [X2,Y2,Z2, X2+NX2, Y2+NY2, Z2+NZ2],
+               [X3,Y3,Z3, X3+NX3, Y3+NY3, Z3+NZ3]]
+            })
+            n = a
             ret.vertices = [...ret.vertices,
                             ...v[0], ...v[1], ...v[2]]
             ret.uvs      = [...ret.uvs,
@@ -383,10 +415,19 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
                             ...n[0], ...n[1], ...n[2]]
           break
           case 4: // split quad
-            ret.vertices             = [...ret.vertices,
+            a = []
+            n.map((q, j) => {
+              a = [...a,
+               [X1,Y1,Z1, X1+NX1, Y1+NY1, Z1+NZ1],
+               [X2,Y2,Z2, X2+NX2, Y2+NY2, Z2+NZ2],
+               [X3,Y3,Z3, X3+NX3, Y3+NY3, Z3+NZ3],
+               [X4,Y4,Z4, X4+NX4, Y4+NY4, Z4+NZ4]]
+            })
+            n = a
+            ret.vertices          = [...ret.vertices,
                             ...v[0], ...v[1], ...v[2],
                             ...v[2], ...v[3], ...v[0]]
-            if(u.length) ret.uvs     = [...ret.uvs,
+            if(u.length) ret.uvs  = [...ret.uvs,
                             ...u[0], ...u[1], ...u[2],
                             ...u[2], ...u[3], ...u[0]]
             if(n.length) ret.normals = [...ret.normals,
@@ -405,12 +446,37 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true) => {
     ret.normals[i+1] = -ret.normals[i+1]
   }
   for(var i = 0; i<ret.vertices.length; i+=3){
-    ret.vertices[i+0] += tx
-    ret.vertices[i+1] += ty
-    ret.vertices[i+2] += tz
-    ret.vertices[i+0] *= scale
-    ret.vertices[i+1] *= scale
-    ret.vertices[i+2] *= scale
+    X = ret.vertices[i+0]
+    Y = ret.vertices[i+1]
+    Z = ret.vertices[i+2]
+    var ar = [X,Y,Z]
+    if(pt) ar = R(...ar, {roll:0, pitch:pt, yaw:0})
+    if(yw) ar = R(...ar, {roll:0, pitch:0, yaw:yw})
+    if(rl) ar = R(...ar, {roll:rl, pitch:0, yaw:0})
+    ret.vertices[i+0] = ar[0]
+    ret.vertices[i+1] = ar[1]
+    ret.vertices[i+2] = ar[2]
+    //ret.vertices[i+0] += tx
+    //ret.vertices[i+1] += ty
+    //ret.vertices[i+2] += tz
+    //ret.vertices[i+0] *= scale
+    //ret.vertices[i+1] *= scale
+    //ret.vertices[i+2] *= scale
+
+    for(var m = 2; m--;){
+      var l = m ? i*2 : i*2+3
+      X = ret.normals[l+0]
+      Y = ret.normals[l+1]
+      Z = ret.normals[l+2]
+      var ar = [X,Y,Z]
+      if(pt) ar = R(...ar, {roll:0, pitch:pt, yaw:0})
+      if(yw) ar = R(...ar, {roll:0, pitch:0, yaw:yw})
+      if(rl) ar = R(...ar, {roll:rl, pitch:0, yaw:0})
+      ret.normals[l+0] = ar[0]
+      ret.normals[l+1] = ar[1]
+      ret.normals[l+2] = ar[2]
+    }
+    
   }
   return ret
 }
@@ -507,10 +573,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'size'             : size = geoOptions[key]; break
       case 'subs'             : subs = geoOptions[key]; break
-      case 'sphereize'        : sphereize = geoOptions[key]; break
       case 'equirectangular'  : equirectangular = !!geoOptions[key]; break
       case 'flipnormals'      : flipNormals = !!geoOptions[key]; break
       case 'shownormals'      : showNormals = !!geoOptions[key]; break
+      case 'sphereize'        : sphereize = geoOptions[key]; break
       case 'objx'             : objX = geoOptions[key]; break
       case 'objy'             : objY = geoOptions[key]; break
       case 'objz'             : objZ = geoOptions[key]; break
@@ -545,6 +611,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
     }
   })
+  if(sphereize) averageNormals = true
 
   
   var vertices    = []
@@ -643,46 +710,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
     })
   }
 
-  if(1||shapeType != 'custom shape'){
-    var ip1 = sphereize
-    var ip2 = 1 -sphereize
-    for(var i = 0; i< vertices.length; i+=3){
-      var d, val
-    
-      var X = vertices[i+0]
-      var Y = vertices[i+1]
-      var Z = vertices[i+2]
-      d = Math.hypot(X,Y,Z) //+ .0001
-      X /= d
-      Y /= d
-      Z /= d
-      X *= ip1 + d*ip2
-      Y *= ip1 + d*ip2
-      Z *= ip1 + d*ip2
-      vertices[i+0] = X * size * scaleX
-      vertices[i+1] = Y * size * scaleY
-      vertices[i+2] = Z * size * scaleZ
-      
-      var ox = normals[i*2+0]
-      var oy = normals[i*2+1]
-      var oz = normals[i*2+2]
-
-      normals[i*2+0] += vertices[i+0] - ox
-      normals[i*2+1] += vertices[i+1] - oy
-      normals[i*2+2] += vertices[i+2] - oz
-      normals[i*2+3] += vertices[i+0] - ox
-      normals[i*2+4] += vertices[i+1] - oy
-      normals[i*2+5] += vertices[i+2] - oz
-
-      /*normals[i*2+0] *= scaleX
-      normals[i*2+1] *= scaleY
-      normals[i*2+2] *= scaleZ
-      normals[i*2+3] *= scaleX
-      normals[i*2+4] *= scaleY
-      normals[i*2+5] *= scaleZ
-      */
-    }
-  }
   if(!resolved){
     switch(shapeType){
       case 'tetrahedron':
@@ -807,18 +834,21 @@ const LoadGeometry = async (renderer, geoOptions) => {
        vertices[i+2] *= scaleZ
     }
     
-    for(var i=0; i<normals.length; i+=6){
-      var nx = normals[i+3] - normals[i+0]
-      var ny = normals[i+4] - normals[i+1]
-      var nz = normals[i+5] - normals[i+2]
-      normals[i+0] *= scaleX
-      normals[i+1] *= scaleY
-      normals[i+2] *= scaleZ
-      normals[i+3] = normals[i+0] + nx
-      normals[i+4] = normals[i+1] + ny
-      normals[i+5] = normals[i+2] + nz
+    // scale normals, with shape if scaled
+    if(shapeType != 'obj' &&
+       shapeType != 'customShape'){
+         for(var i=0; i<normals.length; i+=6){
+        var nx = normals[i+3] - normals[i+0]
+        var ny = normals[i+4] - normals[i+1]
+        var nz = normals[i+5] - normals[i+2]
+        normals[i+0] *= scaleX
+        normals[i+1] *= scaleY
+        normals[i+2] *= scaleZ
+        normals[i+3] = normals[i+0] + nx
+        normals[i+4] = normals[i+1] + ny
+        normals[i+5] = normals[i+2] + nz
+      }
     }
-    
   }else{
     switch(shapeType){
       case 'tetrahedron': case 'octahedron':
@@ -827,8 +857,50 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
     }
   }
+
+  //sphereize
+  if(sphereize){
+    var ip1 = sphereize
+    var ip2 = 1 -sphereize
+    for(var i = 0; i< vertices.length; i+=3){
+      var d, val
+    
+      var X = vertices[i+0]
+      var Y = vertices[i+1]
+      var Z = vertices[i+2]
+      d = Math.hypot(X,Y,Z) //+ .0001
+      X /= d
+      Y /= d
+      Z /= d
+      X *= ip1 + d*ip2
+      Y *= ip1 + d*ip2
+      Z *= ip1 + d*ip2
+      vertices[i+0] = X * size * scaleX
+      vertices[i+1] = Y * size * scaleY
+      vertices[i+2] = Z * size * scaleZ
+      
+      var ox = normals[i*2+0]
+      var oy = normals[i*2+1]
+      var oz = normals[i*2+2]
+
+      normals[i*2+0] += vertices[i+0] - ox
+      normals[i*2+1] += vertices[i+1] - oy
+      normals[i*2+2] += vertices[i+2] - oz
+      normals[i*2+3] += vertices[i+0] - ox
+      normals[i*2+4] += vertices[i+1] - oy
+      normals[i*2+5] += vertices[i+2] - oz
+
+      normals[i*2+0] *= scaleX
+      normals[i*2+1] *= scaleY
+      normals[i*2+2] *= scaleZ
+      normals[i*2+3] *= scaleX
+      normals[i*2+4] *= scaleY
+      normals[i*2+5] *= scaleZ
+    }
+  }
   
   if(averageNormals) AverageNormals(vertices, normals, shapeType)
+    
   if(!resolved || averageNormals || exportShape){
     normalVecs    = []
     for(var i=0; i<normals.length; i+=6){
@@ -963,7 +1035,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
   
   //normal lines for drawing, indices
-  /*
   normal_buffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
   gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
@@ -973,7 +1044,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, nIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
-  */
 
   //uvs, indices
   uv_buffer = gl.createBuffer()
@@ -1014,7 +1084,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
   
   const nullShader = await BasicShader(renderer, [ 
-  {uniform: {type: 'phong', value: 0} }
+    {uniform: {type: 'phong', value: 0} }
   ] )
   await nullShader.ConnectGeometry(geometry)
   
@@ -1265,26 +1335,45 @@ const BasicShader = async (renderer, options=[]) => {
     locFov: null,
     program: null,
     optionalUniforms: [],
+    optionalLighting: [],
   }
   
   options.map(option => {
     Object.keys(option).forEach((key, idx) => {
       switch(key.toLowerCase()){
+        case 'lighting':
+          switch(option[key].type.toLowerCase()){
+            case 'ambientlight': 
+              if(typeof option[key]?.enabled == 'undefined' ||
+                 !!option[key].enabled){
+                var lightingOption = {
+                  name: option[key].type,
+                  value: typeof option[key].value == 'undefined' ?
+                          renderer.ambientLight : option[key].value,
+                }
+                console.log(lightingOption)
+                dataset.optionalLighting.push( lightingOption )
+              }
+            break
+            default:
+            break
+          }
+        break
         case 'uniform':
-          switch(option.uniform.type){
+          switch(option[key].type.toLowerCase()){
             case 'reflection':
-              if(typeof option.uniform?.enabled == 'undefined' ||
-                 !!option.uniform.enabled){
+              if(typeof option[key]?.enabled == 'undefined' ||
+                 !!option[key].enabled){
                 var uniformOption = {
-                  name:                option.uniform.type,
-                  muted:               typeof option.uniform.muted == 'undefined' ?
-                                         true : option.uniform.muted,
-                  map:                 option.uniform.map,
+                  name:                option[key].type,
+                  muted:               typeof option[key].muted == 'undefined' ?
+                                         true : option[key].muted,
+                  map:                 option[key].map,
                   loc:                 'locReflection',
-                  value:               typeof option.uniform.value == 'undefined' ?
-                                         .5 : option.uniform.value,
-                  flatShading:         typeof option.uniform.flatShading == 'undefined' ?
-                                         false : option.uniform.flatShading,
+                  value:               typeof option[key].value == 'undefined' ?
+                                         .5 : option[key].value,
+                  flatShading:         typeof option[key].flatShading == 'undefined' ?
+                                         false : option[key].flatShading,
                   flatShadingUniform:  'refFlatShading',
                   dataType:            'uniform1f',
                   vertDeclaration:     `
@@ -1301,7 +1390,8 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 reflectionPos;
                   `,
                   fragCode:            `
-                    light = vec4(light.r * .85 + .05, light.g * .85 + .05, light.b * .85 + .05, 1.0);
+                    light.rgb *= .5;
+                    light.rgb += .05;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
                       float px = reflectionPos.x;
@@ -1315,28 +1405,28 @@ const BasicShader = async (renderer, options=[]) => {
                     }
                     
                     vec2 refCoords = vec2(1.0 - refP1, refP2);
-                    mixColor.a = mixColorIp;
-                    vec4 refCol = vec4(texture2D(reflectionMap, vec2(refCoords.x, refCoords.y)).rgb * 1.5, reflection / 2.0);
+                    vec4 refCol = vec4(texture2D(reflectionMap, vec2(refCoords.x, refCoords.y)).rgb * 1.25, .1 + reflection * 2.0);
                     mixColor = merge(mixColor, refCol);
-                    mixColorIp = (light.r + light.g + light.b) / 3.0;
+                    baseColorIp = 1.0 - reflection;
+                    light += reflection / 4.0;
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
               }
             break
             case 'phong':
-              if(typeof option.uniform?.enabled == 'undefined' ||
-                 !!option.uniform.enabled){
+              if(typeof option[key]?.enabled == 'undefined' ||
+                 !!option[key].enabled){
                 var uniformOption = {
-                  name:                option.uniform.type,
+                  name:                option[key].type,
                   loc:                 'locPhong',
-                  value:               typeof option.uniform.value == 'undefined' ?
-                                         .3 : option.uniform.value,
-                  flatShading:         typeof option.uniform.flatShading == 'undefined' ?
-                                         false : option.uniform.flatShading,
+                  value:               typeof option[key].value == 'undefined' ?
+                                         .3 : option[key].value,
+                  flatShading:         typeof option[key].flatShading == 'undefined' ?
+                                         false : option[key].flatShading,
                   flatShadingUniform:  'phongFlatShading',
-                  theta:                typeof option.uniform.theta == 'undefined' ?
-                                          .6 + Math.PI: option.uniform.theta,
+                  theta:                typeof option[key].theta == 'undefined' ?
+                                          .6 + Math.PI: option[key].theta,
                   dataType:            'uniform1f',
                   vertDeclaration:     `
                     varying vec3 phongPos;
@@ -1353,7 +1443,7 @@ const BasicShader = async (renderer, options=[]) => {
                   `,
                   fragCode:            `
                     if(isLight == 0.0 && isSprite == 0.0){
-                      light = vec4(light.r * .5, light.g * .5, light.b * .5, 1.0);
+                      //light.rgb *= .5;
                       float phongP1, phongP2;
                       float px, py, pz;
                       if(flatShading != 0.0){
@@ -1368,10 +1458,8 @@ const BasicShader = async (renderer, options=[]) => {
                       phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
 
-                      
-                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.3)), 2.0), 2.0) / 500.0 * phong ;
-                      light = vec4(light.rgb + fact, 1.0);
-                      mixColorIp = fact + (light.r + light.g + light.b) / 3.0;
+                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.6)), 2.0), 2.0) / 400.0 * phong ;
+                      light = vec4(light.rgb + fact, 1.0) * 15.0;
                     }
                   `,
                 }
@@ -1590,32 +1678,6 @@ const BasicShader = async (renderer, options=[]) => {
     }
     
     vec4 GetPointLight(){
-      /*
-      float ret = 0.0;
-      vec4 rgba = vec4(0.0, 0.0, 0.0, 1.0);
-      for(int i=0; i < 16; i++){
-        if(i >= pointLightCount) break;
-        vec3 lpos = pointLightPos[i].xyz;
-        lpos.x -= geoPos.x;
-        lpos.y -= geoPos.y;
-        lpos.z -= geoPos.z;
-        lpos = R(lpos, vec3(camOri.x, 0.0, camOri.z ));
-        lpos = R(lpos, vec3(0.0, camOri.y, 0.0));
-        //lpos = R(lpos, vec3(0.0, -geoOri.y, 0.0));
-        //lpos = R(lpos, vec3(-geoOri.x, 0.0, -geoOri.z ));
-
-        float mag = pointLightPos[i].w;
-        ret = mag / (1.0 + pow(1.0 + sqrt((lpos.x-fPos.x) * (lpos.x-fPos.x) +
-                     (lpos.y-fPos.y) * (lpos.y-fPos.y) +
-                     (lpos.z-fPos.z) * (lpos.z-fPos.z)), 2.0) / 3.0) * 40.0;
-        
-        rgba.r += ret * pointLightCol[i].r;
-        rgba.g += ret * pointLightCol[i].g;
-        rgba.b += ret * pointLightCol[i].b;
-      }
-      return rgba;
-      */
-      
       
       float ret = 0.0;
       vec4 rgba = vec4(0.0, 0.0, 0.0, 1.0);
@@ -1627,8 +1689,6 @@ const BasicShader = async (renderer, options=[]) => {
         lpos.z -= geoPos.z;
         lpos = R(lpos, vec3(camOri.x, 0.0, camOri.z ));
         lpos = R(lpos, vec3(0.0, camOri.y, 0.0));
-        //lpos = R(lpos, vec3(0.0, -geoOri.y, 0.0));
-        //lpos = R(lpos, vec3(-geoOri.x, 0.0, -geoOri.z ));
 
         float mag = pointLightPos[i].w;
         ret = mag / (1.0 + pow(1.0 + sqrt((lpos.x-fPos.x) * (lpos.x-fPos.x) +
@@ -1639,70 +1699,33 @@ const BasicShader = async (renderer, options=[]) => {
         rgba.g += ret * pointLightCol[i].g;
         rgba.b += ret * pointLightCol[i].b;
       }
-      return pointLightCount > 0 ? vec4(rgba.rgb + ambientLight, 1.0) : vec4(ambientLight,
-                                               ambientLight,
-                                               ambientLight, 1.0);
-
+      
+      return pointLightCount > 0 ? vec4(rgba.rgb + ambientLight, 1.0) : vec4(ambientLight, ambientLight, ambientLight, 1.0);
     }
 
     void main() {
-      /*
-      float X, Y, Z, p, d, i, j;
-      vec2 coords = Coords(0.0);
       float mixColorIp = colorMix;
       float baseColorIp = 1.0 - mixColorIp;
-      vec4 mixColor = vec4(color.rgb, 1.0);
-      vec4 gpl = hasPhong == 1.0 ? GetPointLight() : vec4(.2,.2,.2,1.0);
-      vec4 light = vec4(ambientLight + gpl.r,
-                    ambientLight + gpl.g,
-                    ambientLight + gpl.b, 1.0);
-      float colorMag = 1.0;
-      if(skip != 1.0){
-        if(renderNormals == 1.0){
-          gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5 * alpha);
-        }else{
-          ${uFragCode}
-          vec4 texel = texture2D( baseTexture, coords);
-          if(isSprite != 0.0 || isLight != 0.0){
-            gl_FragColor = merge(gl_FragColor, vec4(texel.rgb * 2.0, texel.a));
-          }else{
-            //texel = vec4(texel.rgb * (1.0+light.rgb), 1.0);
-            mixColor.a = mixColorIp;
-            texel.a = baseColorIp;
-            vec4 col = merge(mixColor, texel);
-            col = merge(col, light);
-            gl_FragColor = vec4(col.rgb * colorMag, alpha);
-          }
-        }
-      }
-      */
-      
-      float X, Y, Z, p, d, i, j;
-      vec2 coords = Coords(0.0);
-      float mixColorIp = colorMix;
-      float baseColorIp = 1.0 - mixColorIp;
-      vec4 mixColor = vec4(color.rgb, 1.0);
-      vec4 light = hasPhong == 1.0 ? GetPointLight() : vec4(.2,.2,.2,1.0);
+      vec4 mixColor = vec4(color.rgb, mixColorIp);
+      vec4 light = hasPhong == 1.0 ? GetPointLight() :
+            vec4(ambientLight, ambientLight, ambientLight, 1.0);
       float colorMag = 1.0;
       if(skip != 1.0){
         if(renderNormals == 1.0){
           gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5);
         }else{
           ${uFragCode}
-          vec4 texel = texture2D( baseTexture, coords);
+          vec4 texel = texture2D( baseTexture, Coords(0.0));
           if(isSprite != 0.0 || isLight != 0.0){
             gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
           }else{
-            //texel = vec4(texel.rgb * (1.0+light.rgb), 1.0);
-            mixColor.a = mixColorIp;
             texel.a = baseColorIp;
             vec4 col = merge(mixColor, texel);
-            col = merge(col, light);
+            col.rgb *= light.rgb;
             gl_FragColor = vec4(col.rgb * colorMag, 1.0);
           }
         }
       }
-
     }
   `
   
@@ -1751,11 +1774,11 @@ const BasicShader = async (renderer, options=[]) => {
       gl.vertexAttribPointer(dset.locUv , 2, gl.FLOAT, false, 0, 0)
       gl.enableVertexAttribArray(dset.locUv)
 
-      //gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normal_buffer)
-      //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
-      //dset.locNormal = gl.getAttribLocation(dset.program, "normal")
-      //gl.vertexAttribPointer(dset.locNormal, 3, gl.FLOAT, true, 0, 0)
-      //gl.enableVertexAttribArray(dset.locNormal)
+      gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normal_buffer)
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
+      dset.locNormal = gl.getAttribLocation(dset.program, "normal")
+      gl.vertexAttribPointer(dset.locNormal, 3, gl.FLOAT, true, 0, 0)
+      gl.enableVertexAttribArray(dset.locNormal)
       
       gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normalVec_buffer)
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
@@ -1763,9 +1786,9 @@ const BasicShader = async (renderer, options=[]) => {
       gl.vertexAttribPointer(dset.locNormalVec, 3, gl.FLOAT, true, 0, 0)
       gl.enableVertexAttribArray(dset.locNormalVec)
       
-      let image
       if(!geometry.isLight){
         dset.optionalUniforms.map(async (uniform) => {
+          let image
           switch(uniform.name){
             case 'reflection':
               var url = uniform.map
@@ -1825,7 +1848,7 @@ const BasicShader = async (renderer, options=[]) => {
                       await fetch(url).then(res=>res.blob()).then(data => {
                         image.src = URL.createObjectURL(data)
                       })
-                      image.onload = async () => BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
+                      image.onload = () => BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                       cache.textures.push({
                         url,
                         resource: image,
@@ -1838,7 +1861,9 @@ const BasicShader = async (renderer, options=[]) => {
               gl.useProgram(dset.program)
               uniform.locRefOmitEquirectangular = gl.getUniformLocation(dset.program, "refOmitEquirectangular")
               gl.uniform1f(uniform.locRefOmitEquirectangular,
-                 ( geometry.shapeType == 'rectangle' || geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
+                 ( geometry.shapeType == 'rectangle' ||
+                   geometry.shapeType == 'point light' ||
+                   geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
               uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
               gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
               gl.uniform1i(uniform.locRefTexture, 1)
@@ -1894,7 +1919,7 @@ const BasicShader = async (renderer, options=[]) => {
       dset.texture = gl.createTexture()
       gl.bindTexture(gl.TEXTURE_2D, dset.texture)
       dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
-      
+      let image
       dset.iURL = textureURL
       if(textureURL){
         let l
