@@ -37,11 +37,11 @@ verbatim, into a file named ``index.html``, and see the result...<br>
     <script type="module">
     
       import * as Coordinates from
-      "https://boss.mindhackers.org/Coordinates/coordinates.js"
+      "./coordinates.js"
     
       // instantiate a canvas, 'renderer'. this is also our 'camera'
       var rendererOptions = {
-        ambientLight: .2,
+        ambientLight: .5,
         fov: 1500
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
