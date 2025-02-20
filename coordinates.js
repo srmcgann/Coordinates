@@ -5,7 +5,13 @@
 const S = Math.sin, C = Math.cos, Rn = Math.random
 //new OffscreenCanvas(256, 256); * might be superior
 const scratchCanvas = document.createElement('canvas')
-const sctx = scratchCanvas.getContext('2d', {alpha: true})
+const sctx = scratchCanvas.getContext('2d', {
+    alpha                   : true,
+    antialias               : true,
+    desynchronized          : true,
+    premultipliedAlpha      : false
+  }
+)
 const scratchImage = new Image()
 const moduleBase = 'https://srmcgann.github.io/Coordinates'
 
@@ -31,7 +37,8 @@ const Renderer = options => {
       alpha                   : true,
       antialias               : true,
       desynchronized          : true,
-    }
+      premultipliedAlpha      : false
+     }
   }
   
   var spriteQueue = []
@@ -241,7 +248,7 @@ const Renderer = options => {
         ctx.uniform1f(dset.locRenderNormals,   0)
         
         
-        ctx.disable(ctx.CULL_FACE)
+        //ctx.disable(ctx.CULL_FACE)
         //ctx.cullFace(ctx.BACK)
        
         // bind buffers
@@ -861,7 +868,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
 
   //sphereize
-  if(1||IsPolyhedron(shapeType)){
+  if(shapeType != 'custom shape' && shapeType != 'obj' ||
+     sphereize || scaleX || scaleY || scaleZ){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
     for(var i = 0; i< vertices.length; i+=3){
@@ -913,7 +921,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  if(flipNormals){
+  if(flipNormals && !exportShape){
     for(var i=0; i<normals.length; i+=6){
       normals[i+3] = normals[i+0] - (normals[i+3]-normals[i+0])
       normals[i+4] = normals[i+1] - (normals[i+4]-normals[i+1])
@@ -995,12 +1003,36 @@ const LoadGeometry = async (renderer, geoOptions) => {
     closeButton.innerHTML = 'close'
     popup.appendChild(closeButton)
     
-    output.innerHTML = JSON.stringify({
-      vertices: structuredClone(vertices).map(v=>{return Math.round(v*1e4) / 1e4}),
-      normals: structuredClone(normals).map(v=>{return Math.round(v*1e4) / 1e4}),
-      normalVecs: structuredClone(normalVecs).map(v=>{return Math.round(v*1e4) / 1e4}),
-      uvs: structuredClone(uvs).map(v=>{return Math.round(v*1e4) / 1e4}),
-    })
+    console.log(`flip normals requested: ${flipNormals}`)
+    
+    var processedOutput = {
+      vertices: [],
+      normals: [],
+      normalVecs: [],
+      uvs: [],
+    }
+    vertices.map(v => processedOutput.vertices.push(Math.round(v*1e3) / 1e3))
+    for(var i = 0; i < normals.length; i+=6){
+      
+      var X1 = normals[i+0]
+      var Y1 = normals[i+1]
+      var Z1 = normals[i+2]
+      var X2 = flipNormals ? normals[i+0] - (normals[i+3] - normals[i+0]) : normals[i+3]
+      var Y2 = flipNormals ? normals[i+1] - (normals[i+4] - normals[i+1]) : normals[i+4]
+      var Z2 = flipNormals ? normals[i+2] - (normals[i+5] - normals[i+2]) : normals[i+5]
+      X1 = Math.round(X1*1e3) / 1e3
+      Y1 = Math.round(Y1*1e3) / 1e3
+      Z1 = Math.round(Z1*1e3) / 1e3
+      X2 = Math.round(X2*1e3) / 1e3
+      Y2 = Math.round(Y2*1e3) / 1e3
+      Z2 = Math.round(Z2*1e3) / 1e3
+      processedOutput.normals.push(X1,Y1,Z1, X2,Y2,Z2)
+    }
+    for(var i = 0; i < normalVecs.length; i++){
+      processedOutput.normalVecs.push((flipNormals ? -1 : 1) * Math.round(normalVecs[i]*1e3) / 1e3)
+    }
+    uvs.map(v => processedOutput.uvs.push(Math.round(v*1e3) / 1e3))
+    output.innerHTML = JSON.stringify(processedOutput)
     document.body.appendChild(popup)
   }
   
@@ -1208,9 +1240,12 @@ const VideoToImage = async video => {
       tgtHeight = tsize / 1
     }
 
-    scratchCanvas.width  = tgtWidth //video.videoWidth
-    scratchCanvas.height = tgtHeight //video.videoHeight
-    sctx.drawImage(video, 0, 0, scratchCanvas.width, scratchCanvas.height)
+    if(scratchCanvas.width != tgtWidth ||
+         scratchCanvas.width != tgtHeight){
+      scratchCanvas.width  = tgtWidth //video.videoWidth
+      scratchCanvas.height = tgtHeight //video.videoHeight
+    }
+    await sctx.drawImage(video, 0, 0, scratchCanvas.width, scratchCanvas.height)
     return scratchCanvas //.toDataURL('image/jpeg', .5)
   }else{
     scratchCanvas.width  = 1
@@ -1219,6 +1254,8 @@ const VideoToImage = async video => {
   }
 }
 
+ 
+ 
 const BindImage = async (gl, resource, binding, textureMode='image', tval=-1,url='') => {
   let texImage
   switch(textureMode){
@@ -1228,11 +1265,13 @@ const BindImage = async (gl, resource, binding, textureMode='image', tval=-1,url
         texImage = cacheItem[0].texImage
       }else{
         texImage = await VideoToImage(resource)
-        cache.texImages.push({
-          url,
-          tval,
-          texImage
-        })
+        if(tval == -1){
+          cache.texImages.push({
+            url,
+            tval,
+            texImage
+          })
+        }
       }
     break
     case 'image':
@@ -1251,7 +1290,7 @@ const BindImage = async (gl, resource, binding, textureMode='image', tval=-1,url
     default:
     break
   }
-  //gl.activeTexture(gl.TEXTURE1)
+  gl.activeTexture(gl.TEXTURE1)
   gl.bindTexture(gl.TEXTURE_2D, binding)
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage);
   //gl.generateMipmap(gl.TEXTURE_2D)
@@ -1433,7 +1472,7 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 phongPos;
                   `,
                   vertCode:            `
-                    phongPos = nVec;
+                    phongPos = nVeci;//R(nVeci, geoOri);
                     hasPhong = 1.0;
                   `,
                   fragDeclaration:     `
@@ -1456,10 +1495,10 @@ const BasicShader = async (renderer, options=[]) => {
                         py = phongPos.y;
                         pz = phongPos.z;
                       }
-                      phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
+                      phongP1 = (atan(px, pz) - camOri.z) + phongTheta + geoOri.z;
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
 
-                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.6)), 2.0), 2.0) / 400.0 * phong ;
+                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0+.2)), 2.0), 2.0) / 400.0 * phong ;
                       light = vec4(light.rgb + fact, 1.0) * 15.0;
                     }
                   `,
@@ -1481,8 +1520,8 @@ const BasicShader = async (renderer, options=[]) => {
   
   gl.enable(gl.DEPTH_TEST)
   //gl.clear(gl.COLOR_BUFFER_BIT)
-  gl.disable(gl.CULL_FACE)
-  //gl.cullFace(gl.BACK)
+  //gl.disable(gl.CULL_FACE)
+  gl.cullFace(gl.BACK)
   if(renderer.alpha) {
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
     gl.enable(gl.BLEND)
@@ -1804,7 +1843,7 @@ const BasicShader = async (renderer, options=[]) => {
                       console.log('found video in cache... using it')
                       uniform.video = cacheItem[0].resource
                       ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
-                      BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
+                      await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
                     }else{
                       uniform.video = document.createElement('video')
                       uniform.video.muted = true
@@ -1822,7 +1861,7 @@ const BasicShader = async (renderer, options=[]) => {
                       }
                       uniform.video.oncanplay = async () => {
                         uniform.video.play()
-                        BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
+                        await BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
                       }
                       await fetch(url).then(res=>res.blob()).then(data => {
                         uniform.video.src = URL.createObjectURL(data)
@@ -1840,13 +1879,14 @@ const BasicShader = async (renderer, options=[]) => {
                       console.log('found image in cache... using it')
                       image = cacheItem[0].resource
                       ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
-                      BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
+                      await BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                     }else{
                       image = new Image()
                       ret.datasets = [...ret.datasets, {
                         texture: uniform.refTexture, iURL: url }]
                       gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
                       await fetch(url).then(res=>res.blob()).then(data => {
+                        image.onload = async () => await BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                         image.src = URL.createObjectURL(data)
                         image.onload = () => BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                       })
@@ -1936,7 +1976,7 @@ const BasicShader = async (renderer, options=[]) => {
               console.log('found video in cache... using it')
               dset.video = cacheItem[0].resource
               dset.texture = cacheItem[0].texture
-              BindImage(gl, dset.video, dset.texture, geometry.textureMode, -1, dset.iURL)
+              await BindImage(gl, dset.video, dset.texture, geometry.textureMode, -1, dset.iURL)
             }else{
               dset.video.loop = true
               if(!geometry.muted) {
@@ -1950,7 +1990,7 @@ const BasicShader = async (renderer, options=[]) => {
 
               dset.video.oncanplay = async () => {
                 dset.video.play()
-                BindImage(gl, dset.video, dset.texture, geometry.textureMode, -1, dset.iURL)
+                await BindImage(gl, dset.video, dset.texture, geometry.textureMode, -1, dset.iURL)
               }
               await fetch(dset.iURL).then(res=>res.blob()).then(data => {
                 dset.video.src = URL.createObjectURL(data)
@@ -1967,14 +2007,14 @@ const BasicShader = async (renderer, options=[]) => {
             if((cacheItem=cache.textures.filter(v=>v.url==dset.iURL)).length){
               dset.texture = cacheItem[0].texture
               image = cacheItem[0].resource
-              BindImage(gl, image, dset.texture, geometry.textureMode, -1, dset.iURL)
+              await BindImage(gl, image, dset.texture, geometry.textureMode, -1, dset.iURL)
             }else{
               image = new Image()
               await fetch(dset.iURL).then(res=>res.blob()).then(data => {
                 image.src = URL.createObjectURL(data)
               })
               image.onload = async () => {
-                BindImage(gl, image,
+                await BindImage(gl, image,
                         dset.texture, geometry.textureMode, -1, dset.iURL)
                 cache.textures.push({
                   url: dset.iURL,
