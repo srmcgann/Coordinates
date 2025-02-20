@@ -3246,10 +3246,12 @@ const AnimationLoop = (renderer, func) => {
       renderer.ctx.enable(renderer.ctx.BLEND)
 
       renderer.spriteQueue.map(async (sprite, idx) => {
-        var shape = renderer.spriteQueue[forSort[idx].idx]
-        if(shape.disableDepthTest) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
-        await renderer.Draw(shape, true)
-        if(shape.disableDepthTest) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
+        //if(forSort[idx].z > 0){
+          var shape = renderer.spriteQueue[forSort[idx].idx]
+          if(shape.disableDepthTest) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
+          await renderer.Draw(shape, true)
+          if(shape.disableDepthTest) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
+        //}
       })
     
       // disable alpha
