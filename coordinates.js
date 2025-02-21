@@ -1003,8 +1003,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
     closeButton.innerHTML = 'close'
     popup.appendChild(closeButton)
     
-    console.log(`flip normals requested: ${flipNormals}`)
-    
     var processedOutput = {
       vertices: [],
       normals: [],
