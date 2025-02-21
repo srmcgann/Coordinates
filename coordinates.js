@@ -1500,7 +1500,7 @@ const BasicShader = async (renderer, options=[]) => {
                       phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
 
-                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0+.2)), 2.0), 2.0) / 400.0 * phong ;
+                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0+.2)), 2.0), 2.0) / 200.0 * phong ;
                       light = vec4(light.rgb + fact, 1.0) * 15.0;
                     }
                   `,
@@ -1844,6 +1844,8 @@ const BasicShader = async (renderer, options=[]) => {
                     if((cacheItem=cache.textures.filter(v=>v.url==url)).length){
                       console.log('found video in cache... using it')
                       uniform.video = cacheItem[0].resource
+                      uniform.video.playbackRate = geometry.playbackSpeed
+                      uniform.video.defaultPlaybackRate = geometry.playbackSpeed
                       ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
                       BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
                     }else{
@@ -1890,6 +1892,7 @@ const BasicShader = async (renderer, options=[]) => {
                       await fetch(url).then(res=>res.blob()).then(data => {
                         image.onload = async () => BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                         image.src = URL.createObjectURL(data)
+                        image.onload = () => BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                       })
                       cache.textures.push({
                         url,
@@ -1978,6 +1981,8 @@ const BasicShader = async (renderer, options=[]) => {
             if((cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
               console.log('found video in cache... using it')
               dset.video = cacheItem[0].resource
+              dset.video.playbackRate = geometry.playbackSpeed
+              dset.video.defaultPlaybackRate = geometry.playbackSpeed
               dset.texture = cacheItem[0].texture
               BindImage(gl, dset.video, dset.texture, geometry.textureMode, -1, dset.iURL)
             }else{

@@ -13,39 +13,42 @@
   <body>
     <script type="module">
     
-      import * as Coordinates from
-      "./coordinates.js"
+      import * as Coordinates from "./coordinates.js"
+      
+      var S = Math.sin
+      var C = Math.cos
       
       //var refTexture = 'https://boss.mindhackers.org/assets/uploads/2fRBMj.mp4'
-      var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/pano2.jpg'
+      var refTexture = 'https://boss.mindhackers.org/assets/uploads/1qpPWM.mp4'
     
       var rendererOptions = {
-        ambientLight: 0,
-        fov: 1400
+        ambientLight: -.5,
+        fov: 1e3
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
-      renderer.z = 10
+      renderer.z = 16
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
         {lighting: {
-          type: 'ambientLight', value: -.5
+          type: 'ambientLight', value: -.25
         }},
         { uniform: {
           type: 'phong',
-          value: .5
+          value: 2.5
         } },
         
         { uniform: {
           type: 'reflection',
-          value: .5,
+          value: .9,
           map: refTexture,
-          flipReflections: false
+          flipReflections: false,
+          playbackSpeed: .25
         } },
         
       ]
@@ -55,7 +58,7 @@
       shaderOptions = [
         { lighting: {
           type: 'ambientLight',
-          value: .45
+          value: .7
         }},
         { uniform: {
           type: 'phong',
@@ -67,13 +70,13 @@
       var shapes = []
 
       var geoOptions = {
-        shapeType: 'icosahedron',
-        size: 5,
-        subs: 2,
-        color: 0x000000,
-        colorMix: 1,
+        shapeType: 'dodecahedron',
+        size: 14,
+        subs: 3,
+        color: 0x111111,
+        colorMix: .2,
         equirectangular: true,
-        sphereize: .25,
+        sphereize: -.5,
         averageNormals: true,
         map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
       }
@@ -86,9 +89,9 @@
         shapeType: 'dodecahedron',
         name: 'background',
         size: 1e3,
-        subs: 3,
+        subs: 4,
         color: 0x000000,
-        colorMix: .1,
+        colorMix: 0,
         equirectangular: true,
         //sphereize: 0,
         //averageNormals: true,
@@ -101,9 +104,11 @@
       
       geoOptions = {
         shapeType: 'point light',
-        x: 10,
-        size: 2,
-        lum: .2,
+        name: 'point light',
+        x: 14,
+        size: 4,
+        lum: 1.5,
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
         pointLightShowSource: true
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -113,8 +118,18 @@
       
       window.Draw = () => {
         renderer.yaw += .0005
+        renderer.pitch -= .01
         shapes.forEach(shape => {
           switch(shape.name){
+            case 'point light':
+              var X = shape.x
+              var Y = shape.y
+              var Z = shape.z
+              var p = Math.atan2(X, Z) - .1
+              var d = Math.hypot(X, Z)
+              shape.x = S(p) * d
+              shape.z = C(p) * d
+            break
             case 'background':
             break
             default:
