@@ -16,150 +16,47 @@
       import * as Coordinates from
       "./coordinates.js"
       
-      var S = Math.sin
-      var C = Math.cos
+      //var refTexture = 'https://boss.mindhackers.org/assets/uploads/2fRBMj.mp4'
+      var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/pano2.jpg'
     
       var rendererOptions = {
-        ambientLight: .2,
+        ambientLight: 0,
         fov: 1400
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      renderer.z = 20
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+      renderer.z = 10
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
-      // tires, dark bits
       var shaderOptions = [
-        {
-          lighting: {
-            type: 'ambientLight',
-            value: .25,
-          }
-        },
+        {lighting: {
+          type: 'ambientLight', value: -.5
+        }},
         { uniform: {
           type: 'phong',
           value: .5
         } },
+        
         { uniform: {
           type: 'reflection',
-          map: 'https://i.imgur.com/1Mmrurz.mp4',
-          value: .1
+          value: .5,
+          map: refTexture,
+          flipReflections: false
         } },
+        
       ]
-      var trimShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-
-      // chrome
+      // background shader
       shaderOptions = [
-        {
-          lighting: {
-            type: 'ambientLight',
-            value: .2,
-          }
-        },
-        { uniform: {
-          type: 'phong',
-          value: .5
-        } },
-        { uniform: {
-          type: 'reflection',
-          map: 'https://i.imgur.com/1Mmrurz.mp4',
-          value: .8
-        } },
-      ]
-      var chromeShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-
-      // body
-      shaderOptions = [
-        {
-          lighting: {
-            type: 'ambientLight',
-            value: .8,
-          }
-        },
-        { uniform: {
-          type: 'phong',
-          value: .7
-        } },
-        { uniform: {
-          type: 'reflection',
-          map: 'https://i.imgur.com/1Mmrurz.mp4',
-          value: .1
-        } },
-      ]
-      var bodyShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      // base
-      shaderOptions = [
-        {
-          lighting: {
-            type: 'ambientLight',
-            value: .2,
-          }
-        },
-        { uniform: {
-          type: 'phong',
-          value: .7
-        } },
-        { uniform: {
-          type: 'reflection',
-          map: 'https://i.imgur.com/1Mmrurz.mp4',
-          value: .1
-        } },
-      ]
-      var baseShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-
-      // 
-      shaderOptions = [
-        {
-          lighting: {
-            type: 'ambientLight',
-            value: .75,
-          }
-        },
-        { uniform: {
-          type: 'phong',
-          value: 0
-        } },
-        { uniform: {
-          type: 'reflection',
-          map: 'https://i.imgur.com/1Mmrurz.mp4',
-          value: .5
-        } },
-      ]
-      var headlightsShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      // 
-      shaderOptions = [
-        {
-          lighting: {
-            type: 'ambientLight',
-            value: .4,
-          }
-        },
-        { uniform: {
-          type: 'phong',
-          value: 0
-        } },
-        { uniform: {
-          type: 'reflection',
-          map: 'https://i.imgur.com/1Mmrurz.mp4',
-          value: .25
-        } },
-      ]
-      var taillightsShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-
-      shaderOptions = [
-        {
-          lighting: {
-            type: 'ambientLight',
-            value: .5,
-          }
-        },
+        { lighting: {
+          type: 'ambientLight',
+          value: .45
+        }},
         { uniform: {
           type: 'phong',
           value: 0
@@ -167,84 +64,62 @@
       ]
       var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+      var shapes = []
 
-
-      var shapes = [];
-      
       var geoOptions = {
         shapeType: 'icosahedron',
-        name: 'background',
-        subs: 1,
-        sphereize: 1,
-        size: 1e3,
-        map: 'https://i.imgur.com/1Mmrurz.mp4',
+        size: 5,
+        subs: 2,
+        color: 0x000000,
+        colorMix: 1,
+        equirectangular: true,
+        sphereize: .25,
+        averageNormals: true,
+        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })  
+      
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        name: 'background',
+        size: 1e3,
+        subs: 3,
+        color: 0x000000,
+        colorMix: .1,
+        equirectangular: true,
+        //sphereize: 0,
+        //averageNormals: true,
+        map: refTexture
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await backgroundShader.ConnectGeometry(geometry)
       })
       
-      
       geoOptions = {
-        shapeType: 'cube',
-        name: 'base',
-        subs: 2,
-        sphereize: 1,
-        size: 16,
-        scaleY: .1,
-        scaleZ: 1.5,
-        y: -3.5,
-        equirectangular: true,
-        
-        color: 0x0ff88,
-        colorMix: .3,
-        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+        shapeType: 'point light',
+        x: 10,
+        size: 2,
+        lum: .2,
+        pointLightShowSource: true
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await baseShader.ConnectGeometry(geometry)
-      })
-      
-      
-      
-      var parts = [
-        {name: 'body', color: 0x220044, shader: bodyShader, colorMix: .6},
-        {name: 'chrome', color: 0xffffff, shader: chromeShader, colorMix: 0},
-        //{name: 'glass', color: 0xffffff, shader: glassShader, colorMix: .8},
-        {name: 'headlights', color: 0xffffff, shader: headlightsShader, colorMix: 0},
-        {name: 'taillights', color: 0xff0000, shader: taillightsShader, colorMix: 1},
-        {name: 'trim', color: 0x000000, shader: trimShader, colorMix: .5},
-      ]
-      parts.map(async part => {
-        var geoOptions = {
-          shapeType: 'custom shape',
-          size: 1,
-          y: -2.5,
-          invertNormals: true,
-          color: part.color,
-          colorMix: part.colorMix,
-          url: `https://srmcgann.github.io/Coordinates/custom shapes/audi_r8/${part.name}.json`,
-          name: part.name,
-          //exportShape: true,
-          //map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
-        }
-        await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
-          shapes.push(geometry)
-          await part.shader.ConnectGeometry(geometry)
-        })  
-      })
+      })  
       
       
       window.Draw = () => {
-        renderer.z = Math.min(32, Math.max(20, (.3-C(renderer.t/4))*25))
-        renderer.pitch = Math.min(.5, Math.max(-.05, (.3-S(renderer.t/2))*1))
-        renderer.yaw += .002
+        renderer.yaw += .0005
         shapes.forEach(shape => {
           switch(shape.name){
             case 'background':
             break
             default:
-              shape.yaw = -renderer.t / 2
+              shape.yaw += .01
+              shape.pitch = C(renderer.t/2) / 3
             break
           }
           renderer.Draw(shape)
@@ -254,84 +129,3 @@
     </script>
   </body>
 </html>
-
-<!--
-  TO DO
-  
-  * re make OBJLoader method, to spec
-
-  
-  ✔ re: 'sphereize', the problem exists of needing to average
-         normals AFTER the shape is sphereized, as the degree is
-         not known prior. Normal averaging is computationally
-         expensive, so a solution, in the context of pre-built shapes,
-         is to provide an optional function "AverageNormals", and
-         instruct users that sphereized shapes may use it, for
-         reflections etc.
-  
-  ✔ re-export 'new shapes' with unit size
-  ✔ fix color mix
-  ✔ come up with solution for averaging normals (for phong etc), with prebuilt shapes
-  
-  * 'grouping' / 'ungrouping' option
-        for geometry, which makes drawing buffers contiguous
-  
-  ✔ sprites [transparent rectangle?]
-  
-  ✔ make uniforms: position, normal etc vec3, vs separate floats
-  
-  * lights
-    └> ✔ ambient
-       ✔  point
-       *  directional
-  
-  * geometry
-    └> ✔ generalize geometry function
-       ✔ add shapeTypes: torus, cylinder
-       *  add method / shapeType for points/particles, lines
-       *  noise functions / deformation methods
-       ✔ return "raw" geometry with inbuilt shapes, for 2d context
-       ✔ add 3-axis 'scale' function 
-       
-  ✔ README.md
-    └> ✔  add remaining exposed methods (e.g. color conversions, spatial)
-          as "supplemental"
-  
-  ✔ add renderer object
-  ✔ add camera object
-  ✔ fix FOV
-  ✔ README.md / documentation
-  
-  * sprite sheet system / import basic+custom slicing
-  ✔ add video texture capabilities
-  * cache for API, to include all network-callable items
-  
-  * shapes
-    └> ✔ add shapes (in addtion to Cube)
-       ✔ make non-cube UVs equirectangular
-       ✔ keep shape generation functions, but add 'precompiled' versions for ordinary calls
-       ✔ move rotation function into shader
-       * loading -> compression, direct output of
-                    usable format (no further processing needed)
-
-  * subdivision
-    └> ✔  add optional LOD param for all basic geometry
-       ✔ decouple polygons from UV subdivision (interpolate UVs @ sub)
-       
-  * shaders / textures
-    └> ✔ move shaders into Coordinates module
-       *  bloom / glow shader
-       *  add '# tiling (x/y)' option
-       ✔  phong -> play nice with rectangle
-       ✔  move camera into vertex shader
-       ✔  create pseudo-phong shader
-       ✔  add 'reflectivity' & texture input for it
-       ✔  flat/smooth shading
-       ✔  integrate optional effect shaders
-
-  * functions / methods
-    └> ✔ begin separating module functions as optional includes
-       ✔ migrate functions to coordinates.js module
-       ✔ integrate obj loader
-
--->
