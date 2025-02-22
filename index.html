@@ -19,10 +19,10 @@
       var C = Math.cos
       
       //var refTexture = 'https://boss.mindhackers.org/assets/uploads/2fRBMj.mp4'
-      var refTexture = 'https://boss.mindhackers.org/assets/uploads/1qpPWM.mp4'
+      var refTexture = 'https://boss.mindhackers.org/Coordinates/resources/ultracloudsbase.jpg'
     
       var rendererOptions = {
-        ambientLight: -.5,
+        ambientLight: .25,
         fov: 1e3
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
@@ -30,27 +30,26 @@
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
-      renderer.z = 16
+      renderer.z = 80
+      renderer.pitch = Math.PI/4
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
         {lighting: {
-          type: 'ambientLight', value: -.25
+          type: 'ambientLight', value: .05
         }},
         { uniform: {
           type: 'phong',
-          value: 2.5
+          value: .5
         } },
-        
         { uniform: {
           type: 'reflection',
-          value: .9,
+          value: .3,
           map: refTexture,
           flipReflections: false,
-          playbackSpeed: .25
+          playbackSpeed: 8
         } },
-        
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
@@ -58,7 +57,7 @@
       shaderOptions = [
         { lighting: {
           type: 'ambientLight',
-          value: .7
+          value: 1
         }},
         { uniform: {
           type: 'phong',
@@ -69,22 +68,43 @@
 
       var shapes = []
 
-      var geoOptions = {
-        shapeType: 'dodecahedron',
-        size: 14,
-        subs: 3,
-        color: 0x111111,
-        colorMix: .2,
-        equirectangular: true,
-        sphereize: -.5,
-        averageNormals: true,
-        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })  
-      
+      var maps = [
+        './resources/nebugrid_po2.jpg',
+        'https://boss.mindhackers.org/Coordinates/resources/ultracloudsbase.jpg',
+        'https://i.imgur.com/JrZ5dj9.mp4',
+        'https://i.imgur.com/bTHLMLp.mp4',
+        'https://i.imgur.com/WlLBobN.mp4',
+        'https://i.imgur.com/nNSdBc1.mp4',
+        'https://i.imgur.com/aiXrv6O.mp4',
+      ]
+
+      var cl = 5
+      var rw = 5
+      var sp = 20
+      Array(cl*rw).fill().map(async (v, i) => {
+        var geoOptions = {
+          shapeType: 'dodecahedron',
+          size: 6,
+          subs: 1,
+          x: ((i%cl)-cl/2 + .5) * sp,
+          Y: 0,
+          z: ((i/cl|0)-rw/2 + .5) * sp,
+          color: 0x333333,
+          colorMix: .2,
+          equirectangular: true,
+          sphereize: 1,
+          averageNormals: true,
+          map: maps[i%maps.length],
+          playbackSpeed: 1,//5/cl*(i%2)/2 + (5/rw*(i/cl|0)/2),
+          involveCache: true,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await shader.ConnectGeometry(geometry)
+        })  
+      })
+
+      // background
       var geoOptions = {
         shapeType: 'dodecahedron',
         name: 'background',
@@ -95,9 +115,11 @@
         equirectangular: true,
         //sphereize: 0,
         //averageNormals: true,
-        map: refTexture
+        map: refTexture,
+        playbackSpeed: 8
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        console.log('loading background (from index.html)')
         shapes.push(geometry)
         await backgroundShader.ConnectGeometry(geometry)
       })
@@ -106,8 +128,8 @@
         shapeType: 'point light',
         name: 'point light',
         x: 14,
-        size: 4,
-        lum: 1.5,
+        size: 2,
+        lum: 0,
         map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
         pointLightShowSource: true
       }
@@ -117,8 +139,9 @@
       
       
       window.Draw = () => {
-        renderer.yaw += .0005
-        renderer.pitch -= .01
+        renderer.z = Math.min(80, Math.max(10, (.3+C(renderer.t/3)*200)))
+        renderer.yaw += .005
+        renderer.pitch -= .002
         shapes.forEach(shape => {
           switch(shape.name){
             case 'point light':
@@ -134,7 +157,7 @@
             break
             default:
               shape.yaw += .01
-              shape.pitch = C(renderer.t/2) / 3
+              shape.pitch = C(renderer.t/3) * 3
             break
           }
           renderer.Draw(shape)
@@ -144,3 +167,84 @@
     </script>
   </body>
 </html>
+
+<!--
+  TO DO
+  
+  * re make OBJLoader method, to spec
+
+  
+  ✔ re: 'sphereize', the problem exists of needing to average
+         normals AFTER the shape is sphereized, as the degree is
+         not known prior. Normal averaging is computationally
+         expensive, so a solution, in the context of pre-built shapes,
+         is to provide an optional function "AverageNormals", and
+         instruct users that sphereized shapes may use it, for
+         reflections etc.
+  
+  ✔ re-export 'new shapes' with unit size
+  ✔ fix color mix
+  ✔ come up with solution for averaging normals (for phong etc), with prebuilt shapes
+  
+  * 'grouping' / 'ungrouping' option
+        for geometry, which makes drawing buffers contiguous
+  
+  ✔ sprites [transparent rectangle?]
+  
+  ✔ make uniforms: position, normal etc vec3, vs separate floats
+  
+  * lights
+    └> ✔ ambient
+       ✔  point
+       *  directional
+  
+  * geometry
+    └> ✔ generalize geometry function
+       ✔ add shapeTypes: torus, cylinder
+       *  add method / shapeType for points/particles, lines
+       *  noise functions / deformation methods
+       ✔ return "raw" geometry with inbuilt shapes, for 2d context
+       ✔ add 3-axis 'scale' function 
+       
+  ✔ README.md
+    └> ✔  add remaining exposed methods (e.g. color conversions, spatial)
+          as "supplemental"
+  
+  ✔ add renderer object
+  ✔ add camera object
+  ✔ fix FOV
+  ✔ README.md / documentation
+  
+  * sprite sheet system / import basic+custom slicing
+  ✔ add video texture capabilities
+  * cache for API, to include all network-callable items
+  
+  * shapes
+    └> ✔ add shapes (in addtion to Cube)
+       ✔ make non-cube UVs equirectangular
+       ✔ keep shape generation functions, but add 'precompiled' versions for ordinary calls
+       ✔ move rotation function into shader
+       * loading -> compression, direct output of
+                    usable format (no further processing needed)
+
+  * subdivision
+    └> ✔  add optional LOD param for all basic geometry
+       ✔ decouple polygons from UV subdivision (interpolate UVs @ sub)
+       
+  * shaders / textures
+    └> ✔ move shaders into Coordinates module
+       *  bloom / glow shader
+       *  add '# tiling (x/y)' option
+       ✔  phong -> play nice with rectangle
+       ✔  move camera into vertex shader
+       ✔  create pseudo-phong shader
+       ✔  add 'reflectivity' & texture input for it
+       ✔  flat/smooth shading
+       ✔  integrate optional effect shaders
+
+  * functions / methods
+    └> ✔ begin separating module functions as optional includes
+       ✔ migrate functions to coordinates.js module
+       ✔ integrate obj loader
+
+-->
