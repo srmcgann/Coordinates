@@ -37,7 +37,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
     <script type="module">
     
       import * as Coordinates from
-      "https://boss.mindhackers.org/Coordinates/coordinates.min.js"
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
       // instantiate a canvas, 'renderer'. this is also our 'camera'
       var rendererOptions = {
