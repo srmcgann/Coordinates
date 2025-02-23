@@ -202,6 +202,7 @@ const Renderer = options => {
         dset.optionalUniforms.map(async (uniform) => {
           if(typeof uniform?.loc === 'object'){
             ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 1 : 1))
+            console.log(uniform.flatShading)
             ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
             switch(uniform.name){
               case 'reflection':
@@ -1500,9 +1501,9 @@ const BasicShader = async (renderer, options=[]) => {
                       float phongP1, phongP2;
                       float px, py, pz;
                       if(flatShading != 0.0){
-                        px = nVec.x;
-                        py = nVec.y;
-                        pz = nVec.z;
+                        px = nVeci.x;
+                        py = nVeci.y;
+                        pz = nVeci.z;
                       }else{
                         px = phongPos.x;
                         py = phongPos.y;
@@ -1711,7 +1712,7 @@ const BasicShader = async (renderer, options=[]) => {
         float p1;
         p1 = p / M_PI / 2.0;
         p2 = flatShading == 1.0 ?
-              acos(nVec.y / (sqrt(nVeci.x*nVec.x + nVec.y*nVec.y + nVec.z*nVec.z)+.00001)) / M_PI   :
+              acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVec.z*nVeci.z)+.00001)) / M_PI   :
               p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.00001)) / M_PI;
         return vec2(p1, p2);
       }else{
