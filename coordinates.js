@@ -201,7 +201,7 @@ const Renderer = options => {
         ctx.useProgram( sProg )
         dset.optionalUniforms.map((uniform) => {
           if(typeof uniform?.loc === 'object'){
-            ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 1 : 1))
+            ctx[uniform.dataType](uniform.loc,      uniform.value)
             ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
             switch(uniform.name){
               case 'reflection':
@@ -237,7 +237,7 @@ const Renderer = options => {
         ctx.uniform1f(dset.locIsLight,         geometry.isLight)
         ctx.uniform1f(dset.locAlpha,           geometry.alpha)
         ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
-        ctx.uniform1f(dset.locAmbientLight,    ambLight / 8)
+        ctx.uniform1f(dset.locAmbientLight,    ambLight / 16)
         ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
         ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
         ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
@@ -1519,7 +1519,7 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 phongPos;
                   `,
                   vertCode:            `
-                    phongPos = nVec;//R(nVeci, geoOri);
+                    phongPos = nVec; //R(nVeci, geoOri);
                     hasPhong = 1.0;
                   `,
                   fragDeclaration:     `
@@ -1533,10 +1533,10 @@ const BasicShader = async (renderer, options=[]) => {
                       //light.rgb *= .5;
                       float phongP1, phongP2;
                       float px, py, pz;
-                      if(flatShading != 0.0){
-                        px = nVeci.x;
-                        py = nVeci.y;
-                        pz = nVeci.z;
+                      if(phongFlatShading != 0.0){
+                        px = 0.0;
+                        py = 0.0;
+                        pz = 0.0;
                       }else{
                         px = phongPos.x;
                         py = phongPos.y;
@@ -1545,7 +1545,7 @@ const BasicShader = async (renderer, options=[]) => {
                       phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
 
-                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.2)), 2.0), 2.0) / 200.0 * phong ;
+                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.2)), 3.0), 3.0) / 1e6 * phong ;
                       light = vec4(light.rgb + fact, 1.0) * 15.0;
                     }
                   `,
