@@ -199,10 +199,9 @@ const Renderer = options => {
         })
         
         ctx.useProgram( sProg )
-        dset.optionalUniforms.map(async (uniform) => {
+        dset.optionalUniforms.map((uniform) => {
           if(typeof uniform?.loc === 'object'){
             ctx[uniform.dataType](uniform.loc,      uniform.value * (uniform.name == 'reflection' ? 1 : 1))
-            console.log(uniform.flatShading)
             ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
             switch(uniform.name){
               case 'reflection':
@@ -911,6 +910,40 @@ const LoadGeometry = async (renderer, geoOptions) => {
       normals[i*2+5] *= scaleZ
     }
   }
+  if(objX || objY || objZ || objRoll || objPitch || objYaw){
+    if(typeof objX     == 'undefined') objX     = 0
+    if(typeof objY     == 'undefined') objY     = 0
+    if(typeof objZ     == 'undefined') objZ     = 0
+    if(typeof objRoll  == 'undefined') objRoll  = 0
+    if(typeof objPitch == 'undefined') objPitch = 0
+    if(typeof objYaw   == 'undefined') objYaw   = 0
+    var ar
+    for(var i = 0; i< normals.length; i+=6){
+      x = normals[i+0]
+      Y = normals[i+1]
+      Z = normals[i+2]
+      ar = R(X, Y, Z, {roll: objRoll, pitch: objPitch, yaw: objYaw}, false)
+      normals[i+0] = ar[0] + objX
+      normals[i+1] = ar[1] + objY
+      normals[i+2] = ar[2] + objZ
+      x = normals[i+3]
+      Y = normals[i+4]
+      Z = normals[i+5]
+      ar = R(X, Y, Z, {roll: objRoll, pitch: objPitch, yaw: objYaw}, false)
+      normals[i+3] = ar[0] + objX
+      normals[i+4] = ar[1] + objY
+      normals[i+5] = ar[2] + objZ
+    }
+    for(var i = 0; i< vertices.length; i+=3){
+      x = vertices[i+0]
+      Y = vertices[i+1]
+      Z = vertices[i+2]
+      ar = R(X, Y, Z, {roll: objRoll, pitch: objPitch, yaw: objYaw}, false)
+      vertices[i+0] = ar[0] + objX
+      vertices[i+1] = ar[1] + objY
+      vertices[i+2] = ar[2] + objZ
+    }
+  }
   
   if(averageNormals) AverageNormals(vertices, normals, shapeType)
     
@@ -1278,7 +1311,7 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1,url='', i
     break
     case 'image':
       if(involveCache && (cacheItem = cache.texImages.filter(v=>v.url==url)).length){
-        //console.log('found image texture in cache... using it')
+        console.log('found image texture in cache... using it')
         texImage = cacheItem[0].texImage
       }else{
         texImage = ImageToPo2(resource)
@@ -1480,7 +1513,7 @@ const BasicShader = async (renderer, options=[]) => {
                                          false : option[key].flatShading,
                   flatShadingUniform:  'phongFlatShading',
                   theta:                typeof option[key].theta == 'undefined' ?
-                                          .6 + Math.PI: option[key].theta,
+                                          .3 + Math.PI: option[key].theta,
                   dataType:            'uniform1f',
                   vertDeclaration:     `
                     varying vec3 phongPos;
@@ -1512,7 +1545,7 @@ const BasicShader = async (renderer, options=[]) => {
                       phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
 
-                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0+.2)), 2.0), 2.0) / 200.0 * phong ;
+                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.2)), 2.0), 2.0) / 200.0 * phong ;
                       light = vec4(light.rgb + fact, 1.0) * 15.0;
                     }
                   `,
@@ -1783,6 +1816,7 @@ const BasicShader = async (renderer, options=[]) => {
     }
   `
   
+  
   const vertexShader = gl.createShader(gl.VERTEX_SHADER)
   gl.shaderSource(vertexShader, ret.vert)
   gl.compileShader(vertexShader)
@@ -1793,7 +1827,7 @@ const BasicShader = async (renderer, options=[]) => {
 
   ret.ConnectGeometry = async (geometry, fromNullShader = false) => {
     
-    var involveCache = geometry.involveCache
+    var involveCache = false //geometry.involveCache
 
     var dset = structuredClone(dataset)
     ret.datasets = [...ret.datasets, dset]
@@ -2039,17 +2073,17 @@ const BasicShader = async (renderer, options=[]) => {
                 BindImage(gl, image, dset.texture, geometry.textureMode, -1, textureURL)
               }else{
                 var image = new Image()
+                gl.activeTexture(gl.TEXTURE0)
+                cache.textures.push({
+                  url: textureURL,
+                  resource: image,
+                  texture: dset.texture
+                })
+                image.onload = () => {
+                  BindImage(gl, image,
+                          dset.texture, geometry.textureMode, -1, textureURL)
+                }
                 await fetch(textureURL).then(res=>res.blob()).then(data => {
-                  cache.textures.push({
-                    url: textureURL,
-                    resource: image,
-                    texture: dset.texture
-                  })
-                  image.onload = () => {
-                    gl.activeTexture(gl.TEXTURE0)
-                    BindImage(gl, image,
-                            dset.texture, geometry.textureMode, -1, textureURL)
-                  }
                   image.src = URL.createObjectURL(data)
                 })
               }
