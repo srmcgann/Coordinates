@@ -41,7 +41,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
     
       // instantiate a canvas, 'renderer'. this is also our 'camera'
       var rendererOptions = {
-        ambientLight: .2,
+        ambientLight: .5,
         fov: 1500
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
@@ -311,3 +311,9 @@ These color helper methods are also exposed
   RGBFromHex
   HexToRGB
 ```
+
+## Tips and tricks
+
+### textures
+<br>
+Videos and images are interchangeable as texture sources. A video may be referenced numerous times as a shape texture and / or as a reflection map, without concern for performance degradation. Coordinates involves and internal queue for all network resource calls with the URL as a key. There may be occasions to bypass the queue (e.g. displaying the same video at a different speed on two objects), in which case you may inoke the ``involveCache: false`` property which forces a new instance of that resource, available on all configurations where network resources apply. If the involveCache property is used and set to false, the order in which calls occur is relevant to the resulting settings for each instance. Some experimentation may be called for to achieve your desired results.
