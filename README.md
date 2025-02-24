@@ -351,6 +351,14 @@ var facet = [
   [1,  0, 0],
 ]
 var n = Coordinates.Normal(facet)
-// n -> [0, -1, 0]
+// n -> [0,0,.33,  0,-1,.33]
+// returned vector is centered in the polygon, and has 6
+// elements, a vec3 start and end point.
+// This is for purposes of drawing vector lines, but the raw
+// vector [X, Y, Z] may be obtained by subtracting the last 3 elements
+// from the first 3, respectively. Note that meshes in Coordinates are
+// configured to use 1 normal per vertex, but each vertex in a polygon
+// has the same normal, until 'averaged'. See averageNormals above for
+// creating smooth surfaces, etc.
 
 ```
