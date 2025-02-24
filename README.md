@@ -342,7 +342,7 @@ A method, ``Normal``, is exposed for manually computing the normal of any set of
 ``Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) ``
 <br>
 ``Normal`` requires input of an 2D array of at least 3 vertices. Additionally, it may ``autoflip`` away from the origin, which may be supplied as X1, Y1, Z1, shown above, or assumed to be 0,0,0 if these are omitted.<br><br>
-<br><br>
+<br>
 example:
 ```js
 var facet = [
