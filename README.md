@@ -331,7 +331,26 @@ Coordinates performs geometric rotations in shader for performance reasons, but 
 var X = 1
 var Y = 0
 var Z = 0
-var ar = R(X, Y, Z, {0, 0, Math.PI})
+var ar = Coordinates.R(X, Y, Z, {0, 0, Math.PI})
 // ar -> [-1, 0, 0]
+
+```
+<br><br>
+### Normal
+A geometric 'normal' is vector, perpendicular to a plane or polgon. Normals are used for many purposes, including shading, reflections, and collision detection.<br>
+A method, ``Normal``, is exposed for manually computing the normal of any set of points, which are assumed to constitute a plane or flat surface of arbitrary orientation in space, usually a triangle or quad.<br>
+``Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) ``
+<br>
+``Normal`` requires input of an 2D array of at least 3 vertices. Additionally, it may ``autoflip`` away from the origin, which may be supplied as X1, Y1, Z1, shown above, or assumed to be 0,0,0 if these are omitted.<br><br>
+<br><br>
+example:
+```js
+var facet = [
+  [-1, 0, 0],
+  [0,  0, 1],
+  [1,  0, 0],
+]
+var n = Coordinates.Normal(facet)
+// n -> [0, -1, 0]
 
 ```
