@@ -324,5 +324,14 @@ Coordinates involves an internal cache for all network resource calls with the U
 ### R
 Coordinates performs geometric rotations in shader for performance reasons, but there may be times when scene geometry should be modified manually, apart from shape positions and rotations, such as deforming geometry or custom rotations. The ``R`` function is exposed for this, and expects paramters as follows<br>
 ``R = (X, Y, Z, {roll, pitch, yaw}, addCameraZ = false)``
-<br>
-``R`` returns a 3-component ([X, Y, Z]) array with the resulting, modified input vertex 
+<br><br>
+``R`` returns a 3-component ( [X, Y, Z] ) array with the resulting, modified input vertex
+<br><br>example:
+```js
+var X = 1
+var Y = 0
+var Z = 0
+var ar = R(X, Y, Z, {0, 0, Math.PI})
+// ar -> [-1, 0, 0]
+
+```
