@@ -41,7 +41,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
     
       // instantiate a canvas, 'renderer'. this is also our 'camera'
       var rendererOptions = {
-        ambientLight: .2,
+        ambientLight: .5,
         fov: 1500
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
@@ -310,4 +310,55 @@ These color helper methods are also exposed
   RGBToHex
   RGBFromHex
   HexToRGB
+```
+
+## Tips and tricks
+
+### textures
+
+Videos and images are interchangeable as texture sources. A video may be referenced numerous times as a shape texture and / or as a reflection map, without concern for performance degradation as a result of the multiple references, however video frame calls themselves at render time do impact performance.<br><br>
+Coordinates involves an internal cache for all network resource calls with the URL as a key. There may be occasions to bypass the cache (e.g. displaying the same video at a different speed on two objects), in which case you may inoke the ``involveCache: false`` property which forces a new instance of that resource, available on all configurations where network resources apply. If the involveCache property is used and set to false, the order in which calls occur is relevant to the resulting settings for each instance. Some experimentation may be called for to achieve your desired results.
+
+## Additional Helper Methods
+
+### R
+Coordinates performs geometric rotations in shader for performance reasons, but there may be times when scene geometry should be modified manually, apart from shape positions and rotations, such as deforming geometry or custom rotations. The ``R`` function is exposed for this, and expects paramters as follows<br>
+``R = (X, Y, Z, {roll, pitch, yaw}, addCameraZ = false)``
+<br><br>
+``R`` returns a 3-component ( [X, Y, Z] ) array with the resulting, modified input vertex
+<br><br>example:
+```js
+var X = 1
+var Y = 0
+var Z = 0
+var ar = Coordinates.R(X, Y, Z, {0, 0, Math.PI})
+// ar -> [-1, 0, 0]
+
+```
+<br><br>
+### Normal
+A geometric 'normal' is vector, perpendicular to a plane or polgon. Normals are used for many purposes, including shading, reflections, and collision detection.<br>
+A method, ``Normal``, is exposed for manually computing the normal of any set of points, which are assumed to constitute a plane or flat surface of arbitrary orientation in space, usually a triangle or quad.<br>
+``Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) ``
+<br>
+``Normal`` requires input of an 2D array of at least 3 vertices. Additionally, it may ``autoflip`` away from the origin, which may be supplied as X1, Y1, Z1, shown above, or assumed to be 0,0,0 if these are omitted.
+<br><br>
+example:
+```js
+var facet = [
+  [-1, 0, 0],
+  [0,  0, 1],
+  [1,  0, 0],
+]
+var n = Coordinates.Normal(facet)
+// n -> [0,0,.33,  0,-1,.33]
+// returned vector is centered in the polygon, and has 6
+// elements, a vec3 start and end point.
+// This is for purposes of drawing vector lines, but the raw
+// vector [X, Y, Z] may be obtained by subtracting the last 3 elements
+// from the first 3, respectively. Note that meshes in Coordinates are
+// configured to use 1 normal per vertex, but each vertex in a polygon
+// has the same normal, until 'averaged'. See averageNormals above for
+// creating smooth surfaces, etc.
+
 ```
