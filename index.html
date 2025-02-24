@@ -14,57 +14,106 @@
     <script type="module">
     
       import * as Coordinates from
-      "./coordinates.js"
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var S = Math.sin
+      var C = Math.cos
     
       // instantiate a canvas, 'renderer'. this is also our 'camera'
       var rendererOptions = {
+        ambientLight: -.2,
         fov: 1500
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      renderer.z = 16
+      renderer.z = 10
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
+      var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/angels.jpg'
+
       var shaderOptions = [
-        { lighting:
-          {type: 'ambientLight', value: -.5 }
-        },
         { uniform: {
           type: 'phong',
-          flatShading: true,
-          value: 3
+          value: .25
         } },
         { uniform: {
           type: 'reflection',
-          flatShading: true,
-          value: 0,
-          map: 'https://i.imgur.com/DfkFuTC.mp4'
+          value: .5,
+          map: refTexture
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-
       var shapes = []
+
+      var cl = 1
+      var rw = 1
+      var br = 3
+      var sp = 20
+      Array(cl*rw*br).fill().map( async (v, i) => {
+        var x = ((i%cl)-cl/2 + .5) * sp
+        var y = (((i/cl|0)%rw) - rw/2 + .5) * sp - 2
+        var z = ((i/cl/rw|0)-br/2 + .5) * sp
+        var geoOptions = {
+          shapeType: 'custom shape',
+          size: 1,
+          x,
+          y,
+          z,
+          yaw: Math.PI/2,
+          color: 0x000000,
+          colorMix: .2,
+          //averageNormals: true,
+          map: 'https://srmcgann.github.io/Coordinates/custom shapes/angel 1.jpg',
+          url: 'https://srmcgann.github.io/Coordinates/custom shapes/angel 1.json',
+          //exportShape: true
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await shader.ConnectGeometry(geometry)
+        })  
+      })
+
+      var shaderOptions = [
+        { lighting:
+          {type: 'ambientLight', value: .8}
+        },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } }
+      ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
       var geoOptions = {
-        shapeType: 'cube',
-        size: 5,
-        sphereize: 5,
-        //averageNormals: true,
-        subs: 2,
-        map: './resources/nebugrid_po2.jpg',
-        equirectangular: true,
+        shapeType: 'icosahedron',
+        subs: 3,
+        name: 'background',
+        size: 1e3,
+        color: 0x000000,
+        colorMix: .2,
+        map: refTexture,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
+        await backgroundShader.ConnectGeometry(geometry)
       })  
-      
+
+
       
       window.Draw = () => {
-        shapes.forEach(shape => {
-          shape.yaw += .01
-          shape.pitch += .005
+        renderer.z = Math.min(32, Math.max(5, (.3+C(renderer.t/2))*50))
+        renderer.pitch = Math.min(.2, Math.max(-.2, (0-C(renderer.t/4))))
+        renderer.yaw += .002
+        shapes.forEach((shape, idx) => {
+          switch(shape.name){
+            case 'background':
+            break
+            default:
+              shape.yaw   = C(renderer.t*8+idx) * .2 - renderer.t
+              shape.pitch = S(renderer.t*8+idx) * .2
+            break
+          }
           renderer.Draw(shape)
         })
       }
@@ -72,7 +121,6 @@
     </script>
   </body>
 </html>
-
 
 <!--
   TO DO
