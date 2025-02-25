@@ -529,7 +529,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var rows             = 16
   var cols             = 40
                // must remain "16, 40" to trigger default quick torus/cylinder
-               
   
   var url                  = ''
   var name                 = ''
@@ -553,7 +552,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var disableDepthTest     = false
   var lum                  = 1
   var alpha                = 1
-
+  var geometryData         = []  // for dynamic shape
+  var texCoords            = []  // for dynamic shape
+  
   var geometry = {}
   
   geoOptions = structuredClone(geoOptions)
@@ -609,6 +610,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'muted'            : muted = !!geoOptions[key]; break
       case 'lum'              : lum = geoOptions[key]; break
       case 'alpha'            : alpha = geoOptions[key]; break
+      case 'geometrydata'     : geometryData = geoOptions[key]; break
+      case 'texcoords'        : texCoords = geoOptions[key]; break
       case 'issprite'         :
         isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'islight'          :
@@ -775,6 +778,16 @@ const LoadGeometry = async (renderer, geoOptions) => {
           vertices = [...vertices, ...v.position]
           normals  = [...normals,  ...v.normal]
           uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'dynamic':
+        shape = await GeometryFromRaw(geometryData, texCoords,
+            size, subs, sphereize, flipNormals, !!geometryData.filter(v=>v.length==4).length, 'dynamic')
+        shape.geometry.map(v => {
+          vertices = [...vertices, ...v.position]
+          normals  = [...normals,  ...v.normal]
+          if(typeof v.texCoord != 'undefined' && v.texCoord.length)
+            uvs      = [...uvs,      ...v.texCoord]
         })
       break
       case 'cube':
@@ -2125,12 +2138,13 @@ const BasicShader = async (renderer, options=[]) => {
 const IsPolyhedron = shapeType => {
   var isPolyhedron
   switch(shapeType){
-    case 'tetrahedron': isPolyhedron = true; break
-    case 'cube': isPolyhedron = true; break
-    case 'octahedron': isPolyhedron = true; break
-    case 'dodecahedron': isPolyhedron = true; break
-    case 'icosahedron': isPolyhedron = true; break
-    case 'tetrahedron': isPolyhedron = true; break
+    case 'tetrahedron'  : isPolyhedron = true; break
+    case 'cube'         : isPolyhedron = true; break
+    case 'octahedron'   : isPolyhedron = true; break
+    case 'dodecahedron' : isPolyhedron = true; break
+    case 'icosahedron'  : isPolyhedron = true; break
+    case 'tetrahedron'  : isPolyhedron = true; break
+    case 'dynamic'      : isPolyhedron = true; break
     default: isPolyhedron = false; break
   }
   return isPolyhedron
@@ -2154,18 +2168,20 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
   
   shape.map(v => {
     v.verts.map(q=>{
-      X = q[0] *= size //  (sphereize ? .5 : 1.5)
-      Y = q[1] *= size //  (sphereize ? .5 : 1.5)
-      Z = q[2] *= size //  (sphereize ? .5 : 1.5)
+      X = q[0] *= size
+      Y = q[1] *= size
+      Z = q[2] *= size
     })
     if(quads){
       a = [...a, v.verts[0],v.verts[1],v.verts[2],
                  v.verts[2],v.verts[3],v.verts[0]]
-      f = [...f, v.uvs[0],v.uvs[1],v.uvs[2],
-                 v.uvs[2],v.uvs[3],v.uvs[0]]
+      if(typeof v.uvs != 'undefined' && v.uvs.length)
+          f = [...f, v.uvs[0],v.uvs[1],v.uvs[2],
+                     v.uvs[2],v.uvs[3],v.uvs[0]]
     }else{
       a = [...a, ...v.verts]
-      f = [...f, ...v.uvs]
+      if(typeof v.uvs != 'undefined' && v.uvs.length)
+        f = [...f, ...v.uvs]
     }
   })
   
@@ -2199,14 +2215,14 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
 const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
   
   var base, baseTexCoords, l, X, Y, Z
-  var X1, Y1, Z1, X2, Y2, Z2
-  var X3, Y3, Z3, X4, Y4, Z4, X5, Y5, Z5
-  var tX1, tY1, tX2, tY2
-  var tX3, tY3, tX4, tY4, tX5, tY5
-  var mx1, my1, mz1, mx2, my2, mz2
-  var mx3, my3, mz3, mx4, my4, mz4, mx5, my5, mz5
-  var tmx1, tmy1, tmx2, tmy2
-  var tmx3, tmy3, tmx4, tmy4, tmx5, tmy5
+  var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3
+  var X4, Y4, Z4, X5, Y5, Z5, X6, Y6, Z6
+  var tX1, tY1, tX2, tY2, tX3, tY3
+  var tX4, tY4, tX5, tY5, tX6, tY6
+  var mx1, my1, mz1, mx2, my2, mz2, mx3, my3, mz3
+  var mx4, my4, mz4, mx5, my5, mz5, mx6, my6, mz6
+  var tmx1, tmy1, tmx2, tmy2, tmx3, tmy3
+  var tmx4, tmy4, tmx5, tmy5, tmx6, tmy6
   var cx, cy, cz, ip1, ip2, a, ta
   var tcx, tcy, tv
   var resolved = false
@@ -2256,38 +2272,58 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
       texCoords = []
       base.map((v, i) => {
         l = 0
-        tv = baseTexCoords[i]
         X1 = v[l][0]
         Y1 = v[l][1]
         Z1 = v[l][2]
-        tX1 = tv[l][0]
-        tY1 = tv[l][1]
+        if(baseTexCoords[i].length>l){
+          tv = baseTexCoords[i]
+          tX1 = tv[l][0]
+          tY1 = tv[l][1]
+        }
         l = 1
         X2 = v[l][0]
         Y2 = v[l][1]
         Z2 = v[l][2]
-        tX2 = tv[l][0]
-        tY2 = tv[l][1]
+        if(baseTexCoords[i].length>l){
+          tX2 = tv[l][0]
+          tY2 = tv[l][1]
+        }
         l = 2
         X3 = v[l][0]
         Y3 = v[l][1]
         Z3 = v[l][2]
-        tX3 = tv[l][0]
-        tY3 = tv[l][1]
+        if(baseTexCoords[i].length>l){
+          tX3 = tv[l][0]
+          tY3 = tv[l][1]
+        }
         if(v.length > 3){
           l = 3
           X4 = v[l][0]
           Y4 = v[l][1]
           Z4 = v[l][2]
-          tX4 = tv[l][0]
-          tY4 = tv[l][1]
+          if(baseTexCoords[i].length>l){
+            tX4 = tv[l][0]
+            tY4 = tv[l][1]
+          }
           if(v.length > 4){
             l = 4
             X5 = v[l][0]
             Y5 = v[l][1]
             Z5 = v[l][2]
-            tX5 = tv[l][0]
-            tY5 = tv[l][1]
+            if(baseTexCoords[i].length>l){
+              tX5 = tv[l][0]
+              tY5 = tv[l][1]
+            }
+            if(v.length > 5){
+              l = 5
+              X6 = v[l][0]
+              Y6 = v[l][1]
+              Z6 = v[l][2]
+              if(baseTexCoords[i].length>l){
+                tX6 = tv[l][0]
+                tY6 = tv[l][1]
+              }
+            }
           }
         }
         mx1 = (X1+X2)/2
@@ -2297,10 +2333,12 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
         my2 = (Y2+Y3)/2
         mz2 = (Z2+Z3)/2
 
-        tmx1 = (tX1+tX2)/2
-        tmy1 = (tY1+tY2)/2
-        tmx2 = (tX2+tX3)/2
-        tmy2 = (tY2+tY3)/2
+        if(typeof tX1 != 'undefined'){
+          tmx1 = (tX1+tX2)/2
+          tmy1 = (tY1+tY2)/2
+          tmx2 = (tX2+tX3)/2
+          tmy2 = (tY2+tY3)/2
+        }
         a = []
         ta = []
         switch(v.length){
@@ -2308,19 +2346,35 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             mx3 = (X3+X1)/2
             my3 = (Y3+Y1)/2
             mz3 = (Z3+Z1)/2
-            tmx3 = (tX3+tX1)/2
-            tmy3 = (tY3+tY1)/2
+            if(typeof tX1 != 'undefined'){
+              tmx3 = (tX3+tX1)/2
+              tmy3 = (tY3+tY1)/2
+              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
+              X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
+              X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
+              texCoords= [...texCoords, ta]
+              ta = []
+              X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
+              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
+              X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
+              X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
+              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
+              X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
+              X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+            }
+            
             X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
             X = mx1, Y = my1, Z = mz1, a = [...a, [X,Y,Z]]
             X = mx3, Y = my3, Z = mz3, a = [...a, [X,Y,Z]]
             shape = [...shape, a]
             a = []
-            
-            X = tX1, Y = tY1, ta = [...ta, [X,Y]]
-            X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
-            X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
-            texCoords= [...texCoords, ta]
-            ta = []
             
             X = mx1, Y = my1, Z = mz1, a = [...a, [X,Y,Z]]
             X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
@@ -2328,33 +2382,17 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             shape = [...shape, a]
             a = []
             
-            X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
-            X = tX2, Y = tY2, ta = [...ta, [X,Y]]
-            X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
-            ta = []
-            
             X = mx3, Y = my3, Z = mz3, a = [...a, [X,Y,Z]]
             X = mx2, Y = my2, Z = mz2, a = [...a, [X,Y,Z]]
             X = X3, Y = Y3, Z = Z3, a = [...a, [X,Y,Z]]
             shape = [...shape, a]
             a = []
             
-            X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
-            X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
-            X = tX3, Y = tY3, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
-            ta = []
-            
             X = mx1, Y = my1, Z = mz1, a = [...a, [X,Y,Z]]
             X = mx2, Y = my2, Z = mz2, a = [...a, [X,Y,Z]]
             X = mx3, Y = my3, Z = mz3, a = [...a, [X,Y,Z]]
             shape = [...shape, a]
 
-            X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
-            X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
-            X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
             break
           case 4:
             mx3 = (X3+X4)/2
@@ -2363,18 +2401,41 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             mx4 = (X4+X1)/2
             my4 = (Y4+Y1)/2
             mz4 = (Z4+Z1)/2
-
-            tmx3 = (tX3+tX4)/2
-            tmy3 = (tY3+tY4)/2
-            tmx4 = (tX4+tX1)/2
-            tmy4 = (tY4+tY1)/2
+            if(typeof tX1 != 'undefined'){
+              tmx3 = (tX3+tX4)/2
+              tmy3 = (tY3+tY4)/2
+              tmx4 = (tX4+tX1)/2
+              tmy4 = (tY4+tY1)/2
+              tcx = (tX1+tX2+tX3+tX4)/4
+              tcy = (tY1+tY2+tY3+tY4)/4
+              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
+              X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              X = tmx4, Y = tmy4, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
+              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
+              X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
+              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
+              X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tmx4, Y = tmy4, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
+              X = tX4, Y = tY4, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+            }
 
             cx = (X1+X2+X3+X4)/4
             cy = (Y1+Y2+Y3+Y4)/4
             cz = (Z1+Z2+Z3+Z4)/4
-
-            tcx = (tX1+tX2+tX3+tX4)/4
-            tcy = (tY1+tY2+tY3+tY4)/4
 
             X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
             X = mx1, Y = my1, Z = mz1, a = [...a, [X,Y,Z]]
@@ -2383,26 +2444,12 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             shape = [...shape, a]
             a = []
 
-            X = tX1, Y = tY1, ta = [...ta, [X,Y]]
-            X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
-            X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-            X = tmx4, Y = tmy4, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
-            ta = []
-
             X = mx1, Y = my1, Z = mz1, a = [...a, [X,Y,Z]]
             X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
             X = mx2, Y = my2, Z = mz2, a = [...a, [X,Y,Z]]
             X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
             shape = [...shape, a]
             a = []
-
-            X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
-            X = tX2, Y = tY2, ta = [...ta, [X,Y]]
-            X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
-            X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
-            ta = []
 
             X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
             X = mx2, Y = my2, Z = mz2, a = [...a, [X,Y,Z]]
@@ -2411,32 +2458,53 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             shape = [...shape, a]
             a = []
 
-            X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-            X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
-            X = tX3, Y = tY3, ta = [...ta, [X,Y]]
-            X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
-            ta = []
-            
             X = mx4, Y = my4, Z = mz4, a = [...a, [X,Y,Z]]
             X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
             X = mx3, Y = my3, Z = mz3, a = [...a, [X,Y,Z]]
             X = X4, Y = Y4, Z = Z4, a = [...a, [X,Y,Z]]
             shape = [...shape, a]
 
-            X = tmx4, Y = tmy4, ta = [...ta, [X,Y]]
-            X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-            X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
-            X = tX4, Y = tY4, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
             break
           case 5:
             cx = (X1+X2+X3+X4+X5)/5
             cy = (Y1+Y2+Y3+Y4+Y5)/5
             cz = (Z1+Z2+Z3+Z4+Z5)/5
 
-            tcx = (tX1+tX2+tX3+tX4+tX5)/5
-            tcy = (tY1+tY2+tY3+tY4+tY5)/5
+            if(typeof tX1 != 'undefined'){
+              tcx = (tX1+tX2+tX3+tX4+tX5)/5
+              tcy = (tY1+tY2+tY3+tY4+tY5)/5
+              tmx3 = (tX3+tX4)/2
+              tmy3 = (tY3+tY4)/2
+              tmx4 = (tX4+tX5)/2
+              tmy4 = (tY4+tY5)/2
+              tmx5 = (tX5+tX1)/2
+              tmy5 = (tY5+tY1)/2
+              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
+              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
+              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
+              X = tX4, Y = tY4, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tX4, Y = tY4, ta = [...ta, [X,Y]]
+              X = tX5, Y = tY5, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tX5, Y = tY5, ta = [...ta, [X,Y]]
+              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+            }
 
             mx3 = (X3+X4)/2
             my3 = (Y3+Y4)/2
@@ -2448,24 +2516,11 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             my5 = (Y5+Y1)/2
             mz5 = (Z5+Z1)/2
 
-            tmx3 = (tX3+tX4)/2
-            tmy3 = (tY3+tY4)/2
-            tmx4 = (tX4+tX5)/2
-            tmy4 = (tY4+tY5)/2
-            tmx5 = (tX5+tX1)/2
-            tmy5 = (tY5+tY1)/2
-
             X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
             X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
             X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
             shape = [...shape, a]
             a = []
-            
-            X = tX1, Y = tY1, ta = [...ta, [X,Y]]
-            X = tX2, Y = tY2, ta = [...ta, [X,Y]]
-            X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
-            ta = []
             
             X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
             X = X3, Y = Y3, Z = Z3, a = [...a, [X,Y,Z]]
@@ -2473,35 +2528,17 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             shape = [...shape, a]
             a = []
             
-            X = tX2, Y = tY2, ta = [...ta, [X,Y]]
-            X = tX3, Y = tY3, ta = [...ta, [X,Y]]
-            X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
-            ta = []
-            
             X = X3, Y = Y3, Z = Z3, a = [...a, [X,Y,Z]]
             X = X4, Y = Y4, Z = Z4, a = [...a, [X,Y,Z]]
             X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
             shape = [...shape, a]
             a = []
 
-            X = tX3, Y = tY3, ta = [...ta, [X,Y]]
-            X = tX4, Y = tY4, ta = [...ta, [X,Y]]
-            X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
-            ta = []
-
             X = X4, Y = Y4, Z = Z4, a = [...a, [X,Y,Z]]
             X = X5, Y = Y5, Z = Z5, a = [...a, [X,Y,Z]]
             X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
             shape = [...shape, a]
             a = []
-
-            X = tX4, Y = tY4, ta = [...ta, [X,Y]]
-            X = tX5, Y = tY5, ta = [...ta, [X,Y]]
-            X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
-            ta = []
 
             X = X5, Y = Y5, Z = Z5, a = [...a, [X,Y,Z]]
             X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
@@ -2509,12 +2546,105 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             shape = [...shape, a]
             a = []
 
-            X = tX5, Y = tY5, ta = [...ta, [X,Y]]
-            X = tX1, Y = tY1, ta = [...ta, [X,Y]]
-            X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-            texCoords = [...texCoords, ta]
-            ta = []
-            break
+          break
+          case 6:
+            cx = (X1+X2+X3+X4+X5)/5
+            cy = (Y1+Y2+Y3+Y4+Y5)/5
+            cz = (Z1+Z2+Z3+Z4+Z5)/5
+
+            if(typeof tX1 != 'undefined'){
+              tcx = (tX1+tX2+tX3+tX4+tX5+tX6)/6
+              tcy = (tY1+tY2+tY3+tY4+tY5+tY6)/6
+              tmx3 = (tX3+tX4)/2
+              tmy3 = (tY3+tY4)/2
+              tmx4 = (tX4+tX5)/2
+              tmy4 = (tY4+tY5)/2
+              tmx5 = (tX5+tX6)/2
+              tmy5 = (tY5+tY6)/2
+              tmx6 = (tX6+tX1)/2
+              tmy6 = (tY6+tY1)/2
+              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
+              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
+              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
+              X = tX4, Y = tY4, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tX4, Y = tY4, ta = [...ta, [X,Y]]
+              X = tX5, Y = tY5, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tX5, Y = tY5, ta = [...ta, [X,Y]]
+              X = tX6, Y = tY6, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+              X = tX6, Y = tY6, ta = [...ta, [X,Y]]
+              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
+              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
+              texCoords = [...texCoords, ta]
+              ta = []
+            }
+
+            mx3 = (X3+X4)/2
+            my3 = (Y3+Y4)/2
+            mz3 = (Z3+Z4)/2
+            mx4 = (X4+X5)/2
+            my4 = (Y4+Y5)/2
+            mz4 = (Z4+Z5)/2
+            mx5 = (X5+X6)/2
+            my5 = (Y5+Y6)/2
+            mz5 = (Z5+Z6)/2
+            mx6 = (X6+X1)/2
+            my6 = (Y6+Y1)/2
+            mz6 = (Z6+Z1)/2
+
+            X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
+            X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
+            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
+            shape = [...shape, a]
+            a = []
+            
+            X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
+            X = X3, Y = Y3, Z = Z3, a = [...a, [X,Y,Z]]
+            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
+            shape = [...shape, a]
+            a = []
+            
+            X = X3, Y = Y3, Z = Z3, a = [...a, [X,Y,Z]]
+            X = X4, Y = Y4, Z = Z4, a = [...a, [X,Y,Z]]
+            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
+            shape = [...shape, a]
+            a = []
+
+            X = X4, Y = Y4, Z = Z4, a = [...a, [X,Y,Z]]
+            X = X5, Y = Y5, Z = Z5, a = [...a, [X,Y,Z]]
+            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
+            shape = [...shape, a]
+            a = []
+
+            X = X5, Y = Y5, Z = Z5, a = [...a, [X,Y,Z]]
+            X = X6, Y = Y6, Z = Z6, a = [...a, [X,Y,Z]]
+            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
+            shape = [...shape, a]
+            a = []
+
+            X = X6, Y = Y6, Z = Z6, a = [...a, [X,Y,Z]]
+            X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
+            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
+            shape = [...shape, a]
+            a = []
+
+          break
         }
       })
     }
@@ -2957,7 +3087,7 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     texCoords = [...texCoords, a]
   }
   
-  return GeometryFromRaw(e, texCoords, size, subs,
+  return await GeometryFromRaw(e, texCoords, size, subs,
                          sphereize, flipNormals, false, shapeType)
  }
 

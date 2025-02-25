@@ -12,13 +12,15 @@
   </head>
   <body>
     <script type="module">
-    
       import * as Coordinates from
       "./coordinates.js"
     
+      var S = Math.sin
+      var C = Math.cos
+    
       var rendererOptions = {
-        ambientLight: .2,
-        fov: 1500
+        ambientLight: .3,
+        fov: 1400
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
@@ -27,16 +29,32 @@
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
+        { lighting: {
+          type: 'ambientLight', value: .5
+        }},
         { uniform: {
           type: 'phong',
           value: .5,
-          flatShading: true,
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
+      // background
+      var shaderOptions = [
+        { lighting: {
+          type: 'ambientLight', value: .85
+        }},
+        { uniform: {
+          type: 'phong',
+          value: 0,
+        } }
+      ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
       var shapes = []
+
       var geoOptions = {
         shapeType: 'cube',
         color: 0x333333,
@@ -44,19 +62,177 @@
         subs: 1,
         sphereize: 1,
         equirectangular: true,
-        size: 5,
+        size: 4,
         map: 'https://srmcgann.github.io/Coordinates/resources/flat_grey.jpg'
+      }
+      if(0) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      
+      
+      var texCoords = []
+      var geometryData = []
+      var cl = 2
+      var rw = 1
+      var br = 2
+      var sp  = 1
+      var tx  = 0
+      var ty  = 0
+      var tz  = 0
+      var l, X, Y, Z
+      
+      var cl_
+      Array((cl_=cl+1)*rw*br).fill().map((v, i) => {
+        var a = [], b = []
+        var ax = 0
+        var ay = 0
+        var az = 0
+        var ct = 0
+        if((i+1)%cl_){
+          l = i
+          X = tx + ((l%cl_) - cl_/2 + .5) * sp
+          Y = ty + (((l/cl_|0)%rw) - rw/2 + .5) * sp
+          Z = tz + ((l/cl_/rw|0) - br/2) * sp
+          ax += X
+          ay += Y
+          az += Z
+          ct ++
+          a = [...a, [X,Y,Z]]
+          b = [...b, [0, 0]]
+          l = i + 1
+          X = tx + ((l%cl_) - cl_/2 + .5) * sp
+          Y = ty + (((l/cl_|0)%rw) - rw/2 + .5) * sp
+          Z = tz + ((l/cl_/rw|0) - br/2) * sp
+          ax += X
+          ay += Y
+          az += Z
+          ct ++
+          a = [...a, [X,Y,Z]]
+          b = [...b, [1, 0]]
+          l = i + 1 + cl_*rw // br
+          X = tx + ((l%cl_) - cl_/2 + .5) * sp
+          Y = ty + (((l/cl_|0)%rw) - rw/2 + .5) * sp
+          Z = tz + ((l/cl_/rw|0) - br/2) * sp
+          ax += X
+          ay += Y
+          az += Z
+          ct ++
+          a = [...a, [X,Y,Z]]
+          b = [...b, [1, 1]]
+          l = i + cl_*rw     // br
+          X = tx + ((l%cl_) - cl_/2 + .5) * sp
+          Y = ty + (((l/cl_|0)%rw) - rw/2 + .5) * sp
+          Z = tz + ((l/cl_/rw|0) - br/2) * sp
+          ax += X
+          ay += Y
+          az += Z
+          ct ++
+          a = [...a, [X,Y,Z]]
+          b = [...b, [0, 1]]
+          ax /= ct
+          ay /= ct
+          az /= ct
+          if(1||Math.hypot(ax, az) < Math.hypot(cl_*sp, br*sp)/2){
+            geometryData = [...geometryData, a]
+            texCoords    = [...texCoords,    b]
+          }
+        }
+      })
+      
+      var geoOptions = {
+        shapeType: 'dynamic',
+        name: 'dynamic',
+        geometryData,
+        texCoords,
+        x: 0,
+        y: -8,
+        z: 0,
+        color: 0xff3333,
+        colorMix: 0,
+        subs: 3,
+        sphereize: 0,
+        averageNormals: 0,
+        showNormals: false,
+        equirectangular: false,
+        size: 10,
+        map: 'https://drawings.twilightparadox.com/34b3a55a0b163ae24362988c0caaf092.jpg'
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
-      })  
+      })
+      
+      
+      var geoOptions = {
+        shapeType: 'icosahedron',
+        name: 'background',
+        geometryData,
+        x: 0,
+        y: -5,
+        z: 0,
+        color: 0x000000,
+        colorMix: 0,
+        subs: 3,
+        sphereize: 0,
+        averageNormals: false,
+        showNormals: false,
+        //equirectangular: true,
+        size: 1e3,
+        map: 'https://srmcgann.github.io/Coordinates/resources/art_lounge_red.jpg'
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await backgroundShader.ConnectGeometry(geometry)
+      })
+      
+
+      // hex
+      geometryData = []
+      var sd = 6
+      var ls = 2, p
+      for(var i = sd; i--;){
+        X = S(p=Math.PI*2/sd*i) * ls
+        Y = C(p) * ls
+      }
+      var geoOptions = {
+        shapeType: 'dynamic',
+        name: 'hex',
+        geometryData,
+        x: 0,
+        y: 5,
+        z: 0,
+        color: 0x00ffaa,
+        colorMix: .5,
+        subs: 0,
+        //sphereize: 1,
+        //averageNormals: true,
+        showNormals: true,
+        //equirectangular: true,
+        size: 1,
+        //map: 'https://srmcgann.github.io/Coordinates/resources/flat_grey.jpg'
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
       
       
       window.Draw = () => {
+        renderer.yaw += .002
+        renderer.pitch = Math.min(1, Math.max(-.25, (.2+C(renderer.t/3)*2)))
         shapes.forEach(shape => {
-          shape.yaw += .01
-          shape.pitch += .005
+          switch(shape.name){
+            case 'hex': case 'background':
+            break
+            case 'dynamic':
+              shape.yaw += .0025
+            break
+            default:
+              shape.yaw += .01
+              shape.pitch += .005
+            break
+          }
           renderer.Draw(shape)
         })
       }
