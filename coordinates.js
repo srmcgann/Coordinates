@@ -261,18 +261,26 @@ const Renderer = options => {
         ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
 
         
+
+
+        //normals
+        if(geometry?.normalVecs.length){
+          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
+          ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
+          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
+          ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
+          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
+          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
+          dset.locNormalVec= ctx.getAttribLocation(dset.program, "normalVec")
+          ctx.vertexAttribPointer(dset.locNormalVec, 3, ctx.FLOAT, false, 0, 0)
+          ctx.enableVertexAttribArray(dset.locNormalVec)
+
+          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+          ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+        }        
+        
+
         // vertices
-
-
-        ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
-        ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
-        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
-        ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nVecIndices, ctx.STATIC_DRAW)
-        ctx.vertexAttribPointer(dset.locNormalVec, 3, ctx.FLOAT, true, 0, 0)
-        ctx.enableVertexAttribArray(dset.locNormalVec)
-        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-        ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-
         if(geometry?.vertices?.length){
           ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
           ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
@@ -2275,7 +2283,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
         X1 = v[l][0]
         Y1 = v[l][1]
         Z1 = v[l][2]
-        if(baseTexCoords[i].length>l){
+        if(baseTexCoords.length && baseTexCoords[i].length>l){
           tv = baseTexCoords[i]
           tX1 = tv[l][0]
           tY1 = tv[l][1]
@@ -2284,7 +2292,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
         X2 = v[l][0]
         Y2 = v[l][1]
         Z2 = v[l][2]
-        if(baseTexCoords[i].length>l){
+        if(baseTexCoords.length && baseTexCoords[i].length>l){
           tX2 = tv[l][0]
           tY2 = tv[l][1]
         }
@@ -2292,7 +2300,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
         X3 = v[l][0]
         Y3 = v[l][1]
         Z3 = v[l][2]
-        if(baseTexCoords[i].length>l){
+        if(baseTexCoords.length && baseTexCoords[i].length>l){
           tX3 = tv[l][0]
           tY3 = tv[l][1]
         }
@@ -2301,7 +2309,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
           X4 = v[l][0]
           Y4 = v[l][1]
           Z4 = v[l][2]
-          if(baseTexCoords[i].length>l){
+          if(baseTexCoords.length && baseTexCoords[i].length>l){
             tX4 = tv[l][0]
             tY4 = tv[l][1]
           }
@@ -2310,7 +2318,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             X5 = v[l][0]
             Y5 = v[l][1]
             Z5 = v[l][2]
-            if(baseTexCoords[i].length>l){
+            if(baseTexCoords.length && baseTexCoords[i].length>l){
               tX5 = tv[l][0]
               tY5 = tv[l][1]
             }
@@ -2319,7 +2327,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
               X6 = v[l][0]
               Y6 = v[l][1]
               Z6 = v[l][2]
-              if(baseTexCoords[i].length>l){
+              if(baseTexCoords.length && baseTexCoords[i].length>l){
                 tX6 = tv[l][0]
                 tY6 = tv[l][1]
               }
@@ -3637,6 +3645,7 @@ export {
   TorusKnot,
   Rectangle,
   Q, R,
+  AverageNormals,
   Normal,
   ImageToPo2,
   LoadOBJ,
