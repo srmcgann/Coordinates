@@ -19,31 +19,46 @@
       var C = Math.cos
     
       var rendererOptions = {
-        ambientLight: .3,
+        ambientLight: 1,
         fov: 1400
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
       renderer.z = 10
+      renderer.yaw = Math.PI
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/doommaze_light.jpg'
+      var shaders = []
+
       var shaderOptions = [
         { lighting: {
-          type: 'ambientLight', value: .5
+          type: 'ambientLight', value: 1.5
         }},
         { uniform: {
           type: 'phong',
-          value: .5,
-        } }
+          value: 3,
+          theta: Math.PI,
+        } },
+        
+        { uniform: {
+          type: 'reflection',
+          value: .75,
+          map: refTexture,
+        } },
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+      shaders = [...shaders, shader]
 
-
+      var shaderOptions = [
+      ]
+      var nullShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      
       // background
       var shaderOptions = [
         { lighting: {
-          type: 'ambientLight', value: .85
+          type: 'ambientLight', value: 1
         }},
         { uniform: {
           type: 'phong',
@@ -73,9 +88,9 @@
       
       var texCoords = []
       var geometryData = []
-      var cl = 2
+      var cl = 1
       var rw = 1
-      var br = 2
+      var br = 1
       var sp  = 1
       var tx  = 0
       var ty  = 0
@@ -133,53 +148,71 @@
           ax /= ct
           ay /= ct
           az /= ct
-          if(1||Math.hypot(ax, az) < Math.hypot(cl_*sp, br*sp)/2){
+          if(Math.hypot(ax, az) < Math.hypot(cl_*sp, br*sp)/2){
             geometryData = [...geometryData, a]
             texCoords    = [...texCoords,    b]
           }
         }
       })
       
+      var floorNormalAssocs = []
       var geoOptions = {
         shapeType: 'dynamic',
-        name: 'dynamic',
+        name: 'floor',
         geometryData,
         texCoords,
         x: 0,
-        y: -8,
+        y: -10,
         z: 0,
-        color: 0xff3333,
+        color: 0xffffff,
         colorMix: 0,
         subs: 3,
         sphereize: 0,
         averageNormals: 0,
         showNormals: false,
+        flipNormals: false,
         equirectangular: false,
         size: 10,
-        map: 'https://drawings.twilightparadox.com/34b3a55a0b163ae24362988c0caaf092.jpg'
+        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
+        for(var i = 0; i < geometry.vertices.length; i+=3){
+          var X1 = geometry.vertices[i+0]
+          var Y1 = geometry.vertices[i+1]
+          var Z1 = geometry.vertices[i+2]
+          var a = []
+          for(var j = 0; j < geometry.vertices.length; j+=3){
+            var X2 = geometry.vertices[j+0]
+            var Y2 = geometry.vertices[j+1]
+            var Z2 = geometry.vertices[j+2]
+            
+            if(Math.hypot(X1-X2, Y1-Y2, Z1-Z2) < .001){
+              a = [...a, j]
+            }
+          }
+          floorNormalAssocs = [...floorNormalAssocs, a]
+        }
         await shader.ConnectGeometry(geometry)
       })
       
       
       var geoOptions = {
-        shapeType: 'icosahedron',
+        shapeType: 'dodecahedron',
         name: 'background',
         geometryData,
         x: 0,
         y: -5,
         z: 0,
-        color: 0x000000,
+        color: 0xffffff,
         colorMix: 0,
-        subs: 3,
+        subs: 2,
         sphereize: 0,
         averageNormals: false,
         showNormals: false,
         //equirectangular: true,
         size: 1e3,
-        map: 'https://srmcgann.github.io/Coordinates/resources/art_lounge_red.jpg'
+        map: refTexture
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -187,48 +220,155 @@
       })
       
 
+      var a
       // hex
-      geometryData = []
+      cl = 8
+      rw = cl * 4
+      br = 1
+      var ox = 0
+      var oy = 0
+      var oz = -1
       var sd = 6
-      var ls = 2, p
-      for(var i = sd; i--;){
-        X = S(p=Math.PI*2/sd*i) * ls
-        Y = C(p) * ls
-      }
-      var geoOptions = {
-        shapeType: 'dynamic',
-        name: 'hex',
-        geometryData,
-        x: 0,
-        y: 5,
-        z: 0,
-        color: 0x00ffaa,
-        colorMix: .5,
-        subs: 0,
-        //sphereize: 1,
-        //averageNormals: true,
-        showNormals: true,
-        //equirectangular: true,
-        size: 1,
-        //map: 'https://srmcgann.github.io/Coordinates/resources/flat_grey.jpg'
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
+      var ls = 1, p
+      sp = ls * 3
+      Array(cl*rw*br).fill().map(async (v, i) => {
+        var tx = ox + ((i%cl)-cl/2 + .5) * sp + ((i/cl|0)%2?-sp:sp)/4
+        var ty = oy + (((i/cl|0)%rw)-rw/2 + .5) * sp / 3 * (.75**.5)
+        if(Math.hypot(tx, ty) < 5){
+          tx += ox
+          ty += oy
+          tz += oz
+          var tz = oz + ((i/cl/rw|0)-br/2 + .5) * sp
+          geometryData = []
+          texCoords    = []
+          a = []
+          for(var i = sd; i--;){
+            X = tx + S(p=Math.PI*2/sd*i + Math.PI/sd) * ls / 1.1
+            Y = ty + C(p) * ls / 1.1
+            Z = tz
+            a = [...a, [X,Y,Z]]
+          }
+          geometryData = [...geometryData, a]
+          var geoOptions = {
+            shapeType: 'dynamic',
+            name: 'hex',
+            geometryData,
+            x: 0,
+            y: 10,
+            z: 0,
+            color: Coordinates.HexFromHSV(360/cl*rw*br*i*2,1,1),
+            colorMix: .5,
+            subs: 1,
+            sphereize: .8,
+            averageNormals: true,
+            showNormals: false,
+            equirectangular: true,
+            size: 6,
+            map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+          }
+          await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+            shapes.push(geometry)
+            await shader.ConnectGeometry(geometry)
+          })
+
+          if(1) for(var m=2; m--;) {
+            var geoOptions = {
+              shapeType: 'sprite',
+              name: 'sprite',
+              x: tx*4,
+              y: ty*4 + 10,
+              z: .5*(m?1:-1),
+              size: 2.5,
+              map: `https://srmcgann.github.io/Coordinates/resources/stars/star${(i/2|0)+m%2?3:8}.png`
+            }
+            await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+              shapes.push(geometry)
+              await nullShader.ConnectGeometry(geometry)
+            })
+          }
+        }
       })
-      
+        
+      var floor = (X, Z) => {
+        var ret = 0
+        var d = Math.hypot(X, Z)
+        var p = Math.atan2(X, Z)
+        ret = S(p + C(d/10 + renderer.t) * 2 + renderer.t*3) * 6
+        return ret
+      }
       
       window.Draw = () => {
-        renderer.yaw += .002
-        renderer.pitch = Math.min(1, Math.max(-.25, (.2+C(renderer.t/3)*2)))
-        shapes.forEach(shape => {
+        if(1)shaders.map(shader => {
+          shader.datasets.map(dataset=>{
+            if(typeof dataset?.optionalUniforms != 'undefined'){
+              dataset.optionalUniforms.filter((oU, idx) => {
+                if(oU.name == 'phong') {
+                  dataset.optionalUniforms[idx].theta = -renderer.t * 1
+                }
+              })
+            }
+          })
+        })
+
+        renderer.z = Math.min(60, Math.max(25, (.3-C(renderer.t/4))*100))
+        renderer.yaw += .005
+        renderer.pitch = Math.min(1, Math.max(.05, (.2-C(renderer.t/3))))
+        shapes.forEach((shape, idx) => {
           switch(shape.name){
-            case 'hex': case 'background':
+            case 'background': case 'sprite':
             break
-            case 'dynamic':
+            case 'floor':
+              var v = shape.vertices
+              var normals = []
+              var facet = []
+              for(var i = 0; i<v.length; i+=3){
+                X = v[i+0]
+                Y = v[i+1]
+                Z = v[i+2]
+                
+                Y = floor(X, Z)
+                
+                v[i+0] = X
+                v[i+1] = Y
+                v[i+2] = Z
+                facet = [...facet, [X, Y, Z]]
+                if(i%9 == 6){
+                  var n = Coordinates.Normal(facet)
+                  normals = [...normals, n, n, n]
+                  facet = []
+                }
+              }
+              // average normal vecs
+              var avN = new Float32Array()
+              for(var i=0; i< v.length; i+=3){
+                var nx1 = v[i+0]
+                var ny1 = v[i+1]
+                var nz1 = v[i+2]
+                var nidx1 = i/3|0
+                var nx2 = normals[nidx1][3] - normals[nidx1][0]
+                var ny2 = normals[nidx1][4] - normals[nidx1][1]
+                var nz2 = normals[nidx1][5] - normals[nidx1][2]
+                var ct = 0
+                a = [0,0,0]
+                floorNormalAssocs[nidx1].map(idx =>{
+                  var nidx = idx / 3 | 0
+                  a[0] += normals[nidx][3] - normals[nidx][0]
+                  a[1] += normals[nidx][4] - normals[nidx][1]
+                  a[2] += normals[nidx][5] - normals[nidx][2]
+                  ct ++
+                })
+                a[0] /= ct
+                a[1] /= ct
+                a[2] /= ct
+                avN = [...avN, ...a]
+              }
+              var n = shape.normalVecs
+              for(var i = 0; i<n.length; i++) n[i] = avN[i]
               shape.yaw += .0025
             break
             default:
+              //shape.color = Coordinates.HexFromHSV(idx*60+Coordinates.t*50,1,1),
+              shape.roll += .02
               shape.yaw += .01
               shape.pitch += .005
             break
