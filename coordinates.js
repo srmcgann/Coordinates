@@ -1291,7 +1291,7 @@ const VideoToImage = video => {
         }
       }
       tsize -= r * 2**(j-1)
-      tsize = Math.min(512, tsize)
+      tsize = Math.min(1024, tsize)
       tgtWidth = tsize / 1
       tgtHeight = tsize / 1
     }
@@ -1497,15 +1497,15 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 reflectionPos;
                   `,
                   fragCode:            `
-                    light.rgb *= .5;
-                    light.rgb += .05;
+                    //light.rgb *= .5;
+                    //light.rgb += .05;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
                       refP1 = -atan(px, pz)/ M_PI / 2.0 + camOri.z / M_PI / 2.0;
-                      refP2 = acos( py / sqrt(px * px + py * py + pz * pz)) / M_PI;
+                      refP2 = acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
                       if(refFlipRefs != 0.0) refP2 = 1.0 - refP2;
                     } else {
                       refP1 = vUv.x;
@@ -1513,7 +1513,7 @@ const BasicShader = async (renderer, options=[]) => {
                     }
                     
                     vec2 refCoords = vec2(1.0 - refP1, refP2);
-                    vec4 refCol = vec4(texture2D(reflectionMap, vec2(refCoords.x, refCoords.y)).rgb * 1.25, reflection / 2.0);
+                    vec4 refCol = vec4(texture2D(reflectionMap, vec2(refCoords.x, refCoords.y)).rgb * 1.25, reflection / 1.0);
                     mixColor = merge(mixColor, refCol);
                     baseColorIp = 1.0 - reflection;
                     //light += reflection / 4.0;
@@ -1540,7 +1540,7 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 phongPos;
                   `,
                   vertCode:            `
-                    phongPos = nVec; //R(nVeci, geoOri);
+                    phongPos = nVeci; //R(nVeci, geoOri);
                     hasPhong = 1.0;
                   `,
                   fragDeclaration:     `
@@ -1563,10 +1563,10 @@ const BasicShader = async (renderer, options=[]) => {
                         py = phongPos.y;
                         pz = phongPos.z;
                       }
-                      phongP1 = (atan(px, pz) - camOri.z) + phongTheta;
+                      phongP1 = atan(px, pz) + phongTheta;
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
 
-                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.2)), 3.0), 3.0) / 1e6 * phong ;
+                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.2)), 3.0), 3.0) / 5e5 * phong ;
                       light = vec4(light.rgb + fact, 1.0) * 15.0;
                     }
                   `,
@@ -1848,7 +1848,7 @@ const BasicShader = async (renderer, options=[]) => {
 
   ret.ConnectGeometry = async (geometry, fromNullShader = false) => {
     
-    var involveCache = false //geometry.involveCache
+    var involveCache = geometry.involveCache
 
     var dset = structuredClone(dataset)
     ret.datasets = [...ret.datasets, dset]
