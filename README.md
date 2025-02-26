@@ -249,6 +249,60 @@ var geoOptions = {
                          // These files may then be loaded via the
                          // shapeType 'custom shape', and 'url', which
                          // is streamlined for the fastest load times
+                       • 'dynamic',
+                         // The "dynamic" shape type is used when geometry is
+                         // expected to change during render, as in animations
+                         // with deformable shapes. Note: every Coordinates
+                         // shape, dynamic or not, has these exposed buffers:
+                         // `shape.vertices`,
+                         // `shape.uvs`,
+                         // `shape.normalVecs`, and
+                         // `shape.normals`.
+                         //  These can be modified, for any shape, but 'dynamic' shapes
+                         //  bypass any pre-built methods, creating empty buffers
+                         //  and allow the inclusion of geometric data via the
+                         //  LoadGeometry option: 'geometryData', and
+                         //  'texCoords' (optionally). These properties expect
+                         //  data in the following structure:
+                         //  geometryData: [  // object/shape
+                         //    [              // face/polygon
+                                 [X,Y,Z], [X,Y,Z], [X,Y,Z], ... // vertices
+                         //    ], ...
+                         //  ],
+                         //  texCoorods: [    // object/shape
+                         //    [              // face/polygon
+                                 [U, V], [U, V], [U, V], ... // UVs per vertex
+                         //    ], ...
+                         //  ],
+                         // Considerations: triangles may be used of course, but quads
+                         // 5-gons, and even 6-gons are accepted. Higher-point geometry
+                         // (>6) may result in undefined behavior, and 3-6 are all
+                         // converted to 3-gons, except quads. Like any shape
+                         // returned by the LoadGeometry method, buffers are
+                         // not references to the original data, but new, contiguous,
+                         // buffer-style, packed Float32 arrays. When reading/modifying
+                         // these buffers, vertices appear in 3's (X,Y,Z), without
+                         // labels or separation. E.g. shp.vertices = [X,Y,Z,X,Y,Z...]
+                         // There are 2 shape buffers for normals: 'normals', and
+                         // 'normalVecs'. The former are 6-element-stride arrays,
+                         // e.g. [X1,Y1,Z1,X2,Y2,Z2, X1,Y1,Z1,X2,Y2,Z2, ...],
+                         // with an assumed start and end point for drawing normal
+                         // lines in their spatial positions. 'normalVecs' are proper
+                         // vectors, for use in the shader. Note that 'normals' are not
+                         // automatically re-computed, unless requested. For this
+                         // purpose there is the exposed method 'Normal(facet)', and
+                         // SyncGeometryNormals(shape, averageNormals=false), which
+                         // will recalculate all normals & normalVecs, optionally
+                         // averaging them with a significant performance cost.
+                         // Example:
+                         //   shape.vertices[212] -= .2         (why not?)
+                         //   SyncGeometryNormals(shape, true)  (reflections fixed!)
+                         // 
+                         // Lastly, SyncGeometryNormals() can and will generate
+                         // new normals for the supplied shape. All shape types offer
+                         // access to this method, if the property is set:
+                         // `preComputeNormalAssocs: true`, but for 'dynamic' shapes
+                         // it is automatically available.
   
   exportShape: false, // display popup for each geometry which has this option
   objX: 0,            // for 'OBJ' format models, initial offset
@@ -321,7 +375,7 @@ Coordinates involves an internal cache for all network resource calls with the U
 
 ## Additional Helper Methods
 
-### R
+### R()
 Coordinates performs geometric rotations in shader for performance reasons, but there may be times when scene geometry should be modified manually, apart from shape positions and rotations, such as deforming geometry or custom rotations. The ``R`` function is exposed for this, and expects paramters as follows<br>
 ``R = (X, Y, Z, {roll, pitch, yaw}, addCameraZ = false)``
 <br><br>
@@ -336,7 +390,7 @@ var ar = Coordinates.R(X, Y, Z, {0, 0, Math.PI})
 
 ```
 <br><br>
-### Normal
+### Normal()
 A geometric 'normal' is vector, perpendicular to a plane or polgon. Normals are used for many purposes, including shading, reflections, and collision detection.<br>
 A method, ``Normal``, is exposed for manually computing the normal of any set of points, which are assumed to constitute a plane or flat surface of arbitrary orientation in space, usually a triangle or quad.<br>
 ``Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) ``
