@@ -392,46 +392,9 @@
                 v[i+0] = X
                 v[i+1] = Y
                 v[i+2] = Z
-                facet = [...facet, [X, Y, Z]]
-                if(i%9 == 6){
-                  var n = Coordinates.Normal(facet)
-                  normals = [...normals, n, n, n]
-                  facet = []
-                }
               }
-              // average normal vecs
-              var avN = new Float32Array()
-              for(var i=0; i< v.length; i+=3){
-                var nx1 = v[i+0]
-                var ny1 = v[i+1]
-                var nz1 = v[i+2]
-                var nidx1 = i/3|0
-                var nx2 = normals[nidx1][3] - normals[nidx1][0]
-                var ny2 = normals[nidx1][4] - normals[nidx1][1]
-                var nz2 = normals[nidx1][5] - normals[nidx1][2]
-                var ct = 0
-                a = [0,0,0]
-                floorNormalAssocs[nidx1].map(idx =>{
-                  var nidx = idx / 3 | 0
-                  a[0] += normals[nidx][3] - normals[nidx][0]
-                  a[1] += normals[nidx][4] - normals[nidx][1]
-                  a[2] += normals[nidx][5] - normals[nidx][2]
-                  ct ++
-                })
-                a[0] /= ct
-                a[1] /= ct
-                a[2] /= ct
-                avN = [...avN, ...a]
-                shape.normals[i*2+0] = nx1
-                shape.normals[i*2+1] = ny1
-                shape.normals[i*2+2] = nz1
-                shape.normals[i*2+3] = nx1 + a[0]
-                shape.normals[i*2+4] = ny1 + a[1]
-                shape.normals[i*2+5] = nz1 + a[2]
-              }
-              var n = shape.normalVecs
-              for(var i = 0; i<n.length; i++) n[i] = avN[i]
-              //shape.yaw += .0025
+              Coordinates.SyncNormals(shape, true)
+              shape.yaw += .0025
             break
             default:
               //shape.color = Coordinates.HexFromHSV(idx*60+Coordinates.t*50,1,1),
