@@ -585,6 +585,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'shapetype'       :
         shapeType = geoOptions[key].toLowerCase();
         switch(shapeType){
+          case 'sprite':
+            map = pointLightShowSource ? 
+              `${moduleBase}/resources/sprite.png` : ''
+          break
           case 'point light':
             map = pointLightShowSource ? 
               `${moduleBase}/resources/stars/star.png` : ''
@@ -1191,17 +1195,20 @@ const LoadGeometry = async (renderer, geoOptions) => {
     geometry[key] = updateGeometry[key]
   })
   
-  if(shapeType == 'point light'){
-    if(typeof geoOptions.color == 'undefined'){
-      geometry.color = 0xaaaaaa
-    }
-    renderer.pointLights.push(geometry)
-  }
   
   const nullShader = await BasicShader(renderer, [ 
     {uniform: {type: 'phong', value: 0} }
   ] )
   await nullShader.ConnectGeometry(geometry, true)
+  
+  
+  if(shapeType == 'point light' || shapeType == 'sprite'){
+    if(typeof geoOptions.color == 'undefined'){
+      geometry.color = 0xaaaaaa
+    }
+    if(shapeType == 'point light') renderer.pointLights.push(geometry)
+    await nullShader.ConnectGeometry(geometry)
+  }
   
   return geometry
 }
