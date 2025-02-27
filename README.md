@@ -156,7 +156,7 @@ window global  ``window.Draw = () => { ... }``, as to be callable
 var shaderOptions = {
   {
     uniform: { // phong shader
-      ambientLight: null, // if set, overrides renderer. may be over/under clocked
+      ambientLight: null, // if set, overrides renderer. [0 to 1] may be over/under clocked
       enabled: true,      // may be toggled live, with other options
       type: 'phong',      // pseudo-lighting effect
       value: .3,          // intensity
@@ -167,7 +167,7 @@ var shaderOptions = {
   },
   {
     uniform: { // reflection shader
-      ambientLight: null, // if set, overrides renderer. may be over/under clocked
+      ambientLight: null, // if set, overrides renderer. [0 to 1] may be over/under clocked
       enabled: true,
       type: 'reflection', // reflect an image on shape surfaces.
                           // works best with 'equirectangular' maps
