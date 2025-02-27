@@ -156,16 +156,18 @@ window global  ``window.Draw = () => { ... }``, as to be callable
 var shaderOptions = {
   {
     uniform: { // phong shader
-      enabled: true,   // may be toggled live, with other options
-      type: 'phong',   // pseudo-lighting effect
-      value: .3,       // intensity
-      theta: .6,       // angle in radians about the horizontal
-                       // (~4 oclock, default)
+      ambientLight: null, // if set, overrides renderer. may be over/under clocked
+      enabled: true,      // may be toggled live, with other options
+      type: 'phong',      // pseudo-lighting effect
+      value: .3,          // intensity
+      theta: .6,          // angle in radians about the horizontal
+                          // (~4 oclock, default)
       flatShading: false,
     },
   },
   {
     uniform: { // reflection shader
+      ambientLight: null, // if set, overrides renderer. may be over/under clocked
       enabled: true,
       type: 'reflection', // reflect an image on shape surfaces.
                           // works best with 'equirectangular' maps
@@ -176,7 +178,7 @@ var shaderOptions = {
           // resized in the background for drawing
           // performance, with a load-time hit
           // "po2" is required by *gl for texture wrapping
-      value: .5,  // intensity. range: 0 = invisible, to 1 = total
+      value: .5,  // intensity. range: 0 = invisible, to 1 = total, may be over/under clocked
       flatShading: false,
     },
   }
