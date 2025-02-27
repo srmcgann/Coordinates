@@ -237,7 +237,7 @@ const Renderer = options => {
         ctx.uniform1f(dset.locIsLight,         geometry.isLight)
         ctx.uniform1f(dset.locAlpha,           geometry.alpha)
         ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
-        ctx.uniform1f(dset.locAmbientLight,    ambLight / 16)
+        ctx.uniform1f(dset.locAmbientLight,    ambLight / 8)
         ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
         ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
         ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
@@ -1611,13 +1611,13 @@ const BasicShader = async (renderer, options=[]) => {
                                          false : option[key].flatShading,
                   flatShadingUniform:  'phongFlatShading',
                   theta:                typeof option[key].theta == 'undefined' ?
-                                          .3 + Math.PI: option[key].theta,
+                                          Math.PI+.5: option[key].theta,
                   dataType:            'uniform1f',
                   vertDeclaration:     `
                     varying vec3 phongPos;
                   `,
                   vertCode:            `
-                    phongPos = nVeci; //R(nVeci, geoOri);
+                    phongPos = nVec; //R(nVeci, geoOri);
                     hasPhong = 1.0;
                   `,
                   fragDeclaration:     `
@@ -1644,7 +1644,7 @@ const BasicShader = async (renderer, options=[]) => {
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
 
                       float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.2)), 3.0), 3.0) / 5e5 * phong ;
-                      light = vec4(light.rgb + fact, 1.0) * 15.0;
+                      light = vec4(light.rgb + fact, 1.0) * 25.0;
                     }
                   `,
                 }
@@ -1897,7 +1897,7 @@ const BasicShader = async (renderer, options=[]) => {
       float colorMag = 1.0;
       if(skip != 1.0){
         if(renderNormals == 1.0){
-          gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5);
+          gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
         }else{
           ${uFragCode}
           vec4 texel = texture2D( baseTexture, Coords(0.0));
