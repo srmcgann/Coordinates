@@ -12,400 +12,99 @@
   </head>
   <body>
     <script type="module">
+    
       import * as Coordinates from
       "./coordinates.js"
     
-      var S = Math.sin
-      var C = Math.cos
-    
+      // instantiate a canvas, 'renderer'. this is also our 'camera'
       var rendererOptions = {
-        ambientLight: 1,
-        fov: 1400
+        ambientLight: .5,
+        fov: 1500
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
+      // back the camera away from the center (move it toward the viewer)
       renderer.z = 10
-      renderer.yaw = Math.PI
       
+      // tell the API where to find our animation function
       Coordinates.AnimationLoop(renderer, 'Draw')
 
-      //var refTexture = 'https://i.imgur.com/bTHLMLp.mp4'
-      var refTexture = 'https://i.imgur.com/Wynns6w.mp4'
-      var shaders = []
-
+      // invoke a shader - phong in this case for a pseudo-lighting effect
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: 0,
-        } },
-      ]
-      var nullShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var shaderOptions = [
-        { lighting: {
-          type: 'ambientLight', value: -.25
-        }},
-        { uniform: {
-          type: 'phong',
-          value: .6,
-          theta: Math.PI,
-        } },
-        
-        { uniform: {
-          type: 'reflection',
-          value: .5,
-          map: refTexture,
-        } },
-      ]
-      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-      shaders = [...shaders, shader]
-
-      var shaderOptions = [
-        { lighting: {
-          type: 'ambientLight', value: .25
-        }},
-        { uniform: {
-          type: 'phong',
-          value: 2.5,
-          theta: Math.PI,
-          enabled: true,
-        } },
-        { uniform: {
-          type: 'reflection',
-          value: .5,
-          map: refTexture,
-          enabled: true,
-        } },
-      ]
-      var floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
-      shaders = [...shaders, floorShader]
-
-      var shaderOptions = [
-      ]
-      var nullShader = await Coordinates.BasicShader(renderer, shaderOptions)
-      
-      // background
-      var shaderOptions = [
-        { lighting: {
-          type: 'ambientLight', value: 2
-        }},
-        { uniform: {
-          type: 'phong',
-          value: 0,
+          value: 0
         } }
       ]
-      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
-      var shapes = []
-
-      var geoOptions = {
-        shapeType: 'custom shape',
-        url: 'https://srmcgann.github.io/Coordinates/custom shapes/angel 1.json',
-        map: 'https://srmcgann.github.io/Coordinates/custom shapes/angel 1.jpg',
-        color: 0x333333,
-        colorMix: 0,
-        subs: 0,
-        y: 0,
-        yaw: Math.PI,
-        //sphereize: 0,
-        //equirectangular: true,
-        size: 4,
-      }
-      if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })
+      // create a scene (it's async, so we can 'await' each call, but that is optional)
       
-      
-      var texCoords = []
-      var geometryData = []
-      var cl = 2
-      var rw = 2
-      var br = 2
-      var sp  = 1
-      var tx  = 0
-      var ty  = 0
-      var tz  = 0
-      var l, X, Y, Z
-      
-      var cl_
-      Array((cl_=cl+1)*rw*br).fill().map((v, i) => {
-        var a = [], b = []
-        var ax = 0
-        var ay = 0
-        var az = 0
-        var ct = 0
-        if((i+1)%cl_){
-          l = i
-          X = tx + ((l%cl_) - cl_/2 + .5) * sp
-          Y = ty + (((l/cl_|0)%rw) - rw/2 + .5) * sp
-          Z = tz + ((l/cl_/rw|0) - br/2) * sp
-          ax += X
-          ay += Y
-          az += Z
-          ct ++
-          a = [...a, [X,Y,Z]]
-          b = [...b, [0, 0]]
-          l = i + 1
-          X = tx + ((l%cl_) - cl_/2 + .5) * sp
-          Y = ty + (((l/cl_|0)%rw) - rw/2 + .5) * sp
-          Z = tz + ((l/cl_/rw|0) - br/2) * sp
-          ax += X
-          ay += Y
-          az += Z
-          ct ++
-          a = [...a, [X,Y,Z]]
-          b = [...b, [1, 0]]
-          l = i + 1 + cl_*rw // br
-          X = tx + ((l%cl_) - cl_/2 + .5) * sp
-          Y = ty + (((l/cl_|0)%rw) - rw/2 + .5) * sp
-          Z = tz + ((l/cl_/rw|0) - br/2) * sp
-          ax += X
-          ay += Y
-          az += Z
-          ct ++
-          a = [...a, [X,Y,Z]]
-          b = [...b, [1, 1]]
-          l = i + cl_*rw     // br
-          X = tx + ((l%cl_) - cl_/2 + .5) * sp
-          Y = ty + (((l/cl_|0)%rw) - rw/2 + .5) * sp
-          Z = tz + ((l/cl_/rw|0) - br/2) * sp
-          ax += X
-          ay += Y
-          az += Z
-          ct ++
-          a = [...a, [X,Y,Z]]
-          b = [...b, [0, 1]]
-          ax /= ct
-          ay /= ct
-          az /= ct
-          if(Math.hypot(ax, az) < Math.hypot(cl_*sp, br*sp)/2){
-            geometryData = [...geometryData, a]
-            texCoords    = [...texCoords,    b]
-          }
+      var P = []
+      var iPv = .001
+      var iPfreq = 60
+      var Rn = Math.random
+      var S = Math.sin
+      var C = Math.cos
+      var p, d, q
+      var spawnP = async (x, y, z) => {
+        var vx = S(p=Rn()*Math.PI*2) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * iPv
+        var vy = C(q) * iPv
+        var vz = C(p) * S(q) * iPv
+        var geoOptions = {
+          shapeType: 'sprite',
+          color: 0xffffff,
+          size: 1,
+          x, y, z,
         }
-      })
-      
-      var floorNormalAssocs = []
-      var geoOptions = {
-        shapeType: 'dynamic',
-        name: 'floor',
-        geometryData,
-        texCoords,
-        x: 0,
-        y: 0,
-        z: 0,
-        color: 0xffffff,
-        colorMix: 0,
-        subs: 2,
-        sphereize: 0,
-        averageNormals: 0,
-        showNormals: false,
-        flipNormals: false,
-        equirectangular: false,
-        size: 10,
-        map: 'https://srmcgann.github.io/Coordinates/resources/grid_burgundy_dark_po2.jpg'
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async shape => {
+          P = [...P, { vx, vy, vz, shape, age: 1}]
+        })  
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        for(var i = 0; i < geometry.vertices.length; i+=3){
-          var X1 = geometry.vertices[i+0]
-          var Y1 = geometry.vertices[i+1]
-          var Z1 = geometry.vertices[i+2]
-          var a = []
-          for(var j = 0; j < geometry.vertices.length; j+=3){
-            var X2 = geometry.vertices[j+0]
-            var Y2 = geometry.vertices[j+1]
-            var Z2 = geometry.vertices[j+2]
-            
-            if(Math.hypot(X1-X2, Y1-Y2, Z1-Z2) < .001){
-              a = [...a, j]
-            }
-          }
-          floorNormalAssocs = [...floorNormalAssocs, a]
-        }
-        await floorShader.ConnectGeometry(geometry)
-      })
       
-      
-      var geoOptions = {
-        shapeType: 'dodecahedron',
-        name: 'background',
-        geometryData,
-        x: 0,
-        y: 0,
-        z: 0,
-        color: 0xffffff,
-        colorMix: 0,
-        subs: 3,
-        sphereize: 0,
-        averageNormals: false,
-        showNormals: false,
-        //equirectangular: true,
-        size: 1e3,
-        map: refTexture
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await backgroundShader.ConnectGeometry(geometry)
-      })
-      
-
-      var geoOptions = {
-        shapeType: 'point light',
-        name: 'light',
-        x: 70,
-        y: 10,
-        z: 0,
-        color: 0xffdd88,
-        colorMix: 0,
-        size: 12,
-        lum: 4,
-        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star2.png',
-        pointLightShowSource: true,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await nullShader.ConnectGeometry(geometry)
-      })
-      
-
-      var a
-      // hex
-      cl = 4
-      rw = cl * 4
-      br = 1
-      var ox = 0
-      var oy = 0
-      var oz = -1
-      var sd = 6
-      var ls = 1, p
-      sp = ls * 3
-      if(0) Array(cl*rw*br).fill().map(async (v, i) => {
-        var tx = ox + ((i%cl)-cl/2 + .5) * sp + ((i/cl|0)%2?-sp:sp)/4
-        var ty = oy + (((i/cl|0)%rw)-rw/2 + .5) * sp / 3 * (.75**.5)
-        if(Math.hypot(tx, ty) < 5){
-          tx += ox
-          ty += oy
-          tz += oz
-          var tz = oz + ((i/cl/rw|0)-br/2 + .5) * sp
-          if(0){
-            geometryData = []
-            texCoords    = []
-            a = []
-            for(var i = sd; i--;){
-              X = tx + S(p=Math.PI*2/sd*i + Math.PI/sd) * ls / 1.1
-              Y = ty + C(p) * ls / 1.1
-              Z = tz
-              a = [...a, [X,Y,Z]]
-            }
-            geometryData = [...geometryData, a]
-            var geoOptions = {
-              shapeType: 'dynamic',
-              name: 'hex',
-              geometryData,
-              x: 0,
-              y: 10,
-              z: 0,
-              color: Coordinates.HexFromHSV(360/cl*rw*br*i*2,1,1),
-              colorMix: .5,
-              subs: 1,
-              sphereize: .8,
-              averageNormals: true,
-              showNormals: false,
-              equirectangular: true,
-              size: 6,
-              map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
-            }
-            await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-              shapes.push(geometry)
-              await shader.ConnectGeometry(geometry)
-            })
-          }
-          if(1) for(var m=2; m--;) {
-            var geoOptions = {
-              shapeType: 'sprite',
-              name: 'sprite',
-              x: tx*4,
-              y: ty*4 + 10,
-              z: .5*(m?1:-1),
-              size: 2.5,
-              map: `https://srmcgann.github.io/Coordinates/resources/stars/star${(i/2|0)+m%2?3:8}.png`
-            }
-            await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-              shapes.push(geometry)
-              await nullShader.ConnectGeometry(geometry)
-            })
-          }
-        }
-      })
         
-      var floor = (X, Z) => {
-        var ret = 0
-        var d = Math.hypot(X, Z)
-        var p = Math.atan2(X, Z)
-        //ret = Math.min(5, Math.max(-5, (C(X / 40 + renderer.t*2) * C(Z/40)) * C(p+d/40-renderer.t*10) * 30)) - 10
-        ret = Math.min(5, (C(X / 40 + renderer.t*2) * C(Z/40)) * C(p+d/20-renderer.t*10) * 30) - 10
-        return ret
+      
+      
+      window.Draw = async () => {
+      
+        var t = renderer.t
+        if(!t){
+          await spawnP(0,0,0)
+          await spawnP(0,0,0)
+          await spawnP(0,0,0)
+          console.log(P)
+        }        
+        
+        renderer.yaw += .01
+        
+        //if(!((t*60|0)%iPfreq)) await spawnP(0,0,0)
+        
+        //P = P.filter(v=>v.age>0)
+        P.forEach(v => {
+          /*v.age -= .001
+          v.shape.x += v.vx
+          v.shape.y += v.vy
+          v.shape.z += v.vz
+          for(var i=0; i<v.shape.vertices.length; i+= 3){
+            var X = v.shape.vertices[0+i]
+            var Y = v.shape.vertices[1+i]
+            var Z = v.shape.vertices[2+i]
+            //d = Math.hypot(X,Y,Z)
+            //X /= d
+            //Y /= d
+            //Z /= d
+            //X *= v.age
+            //Y *= v.age
+            //Z *= v.age
+            v.shape.vertices[0+i] = X
+            v.shape.vertices[1+i] = Y
+            v.shape.vertices[2+i] = Z
+          }*/
+          renderer.Draw(v.shape)
+        })
       }
       
-      window.Draw = () => {
-        if(1)shaders.map(shader => {
-          shader.datasets.map(dataset=>{
-            if(typeof dataset?.optionalUniforms != 'undefined'){
-              dataset.optionalUniforms.filter((oU, idx) => {
-                if(oU.name == 'phong') {
-                  dataset.optionalUniforms[idx].theta = renderer.yaw + Math.PI + .3
-                }
-              })
-            }
-          })
-        })
-
-        renderer.z = Math.min(100, Math.max(32, (.3-C(renderer.t/4))*250))
-        renderer.yaw += .005
-        renderer.pitch = Math.min(1, Math.max(.05, (.2+C(renderer.t/1.5))*3))
-        shapes.forEach((shape, idx) => {
-          switch(shape.name){
-            case 'background': case 'sprite':
-            break
-            case 'light':
-              X = shape.x
-              Z = shape.z
-              p = Math.atan2(X,Z) - .05
-              var d = Math.hypot(X,Z)
-              shape.x = S(p) * d
-              shape.z = C(p) * d
-            break
-            case 'floor':
-              var v = shape.vertices
-              var normals = []
-              var facet = []
-              for(var i = 0; i<v.length; i+=3){
-                X = v[i+0]
-                Y = v[i+1]
-                Z = v[i+2]
-                
-                Y = floor(X, Z)
-                
-                v[i+0] = X
-                v[i+1] = Y
-                v[i+2] = Z
-              }
-              Coordinates.SyncNormals(shape, true)
-              shape.yaw += .0025
-            break
-            default:
-              //shape.color = Coordinates.HexFromHSV(idx*60+Coordinates.t*50,1,1),
-              //shape.roll += .02
-              //shape.yaw += .01
-              //shape.pitch += .005
-            break
-          }
-          renderer.Draw(shape)
-        })
-      }
     </script>
   </body>
 </html>
