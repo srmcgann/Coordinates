@@ -136,7 +136,6 @@ Ambient light is available, optionally, as a parameter for shader instances, or 
 Point lights are invoked as shapes, currently.
 <br>
 
-
 ## Other Methods
 
 
@@ -183,10 +182,22 @@ var shaderOptions = {
 ```
 <br><br>
 
+### DestroyGeometry()
+``Coordinates.DestroyGeometry( geometry)``<br>
+Destroy any references to this shapes created with ``LoadGeometry``.
+Currently applies to lights only, which are the only system-side data
+stored when geometry is created.
+
 ### LoadGeometry()
 ``Coordinates.LoadGeometry( renderer, geoOptions )``<br>
 
 ##### Returns a mesh object, optional async
+
+<br>
+#### a note about lighting
+the object returned by ``LoadGeometry`` is not kept in system memory. You are expected to create a data structure for managing shapes, without which they have no permanency. A geometry, especially if 'connected' to a shader, is a whole, drawable entity and no special GC (garbage collection) work is required, since they are not stored. The only exception is lights, which are queued internally so that the scene is influenced by them. To remove a light, use the ``DestroyGeometry(shape)`` method, which removes the light source, but not your own reference to it, if any. Recall a light may be visible in your scene with the `showSource: true` property setting, and the shape returned by LoadGeometry (a rectangle) is not stored system-side, and will remain visible after the light is destroyed. You may use, for example if your shapes are in an array named 'shapes' and your light is named 'my light': ``shapes = shapes.filter(v=>v.name != 'my light')`` to remove the shape from your array.
+<br>
+
 ```js
 var geoOptions = {
   name: 'background', // optional name for object
@@ -234,7 +245,7 @@ var geoOptions = {
                          // has optional parameters, in addition to sprite params:
                               lum : 0.0 to ...
                               color: 0xffffff e.g.
-                              pointLightShowSource: true/false
+                              showSource: true/false
                               // ignores shader, if one is connected
                        • 'cylinder'
                        • 'torus'
