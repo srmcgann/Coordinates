@@ -68,6 +68,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
       var geoOptions = {
         shapeType: 'cube',
         size: 5,
+        color: 0xffffff,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
