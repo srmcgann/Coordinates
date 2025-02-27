@@ -133,7 +133,9 @@ var rendererOptions = {
 ``ambientLight: [0 to ...]``<br>
 Ambient light is available, optionally, as a parameter for shader instances, or globally as a Renderer parameter. If the renderer parameter is set, it will be overridden by a shader setting.<br>
 
-Point lights are invoked as shapes, currently.
+### Point Lights
+
+Point lights are invoked as a shapeType ('point light'), displayed optionally in scene with a default sprite, when the property is set ``showSource: true``. the ``color`` property describes the emmissive light color. ``lum`` sets the light power. ``size`` sets the sprite size, if used. ``map`` overrides the default sprite with a custom sprite texture, alpha supported. more below.
 <br>
 
 ## Other Methods
