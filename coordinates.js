@@ -156,7 +156,7 @@ const Renderer = options => {
     if(typeof geometry?.shader != 'undefined'){
       
       // depth + alpha bugfix
-      if(!spritePass && (geometry.isSprite || (geometry.isLight && geometry.pointLightShowSource))) {
+      if(!spritePass && (geometry.isSprite || (geometry.isLight && geometry.showSource))) {
         renderer.spriteQueue = [geometry, ...renderer.spriteQueue]
       }else{
         
@@ -323,6 +323,17 @@ const Renderer = options => {
 
 const DestroyViewport = el => {
   el.remove()
+}
+
+const DestroyShape = shape => {
+  switch(shape.shapeType){
+    case 'point light':
+      shape.renderer.pointLights=shape.renderer.pointLights.filter((v,i)=>i!=shape.pointLightID)
+      shape.renderer.pointLights.map((v, i) => v.pointLightID = i)
+    break
+    default:
+    break
+  }
 }
 
 const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involveCache=true) => {
@@ -557,7 +568,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var playbackSpeed          = 1.0
   var involveCache           = true
   var textureMode            = 'image'
-  var pointLightShowSource   = false
+  var showSource             = false
   var disableDepthTest       = false
   var lum                    = 1
   var alpha                  = 1
@@ -570,8 +581,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   // must precede
   Object.keys(geoOptions).forEach((key, idx) => {
     switch(key.toLowerCase()){
-      case 'pointlightshowsource':
-        pointLightShowSource = !!geoOptions[key]; break
+      case 'showsource':
+        showSource = !!geoOptions[key]; break
     }
   })
   Object.keys(geoOptions).forEach((key, idx) => {
@@ -586,11 +597,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
         shapeType = geoOptions[key].toLowerCase();
         switch(shapeType){
           case 'sprite':
-            map = pointLightShowSource ? 
-              `${moduleBase}/resources/sprite.png` : ''
+            map = `${moduleBase}/resources/sprite.png`
           break
           case 'point light':
-            map = pointLightShowSource ? 
+            map = showSource ? 
               `${moduleBase}/resources/stars/star.png` : ''
           break
         }
@@ -831,7 +841,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'point light':
         isLight = true
-        if(!pointLightShowSource){
+        if(!showSource){
           shape = { geometry: [] }
         }else{
           shape = await Rectangle(Math.max(size, .5) , subs-1, sphereize, flipNormals, shapeType)
@@ -1189,7 +1199,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     nVecIndices, uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices, map, video,
     textureMode, isSprite, isLight, playbackSpeed,
-    disableDepthTest, lum, alpha, involveCache
+    disableDepthTest, lum, alpha, involveCache,
+    renderer,
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -1199,15 +1210,17 @@ const LoadGeometry = async (renderer, geoOptions) => {
   const nullShader = await BasicShader(renderer, [ 
     {uniform: {type: 'phong', value: 0} }
   ] )
-  await nullShader.ConnectGeometry(geometry, true)
-  
   
   if(shapeType == 'point light' || shapeType == 'sprite'){
     if(typeof geoOptions.color == 'undefined'){
       geometry.color = 0xaaaaaa
     }
-    if(shapeType == 'point light') renderer.pointLights.push(geometry)
-    await nullShader.ConnectGeometry(geometry)
+    if(shapeType == 'point light'){
+      geometry.pointLightID = renderer.pointLights.length
+      renderer.pointLights.push(geometry)
+    }
+  }else{
+    await nullShader.ConnectGeometry(geometry, true, 'hm')
   }
   
   return geometry
@@ -1930,8 +1943,11 @@ const BasicShader = async (renderer, options=[]) => {
   gl.shaderSource(fragmentShader, ret.frag)
   gl.compileShader(fragmentShader)
 
-  ret.ConnectGeometry = async (geometry, fromNullShader = false) => {
+  ret.ConnectGeometry = async (geometry, fromNullShader = false, test='') => {
     
+    if((geometry.shapeType == 'point light' || geometry.shapeType == 'sprite') &&
+       typeof geometry?.shader != 'undefined') return
+       
     var involveCache = geometry.involveCache
 
     var dset = structuredClone(dataset)
@@ -3719,6 +3735,7 @@ export {
   LoadGeometry,
   BasicShader,
   DestroyViewport,
+  DestroyShape,
   AnimationLoop,
   Tetrahedron,
   Cube,
