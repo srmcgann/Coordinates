@@ -24,7 +24,7 @@ const cache = {
   texImages    : []
 }
 
-const Renderer = options => {
+const Renderer = async options => {
 
   var x=0, y=0, z=0
   var width = 1920, height = 1080
@@ -317,6 +317,11 @@ const Renderer = options => {
     }
   }
   renderer['Draw'] = Draw
+
+  renderer.nullShader = await BasicShader(renderer, [
+    {uniform: {type: 'phong', value: 0} }
+  ] )
+ 
         
   return renderer
 }
@@ -651,7 +656,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   })
   if(sphereize) averageNormals = true
 
-  
   var vertices    = new Float32Array()
   var normals     = new Float32Array()
   var normalVecs  = new Float32Array()
@@ -721,7 +725,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
           normals    = data.normals
           normalVecs = data.normalVecs
           uvs        = data.uvs
-          console.log('found custom shape found in cache. using it')
+          //console.log('found custom shape found in cache. using it')
           resolved = true
         }
         if(!resolved){
@@ -1207,10 +1211,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   })
   
   
-  const nullShader = await BasicShader(renderer, [ 
-    {uniform: {type: 'phong', value: 0} }
-  ] )
-  
   if(shapeType == 'point light' || shapeType == 'sprite'){
     if(typeof geoOptions.color == 'undefined'){
       geometry.color = 0xaaaaaa
@@ -1220,8 +1220,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
       renderer.pointLights.push(geometry)
     }
   }else{
-    await nullShader.ConnectGeometry(geometry, true, 'hm')
   }
+  await renderer.nullShader.ConnectGeometry(geometry)
   
   return geometry
 }
@@ -1363,7 +1363,7 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1,url='', i
   switch(textureMode){
     case 'video':
       if(involveCache && (cacheItem=cache.texImages.filter(v=>v.url==url && tval != -1 && v.tVal == tval)).length){
-        console.log('found video texture in cache... using it')
+        //console.log('found video texture in cache... using it')
         texImage = cacheItem[0].texImage
       }else{
         texImage = VideoToImage(resource)
@@ -1378,7 +1378,7 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1,url='', i
     break
     case 'image':
       if(involveCache && (cacheItem = cache.texImages.filter(v=>v.url==url)).length){
-        console.log('found image texture in cache... using it')
+        //console.log('found image texture in cache... using it')
         texImage = cacheItem[0].texImage
       }else{
         texImage = ImageToPo2(resource)
@@ -1943,12 +1943,12 @@ const BasicShader = async (renderer, options=[]) => {
   gl.shaderSource(fragmentShader, ret.frag)
   gl.compileShader(fragmentShader)
 
-  ret.ConnectGeometry = async (geometry, fromNullShader = false, test='') => {
+  ret.ConnectGeometry = async (geometry, fromNullShader = false) => {
     
-    if((geometry.shapeType == 'point light' || geometry.shapeType == 'sprite') &&
+    if(0&&(geometry.shapeType == 'point light' || geometry.shapeType == 'sprite') &&
        typeof geometry?.shader != 'undefined') return
        
-    var involveCache = geometry.involveCache
+    var involveCache = false//geometry.involveCache
 
     var dset = structuredClone(dataset)
     ret.datasets = [...ret.datasets, dset]
@@ -2010,7 +2010,7 @@ const BasicShader = async (renderer, options=[]) => {
                     case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
                       uniform.textureMode = 'video'
                       if(involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
-                        console.log('found video in cache... using it')
+                        //console.log('found video in cache... using it')
                         uniform.video = cacheItem[0].resource
                         //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
                         ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
@@ -2051,7 +2051,7 @@ const BasicShader = async (renderer, options=[]) => {
                     default:
                       uniform.textureMode = 'image'
                       if(involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
-                        console.log('found image in cache... using it')
+                        //console.log('found image in cache... using it')
                         var image = cacheItem[0].resource
                         ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
                         gl.activeTexture(gl.TEXTURE1)
@@ -2149,7 +2149,7 @@ const BasicShader = async (renderer, options=[]) => {
             case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
               geometry.textureMode = 'video'
               if(involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
-                console.log('found video in cache... using it')
+                //console.log('found video in cache... using it')
                 dset.resource = cacheItem[0].resource
                 //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
                 dset.texture = cacheItem[0].texture
