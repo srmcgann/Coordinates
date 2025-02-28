@@ -133,9 +133,10 @@ var rendererOptions = {
 ``ambientLight: [0 to ...]``<br>
 Ambient light is available, optionally, as a parameter for shader instances, or globally as a Renderer parameter. If the renderer parameter is set, it will be overridden by a shader setting.<br>
 
-Point lights are invoked as shapes, currently.
-<br>
+### Point Lights
 
+Point lights are invoked as a shapeType (``'point light'``), displayed optionally in scene with a default sprite, when the property is set ``showSource: true``. the ``color`` property describes the emmissive light color. ``lum`` sets the light power. ``size`` sets the sprite size, if used. ``map`` overrides the default sprite with a custom sprite texture, alpha supported. more below.
+<br>
 
 ## Other Methods
 
@@ -153,13 +154,19 @@ window global  ``window.Draw = () => { ... }``, as to be callable
 ##### Returns basic shader object, optional async
 ```js
 var shaderOptions = {
+  { lighting:
+    { type:  'ambientLight',  // only ambientLight type is available at this time.
+                              // if set, overrides renderer ambientLight. 
+      value: [0 to 1]         // may be over/under clocked
+    }
+  },
   {
     uniform: { // phong shader
-      enabled: true,   // may be toggled live, with other options
-      type: 'phong',   // pseudo-lighting effect
-      value: .3,       // intensity
-      theta: .6,       // angle in radians about the horizontal
-                       // (~4 oclock, default)
+      enabled: true,      // may be toggled live, with other options
+      type: 'phong',      // pseudo-lighting effect
+      value: .3,          // intensity
+      theta: .6,          // angle in radians about the horizontal
+                          // (~4 oclock, default)
       flatShading: false,
     },
   },
@@ -175,7 +182,7 @@ var shaderOptions = {
           // resized in the background for drawing
           // performance, with a load-time hit
           // "po2" is required by *gl for texture wrapping
-      value: .5,  // intensity. range: 0 = invisible, to 1 = total
+      value: .5,  // intensity. range: 0 = invisible, to 1 = total, may be over/under clocked
       flatShading: false,
     },
   }
@@ -183,10 +190,22 @@ var shaderOptions = {
 ```
 <br><br>
 
+### DestroyGeometry()
+``Coordinates.DestroyGeometry( geometry)``<br>
+Destroy any references to this shapes created with ``LoadGeometry``.
+Currently applies to lights only, which are the only system-side data
+stored when geometry is created.
+
 ### LoadGeometry()
 ``Coordinates.LoadGeometry( renderer, geoOptions )``<br>
 
 ##### Returns a mesh object, optional async
+
+<br>
+#### a note about lighting
+the object returned by ``LoadGeometry`` is not kept in system memory. You are expected to create a data structure for managing shapes, without which they have no permanency. A geometry, especially if 'connected' to a shader, is a whole, drawable entity and no special GC (garbage collection) work is required, since they are not stored. The only exception is lights, which are queued internally so that the scene is influenced by them. To remove a light, use the ``DestroyGeometry(shape)`` method, which removes the light source, but not your own reference to it, if any. Recall a light may be visible in your scene with the `showSource: true` property setting, and the shape returned by LoadGeometry (a rectangle) is not stored system-side, and will remain visible after the light is destroyed. You may use, for example if your shapes are in an array named 'shapes' and your light is named 'my light': ``shapes = shapes.filter(v=>v.name != 'my light')`` to remove the shape from your array.
+<br>
+
 ```js
 var geoOptions = {
   name: 'background', // optional name for object
@@ -234,7 +253,7 @@ var geoOptions = {
                          // has optional parameters, in addition to sprite params:
                               lum : 0.0 to ...
                               color: 0xffffff e.g.
-                              pointLightShowSource: true/false
+                              showSource: true/false
                               // ignores shader, if one is connected
                        • 'cylinder'
                        • 'torus'
