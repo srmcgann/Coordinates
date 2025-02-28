@@ -725,7 +725,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
           normals    = data.normals
           normalVecs = data.normalVecs
           uvs        = data.uvs
-          //console.log('found custom shape found in cache. using it')
+          console.log('found custom shape found in cache. using it')
           resolved = true
         }
         if(!resolved){
@@ -1337,7 +1337,7 @@ const VideoToImage = video => {
         }
       }
       tsize -= r * 2**(j-1)
-      tsize = Math.min(1024, tsize)
+      tsize = Math.min(512, tsize)
       tgtWidth = tsize / 1
       tgtHeight = tsize / 1
     }
@@ -1363,7 +1363,7 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1,url='', i
   switch(textureMode){
     case 'video':
       if(involveCache && (cacheItem=cache.texImages.filter(v=>v.url==url && tval != -1 && v.tVal == tval)).length){
-        //console.log('found video texture in cache... using it')
+        console.log('found video texture in cache... using it')
         texImage = cacheItem[0].texImage
       }else{
         texImage = VideoToImage(resource)
@@ -1601,7 +1601,7 @@ const BasicShader = async (renderer, options=[]) => {
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
-                      refP1 = -atan(px, pz)/ M_PI / 2.0 + camOri.z / M_PI / 2.0;
+                      refP1 = -atan(px, pz)/ M_PI / 2.0;
                       refP2 = acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
                       if(refFlipRefs != 0.0) refP2 = 1.0 - refP2;
                     } else {
@@ -1948,7 +1948,7 @@ const BasicShader = async (renderer, options=[]) => {
     if(0&&(geometry.shapeType == 'point light' || geometry.shapeType == 'sprite') &&
        typeof geometry?.shader != 'undefined') return
        
-    var involveCache = false//geometry.involveCache
+    var involveCache = geometry.involveCache
 
     var dset = structuredClone(dataset)
     ret.datasets = [...ret.datasets, dset]
@@ -2010,7 +2010,7 @@ const BasicShader = async (renderer, options=[]) => {
                     case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
                       uniform.textureMode = 'video'
                       if(involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
-                        //console.log('found video in cache... using it')
+                        console.log('found video in cache... using it')
                         uniform.video = cacheItem[0].resource
                         //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
                         ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
@@ -2050,7 +2050,7 @@ const BasicShader = async (renderer, options=[]) => {
                     break
                     default:
                       uniform.textureMode = 'image'
-                      if(involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
+                      if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
                         //console.log('found image in cache... using it')
                         var image = cacheItem[0].resource
                         ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
@@ -2149,7 +2149,7 @@ const BasicShader = async (renderer, options=[]) => {
             case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
               geometry.textureMode = 'video'
               if(involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
-                //console.log('found video in cache... using it')
+                console.log('found video in cache... using it')
                 dset.resource = cacheItem[0].resource
                 //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
                 dset.texture = cacheItem[0].texture
@@ -2186,7 +2186,7 @@ const BasicShader = async (renderer, options=[]) => {
             break
             default:
               geometry.textureMode = 'image'
-              if(involveCache && (cacheItem=cache.textures.filter(v=>v.url==textureURL)).length){
+              if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==textureURL)).length){
                 dset.texture = cacheItem[0].texture
                 var image = cacheItem[0].resource
                 dset.resource = image
