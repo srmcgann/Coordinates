@@ -28,19 +28,24 @@
   
   Coordinates.AnimationLoop(renderer, 'Draw')
   var shapes = []
-  var refTexture = 'https://srmcgann.github.io/skyboxes2/HDRI/test.png'
+  //var refTexture = 'https://srmcgann.github.io/skyboxes2/videos/pulse_darker.mp4'
+  //var refTexture = 'https://srmcgann.github.io/skyboxes/HDRI/26.jpg'
+  //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+  var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/spacemaze1.jpg'
   var shaderOptions = [
     {lighting:
-      { type: 'ambientLight', value: .1}
+      { type: 'ambientLight', value: .3}
     },
     { uniform: {
       type: 'phong',
-      value: .75
+      value: .4
     } },
     { uniform: {
       type: 'reflection',
       value: .3,
-      map: refTexture
+      map: refTexture,
+      //playbackSpeed: .5
+      //muted: false,
     } },
     
   ]
@@ -48,30 +53,56 @@
 
   var shaderOptions = [
     {lighting:
-      { type: 'ambientLight', value: .15}
+      { type: 'ambientLight', value: .4}
     },
     { uniform: {
       type: 'phong',
       value: 0
-    } }
+    } },
   ]
   var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-  var geoOptions = {
-    shapeType: 'torus knot',
-    size: 16,
-    //subs: 3,
-    //sphereize: .5,
-    //averageNormals: true,
-    
-    map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
-    color: 0x888888,
-    colorMix: 0,
+  var cl = 3
+  var rw = 1
+  var br = 3
+  var sp = 50
+  for(var i = 0; i < cl*rw*br; i++){
+    console.log(i)
+    var x = ((i%cl)-cl/2 + .5) * sp
+    var y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    var z = ((i/cl/rw|0)-br/2 + .5) * sp
+    var geoOptions = x || y || z ? {
+      shapeType: 'cube',
+      size: 14,
+  //    scaleY: 2,
+      subs: 2,
+      sphereize: 1,
+      x, y, z,
+      averageNormals: true,
+      map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+      color: 0x888888,
+      colorMix: 0,
+    } : {
+      shapeType: 'obj',
+      url: 'https://srmcgann.github.io/objs/lozenge1.obj',
+      //objY: 6,
+      size: 16,
+      x, z,
+      y,
+  //    scaleY: 2,
+      //subs: 2,
+      //sphereize: 1,
+      averageNormals: true,
+      map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+      color: 0x888888,
+      colorMix: 0,
+      exportShape: true,
+    }
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      shapes.push(geometry)
+      await shader.ConnectGeometry(geometry)
+    })
   }
-  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    shapes.push(geometry)
-    await shader.ConnectGeometry(geometry)
-  })  
   
   
   var geoOptions = {
@@ -79,9 +110,12 @@
     name: 'background',
     size: 1e3,
     subs: 3,
-    equirectangular: true,
+    //averageNormals: true,
+    //sphereize: 1,
+    //equirectangular: true,
     map: refTexture,
     color: 0xffffff,
+    colorMix: 0,
   }
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
     shapes.push(geometry)
@@ -108,14 +142,14 @@
 
   var P = []
   var iPv = 5
-  var iPfreq = 6
+  var iPfreq = 60
   var Rn = Math.random
   var S = Math.sin
   var C = Math.cos
   var p, d, q
   //var geoSphere = Coordinates.GeoSphere(0,0,0, 32, 16)[4]
   var spawnP = async (x, y, z) => {
-    for(var m = 3; m--;){
+    for(var m = 20; m--;){
     //geoSphere.map(async (v, i) => {
       var vx = S(p=Rn()*Math.PI*2) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * iPv
       var vy = C(q) * iPv
@@ -128,9 +162,9 @@
         color: 0xffffff,
         size: 10,
         subs: 0,
-        x: 0,//v[0],
-        y: 0,//v[1]/2,
-        z: 0,//v[2],
+        x: vx / iPv * 10,//v[0],
+        y: vy / iPv * 10,//v[1]/2,
+        z: vz / iPv * 10,//v[2],
         //map: `https://srmcgann.github.io/Coordinates/resources/stars/star${1+(Rn()*9|0)}.png`
         map: `https://srmcgann.github.io/Coordinates/resources/lowres_star_5.png`
       }
@@ -156,8 +190,8 @@
         case 'background':
         break
         default:
-          shape.pitch -= .001
-          shape.yaw   += .0025
+          shape.pitch -= .01
+          shape.yaw   += .02
         break
       }
       renderer.Draw(shape)
@@ -165,14 +199,15 @@
   
     var t = renderer.t
     
-    renderer.z = Math.min(100, Math.max(24, (.3+C(t))*100))
+    renderer.z = Math.min(200, Math.max(16, (.3+C(t/2))*250))
     
     renderer.yaw += .005
-    renderer.pitch -= C(t/2) * .005
+    renderer.pitch = Math.min(-.2, Math.max(.5, (.3+C(t))*1))
 
-    if(!((t*60|0)%iPfreq)) await spawnP(S(t*8) * 20,0,0)
+    //if(!((t*60|0)%iPfreq)) await spawnP(S(t*8) * 20,0,0)
     P = P.filter(v=>v.age>.05)
     P.map(v => {
+      console.log(v)
       v.age -= .01
       v.shape.x += v.vx
       v.shape.y += v.vy

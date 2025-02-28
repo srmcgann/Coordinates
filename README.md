@@ -391,7 +391,9 @@ These color helper methods are also exposed
 ### textures
 
 Videos and images are interchangeable as texture sources. A video may be referenced numerous times as a shape texture and / or as a reflection map, without concern for performance degradation as a result of the multiple references, however video frame calls themselves at render time do impact performance.<br><br>
-Coordinates involves an internal cache for all network resource calls with the URL as a key. There may be occasions to bypass the cache (e.g. displaying the same video at a different speed on two objects), in which case you may inoke the ``involveCache: false`` property which forces a new instance of that resource, available on all configurations where network resources apply. If the involveCache property is used and set to false, the order in which calls occur is relevant to the resulting settings for each instance. Some experimentation may be called for to achieve your desired results.
+Coordinates involves an internal cache for all network resource calls with the URL as a key. There may be occasions to bypass the cache (e.g. displaying the same video at a different speed on two objects), in which case you may inoke the ``involveCache: false`` property which forces a new instance of that resource, available on all configurations where network resources apply. If the involveCache property is used and set to false, the order in which calls occur is relevant to the resulting settings for each instance. Some experimentation may be called for to achieve your desired results.<br><br>
+
+If your texture appears faded or you can't get the lighting / colors crisp with the desired contrast, this may be due to the shape's colorMix, which has a nonzero default value. Try setting ``colorMix: 0`` for your geometry, which removes the shape's color from the mix.
 
 ## Additional Helper Methods
 
