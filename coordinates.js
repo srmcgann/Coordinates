@@ -3,6 +3,7 @@
 // all rights reserved - ©2025
 
 const S = Math.sin, C = Math.cos, Rn = Math.random
+var audioConsent = false
 //new OffscreenCanvas(256, 256); * might be superior
 const scratchCanvas = document.createElement('canvas')
 const sctx = scratchCanvas.getContext('2d', {
@@ -1378,7 +1379,7 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1,url='', i
     break
     case 'image':
       if(involveCache && (cacheItem = cache.texImages.filter(v=>v.url==url)).length){
-        //console.log('found image texture in cache... using it')
+        console.log('found image texture in cache... using it')
         texImage = cacheItem[0].texImage
       }else{
         texImage = ImageToPo2(resource)
@@ -2024,7 +2025,8 @@ const BasicShader = async (renderer, options=[]) => {
                         ret.datasets = [...ret.datasets, {
                           texture: uniform.refTexture, iURL: url }]
                         uniform.video.loop = true
-                        if(!uniform.muted) {
+                        if(!uniform.muted && !audioConsent) {
+                          audioConsent = true
                           GenericPopup('play audio OK?', true, ()=>{
                             cache.textures.filter(v=>v.url == url)[0].resource.muted = false
                             cache.textures.filter(v=>v.url == url)[0].resource.currentTime = 0
@@ -2051,7 +2053,7 @@ const BasicShader = async (renderer, options=[]) => {
                     default:
                       uniform.textureMode = 'image'
                       if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
-                        //console.log('found image in cache... using it')
+                        console.log('found image in cache... using it')
                         var image = cacheItem[0].resource
                         ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
                         gl.activeTexture(gl.TEXTURE1)
@@ -2158,13 +2160,16 @@ const BasicShader = async (renderer, options=[]) => {
               }else{
                 dset.resource = document.createElement('video')
                 dset.resource.muted = true
-                dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
+                dset.resource.addEventListener('canplay', () =>{
+                  dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
+                })
                 dset.resource.loop = true
-                if(!geometry.muted) {
+                if(!geometry.muted && !audioConsent) {
+                  audioConsent = true
                   GenericPopup('play audio OK?', true, ()=>{
                     dset.resource.muted = false
                     dset.resource.currentTime = 0
-                    dset.resource.playbackRate = dset.resource.defaultPlaybackRate = dset.resource.playbackSpeed
+                    //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = dset.resource.playbackSpeed
                     dset.resource.play()
                   })
                 }
