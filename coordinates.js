@@ -163,156 +163,199 @@ const Renderer = async options => {
         
         ctx.useProgram( sProg )
         
-        // update uniforms
-        
-        ctx.activeTexture(ctx.TEXTURE0)
-        if(geometry.textureMode == 'video'){
-          BindImage(ctx, dset.resource,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
-        }
+        if(geometry.shapeType == 'particles') {
+          
+          ctx.uniform1f(dset.locPointSize,       geometry.size)
+          ctx.uniform1f(dset.locIsParticle,      geometry.isParticle)
+          
+          ctx.uniform1f(dset.locT,               renderer.t)
+          ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
+          ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
+          ctx.uniform1f(dset.locIsLight,         geometry.isLight)
+          ctx.uniform1f(dset.locAlpha,           geometry.alpha)
+          ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
+          ctx.uniform1f(dset.locAmbientLight,    ambLight / 8)
+          ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
+          ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
+          ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
+          ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
+          ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
+          ctx.uniform1f(dset.locFov,             renderer.fov)
+          ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
+          ctx.uniform1f(dset.locRenderNormals,   0)
 
-        ctx.uniform1i(dset.locTexture, dset.texture)
-        ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
-        
-        // point lights
-        ctx.uniform1i(dset.locPointLightCount, renderer.pointLights.length)
-        var pldata = new Float32Array()
-        var plcols = new Float32Array()
-        renderer.pointLights.map(geometry => {
-          pldata = [...pldata, geometry.x, geometry.y, geometry.z, geometry.lum]
-          let col = HexToRGB(geometry.color)
-          plcols = [...plcols, ...HexToRGB(geometry.color), 1.0]
-        })
-        if(pldata.length){
-          ctx.uniform4fv(dset.locPointLights, pldata)
-          ctx.uniform4fv(dset.locPointLightCols, plcols)
-        }
+          // vertices
+          if(geometry?.vertices?.length){
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+            ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+            ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+            dset.locPosition = ctx.getAttribLocation(dset.program, "position")
+            ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
+            ctx.enableVertexAttribArray(dset.locPosition)
+            ctx.drawElements(ctx.POINTS, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
 
-        var ambLight = renderer.ambientLight
-
-        dset.optionalLighting.map(lighting => {
-          switch(lighting.name){
-            case 'ambientLight':
-              ambLight = lighting.value
-            break
-            default:
-            break
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
           }
-        })
-        
-        ctx.useProgram( sProg )
-        dset.optionalUniforms.map((uniform) => {
-          if(typeof uniform?.loc === 'object'){
-            ctx[uniform.dataType](uniform.loc,      uniform.value)
-            ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
-            switch(uniform.name){
-              case 'reflection':
-                ctx.activeTexture(ctx.TEXTURE1)
-                if(uniform.textureMode == 'video'){
-                   BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform.map)
-                }
-                //ctx.useProgram( sProg )
-                ctx.activeTexture(ctx.TEXTURE1)
-                ctx.uniform1i(uniform.locRefTexture, 1)
-                ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
-                
-                ctx.uniform1f(uniform.locRefOmitEquirectangular,
-                     ( geometry.shapeType == 'rectangle' ||
-                       geometry.shapeType == 'point light' ||
-                       geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
+          
+          
+        }else{  // not particles
+          
+          // update uniforms
+          
+          ctx.activeTexture(ctx.TEXTURE0)
+          if(geometry.textureMode == 'video'){
+            BindImage(ctx, dset.resource,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
+          }
+
+          ctx.uniform1i(dset.locTexture, dset.texture)
+          ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
+          
+          // point lights
+          ctx.uniform1i(dset.locPointLightCount, renderer.pointLights.length)
+          var pldata = new Float32Array()
+          var plcols = new Float32Array()
+          renderer.pointLights.map(geometry => {
+            pldata = [...pldata, geometry.x, geometry.y, geometry.z, geometry.lum]
+            let col = HexToRGB(geometry.color)
+            plcols = [...plcols, ...HexToRGB(geometry.color), 1.0]
+          })
+          if(pldata.length){
+            ctx.uniform4fv(dset.locPointLights, pldata)
+            ctx.uniform4fv(dset.locPointLightCols, plcols)
+          }
+
+          var ambLight = renderer.ambientLight
+
+          dset.optionalLighting.map(lighting => {
+            switch(lighting.name){
+              case 'ambientLight':
+                ambLight = lighting.value
               break
-              case 'phong':
-                uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
-                ctx.uniform1f(uniform.locPhongTheta, uniform.theta)
+              default:
               break
             }
+          })
+          
+          ctx.useProgram( sProg )
+          dset.optionalUniforms.map((uniform) => {
+            if(typeof uniform?.loc === 'object'){
+              ctx[uniform.dataType](uniform.loc,      uniform.value)
+              ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
+              switch(uniform.name){
+                case 'reflection':
+                  ctx.activeTexture(ctx.TEXTURE1)
+                  if(uniform.textureMode == 'video'){
+                     BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform.map)
+                  }
+                  //ctx.useProgram( sProg )
+                  ctx.activeTexture(ctx.TEXTURE1)
+                  ctx.uniform1i(uniform.locRefTexture, 1)
+                  ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
+                  
+                  ctx.uniform1f(uniform.locRefOmitEquirectangular,
+                       ( geometry.shapeType == 'rectangle' ||
+                         geometry.shapeType == 'point light' ||
+                         geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
+                break
+                case 'phong':
+                  uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
+                  ctx.uniform1f(uniform.locPhongTheta, uniform.theta)
+                break
+              }
+            }
+          })
+
+          //ctx.useProgram( sProg )
+          
+          // other uniforms
+          
+          ctx.uniform1f(dset.locT,               renderer.t)
+          ctx.uniform1f(dset.locIsParticle,      geometry.isParticle)
+          ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
+          ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
+          ctx.uniform1f(dset.locIsLight,         geometry.isLight)
+          ctx.uniform1f(dset.locAlpha,           geometry.alpha)
+          ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
+          ctx.uniform1f(dset.locAmbientLight,    ambLight / 8)
+          ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
+          ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
+          ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
+          ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
+          ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
+          ctx.uniform1f(dset.locFov,             renderer.fov)
+          ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
+          ctx.uniform1f(dset.locRenderNormals,   0)
+          
+          
+          //ctx.disable(ctx.CULL_FACE)
+          //ctx.cullFace(ctx.BACK)
+         
+          // bind buffers
+          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
+          ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
+          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
+          ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW)
+          ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
+          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+          ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+
+          
+
+
+          //normals
+          if(geometry?.normalVecs.length){
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
+            ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
+            ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
+            dset.locNormalVec= ctx.getAttribLocation(dset.program, "normalVec")
+            ctx.vertexAttribPointer(dset.locNormalVec, 3, ctx.FLOAT, false, 0, 0)
+            ctx.enableVertexAttribArray(dset.locNormalVec)
+
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+          }        
+          
+
+          // vertices
+          if(geometry?.vertices?.length){
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+            ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+            ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+            dset.locPosition = ctx.getAttribLocation(dset.program, "position")
+            ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
+            ctx.enableVertexAttribArray(dset.locPosition)
+            ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
+
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
           }
-        })
 
-        //ctx.useProgram( sProg )
-        
-        // other uniforms
-        
-        ctx.uniform1f(dset.locT,               renderer.t)
-        ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
-        ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
-        ctx.uniform1f(dset.locIsLight,         geometry.isLight)
-        ctx.uniform1f(dset.locAlpha,           geometry.alpha)
-        ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
-        ctx.uniform1f(dset.locAmbientLight,    ambLight / 8)
-        ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
-        ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
-        ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
-        ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
-        ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
-        ctx.uniform1f(dset.locFov,             renderer.fov)
-        ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
-        ctx.uniform1f(dset.locRenderNormals,   0)
-        
-        
-        //ctx.disable(ctx.CULL_FACE)
-        //ctx.cullFace(ctx.BACK)
-       
-        // bind buffers
-        ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
-        ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
-        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
-        ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW)
-        ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
-        ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-        ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-
-        
-
-
-        //normals
-        if(geometry?.normalVecs.length){
-          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
-          ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
-          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
-          ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
-          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
-          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
-          dset.locNormalVec= ctx.getAttribLocation(dset.program, "normalVec")
-          ctx.vertexAttribPointer(dset.locNormalVec, 3, ctx.FLOAT, false, 0, 0)
-          ctx.enableVertexAttribArray(dset.locNormalVec)
-
-          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-          ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-        }        
-        
-
-        // vertices
-        if(geometry?.vertices?.length){
-          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-          ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
-          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-          ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
-          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-          dset.locPosition = ctx.getAttribLocation(dset.program, "position")
-          ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
-          ctx.enableVertexAttribArray(dset.locPosition)
-          ctx.drawElements(ctx.TRIANGLES, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
-
-          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-          ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-        }
-
-        // normals lines drawn, optionally
-        ctx.uniform1f(dset.locRenderNormals, geometry.showNormals ? 1 : 0)
-        if(geometry.showNormals && geometry?.normals?.length){
-          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
-          ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
-          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
-          ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
-          ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, false, 0, 0)
-          dset.locNormal = ctx.getAttribLocation(dset.program, "normal")
-          ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
-          ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
-          ctx.enableVertexAttribArray(dset.locNormal)
-          ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_INT,0)
-          ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-          ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+          // normals lines drawn, optionally
+          ctx.uniform1f(dset.locRenderNormals, geometry.showNormals ? 1 : 0)
+          if(geometry.showNormals && geometry?.normals?.length){
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
+            ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
+            ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
+            ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, false, 0, 0)
+            dset.locNormal = ctx.getAttribLocation(dset.program, "normal")
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
+            ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
+            ctx.enableVertexAttribArray(dset.locNormal)
+            ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_INT,0)
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+          }
         }
       }
     }
@@ -322,7 +365,8 @@ const Renderer = async options => {
   renderer.nullShader = await BasicShader(renderer, [
     {uniform: {type: 'phong', value: 0} }
   ] )
- 
+        
+  renderer.particleShader = await BasicShader(renderer, [] )
         
   return renderer
 }
@@ -571,6 +615,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var muted                  = true
   var isSprite               = 0.0
   var isLight                = 0.0
+  var isParticle             = 0.0
   var playbackSpeed          = 1.0
   var involveCache           = true
   var textureMode            = 'image'
@@ -811,7 +856,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'dynamic':
         shape = await GeometryFromRaw(geometryData, texCoords,
-            size, subs, sphereize, flipNormals, !!geometryData.filter(v=>v.length==4).length, 'dynamic')
+            size, subs, sphereize, flipNormals,
+            !!geometryData.filter(v=>v.length==4).length,
+            shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
           normals  = [...normals,  ...v.normal]
@@ -842,6 +889,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
           vertices = [...vertices, ...v.position]
           normals  = [...normals,  ...v.normal]
           uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'particles':
+        isParticle = 1.0
+        geometryData.map(v => {
+          vertices = [...vertices, ...v]
         })
       break
       case 'point light':
@@ -1205,24 +1258,27 @@ const LoadGeometry = async (renderer, geoOptions) => {
     vIndices, nIndices, uvIndices, map, video,
     textureMode, isSprite, isLight, playbackSpeed,
     disableDepthTest, lum, alpha, involveCache,
-    renderer,
+    renderer, isParticle
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
   })
   
   
-  if(shapeType == 'point light' || shapeType == 'sprite'){
-    if(typeof geoOptions.color == 'undefined'){
-      geometry.color = 0xaaaaaa
-    }
-    if(shapeType == 'point light'){
-      geometry.pointLightID = renderer.pointLights.length
-      renderer.pointLights.push(geometry)
-    }
+  if(shapeType == 'particles') {
+    await renderer.particleShader.ConnectGeometry(geometry)
   }else{
+    if(shapeType == 'point light' || shapeType == 'sprite'){
+      if(typeof geoOptions.color == 'undefined'){
+        geometry.color = 0xaaaaaa
+      }
+      if(shapeType == 'point light'){
+        geometry.pointLightID = renderer.pointLights.length
+        renderer.pointLights.push(geometry)
+      }
+    }
+    await renderer.nullShader.ConnectGeometry(geometry)
   }
-  await renderer.nullShader.ConnectGeometry(geometry)
   
   return geometry
 }
@@ -1719,8 +1775,10 @@ const BasicShader = async (renderer, options=[]) => {
     uniform vec3 camOri;
     uniform vec3 geoPos;
     uniform vec3 geoOri;
+    uniform float pointSize;
     uniform float isSprite;
     uniform float isLight;
+    uniform float isParticle;
     //uniform vec4 pointLightPos[16];
     uniform float fov;
     uniform float equirectangular;
@@ -1752,6 +1810,7 @@ const BasicShader = async (renderer, options=[]) => {
     }
     
     void main(){
+      
       hasPhong = 0.0;
       
       float cx, cy, cz;
@@ -1809,7 +1868,9 @@ const BasicShader = async (renderer, options=[]) => {
       if(Z > 0.0) {
         float X = ((pos.x + camPos.x + geo.x) / Z * fov / resolution.x);
         float Y = ((pos.y + camPos.y + geo.y) / Z * fov / resolution.y);
-        //gl_PointSize = 100.0 / Z;
+        
+        gl_PointSize = 1000.0 * pointSize / Z;
+        
         gl_Position = vec4(X, Y, Z/100000.0, 1.0);
         skip = 0.0;
         vUv = uv;
@@ -1828,6 +1889,7 @@ const BasicShader = async (renderer, options=[]) => {
     uniform float flatShading;
     uniform float isSprite;
     uniform float isLight;
+    uniform float isParticle;
     uniform vec4 pointLightPos[128];
     uniform vec4 pointLightCol[128];
     uniform int pointLightCount;
@@ -1910,25 +1972,29 @@ const BasicShader = async (renderer, options=[]) => {
     }
 
     void main() {
-      float mixColorIp = colorMix;
-      float baseColorIp = 1.0 - mixColorIp;
-      vec4 mixColor = vec4(color.rgb, mixColorIp);
-      vec4 light = hasPhong == 1.0 ? GetPointLight() :
-            vec4(ambientLight, ambientLight, ambientLight, 1.0);
-      float colorMag = 1.0;
-      if(skip != 1.0){
-        if(renderNormals == 1.0){
-          gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-        }else{
-          ${uFragCode}
-          vec4 texel = texture2D( baseTexture, Coords(0.0));
-          if(isSprite != 0.0 || isLight != 0.0){
-            gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
+      if(isParticle != 0.0){
+        gl_FragColor = vec4(color.rgb, 1.0);
+      }else{
+        float mixColorIp = colorMix;
+        float baseColorIp = 1.0 - mixColorIp;
+        vec4 mixColor = vec4(color.rgb, mixColorIp);
+        vec4 light = hasPhong == 1.0 ? GetPointLight() :
+              vec4(ambientLight, ambientLight, ambientLight, 1.0);
+        float colorMag = 1.0;
+        if(skip != 1.0){
+          if(renderNormals == 1.0){
+            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
           }else{
-            texel.a = baseColorIp;
-            vec4 col = merge(mixColor, texel);
-            col.rgb *= light.rgb;
-            gl_FragColor = vec4(col.rgb * colorMag, 1.0);
+            ${uFragCode}
+            vec4 texel = texture2D( baseTexture, Coords(0.0));
+            if(isSprite != 0.0 || isLight != 0.0){
+              gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
+            }else{
+              texel.a = baseColorIp;
+              vec4 col = merge(mixColor, texel);
+              col.rgb *= light.rgb;
+              gl_FragColor = vec4(col.rgb * colorMag, 1.0);
+            }
           }
         }
       }
@@ -2107,6 +2173,11 @@ const BasicShader = async (renderer, options=[]) => {
         }
         dset.locColor = gl.getUniformLocation(dset.program, "color")
         gl.uniform3f(dset.locColor, ...HexToRGB(geometry.color))
+        
+        if(geometry.shapeType == 'particles'){
+          dset.locPointSize = gl.getUniformLocation(dset.program, "pointSize")
+          gl.uniform1f(dset.locPointSize, ...HexToRGB(geometry.size))
+        }
 
         dset.locColorMix = gl.getUniformLocation(dset.program, "colorMix")
         gl.uniform1f(dset.locColorMix, geometry.colorMix)
@@ -2264,12 +2335,13 @@ const IsPolyhedron = shapeType => {
 }
 
 const GeometryFromRaw = async (raw, texCoords, size, subs,
-                         sphereize, flipNormals, quads=false, shapeType='') => {
+                         sphereize, flipNormals,
+                         quads=false, shapeType='') => {
   var j, i, X, Y, Z, b, l
   var a = new Float32Array()
   var f = new Float32Array()
   var e = raw
-  var geometry = new Float32Array()
+  var geometry = []
   
   var hint = `${shapeType}_${subs}`;
   var shape
