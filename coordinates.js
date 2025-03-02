@@ -3634,8 +3634,8 @@ const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
 
 
 const AnimationLoop = (renderer, func) => {
-  const loop = () => {
-    if(renderer.ready && typeof window[func] != 'undefined') window[func]()
+  const loop = async () => {
+    if(renderer.ready && typeof window[func] != 'undefined') await window[func]()
       
     // mimic shader rotation function, for z-sorting.
     // transparent objects must be drawn in reverse depth order
