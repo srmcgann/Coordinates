@@ -345,10 +345,10 @@ var geoOptions = {
                          // or access / modify the data via geometry.vertices etc.
                          
   exportShape: false, // display popup for each geometry which has this option
-  objX: 0,            // for 'OBJ' format models, initial offset
+  objX: 0,            // for 'obj' or 'custom shape' format models, initial offset
   objY: 0,
   objZ: 0,
-  objRoll: 0,         // for 'OBJ' format models, orient/rotate
+  objRoll: 0,         // for 'obj' or 'custom shape' format models, orient/rotate
   objPitch: 0,
   objYaw: 0,
                       // enabled, to copy its raw data for later import as a
