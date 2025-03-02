@@ -222,6 +222,7 @@ var geoOptions = {
                          // for videos, use ``muted: false`` to prompt
                          // the user to play audio, if desired.
   playbackSpeed: 1.0, // if the texture (map) is a video, adjust the speed (.1 to 10)
+  wireframe: false,   // if true, display shape as lines
   sphereize: 1,       // interpolate a polyhedron to a sphere (=1), and beyond
                          // read more below about this feature
   averageNormals: false, // generate/recompute normals for any shape @ load
@@ -270,7 +271,7 @@ var geoOptions = {
                          // shapeType 'custom shape', and 'url', which
                          // is streamlined for the fastest load times
                        • 'dynamic',
-                         // The "dynamic" shape type is used when geometry is
+                         // The 'dynamic' shape type is used when geometry is
                          // expected to change during render, as in animations
                          // with deformable shapes. Note: every Coordinates
                          // shape, dynamic or not, has these exposed buffers:
@@ -323,7 +324,26 @@ var geoOptions = {
                          // access to this method, if the property is set:
                          // `preComputeNormalAssocs: true`, but for 'dynamic' shapes
                          // it is automatically available.
-  
+                       • 'particles',
+                         // The 'particles' shape type is just like 'dynamic'
+                         // (above), except vertices are drawin as points. The
+                         // number of particles drawn is the number supplied in the
+                         // geometryData array passed to LoadGeometry.
+                         // Relevant particle properties:
+                         size: [0 to 1...],  // max size limited by your GPU.
+                                             // check max point size.
+                                             // particle sizes are influenced by
+                                             // perspective / renderer.fov
+                         scaleX|Y|Z: particle field is scaled @ creation.
+                         color: [standard / hex, e.g. 0xff0000 (red) ],
+                                // recall functions, e.g. HexFromHSV(0, 1, 1) (red)
+                         alpha:    [0 to 1],
+                         penumbra: [0 to 1, optional 'halo' alpha value],
+                         // considerations: each collection of particles is
+                         // contained as a single shape buffer. To manipulate
+                         // individual particles, either create multiple shapes
+                         // or access / modify the data via geometry.vertices etc.
+                         
   exportShape: false, // display popup for each geometry which has this option
   objX: 0,            // for 'OBJ' format models, initial offset
   objY: 0,
