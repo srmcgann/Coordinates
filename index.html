@@ -42,6 +42,8 @@
       var geoOptions = {
         shapeType: 'cube',
         size: 5,
+        subs: 3,
+        wireframe: true,
         color: 0xffffff,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -49,7 +51,7 @@
         await shader.ConnectGeometry(geometry)
       })
       
-      var particleCount = 100
+      var particleCount = 5e3
       var ls            = 10
       var p, q
       var geometryData = Array(particleCount).fill().map(v => {
@@ -63,9 +65,12 @@
       
       var geoOptions = {
         shapeType: 'particles',
-        size: 1,
+        size: 1.5,
+        alpha: .5,
+        scaleX: 2,
         geometryData,
-        color: 0xffffff,
+        penumbra: .25,
+        color: 0xff0000,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
