@@ -149,7 +149,6 @@ const Renderer = async options => {
   
   
   const Draw = async (geometry, sortedPass = false, penumbraPass = false) => {
-    
     var shader = geometry.shader
     var dset   = shader.datasets[geometry.datasetIdx]
     var sProg  = dset.program
@@ -1864,8 +1863,7 @@ const BasicShader = async (renderer, options=[]) => {
       vec3 geo, pos;
       
       if(isSprite != 0.0 || isLight != 0.0){
-        
-        geo = R(geoPos, camOri);
+        geo = R(geoPos-camPos, camOri);
         pos = R(vec3(cx, cy, cz),
                  vec3(0.0, -camOri.y + M_PI, 0.0));
         pos = R(vec3(pos.x, pos.y, pos.z),
@@ -1978,9 +1976,9 @@ const BasicShader = async (renderer, options=[]) => {
       for(int i=0; i < 16; i++){
         if(i >= pointLightCount) break;
         vec3 lpos = pointLightPos[i].xyz;
-        lpos.x -= geoPos.x;
-        lpos.y -= geoPos.y;
-        lpos.z -= geoPos.z;
+        lpos.x -= geoPos.x + camPos.x;
+        lpos.y -= geoPos.y + camPos.y;
+        lpos.z -= geoPos.z + camPos.z;
         lpos = R(lpos, vec3(camOri.x, 0.0, camOri.z ));
         lpos = R(lpos, vec3(0.0, camOri.y, 0.0));
 
@@ -3655,6 +3653,7 @@ const AnimationLoop = (renderer, func) => {
         vec = R(X,Y,Z, {roll: renderer.roll,
                         pitch: renderer.pitch,
                         yaw: renderer.yaw}, false)
+                        
         var camz = renderer.z / 1e3 *
                      Math.pow(5.0, (Math.log(renderer.fov) / 1.609438))
         forSort = [...forSort, {idx: i, z: camz + vec[2]}]
