@@ -312,14 +312,14 @@ var geoOptions = {
                          // vectors, for use in the shader. Note that 'normals' are not
                          // automatically re-computed, unless requested. For this
                          // purpose there is the exposed method 'Normal(facet)', and
-                         // SyncGeometryNormals(shape, averageNormals=false), which
+                         // SyncNormals(shape, averageNormals=false), which
                          // will recalculate all normals & normalVecs, optionally
                          // averaging them with a significant performance cost.
                          // Example:
                          //   shape.vertices[212] -= .2         (why not?)
-                         //   SyncGeometryNormals(shape, true)  (reflections fixed!)
+                         //   SyncNormals(shape, true)  (reflections fixed!)
                          // 
-                         // Lastly, SyncGeometryNormals() can and will generate
+                         // Lastly, SyncNormals() can and will generate
                          // new normals for the supplied shape. All shape types offer
                          // access to this method, if the property is set:
                          // `preComputeNormalAssocs: true`, but for 'dynamic' shapes
