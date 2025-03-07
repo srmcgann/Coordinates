@@ -14,7 +14,7 @@ const sctx = scratchCanvas.getContext('2d', {
   }
 )
 const scratchImage = new Image()
-const moduleBase = 'https://srmcgann.github.io/Coordinates'
+const ModuleBase = 'https://srmcgann.github.io/Coordinates'
 
 var cacheItem
 const cache = {
@@ -32,6 +32,7 @@ const Renderer = async options => {
   var roll=0, pitch=0, yaw=0, fov=2e3
   var attachToBody = true, margin = 10, exportGPUSpecs = false
   var ambientLight = .2, alpha=false, clearColor = 0x000000
+  var cameraMode = 'default', showCrosshair = false
   var context = {
     mode: 'webgl2',
     options: {
@@ -63,7 +64,9 @@ const Renderer = async options => {
         case 'attachTobody': attachToBody = !!options[key]; break
         case 'exportgpuspecs': exportGPUSpecs = !!options[key]; break
         case 'margin': margin = options[key]; break
+        case 'cameramode': cameraMode = options[key]; break
         case 'ambientlight': ambientLight = options[key]; break
+        case 'showcrosshair': showCrosshair = options[key]; break
         case 'context':
           context.mode = options[key].mode
           context.options = options[key]['options']
@@ -125,7 +128,7 @@ const Renderer = async options => {
     roll, pitch, yaw, fov,
     ready: false, ambientLight,
     pointLights, pointLightCols,
-    alphaQueue
+    alphaQueue, cameraMode, showCrosshair
     
     // functions
     // ...
@@ -176,6 +179,10 @@ const Renderer = async options => {
             ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
             ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
             ctx.uniform1f(dset.locIsLight,         geometry.isLight)
+            
+            ctx.uniform1f(dset.locCameraMode,      
+                          renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
+                          
             ctx.uniform1f(dset.locAlpha,           penumbraPass ?
                                                     geometry.alpha *
                                                       geometry.penumbra :
@@ -288,6 +295,10 @@ const Renderer = async options => {
             ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
             ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
             ctx.uniform1f(dset.locIsLight,         geometry.isLight)
+            
+            ctx.uniform1f(dset.locCameraMode,      
+                          renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
+                          
             ctx.uniform1f(dset.locAlpha,           geometry.alpha)
             ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
             ctx.uniform1f(dset.locAmbientLight,    ambLight / 8)
@@ -664,11 +675,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
         shapeType = geoOptions[key].toLowerCase();
         switch(shapeType){
           case 'sprite':
-            map = `${moduleBase}/resources/sprite.png`
+            map = `${ModuleBase}/resources/sprite.png`
           break
           case 'point light':
             map = showSource ? 
-              `${moduleBase}/resources/stars/star.png` : ''
+              `${ModuleBase}/resources/stars/star.png` : ''
           break
         }
       break
@@ -772,7 +783,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
              (hint == 'torus knot_0' && rows == 16 && cols == 40) 
              ){
             resolved = true;
-            url = `${moduleBase}/new%20shapes/`
+            url = `${ModuleBase}/new%20shapes/`
             fileURL = `${url}${hint}.json`
           }else{
             // unresolved shape
@@ -1801,6 +1812,7 @@ const BasicShader = async (renderer, options=[]) => {
     uniform float pointSize;
     uniform float isSprite;
     uniform float isLight;
+    uniform float cameraMode;
     uniform float isParticle;
     uniform float penumbraPass;
     //uniform vec4 pointLightPos[16];
@@ -1838,6 +1850,7 @@ const BasicShader = async (renderer, options=[]) => {
       hasPhong = 0.0;
       
       float cx, cy, cz;
+      
       if(renderNormals == 1.0){
         cx = normal.x;
         cy = normal.y;
@@ -1847,7 +1860,6 @@ const BasicShader = async (renderer, options=[]) => {
         cy = position.y;
         cz = position.z;
       }
-      
       
       uvi = uv / 2.0;
       uvi = vec2(uvi.x, .5 - uvi.y);
@@ -1861,37 +1873,69 @@ const BasicShader = async (renderer, options=[]) => {
       // camera rotation
       
       vec3 geo, pos;
+      float cpx = camPos.x;
+      float cpy = camPos.y;
+      float cpz = camPos.z;
       
-      if(isSprite != 0.0 || isLight != 0.0){
-        geo = R(geoPos-camPos, camOri);
-        pos = R(vec3(cx, cy, cz),
-                 vec3(0.0, -camOri.y + M_PI, 0.0));
-        pos = R(vec3(pos.x, pos.y, pos.z),
-                 vec3(-camOri.x, 0.0, -camOri.z ));
-        pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-        nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-        nVec = R(nVec, geoOri);
-        nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+      if(cameraMode != 0.0){  // 'FPS' mode
+        cx += cpx;
+        cy += cpy;
+        cz += cpz;
+        if(isSprite != 0.0 || isLight != 0.0){
+          geo = R(geoPos, camOri);
+          pos = R(vec3(cx, cy, cz),
+                   vec3(0.0, -camOri.y + M_PI, 0.0));
+          pos = R(vec3(pos.x, pos.y, pos.z),
+                   vec3(-camOri.x, 0.0, -camOri.z ));
+          pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+          nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+          nVec = R(nVec, geoOri);
+          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
 
+        }else{
+          geo = R(geoPos, camOri);
+          pos = R(vec3(cx, cy, cz), geoOri);
+          pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+          nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+          nVec = R(nVec, geoOri);
+          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+          cpx = 0.0;
+          cpy = 0.0;
+          cpz = 0.0;
+        }
+        fPos = vec3(pos.x, pos.y, pos.z);
       }else{
-        geo = R(geoPos, camOri);
-        pos = R(vec3(cx, cy, cz), geoOri);
-        pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-        nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-        nVec = R(nVec, geoOri);
-        nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+        if(isSprite != 0.0 || isLight != 0.0){
+          geo = R(geoPos-camPos, camOri);
+          pos = R(vec3(cx, cy, cz),
+                   vec3(0.0, -camOri.y + M_PI, 0.0));
+          pos = R(vec3(pos.x, pos.y, pos.z),
+                   vec3(-camOri.x, 0.0, -camOri.z ));
+          pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+          nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+          nVec = R(nVec, geoOri);
+          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+
+        }else{
+          geo = R(geoPos, camOri);
+          pos = R(vec3(cx, cy, cz), geoOri);
+          pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+          nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+          nVec = R(nVec, geoOri);
+          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+        }
+        fPos = vec3(pos.x, pos.y, pos.z);
       }
-      fPos = vec3(pos.x, pos.y, pos.z);
       
       ${uVertCode}
       
-      float camz = camPos.z / 1e3 * pow(5.0, (log(fov) / 1.609438));
+      float camz = cpz / 1e3 * pow(5.0, (log(fov) / 1.609438));
       
       float Z = pos.z + camz + geo.z;
       if(Z > 0.0) {
         if(isParticle != 0.0 && penumbraPass != 0.0) Z += .001;
-        float X = ((pos.x + camPos.x + geo.x) / Z * fov / resolution.x);
-        float Y = ((pos.y + camPos.y + geo.y) / Z * fov / resolution.y);
+        float X = ((pos.x + cpx + geo.x) / Z * fov / resolution.x);
+        float Y = ((pos.y + cpy + geo.y) / Z * fov / resolution.y);
         
         gl_PointSize = 100.0 * pointSize / Z;
         gl_Position = vec4(X, Y, Z/100000.0, 1.0);
@@ -2210,6 +2254,9 @@ const BasicShader = async (renderer, options=[]) => {
         dset.locIsSprite = gl.getUniformLocation(dset.program, "isSprite")
         gl.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
 
+        dset.locCameraMode = gl.getUniformLocation(dset.program, "cameraMode")
+        gl.uniform1f(dset.locCameraMode, renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
+
         dset.locIsLight = gl.getUniformLocation(dset.program, "isLight")
         gl.uniform1f(dset.locIsLight, geometry.isLight ? 1.0 : 0.0)
 
@@ -2474,7 +2521,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     }
     
     if(resolved){
-      var url = `${moduleBase}/prebuilt%20shapes/`
+      var url = `${ModuleBase}/prebuilt%20shapes/`
       await fetch(`${url}${fileBase}_full.json`).then(res=>res.json()).then(data=>{
         shape     = data.shape
         texCoords = data.texCoords
@@ -3876,4 +3923,5 @@ export {
   RGBFromHex,
   HexToRGB,
   GeoSphere,
+  ModuleBase,
 }
