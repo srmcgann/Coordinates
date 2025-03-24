@@ -1869,7 +1869,6 @@ const BasicShader = async (renderer, options=[]) => {
       fPosi = position;
       vnorm = normal;
       
-      
       // camera rotation
       
       vec3 geo, pos;
@@ -1883,15 +1882,11 @@ const BasicShader = async (renderer, options=[]) => {
         cz += cpz;
         if(isSprite != 0.0 || isLight != 0.0){
           geo = R(geoPos, camOri);
-          pos = R(vec3(cx, cy, cz),
-                   vec3(0.0, -camOri.y + M_PI, 0.0));
-          pos = R(vec3(pos.x, pos.y, pos.z),
-                   vec3(-camOri.x, 0.0, -camOri.z ));
+          pos = R(vec3(cx, cy, cz), geoOri);
           pos = R(vec3(pos.x, pos.y, pos.z), camOri);
           nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
           nVec = R(nVec, geoOri);
           nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-
         }else{
           geo = R(geoPos, camOri);
           pos = R(vec3(cx, cy, cz), geoOri);
@@ -1899,14 +1894,14 @@ const BasicShader = async (renderer, options=[]) => {
           nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
           nVec = R(nVec, geoOri);
           nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-          cpx = 0.0;
-          cpy = 0.0;
-          cpz = 0.0;
         }
+        cpx = 0.0;
+        cpy = 0.0;
+        cpz = 0.0;
         fPos = vec3(pos.x, pos.y, pos.z);
       }else{
         if(isSprite != 0.0 || isLight != 0.0){
-          geo = R(geoPos-camPos, camOri);
+          geo = R(geoPos, camOri);
           pos = R(vec3(cx, cy, cz),
                    vec3(0.0, -camOri.y + M_PI, 0.0));
           pos = R(vec3(pos.x, pos.y, pos.z),
@@ -2956,7 +2951,7 @@ const GeoSphere = (mx, my, mz, iBc, size) => {
     Z = Rn()-.5
     return  [X,Y,Z]
   })
-  for(let m=99;m--;){
+  for(let m=20;m--;){
     B.map((v,i)=>{
       X = v[0]
       Y = v[1]
