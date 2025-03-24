@@ -159,10 +159,10 @@ const Renderer = async options => {
     if(typeof geometry?.shader != 'undefined'){
       
       // depth + alpha bugfix
-      if(!sortedPass && (geometry.isSprite || (geometry.isLight && geometry.showSource))) {
+      if(!sortedPass && (geometry.isSprite || geometry.isCrosshair || (geometry.isLight && geometry.showSource))) {
         renderer.alphaQueue = [geometry, ...renderer.alphaQueue]
       }else{
-        if(!sortedPass && geometry.isParticle) {
+        if(!sortedPass && geometry.isParticle ) {
           renderer.alphaQueue = [geometry, ...renderer.alphaQueue]
         }else{
           ctx.useProgram( sProg )
@@ -178,6 +178,7 @@ const Renderer = async options => {
             ctx.uniform1f(dset.locT,               renderer.t)
             ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
             ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
+            ctx.uniform1f(dset.locIsCrosshair,     geometry.isCrosshair)
             ctx.uniform1f(dset.locIsLight,         geometry.isLight)
             
             ctx.uniform1f(dset.locCameraMode,      
@@ -293,6 +294,7 @@ const Renderer = async options => {
             ctx.uniform1f(dset.locIsParticle,      geometry.isParticle)
             ctx.uniform1f(dset.locPenumbraPass,    0)
             ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
+            ctx.uniform1f(dset.locIsCrosshair,     geometry.isCrosshair)
             ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
             ctx.uniform1f(dset.locIsLight,         geometry.isLight)
             
@@ -639,6 +641,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var map                    = ''
   var muted                  = true
   var isSprite               = 0.0
+  var isCrosshair            = 0.0
   var isLight                = 0.0
   var isParticle             = 0.0
   var wireframe              = false
@@ -718,6 +721,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'texcoords'        : texCoords = geoOptions[key]; break
       case 'issprite'         :
         isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
+      case 'iscrosshair'      :
+        isCrosshair = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'islight'          :
         isLight = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'issprite'         :
@@ -915,6 +920,15 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'sprite':
         isSprite = true
+        shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
+        shape.geometry.map(v => {
+          vertices = [...vertices, ...v.position]
+          normals  = [...normals,  ...v.normal]
+          uvs      = [...uvs,      ...v.texCoord]
+        })
+      break
+      case 'crosshair':
+        isCrosshair = true
         shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
@@ -1289,7 +1303,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     normalVec_buffer, NormalVec_Index_Buffer,
     nVecIndices, uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices, map, video,
-    textureMode, isSprite, isLight, playbackSpeed,
+    textureMode, isSprite, isCrosshair, isLight, playbackSpeed,
     disableDepthTest, lum, alpha, involveCache,
     renderer, isParticle, penumbra, wireframe
   }
@@ -1737,7 +1751,8 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 phongPos;
                   `,
                   fragCode:            `
-                    if(isLight == 0.0 && isSprite == 0.0 && isParticle == 0.0){
+                    if(isLight == 0.0 && isCrosshair == 0.0 &&
+                       isSprite == 0.0 && isParticle == 0.0){
                       //light.rgb *= .5;
                       float phongP1, phongP2;
                       float px, py, pz;
@@ -1778,7 +1793,6 @@ const BasicShader = async (renderer, options=[]) => {
   //gl.disable(gl.CULL_FACE)
   gl.cullFace(gl.BACK)
   if(renderer.alpha) {
-    
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
     gl.enable(gl.BLEND)
     gl.disable(gl.DEPTH_TEST)
@@ -1811,6 +1825,7 @@ const BasicShader = async (renderer, options=[]) => {
     uniform vec3 geoOri;
     uniform float pointSize;
     uniform float isSprite;
+    uniform float isCrosshair;
     uniform float isLight;
     uniform float cameraMode;
     uniform float isParticle;
@@ -1876,17 +1891,28 @@ const BasicShader = async (renderer, options=[]) => {
       float cpy = camPos.y;
       float cpz = camPos.z;
       
-      if(cameraMode != 0.0){  // 'FPS' mode
+      if(cameraMode != 0.0 && cameraMode == 1.0){  // 'FPS' mode
         cx += cpx;
         cy += cpy;
         cz += cpz;
-        if(isSprite != 0.0 || isLight != 0.0){
+        if(isCrosshair != 0.0){
+          
           geo = R(geoPos, camOri);
           pos = R(vec3(cx, cy, cz), geoOri);
           pos = R(vec3(pos.x, pos.y, pos.z), camOri);
           nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
           nVec = R(nVec, geoOri);
           nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+          
+        } else if (isSprite != 0.0 || isLight != 0.0){
+          
+          geo = R(geoPos, camOri);
+          pos = R(vec3(cx, cy, cz), geoOri);
+          pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+          nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+          nVec = R(nVec, geoOri);
+          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+          
         }else{
           geo = R(geoPos, camOri);
           pos = R(vec3(cx, cy, cz), geoOri);
@@ -1900,7 +1926,7 @@ const BasicShader = async (renderer, options=[]) => {
         cpz = 0.0;
         fPos = vec3(pos.x, pos.y, pos.z);
       }else{
-        if(isSprite != 0.0 || isLight != 0.0){
+        if(isSprite != 0.0 || isCrosshair != 0.0 || isLight != 0.0){
           geo = R(geoPos, camOri);
           pos = R(vec3(cx, cy, cz),
                    vec3(0.0, -camOri.y + M_PI, 0.0));
@@ -1950,6 +1976,7 @@ const BasicShader = async (renderer, options=[]) => {
     uniform vec2 resolution;
     uniform float flatShading;
     uniform float isSprite;
+    uniform float isCrosshair;
     uniform float isLight;
     uniform float isParticle;
     uniform vec4 pointLightPos[128];
@@ -2050,7 +2077,7 @@ const BasicShader = async (renderer, options=[]) => {
           }else{
             ${uFragCode}
             vec4 texel = texture2D( baseTexture, Coords(0.0));
-            if(isSprite != 0.0 || isLight != 0.0){
+            if(isSprite != 0.0 || isLight != 0.0 || isCrosshair != 0.0){
               gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
             }else{
               texel.a = baseColorIp;
@@ -2248,6 +2275,9 @@ const BasicShader = async (renderer, options=[]) => {
 
         dset.locIsSprite = gl.getUniformLocation(dset.program, "isSprite")
         gl.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
+
+        dset.locIsCrosshair = gl.getUniformLocation(dset.program, "isCrosshair")
+        gl.uniform1f(dset.locIsCrosshair, geometry.isCrosshair? 1.0 : 0.0)
 
         dset.locCameraMode = gl.getUniformLocation(dset.program, "cameraMode")
         gl.uniform1f(dset.locCameraMode, renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
@@ -3705,13 +3735,13 @@ const AnimationLoop = (renderer, func) => {
 
         var shape = renderer.alphaQueue[forSort[idx].idx]
         
-        if(shape.disableDepthTest) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
+        if(1||shape.disableDepthTest) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
     
         var penumbra = shape.penumbra
         for(var m = 1 + (shape.isParticle && penumbra ? 1 : 0); m--;){
           await renderer.Draw(shape, true, shape.isParticle && penumbra && !m)
         }
-        if(shape.disableDepthTest) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
+        if(1||shape.disableDepthTest) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
       })
     
       // disable alpha
