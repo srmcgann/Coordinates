@@ -29,7 +29,7 @@
       
       renderer.z = 0
       
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/spacemaze_po2.jpg'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg'
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
@@ -126,7 +126,7 @@
         //await shader.ConnectGeometry(geometry)
       })  
       
-      
+      var crosshairShape
       const loadFPSControls = async (renderer, options) => {
 
         var mspeed = 1
@@ -134,7 +134,6 @@
         var grav   = .01
         var crosshairSel = 0
         var crosshairMap = ''
-        var crosshairShape
         renderer.showCrosshair = true
         var crosshairs = Array(3).fill().map((v, i) => `${Coordinates.ModuleBase}/resources/crosshairs/crosshair${i+1}.png`)
         if(typeof options != 'undefined'){
@@ -145,14 +144,14 @@
               case 'grav': grav = options[key]; break
               case 'crosshairsel': crosshairSel = options[key]; break
               case 'crosshairmap': crosshairMap = options[key]; break
-              case 'showcrosshair': showCrosshair = !!options[key]; break
+              case 'showcrosshair': renderer.showCrosshair = !!options[key]; break
             }
           })
         }
 
         if(renderer.showCrosshair){
           var geoOptions = {
-            shapeType: 'sprite',
+            shapeType: 'crosshair',
             name: 'FPS crosshair',
             map: crosshairMap ? crosshairMap : crosshairs[crosshairSel],
             size: 1,
@@ -168,8 +167,8 @@
 
 
         var mx, my
-        var mv = .2 * mspeed
-        var rv = .006 * rspeed
+        var mv = .1 * mspeed
+        var rv = .005 * rspeed
         var rvx = 0
         var rvy = 0
         var px  = 0
@@ -179,8 +178,8 @@
         var pvy = 0
         var pvz = 0
         var accel = 1
-        var rdrag = 2
-        var pdrag = 2
+        var rdrag = 1.66
+        var pdrag = 1.2
         var mbutton = false
         renderer.keys = Array(256).fill().map((v, i) => false)
         renderer.keyTimers = Array(256).fill(0)
@@ -213,7 +212,9 @@
         
         renderer.doKeys = async () => {
         
-          if(renderer.showCrosshair) renderer.Draw(crosshairShape)
+          if(renderer.showCrosshair) {
+            renderer.Draw(crosshairShape)
+          }
         
           renderer.yaw += rvx
           renderer.pitch += rvy
@@ -277,7 +278,25 @@
         setInterval( await renderer.doKeys, 1000/60)
       }
       
-      await loadFPSControls(renderer, .7)
+      var FPSOptions = {
+        showCrosshair: true,
+      }
+      await loadFPSControls(renderer, FPSOptions)
+      
+      var geoOptions = {
+        shapeType: 'sprite',
+        name: 'test sprite',
+        //subs: 2,
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
+        size: 1,
+        x: 0, y: 0, z: 0,
+        color: 0xffffff,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await backgroundShader.ConnectGeometry(geometry)
+      })  
       
       
       window.Draw = () => {
@@ -303,8 +322,8 @@
             break
             
             default:
-              shape.yaw += .01
-              shape.pitch += .005
+              //shape.yaw += .01
+              //shape.pitch += .005
             break
           }
           renderer.Draw(shape)
