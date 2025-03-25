@@ -171,7 +171,7 @@ const Renderer = async options => {
             renderer.ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
             renderer.ctx.enable(ctx.BLEND)
             
-            ctx.uniform1f(dset.locPointSize,       geometry.size * penumbraPass ? 3.0 : 1.0)
+            ctx.uniform1f(dset.locPointSize,       geometry.size * (penumbraPass ? 3.0 : 1.0))
             ctx.uniform1f(dset.locIsParticle,      geometry.isParticle)
             ctx.uniform1f(dset.locPenumbraPass,    geometry.penumbraPass ? 1 : 0)
             
@@ -3735,13 +3735,17 @@ const AnimationLoop = (renderer, func) => {
 
         var shape = renderer.alphaQueue[forSort[idx].idx]
         
-        if(1||shape.disableDepthTest) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
+        var shouldDisableDepth = () => {
+          return shape.isLight || shape.isSprite || shape.isCrosshair ||shape.disableDepthTest
+        }
+        
+        if(shouldDisableDepth()) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
     
         var penumbra = shape.penumbra
         for(var m = 1 + (shape.isParticle && penumbra ? 1 : 0); m--;){
           await renderer.Draw(shape, true, shape.isParticle && penumbra && !m)
         }
-        if(1||shape.disableDepthTest) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
+        if(shouldDisableDepth()) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
       })
     
       // disable alpha
