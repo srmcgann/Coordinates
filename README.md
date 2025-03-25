@@ -458,3 +458,17 @@ var n = Coordinates.Normal(facet)
 // creating smooth surfaces, etc.
 
 ```
+<br><br>
+### Reflect()
+Computes the angle of reflection in 3D space, accepting parameters of incident-angle, and normal<br>
+``Reflect = (i, n) ``
+<br>
+``Reflect`` requires input of a source angle, and the facet/plane normal upon which the angle of reflection is occuring.
+<br><br>
+example:
+```js
+var iAngle = [.2, 0, .5]
+var n = Normal(facet)  // see above for notes about the Normal method
+var rAngle = Coordinates.Normal(iAngle, n)
+// returned angle is useful for motion vectors or light, e.g. for ray tracing
+```
