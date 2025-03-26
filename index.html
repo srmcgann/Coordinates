@@ -12,66 +12,79 @@
   </head>
   <body>
     <script type="module">
-      
-      var Rn = Math.random
-      var S  = Math.sin
-      var C  = Math.cos
     
       import * as Coordinates from
-      "./coordinates.js"
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
       
-      var refTexture = 'https://i.imgur.com/9PyXkZx.mp4'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_emerald_dark_po2.jpg'
     
       var rendererOptions = {
         ambientLight: .2,
-        fov: 1000
+        fov: 1200
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      renderer.z = 6
-      renderer.yaw = Math.PI
+      renderer.z = 8
       
       Coordinates.AnimationLoop(renderer, 'Draw')
+
       var shaderOptions = [
-        { lighting:
-          {type: 'ambientLight', value: .1}
-        },
         { uniform: {
           type: 'phong',
-          value: .3
+          value: 1
         } },
         { uniform: {
           type: 'reflection',
-          value: .75,
+          value: .1,
           map: refTexture
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-      Coordinates.AnimationLoop(renderer, 'Draw')
       var shaderOptions = [
         { lighting:
-          {type: 'ambientLight', value: .4}
+          { type: 'ambientLight', value: .4}
         },
         { uniform: {
           type: 'phong',
           value: 0
         } }
       ]
-      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      var nullShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
 
       var shapes = []
+
+      var geoOptions = {
+        shapeType: 'icosahedron',
+        name: 'background',
+        map: refTexture,
+        subs: 3,
+        size: 2e3,
+        color: 0xffffff,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await nullShader.ConnectGeometry(geometry)
+      })  
       
       var geoOptions = {
-        shapeType: 'custom shape',
-        url: 'https://srmcgann.github.io/Coordinates/custom shapes/rack2.json',
-        //url: 'https://srmcgann.github.io/objs/rack2.obj',
-        averageNormals: false,
-        size: 1,
-        color: 0x333333,
-        colorMix: .1,
-        exportShape: false,
-        map: 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2.jpg'
+        shapeType: 'obj',
+        url: 'https://srmcgann.github.io/objs/frame/frame_hipoly.obj',
+        map: 'https://srmcgann.github.io/objs/frame/frame texture.jpg',
+        size: 5,
+        color: 0xffffff,
+        colorMix: 0,
+        scaleX: 1,//16/9-.45,
+        scaleY: 1,
+        scaleZ: 2,
+        averageNormals: true,
+        exportShape: true,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -79,223 +92,39 @@
       })  
       
       var geoOptions = {
-        shapeType: 'dodecahedron',
-        name: 'background',
-        subs: 3,
-        map: refTexture,
-        size: 2e3,
-        color: 0xffffff,
+        shapeType: 'rectangle',
+        map: 'https://i.imgur.com/ztYVnB6.mp4',
+        size: 2.64,
+        subs: 4,
+        flipNormals: true,
+        color: 0x888888,
         colorMix: 0,
+        scaleX: 1,//16/9 -.45,
+        scaleY: 1,
+        scaleZ: 1,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await backgroundShader.ConnectGeometry(geometry)
+        await nullShader.ConnectGeometry(geometry)
       })  
       
-      var sd = 2
-      if(0) for(var m=sd; m--;){
-        var x,y,z
-        var ls = 50
-        var p
-        x = S(p=Math.PI*2/sd*m) * ls
-        y = 0
-        z = C(p) * ls
-        var geoOptions = {
-          shapeType: 'point light',
-          name: 'point lights',
-          showSource: true,
-          map: `https://srmcgann.github.io/Coordinates/resources/stars/star${1+m*sd*2}.png`,
-          size: 8,
-          x,y,z,
-          color: Coordinates.HSVToHex(180+300/sd*m+45,1,1),
-          lum: 2,
-        }
-        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-          shapes.push(geometry)
-        })
-      }
-      
-      var iPfreq = 30
-      var P = []
-      var grav = -.05
-      var iPv = .05
-      
-      var p, q
-      var spawnP = async () => {
-        var geometryData = []
-        var particleData = []
-        for(var m=6; m--;){
-          var X = 0
-          var Y = 75
-          var Z = 0
-          var v = iPv * (.8 + Rn() * .2)
-          var vx = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * v
-          var vy = C(q) * v
-          var vz = C(p) * S(q) * v
-          geometryData = [...geometryData, [X, Y, Z]]
-          particleData = [...particleData, [vx, vy, vz, 1]]
-        }
-        var size = 8
-        var geoOptions = {
-          shapeType: 'particles',
-          geometryData,
-          alpha: 1,
-          penumbra: .25,
-          name: 'particles',
-          size,
-          color: 0xff0088,
-        }
-        await Coordinates.LoadGeometry(renderer, geoOptions).then(geometry => {
-          P = [...P, {geometry, particleData, size}]
-        })  
-      }
-      
-      var minSpeed = .2
-      var maxSpeed = .8
       
       window.Draw = () => {
       
         var t = renderer.t
+        //renderer.yaw   = t/8
+        renderer.yaw   = S(t/4)/32
+        renderer.pitch = C(t/4)/32
         
-        renderer.z = Math.min(80, Math.max(40, (.3+C(t/8))*100))
-        renderer.y = Math.min(40, Math.max(-40, (.3-S(t/8+.5))*50))
-        
-        if(!((t*60|0)%iPfreq))spawnP()
-      
-        renderer.yaw = Math.min(Math.PI, Math.max(-Math.PI, (.3+C(t/8))*Math.PI*4))
-        renderer.pitch = Math.min(1, Math.max(-.25, (.3+C(t/4))*2))
-        
-        // draw particles
-        P = P.filter(v=>{
-          var a = false
-          for(var i=0; i<v.geometry.vertices.length&&!a; i+=3){
-            if(v.geometry.vertices[i+1] > -40) a = true
-          }
-          return a
-        })
-        P = P.filter(v=>v.particleData.filter(q=>q[1]>-50).length)
-        
-        P.map(v => {
-          v.particleData.map((q, j) => {
-            var vx  = q[0]
-            var vy  = q[1] += grav
-            var vz  = q[2]
-            
-            var d1 = Math.hypot(vx, vy, vz)
-            var d2 = Math.min(maxSpeed, Math.max(minSpeed, d1))
-            vx /= d1
-            vy /= d1
-            vz /= d1
-            q[0] = vx *= d2
-            q[1] = vy *= d2
-            q[2] = vz *= d2
-            
-            q[3] -= .0015
-
-            v.geometry.vertices[j*3+0] += vx
-            v.geometry.vertices[j*3+1] += vy
-            v.geometry.vertices[j*3+2] += vz
-          })
-          v.geometry.size = v.particleData[0][3]**.5 * v.size
-          renderer.Draw(v.geometry)
-        })
-        
-        // draw other shapes
         shapes.forEach(shape => {
           switch(shape.name){
             case 'background':
+              shape.yaw += .005
             break
-            case 'point lights':
-            var X = shape.x
-            var Y = shape.y
-            var Z = shape.z
-            var p = Math.atan2(X,Z) + .1
-            var d = Math.hypot(X,Z)
-            X = shape.x = S(p) * d
-            Y = shape.y = C(t/2+p) * 40
-            Z = shape.z = C(p) * d
-            break
-            case 'particles':
             default:
-              //shape.yaw -= .01
-              shape.pitch = Math.min(Math.PI*2, Math.max(0, (.3+C(t/4))*Math.PI*6))
-              // reflect particles
-              
-              var ax=0, ay=0, az=0, ar=[]
-              var nx=0, ny=0, nz=0
-              var X, Y, Z, X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3
-              for(var i = 0; i<shape.vertices.length; i+=9){
-                
-                X1 = shape.vertices[i+0]
-                Y1 = shape.vertices[i+1]
-                Z1 = shape.vertices[i+2]
-                ar = Coordinates.R (X1,Y1,Z1, {roll:shape.roll, pitch:shape.pitch, yaw:shape.yaw})
-                X1 = ar[0], Y1 = ar[1], Z1 = ar[2]
-                X2 = shape.vertices[i+3]
-                Y2 = shape.vertices[i+4]
-                Z2 = shape.vertices[i+5]
-                ar = Coordinates.R (X2,Y2,Z2, {roll:shape.roll, pitch:shape.pitch, yaw:shape.yaw})
-                X2 = ar[0], Y2 = ar[1], Z2 = ar[2]
-                X3 = shape.vertices[i+6]
-                Y3 = shape.vertices[i+7]
-                Z3 = shape.vertices[i+8]
-                ar = Coordinates.R (X3,Y3,Z3, {roll:shape.roll, pitch:shape.pitch, yaw:shape.yaw})
-                X3 = ar[0], Y3 = ar[1], Z3 = ar[2]
-                ax = (X1 + X2 + X3) /3
-                ay = (Y1 + Y2 + Y3) /3
-                az = (Z1 + Z2 + Z3) /3
-                X1 += shape.x
-                Y1 += shape.y
-                Z1 += shape.z
-                var facet = [[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3]]
-                
-                X1 = shape.normalVecs[i+0]
-                Y1 = shape.normalVecs[i+1]
-                Z1 = shape.normalVecs[i+2]
-                ar = Coordinates.R (X1,Y1,Z1, {roll:shape.roll, pitch:shape.pitch, yaw:shape.yaw})
-                X1 = ar[0], Y1 = ar[1], Z1 = ar[2]
-                X2 = shape.normalVecs[i+3]
-                Y2 = shape.normalVecs[i+4]
-                Z2 = shape.normalVecs[i+5]
-                ar = Coordinates.R (X2,Y2,Z2, {roll:shape.roll, pitch:shape.pitch, yaw:shape.yaw})
-                X2 = ar[0], Y2 = ar[1], Z2 = ar[2]
-                X3 = shape.normalVecs[i+6]
-                Y3 = shape.normalVecs[i+7]
-                Z3 = shape.normalVecs[i+8]
-                ar = Coordinates.R (X3,Y3,Z3, {roll:shape.roll, pitch:shape.pitch, yaw:shape.yaw})
-                X3 = ar[0], Y3 = ar[1], Z3 = ar[2]
-                nx = (X1 + X2 + X3) /3
-                ny = (Y1 + Y2 + Y3) /3
-                nz = (Z1 + Z2 + Z3) /3
-                var n = [nx, ny, nz]
-                
-                P.map(v => {
-                  v.particleData.map((q, j) => {
-                    var px = v.geometry.vertices[j*3+0]
-                    var py = v.geometry.vertices[j*3+1]
-                    var pz = v.geometry.vertices[j*3+2]
-                    if(Math.hypot(px-ax,py-ay,pz-az) < 1.5){
-                      var vx  = q[0] * 1
-                      var vy  = q[1] * 2 - .5
-                      var vz  = q[2] * 1
-                      var d = Math.hypot(vx, vy, vz)
-                      //vx /= d
-                      //vy /= d
-                      //vz /= d
-                      if(Coordinates.LineFaceIntersect(px, py, pz, px+vx, py+vy, pz+vz, facet, true)){
-                        var rA  = Coordinates.Reflect(q, n)
-                        q[0] /= 3
-                        q[1] /= 40
-                        q[2] /= 3
-                        q[0] = rA[0] * .96
-                        q[1] = (rA[1] > 0 ? rA[1] / 16 : -rA[1]/16) + .005
-                        q[2] = rA[2] * .96
-                      }
-                    }
-                  })
-                })
-              }
-              
+              shape.yaw = S(t/2)/6
+              shape.pitch = C(t/2)/6 + Math.PI
+              //shape.pitch += .005
             break
           }
           renderer.Draw(shape)
