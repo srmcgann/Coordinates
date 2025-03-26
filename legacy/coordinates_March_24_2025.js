@@ -44,7 +44,6 @@ const Renderer = async options => {
   }
   
   var alphaQueue = []
-  var particleQueue = []
   var pointLights = []
   var pointLightCols = []
   
@@ -129,8 +128,7 @@ const Renderer = async options => {
     roll, pitch, yaw, fov,
     ready: false, ambientLight,
     pointLights, pointLightCols,
-    particleQueue, alphaQueue,
-    cameraMode, showCrosshair
+    alphaQueue, cameraMode, showCrosshair
     
     // functions
     // ...
@@ -165,7 +163,7 @@ const Renderer = async options => {
         renderer.alphaQueue = [geometry, ...renderer.alphaQueue]
       }else{
         if(!sortedPass && geometry.isParticle ) {
-          renderer.particleQueue = [geometry, ...renderer.particleQueue]
+          renderer.alphaQueue = [geometry, ...renderer.alphaQueue]
         }else{
           ctx.useProgram( sProg )
           if(geometry.shapeType == 'particles') {
@@ -173,7 +171,7 @@ const Renderer = async options => {
             renderer.ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
             renderer.ctx.enable(ctx.BLEND)
             
-            ctx.uniform1f(dset.locPointSize,       geometry.size * (penumbraPass ? 3.0 : 1.0))
+            ctx.uniform1f(dset.locPointSize,       geometry.size * penumbraPass ? 3.0 : 1.0)
             ctx.uniform1f(dset.locIsParticle,      geometry.isParticle)
             ctx.uniform1f(dset.locPenumbraPass,    geometry.penumbraPass ? 1 : 0)
             
@@ -3681,125 +3679,6 @@ const IsPowerOf2 = (v, d=0) => {
   return IsPowerOf2(v/2, d+1)
 }
 
-const LineFaceIntersect = (X1, Y1, Z1, X2, Y2, Z2, facet, autoFlipNormals=false) => {
-  let X_, Y_, Z_, d, m, l_,K,J,L,p
-  let I_=(A,B,M,D,E,F,G,H)=>(K=((G-E)*(B-F)-(H-F)*(A-E))/(J=(H-F)*(M-A)-(G-E)*(D-B)))>=0&&K<=1&&(L=((M-A)*(B-F)-(D-B)*(A-E))/J)>=0&&L<=1?[A+K*(M-A),B+K*(D-B)]:0
-  let Q_= () => [c.width/2+X_/Z_*700, c.height/2+Y_/Z_*700]
-  let R_ = (Rl,Pt,Yw,m)=>{
-    let M=Math, A=M.atan2, H=M.hypot
-    X_ = S(p=A(X_,Y_)+Rl) * (d=H(X_,Y_))
-    Y_ = C(p) * d
-    X_ = S(p=A(X_,Z_)+Yw) * (d=H(X_,Z_))
-    Z_ = C(p)*d
-    Y_ = S(p=A(Y_,Z_)+Pt) * (d=H(Y_,Z_))
-    Z_ = C(p)*d
-    if(m){ X_+=oX,Y_+=oY,Z_+=oZ }
-  }
-  let rotSwitch = m =>{
-    switch(m){
-      case 0: R_(0,0,Math.PI/2); break
-      case 1: R_(0,Math.PI/2,0); break
-      case 2: R_(Math.PI/2,0,Math.PI/2); break
-    }        
-  }
-  let ax = 0, ay = 0, az = 0
-  facet.map(q_=>{ ax += q_[0], ay += q_[1], az += q_[2] })
-  ax /= facet.length, ay /= facet.length, az /= facet.length
-  let b1 = facet[2][0]-facet[1][0], b2 = facet[2][1]-facet[1][1], b3 = facet[2][2]-facet[1][2]
-  let c1 = facet[1][0]-facet[0][0], c2 = facet[1][1]-facet[0][1], c3 = facet[1][2]-facet[0][2]
-  let crs = [b2*c3-b3*c2,b3*c1-b1*c3,b1*c2-b2*c1]
-  d = Math.hypot(...crs)+.001
-  let nls = 1 //normal line length
-  crs = crs.map(q=>q/d*nls)
-  let X1_ = ax, Y1_ = ay, Z1_ = az
-  let flip = 1
-  if(autoFlipNormals){
-    let d1_ = Math.hypot(X1_-X1,Y1_-Y1,Z1_-Z1)
-    let d2_ = Math.hypot(X1-(ax + crs[0]/99),Y1-(ay + crs[1]/99),Z1-(az + crs[2]/99))
-    flip = d2_>d1_?-1:1
-  }
-  let X2_ = ax + (crs[0]*=flip), Y2_ = ay + (crs[1]*=flip), Z2_ = az + (crs[2]*=flip)
-
-  let p1_ = Math.atan2(X2_-X1_,Z2_-Z1_)
-  let p2_ = -(Math.acos((Y2_-Y1_)/(Math.hypot(X2_-X1_,Y2_-Y1_,Z2_-Z1_)+.001))+Math.PI/2)
-  let isc = false, iscs = [false,false,false]
-  X_ = X1, Y_ = Y1, Z_ = Z1
-  R_(0,-p2_,-p1_)
-  let rx_ = X_, ry_ = Y_, rz_ = Z_
-  for(let m=3;m--;){
-    if(isc === false){
-      X_ = rx_, Y_ = ry_, Z_ = rz_
-      rotSwitch(m)
-      X1_ = X_, Y1_ = Y_, Z1_ = Z_ = 5, X_ = X2, Y_ = Y2, Z_ = Z2
-      R_(0,-p2_,-p1_)
-      rotSwitch(m)
-      X2_ = X_, Y2_ = Y_, Z2_ = Z_
-      facet.map((q_,j_)=>{
-        if(isc === false){
-          let l = j_
-          X_ = facet[l][0], Y_ = facet[l][1], Z_ = facet[l][2]
-          R_(0,-p2_,-p1_)
-          rotSwitch(m)
-          let X3_=X_, Y3_=Y_, Z3_=Z_
-          l = (j_+1)%facet.length
-          X_ = facet[l][0], Y_ = facet[l][1], Z_ = facet[l][2]
-          R_(0,-p2_,-p1_)
-          rotSwitch(m)
-          let X4_ = X_, Y4_ = Y_, Z4_ = Z_
-          if(l_=I_(X1_,Y1_,X2_,Y2_,X3_,Y3_,X4_,Y4_)) iscs[m] = l_
-        }
-      })
-    }
-  }
-  if(iscs.filter(v=>v!==false).length==3){
-    let iscx = iscs[1][0], iscy = iscs[0][1], iscz = iscs[0][0]
-    let pointInPoly = true
-    ax=0, ay=0, az=0
-    facet.map((q_, j_)=>{ ax+=q_[0], ay+=q_[1], az+=q_[2] })
-    ax/=facet.length, ay/=facet.length, az/=facet.length
-    X_ = ax, Y_ = ay, Z_ = az
-    R_(0,-p2_,-p1_)
-    X1_ = X_, Y1_ = Y_, Z1_ = Z_
-    X2_ = iscx, Y2_ = iscy, Z2_ = iscz
-    facet.map((q_,j_)=>{
-      if(pointInPoly){
-        let l = j_
-        X_ = facet[l][0], Y_ = facet[l][1], Z_ = facet[l][2]
-        R_(0,-p2_,-p1_)
-        let X3_ = X_, Y3_ = Y_, Z3_ = Z_
-        l = (j_+1)%facet.length
-        X_ = facet[l][0], Y_ = facet[l][1], Z_ = facet[l][2]
-        R_(0,-p2_,-p1_)
-        let X4_ = X_, Y4_ = Y_, Z4_ = Z_
-        if(I_(X1_,Y1_,X2_,Y2_,X3_,Y3_,X4_,Y4_)) pointInPoly = false
-      }
-    })
-    if(pointInPoly){
-      X_ = iscx, Y_ = iscy, Z_ = iscz
-      R_(0,p2_,0)
-      R_(0,0,p1_)
-      isc = [[X_,Y_,Z_], [crs[0],crs[1],crs[2]]]
-    }
-  }
-  return isc
-}
-
-const Reflect = (a, n) => {
-  let d1 = Math.hypot(...a)+.00001
-  let d2 = Math.hypot(...n)+.00001
-  a[0]/=d1
-  a[1]/=d1
-  a[2]/=d1
-  n[0]/=d2
-  n[1]/=d2
-  n[2]/=d2
-  let dot = -a[0]*n[0] + -a[1]*n[1] + -a[2]*n[2]
-  let rx = -a[0] - 2 * n[0] * dot
-  let ry = -a[1] - 2 * n[1] * dot
-  let rz = -a[2] - 2 * n[2] * dot
-  return [-rx*d1, -ry*d1, -rz*d1]
-}
-
 const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
   var ax = 0, ay = 0, az = 0, crs, d
   facet.map(q_=>{ ax += q_[0], ay += q_[1], az += q_[2] })
@@ -3831,47 +3710,6 @@ const AnimationLoop = (renderer, func) => {
     // mimic shader rotation function, for z-sorting.
     // transparent objects must be drawn in reverse depth order
 
-    if(renderer.particleQueue.length){
-      var forSort = new Float32Array()
-      var vec
-      
-      renderer.ctx.blendFunc(renderer.ctx.SRC_ALPHA, renderer.ctx.ONE);
-      renderer.ctx.enable(renderer.ctx.BLEND)
-      
-      renderer.particleQueue.map((v, i) => {
-        var X = v.x + renderer.x
-        var Y = v.y + renderer.y
-        var Z = v.z + renderer.z
-        vec = R(X,Y,Z, {roll: renderer.roll,
-                        pitch: renderer.pitch,
-                        yaw: renderer.yaw}, false)
-                        
-        var camz = renderer.z / 1e3 *
-                     Math.pow(5.0, (Math.log(renderer.fov) / 1.609438))
-        forSort = [...forSort, {idx: i, z: camz + vec[2]}]
-      })
-      forSort.sort((a, b) => b.z - a.z)
-      renderer.particleQueue.map(async (alphaShape, idx) => {
-
-        var shape = renderer.particleQueue[forSort[idx].idx]
-        
-        var shouldDisableDepth = () => {
-          return false //shape.isLight || shape.isSprite || shape.isCrosshair ||shape.disableDepthTest
-        }
-        
-        if(shouldDisableDepth()) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
-    
-        var penumbra = shape.penumbra
-        for(var m = 1 + (shape.isParticle && penumbra ? 1 : 0); m--;){
-          await renderer.Draw(shape, true, shape.isParticle && penumbra && !m)
-        }
-        if(shouldDisableDepth()) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
-      })
-    
-      // disable alpha
-      renderer.ctx.blendFunc(renderer.ctx.ONE, renderer.ctx.ZERO)
-      renderer.ctx.disable(renderer.ctx.BLEND)
-    }
     
     if(renderer.alphaQueue.length){
       var forSort = new Float32Array()
@@ -3897,17 +3735,13 @@ const AnimationLoop = (renderer, func) => {
 
         var shape = renderer.alphaQueue[forSort[idx].idx]
         
-        var shouldDisableDepth = () => {
-          return false //shape.isLight || shape.isSprite || shape.isCrosshair ||shape.disableDepthTest
-        }
-        
-        if(shouldDisableDepth()) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
+        if(1||shape.disableDepthTest) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
     
         var penumbra = shape.penumbra
         for(var m = 1 + (shape.isParticle && penumbra ? 1 : 0); m--;){
           await renderer.Draw(shape, true, shape.isParticle && penumbra && !m)
         }
-        if(shouldDisableDepth()) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
+        if(1||shape.disableDepthTest) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
       })
     
       // disable alpha
@@ -3919,7 +3753,6 @@ const AnimationLoop = (renderer, func) => {
     renderer.t += 1/60 //performance.now() / 1000
     requestAnimationFrame(loop)
     renderer.alphaQueue = new Float32Array()
-    renderer.particleQueue = new Float32Array()
   }
   window.addEventListener('load', () => {
     renderer.ready = true
@@ -4101,8 +3934,6 @@ export {
   Rectangle,
   Q, R,
   SyncNormals,
-  LineFaceIntersect,
-  Reflect,
   Normal,
   ImageToPo2,
   LoadOBJ,
