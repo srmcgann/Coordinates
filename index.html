@@ -14,32 +14,34 @@
     <script type="module">
     
       import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      "./coordinates.js"
 
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
       
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_emerald_dark_po2.jpg'
+      //var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/fantasy1.jpg'
+      //var refTexture = 'https://srmcgann.github.io/skyboxes5/videos/cylindricalTurtles2.0.mp4'
+      var refTexture = 'https://i.imgur.com/te0Lcv0.mp4'
     
       var rendererOptions = {
-        ambientLight: .2,
-        fov: 1200
+        ambientLight: .25,
+        fov: 1000
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      renderer.z = 8
+      renderer.z = 10
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: 1
+          value: .75
         } },
         { uniform: {
           type: 'reflection',
-          value: .1,
+          value: .33,
           map: refTexture
         } }
       ]
@@ -55,6 +57,17 @@
         } }
       ]
       var nullShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting:
+          { type: 'ambientLight', value: .5}
+        },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } }
+      ]
+      var videoShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
       var shapes = []
@@ -74,17 +87,18 @@
       })  
       
       var geoOptions = {
-        shapeType: 'obj',
-        url: 'https://srmcgann.github.io/objs/frame/frame_hipoly.obj',
+        shapeType: 'custom shape',
+        url: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame_lowpoly_rectangular.json',
         map: 'https://srmcgann.github.io/objs/frame/frame texture.jpg',
-        size: 5,
+        size: 1,
         color: 0xffffff,
         colorMix: 0,
-        scaleX: 1,//16/9-.45,
-        scaleY: 1,
-        scaleZ: 2,
-        averageNormals: true,
-        exportShape: true,
+        flipNormals: false,
+        //scaleX: 16/9,
+        //scaleY: 1,
+        //scaleZ: 1,
+        averageNormals: false,
+        exportShape: false,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -93,38 +107,41 @@
       
       var geoOptions = {
         shapeType: 'rectangle',
-        map: 'https://i.imgur.com/ztYVnB6.mp4',
+        //map: 'https://srmcgann.github.io/footage/drone_1.mp4',
+        //map: 'https://srmcgann.github.io/footage/CoaastGxd - Flip The Switch %5BgwUZ9PoP_oM%5D.mp4',
+        map: 'https://srmcgann.github.io/footage/bisection %5BrMEeRDQQuCI%5D.mp4',
+        //map: refTexture,
         size: 2.64,
+        muted: false,
         subs: 4,
         flipNormals: true,
         color: 0x888888,
         colorMix: 0,
-        scaleX: 1,//16/9 -.45,
+        scaleX: 16/9,
         scaleY: 1,
         scaleZ: 1,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await nullShader.ConnectGeometry(geometry)
+        await videoShader.ConnectGeometry(geometry)
       })  
       
       
       window.Draw = () => {
       
         var t = renderer.t
-        //renderer.yaw   = t/8
-        renderer.yaw   = S(t/4)/32
-        renderer.pitch = C(t/4)/32
+        renderer.z = Math.min(16, Math.max(6, (.3+C(t/2))*40))
+        renderer.yaw   = S(t)/8
+        renderer.pitch = C(t)/8
         
         shapes.forEach(shape => {
           switch(shape.name){
             case 'background':
               shape.yaw += .005
+              shape.cos = C(t/16) / 4
             break
             default:
-              shape.yaw = S(t/2)/6
-              shape.pitch = C(t/2)/6 + Math.PI
-              //shape.pitch += .005
+              shape.pitch = Math.PI
             break
           }
           renderer.Draw(shape)
