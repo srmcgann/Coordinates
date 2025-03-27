@@ -981,14 +981,14 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
     }
     
-    for(var i=0; i<vertices.length; i+=3){
+    /*for(var i=0; i<vertices.length; i+=3){
        vertices[i+0] *= scaleX
        vertices[i+1] *= scaleY
        vertices[i+2] *= scaleZ
     }
     
     // scale normals, with shape if scaled
-    if(shapeType != 'obj' &&
+    if(1||shapeType != 'obj' &&
        shapeType != 'customShape'){
          for(var i=0; i<normals.length; i+=6){
         var nx = normals[i+3] - normals[i+0]
@@ -1001,7 +1001,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         normals[i+4] = normals[i+1] + ny
         normals[i+5] = normals[i+2] + nz
       }
-    }
+    }*/
   }else{
     switch(shapeType){
       case 'tetrahedron': case 'octahedron':
