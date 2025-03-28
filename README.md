@@ -128,9 +128,11 @@ var rendererOptions = {
 
 Additionally, a Renderer object contains a number of useful properties:
 ```
-renderer.mouseX
-renderer.mouseY
-renderer.mouseButton
+renderer.pageX        // window mouse x coordinate
+renderer.pageY        // window mouse y coordinate
+renderer.mouseX       // internal canvas mouse x coordinate
+renderer.mouseY       // internal canvas mouse y coordinate
+renderer.mouseButton  // the browser window mouse button status
 ```
 ...and others. feel free to view a renderer object in your browser console:
 ``console.log(renderer)``

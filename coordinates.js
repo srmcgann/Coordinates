@@ -33,6 +33,7 @@ const Renderer = async options => {
   var attachToBody = true, margin = 10, exportGPUSpecs = false
   var ambientLight = .2, alpha=false, clearColor = 0x000000
   var cameraMode = 'default', showCrosshair = false
+  var pageX, pageY, mouseX, mouseY, mouseButton
   var context = {
     mode: 'webgl2',
     options: {
@@ -130,7 +131,9 @@ const Renderer = async options => {
     ready: false, ambientLight,
     pointLights, pointLightCols,
     particleQueue, alphaQueue,
-    cameraMode, showCrosshair
+    cameraMode, showCrosshair,
+    pageX, pageY, mouseX, mouseY,
+    mouseButton
     
     // functions
     // ...
@@ -396,7 +399,19 @@ const Renderer = async options => {
   ] )
         
   renderer.particleShader = await BasicShader(renderer, [] )
-        
+  
+  window.addEventListener('mousemove', e => {
+    var rect = renderer.c.getBoundingClientRect()
+    renderer.mouseX = (e.pageX-rect.left) / renderer.c.clientWidth * renderer.width
+    renderer.mouseY = (e.pageY-rect.top) / renderer.c.clientHeight * renderer.height
+  })
+  window.addEventListener('mousedown', e => {
+    renderer.mouseButton = e.button
+  })
+  window.addEventListener('mousedown', e => {
+    renderer.mouseButton = -1
+  })
+  
   return renderer
 }
 
