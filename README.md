@@ -124,6 +124,15 @@ var rendererOptions = {
   }
 }
 ```
+<br><br>
+Additionally, a Renderer object contains a number of useful properties:
+```
+renderer.mouseX
+renderer.mouseY
+renderer.mouseButton
+```
+...and others. feel free to view a renderer object in your browser console:
+``console.log(renderer)``
 <br>
 
 ## Lighting
