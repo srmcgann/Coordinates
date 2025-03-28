@@ -495,9 +495,9 @@ Method requires input of 6 numbers, which are the 2 end points of a line-segment
 <br><br>
 example:
 ```js
-var polygon = [[-1.2,0,0], [0,-1,0], [3,1,2]]
-var X1 = .5, Y1 = -.5, Z1 = 3
-var X2 = .2, Y2 = .2,  Z2 = -1
+var polygon = [ [-1.2, 0, 0],   [0, -1, 0],   [3, 1, 2] ]
+var X1 = .5,  Y1 = -.5,  Z1 = 3
+var X2 = .2,  Y2 = .2,   Z2 = -1
 var point = Coordinates.LineFaceIntersect(X1,Y1,Z1,  X2,Y2,Z2,  polygon)
 // returned value: point, normal ->
   [
