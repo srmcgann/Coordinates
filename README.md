@@ -412,7 +412,7 @@ example:<br>
 var geoOptions = {
   shapeType: 'cube',
   //...
-  color: HexFromHSV(180, 1, 1),  //teal
+  color: Coordinates.HexFromHSV(180, 1, 1),  //teal
   //...
 }
 ```
