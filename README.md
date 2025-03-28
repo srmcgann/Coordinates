@@ -192,7 +192,7 @@ var shaderOptions = {
 
 ### DestroyGeometry()
 ``Coordinates.DestroyGeometry( geometry)``<br>
-Destroy any references to this shapes created with ``LoadGeometry``.
+Destroy any references to shapes created with ``LoadGeometry``.
 Currently applies to lights only, which are the only system-side data
 stored when geometry is created.
 
