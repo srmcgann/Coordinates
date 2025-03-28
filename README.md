@@ -392,7 +392,7 @@ the background as well. See Renderer option 'clearColor', to set the color.<br>
 ### Draw()
 Draws a single geometry created with the ``LoadGeometry`` method<br>
 
-``renderer.Draw( geometry)``
+``renderer.Draw(geometry)``
 
 ##### Returns nothing
 <br><br>
@@ -406,6 +406,15 @@ These color helper methods are also exposed
   RGBToHex
   RGBFromHex
   HexToRGB
+```
+example:<br>
+```
+var geoOptions = {
+  shapeType: 'cube',
+  //...
+  color: HexFromHSV(180, 1, 1),  //teal
+  //...
+}
 ```
 
 ## Tips and tricks
