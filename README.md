@@ -124,7 +124,7 @@ var rendererOptions = {
   }
 }
 ```
-<br><br>
+<br>
 Additionally, a Renderer object contains a number of useful properties:
 ```
 renderer.mouseX
