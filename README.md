@@ -472,7 +472,7 @@ var n = Coordinates.Normal(facet)
 <br><br>
 ### Reflect()
 Computes the angle of reflection in 3D space, accepting parameters of incident-angle, and normal<br>
-``Reflect = (i, n) ``
+``Reflect = (i, n)``
 <br>
 ``Reflect`` requires input of a source angle, and the facet/plane normal upon which the angle of reflection is occuring.
 <br><br>
@@ -482,4 +482,34 @@ var iAngle = [.2, 0, .5]
 var n = Normal(facet)  // see above for notes about the Normal method
 var rAngle = Coordinates.Reflect(iAngle, n)
 // returned angle is useful for motion vectors or light, e.g. for ray tracing
+```
+
+<br><br>
+### LineFaceIntersect()
+This will return the intersection point, if any (or false), of a line segment and polygon in 3 dimensions. For convenience, the normal of the polygon is also returned as a second element.
+<br>
+``const LineFaceIntersect = (X1, Y1, Z1, X2, Y2, Z2, polygon)``
+<br>
+``LineFaceIntersect`` requires input of 6 numbers, which are the 2 end points of a line-segment in 3D space (2x3=6) and an array with at least 3 vertices
+<br><br>
+example:
+```js
+var polygon = [[-1.2,0,0], [0,-1,0], [3,1,2]]
+var X1 = .5, Y1 = -.5, Z1 = 3
+var X2 = .2, Y2 = .2,  Z2 = -1
+var point = Coordinates.LineFaceIntersect(X1,Y1,Z1,  X2,Y2,Z2,  polygon)
+// returned value: point, normal ->
+  [
+      [
+          0.3148953466981546,
+          -0.067901234567901,
+          0.530894024154322
+      ],
+      [
+          0.3205339025930031,
+          0.38464068311160365,
+          -0.8654415370011083
+      ]
+  ]
+// note: returns false if no intersection exists
 ```
