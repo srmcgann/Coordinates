@@ -497,6 +497,23 @@ var rAngle = Coordinates.Reflect(iAngle, n)
 ```
 
 <br><br>
+### PointInPoly2D()
+``const PointInPoly2D = (X, Y, polygon)``
+<br><br>
+``PointInPoly2D`` returns true if the point is inside a polygon of any number of sides.<br>
+<br><br>
+Method requires input of 2 numbers, which is the point in question, and a polygon as an array with at least 3 vertices
+<br><br>
+example:
+```js
+var polygon = [ [-1.2, 0, 0],   [0, -1, 0],   [3, 1, 2] ]
+var X1 = 0,  Y1 = 0
+var point = Coordinates.PointInPoly2D(X,Y, polygon)
+// returned value: true
+// note: a 3D polygon may be used, but only the first 2 elements [X, Y] are involved
+```
+
+<br><br>
 ### PointInPoly3D()
 ``const PointInPoly3D = (X1, Y1, Z1, X2, Y2, Z2, polygon)``
 <br><br>
