@@ -507,10 +507,32 @@ Method requires input of 2 numbers, which is the point in question, and a polygo
 example:
 ```js
 var polygon = [ [-1.2, 0, 0],   [0, -1, 0],   [3, 1, 2] ]
-var X1 = 0,  Y1 = 0
+var X = 0,  Y = 0
 var point = Coordinates.PointInPoly2D(X,Y, polygon)
 // returned value: true
 // note: a 3D polygon may be used, but only the first 2 elements [X, Y] are involved
+```
+
+<br><br>
+### Intersects()
+``const Intersects = (X1, Y1, X2, Y2, X3, Y3, X4, Y4)``
+<br><br>
+``Intersects`` returns a 2D vertex of the intersection point if one exists, between 2 line segments, or false if there is no intersection.<br>
+<br><br>
+Method requires input of 8 numbers, the endpoints of the line segments in the order Pa1, Pa2, Pb1, Pb2.
+<br><br>
+example:
+```js
+var X1 = -.5
+var Y1 = -1
+var X2 = 1.5
+var Y2 = 1
+var X3 = 1.5
+var Y3 = -1
+var X4 = -.5
+var Y4 = 1
+var i = Coordinates.Intersects(X1, Y1, X2, Y2, X3, Y3, X4, Y4)
+// returned value: 0.5
 ```
 
 <br><br>
@@ -543,3 +565,21 @@ var point = Coordinates.PointInPoly3D(X1,Y1,Z1,  X2,Y2,Z2,  polygon)
   ]
 // note: returns false if no intersection exists
 ```
+
+<br><br>
+### IsPowerOf2()
+``const IsPowerOf2 = (num)``
+<br><br>
+``IsPowerOf2`` returns a true if the input number is a valid power of 2, or false if not.<br>
+<br><br>
+Method requires input of 1 number.
+<br><br>
+example:
+```js
+var po2 = Coordinates.IsPowerOf2(3)
+// returned value: false
+
+var po2 = Coordinates.IsPowerOf2(4)
+// returned value: true
+```
+
