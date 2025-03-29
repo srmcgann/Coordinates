@@ -532,7 +532,7 @@ var Y3 = -1
 var X4 = -.5
 var Y4 = 1
 var i = Coordinates.Intersects(X1, Y1, X2, Y2, X3, Y3, X4, Y4)
-// returned value: 0.5
+// returned value: [ 0.5, 0]
 ```
 
 <br><br>
