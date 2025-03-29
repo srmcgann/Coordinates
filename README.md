@@ -497,10 +497,10 @@ var rAngle = Coordinates.Reflect(iAngle, n)
 ```
 
 <br><br>
-### LineFaceIntersect()
-``const LineFaceIntersect = (X1, Y1, Z1, X2, Y2, Z2, polygon)``
+### PointInPoly3D()
+``const PointInPoly3D = (X1, Y1, Z1, X2, Y2, Z2, polygon)``
 <br><br>
-``LineFaceIntersect`` returns the intersection point, if any (or false), of a line segment and polygon in 3 dimensions.<br>
+``PointInPoly3D`` returns the intersection point, if any (or false), of a line segment and polygon in 3 dimensions.<br>
 For convenience, the normal of the polygon is also returned as a second element.
 <br><br>
 Method requires input of 6 numbers, which are the 2 end points of a line-segment in 3D space (2x3=6) and a polygon as an array with at least 3 vertices
@@ -510,7 +510,7 @@ example:
 var polygon = [ [-1.2, 0, 0],   [0, -1, 0],   [3, 1, 2] ]
 var X1 = .5,  Y1 = -.5,  Z1 = 3
 var X2 = .2,  Y2 = .2,   Z2 = -1
-var point = Coordinates.LineFaceIntersect(X1,Y1,Z1,  X2,Y2,Z2,  polygon)
+var point = Coordinates.PointInPoly3D(X1,Y1,Z1,  X2,Y2,Z2,  polygon)
 // returned value: point, normal ->
   [
       [
