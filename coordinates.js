@@ -229,8 +229,13 @@ const Renderer = async options => {
             // update uniforms
             
             ctx.activeTexture(ctx.TEXTURE0)
-            if(geometry.textureMode == 'video'){
-              BindImage(ctx, dset.resource,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
+            if(geometry.textureMode == 'video' ||
+               geometry.textureMode == 'canvas'){
+              switch(geometry.textureMode){
+                case 'video':  dset.resource; break
+                case 'canvas': dset.canvasTexture; break
+              }
+              BindImage(ctx, res,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
             }
 
             ctx.uniform1i(dset.locTexture, dset.texture)
@@ -632,6 +637,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var normalVec_buffer, NormalVec_Index_Buffer
   var uv_buffer, UV_Index_Buffer, name, shapeType
   var vIndices, nIndices, nVecIndices, uvIndices
+  var canvasTexture
   const gl = renderer.gl
   var shape, exportShape = false
   
@@ -675,7 +681,17 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   var geometry = {}
   
+  var tempCanvas
+  if(typeof geoOptions.canvasTexture != 'undefined'){
+    tempCanvas = geoOptions.canvasTexture
+    delete geoOptions.canvasTexture
+  }
   geoOptions = structuredClone(geoOptions)
+  if(typeof temp != 'undefined'){
+    geoOptions.canvasTexture = tempCanvas
+  }
+  
+  
   // must precede
   Object.keys(geoOptions).forEach((key, idx) => {
     switch(key.toLowerCase()){
@@ -729,6 +745,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'rows'             : rows = geoOptions[key]; break
       case 'disabledepthtest' : disableDepthTest = geoOptions[key]; break
       case 'cols'             : cols = geoOptions[key]; break
+      case 'canvastexture'    :
+        canvasTexture = geoOptions[key]
+        textureMode = 'canvas'
+        break
       case 'involvecache'     : involveCache = !!geoOptions[key]; break
       case 'muted'            : muted = !!geoOptions[key]; break
       case 'lum'              : lum = geoOptions[key]; break
@@ -1061,12 +1081,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
       normals[i*2+4] += vertices[i+1] - oy
       normals[i*2+5] += vertices[i+2] - oz
 
-      normals[i*2+0] *= scaleX
-      normals[i*2+1] *= scaleY
-      normals[i*2+2] *= scaleZ
-      normals[i*2+3] *= scaleX
-      normals[i*2+4] *= scaleY
-      normals[i*2+5] *= scaleZ
+      //normals[i*2+0] *= scaleX
+      //normals[i*2+1] *= scaleY
+      //normals[i*2+2] *= scaleZ
+      //normals[i*2+3] *= scaleX
+      //normals[i*2+4] *= scaleY
+      //normals[i*2+5] *= scaleZ
     }
   }
   if(objX || objY || objZ || objRoll || objPitch || objYaw){
@@ -1322,7 +1342,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     vIndices, nIndices, uvIndices, map, video,
     textureMode, isSprite, isCrosshair, isLight, playbackSpeed,
     disableDepthTest, lum, alpha, involveCache,
-    renderer, isParticle, penumbra, wireframe
+    renderer, isParticle, penumbra, wireframe,
+    canvasTexture
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -1482,6 +1503,16 @@ const VideoToImage = video => {
 const BindImage = (gl, resource, binding, textureMode='image', tval=-1,url='', involveCache = true) => {
   let texImage
   switch(textureMode){
+    case 'canvas':
+      texImage = resource
+      if(tval == -1){
+        cache.texImages.push({
+          url,
+          tval,
+          texImage
+        })
+      }
+    break
     case 'video':
       if(involveCache && (cacheItem=cache.texImages.filter(v=>v.url==url && tval != -1 && v.tVal == tval)).length){
         console.log('found video texture in cache... using it')

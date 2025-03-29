@@ -22,7 +22,7 @@
     
       var rendererOptions = {
         ambientLight: .2,
-        fov: 1500
+        fov: 1400
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
@@ -45,6 +45,19 @@
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          value: 1
+        } }
+      ]
+      var canvasShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
       var shapes = []
 
       var geoOptions = {
@@ -60,6 +73,34 @@
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
       })
+      
+      
+      var scratchCanvas = document.createElement('canvas')
+      scratchCanvas.width = 960
+      scratchCanvas.height = 540
+      var sctx = scratchCanvas.getContext('2d')
+      sctx.fillStyle = '#f00'
+      sctx.fillRect(0,0,scratchCanvas.width,scratchCanvas.height)
+      
+      
+      var geoOptions = {
+        shapeType: 'rectangle',
+        name: 'canvasGeometry',
+        size: 2.605,
+        subs: 4,
+        yaw: Math.PI,
+        canvasTexture: scratchCanvas,
+        showNormals: true,
+        flipNormals: false,
+        colorMix: 0,
+        scaleX: 16/9,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        console.log('canvasGeometry', geometry)
+        await canvasShader.ConnectGeometry(geometry)
+      })
+      
       
       var geoOptions = {
         shapeType: 'icosahedron',
@@ -86,17 +127,36 @@
       })
       
       window.Draw = () => {
-        
+        var t = renderer.t
+        //renderer.yaw   += .002
         shapes.forEach(shape => {
           switch(shape.name){
             case 'background':
             break
             case 'mouseCursor':
-              var mag = 1.318
-              shape.size = (1+renderer.z) / 25
-              shape.x = (renderer.mouseX - renderer.width/2) / renderer.width * renderer.z * mag
-              shape.y = -(renderer.mouseY - renderer.height/2) / renderer.height * renderer.z * mag / (renderer.width/renderer.height)
-              shape.z = -renderer.z + .1
+              var tz = renderer.z/1e3*renderer.fov
+              var mag = (1/renderer.fov)*383, p, d
+              shape.size = .01
+              var X = (renderer.mouseX - renderer.width/2) / renderer.width * mag
+              var Y = -(renderer.mouseY - renderer.height/2) / renderer.height *
+              mag / (renderer.width/renderer.height)
+              var Z = -tz+.1
+              p = Math.atan2(X, Y) - renderer.roll
+              d = Math.hypot(X, Y)
+              X = S(p) * d
+              Y = C(p) * d
+              p = Math.atan2(Y, Z) - renderer.pitch
+              d = Math.hypot(Y, Z)
+              Y = S(p) * d
+              Z = C(p) * d
+              p = Math.atan2(X, Z) - renderer.yaw
+              d = Math.hypot(X, Z)
+              X = S(p) * d
+              Z = C(p) * d
+              shape.x = X
+              shape.y = Y
+              shape.z = Z
+             
             default:
             break
           }
