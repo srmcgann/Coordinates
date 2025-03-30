@@ -229,14 +229,28 @@ const Renderer = async options => {
             // update uniforms
             
             ctx.activeTexture(ctx.TEXTURE0)
-            if(geometry.textureMode == 'video' ||
-               geometry.textureMode == 'canvas'){
-              switch(geometry.textureMode){
-                case 'video':  dset.resource; break
-                case 'canvas': dset.canvasTexture; break
-              }
-              BindImage(ctx, res,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
+            switch(geometry.textureMode){
+              case 'video':
+                BindImage(ctx, dset.resource,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
+              break
+              case 'canvas':
+                ctx.activeTexture(ctx.TEXTURE2)
+                BindImage(ctx, geometry.canvasTexture,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
+                ctx.activeTexture(ctx.TEXTURE0)
+              break
+              default:
+              break
             }
+            
+            /*if(typeof geometry.canvasTexture != 'undefined'){
+              ctx.activeTexture(ctx.TEXTURE2)
+              BindImage(ctx, geometry.canvasTexture, dset.supplementalTexture, 'canvas', renderer.t, geometry.map)
+              ctx.bindTexture(ctx.TEXTURE_2D, dset.supplementalTexture)
+              ctx.uniform1i(dset.locSupplementalTexture, dset.supplementalTexture)
+              ctx.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
+              ctx.activeTexture(ctx.TEXTURE0)
+            }
+            */
 
             ctx.uniform1i(dset.locTexture, dset.texture)
             ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
@@ -637,7 +651,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var normalVec_buffer, NormalVec_Index_Buffer
   var uv_buffer, UV_Index_Buffer, name, shapeType
   var vIndices, nIndices, nVecIndices, uvIndices
-  var canvasTexture
+  var canvasTexture, canvasTextureMix
   const gl = renderer.gl
   var shape, exportShape = false
   
@@ -662,6 +676,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var flipNormals            = false
   var showNormals            = false
   var map                    = ''
+  var canvasTextureMix       = -1
   var muted                  = true
   var isSprite               = 0.0
   var isCrosshair            = 0.0
@@ -680,16 +695,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var texCoords              = new Float32Array()  // for dynamic shape
   
   var geometry = {}
-  
-  var tempCanvas
-  if(typeof geoOptions.canvasTexture != 'undefined'){
-    tempCanvas = geoOptions.canvasTexture
-    delete geoOptions.canvasTexture
-  }
-  geoOptions = structuredClone(geoOptions)
-  if(typeof temp != 'undefined'){
-    geoOptions.canvasTexture = tempCanvas
-  }
   
   
   // must precede
@@ -745,6 +750,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'rows'             : rows = geoOptions[key]; break
       case 'disabledepthtest' : disableDepthTest = geoOptions[key]; break
       case 'cols'             : cols = geoOptions[key]; break
+      case 'canvastexturemix' : canvasTextureMix = geoOptions[key]; break
       case 'canvastexture'    :
         canvasTexture = geoOptions[key]
         textureMode = 'canvas'
@@ -773,6 +779,21 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
     }
   })
+  
+  var tempCanvas
+  if(typeof geoOptions.canvasTexture != 'undefined'){
+    if(canvasTextureMix == -1) canvasTextureMix = map ? .5 : 1
+    tempCanvas = geoOptions.canvasTexture
+    delete geoOptions.canvasTexture
+  }else{
+    canvasTextureMix = 0
+  }
+  geoOptions = structuredClone(geoOptions)
+  if(typeof temp != 'undefined'){
+    geoOptions.canvasTexture = tempCanvas
+  }
+  
+  
   if(sphereize) averageNormals = true
 
   var vertices    = new Float32Array()
@@ -844,7 +865,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
           normals    = data.normals
           normalVecs = data.normalVecs
           uvs        = data.uvs
-          console.log('found custom shape found in cache. using it')
           resolved = true
         }
         if(!resolved){
@@ -1343,7 +1363,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     textureMode, isSprite, isCrosshair, isLight, playbackSpeed,
     disableDepthTest, lum, alpha, involveCache,
     renderer, isParticle, penumbra, wireframe,
-    canvasTexture
+    canvasTexture, canvasTextureMix
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -1484,34 +1504,26 @@ const VideoToImage = video => {
       tgtHeight = tsize / 1
     }
 
-    if(1||scratchCanvas.width != tgtWidth ||
+    if(scratchCanvas.width != tgtWidth ||
          scratchCanvas.width != tgtHeight){
-      scratchCanvas.width  = tgtWidth //video.videoWidth
-      scratchCanvas.height = tgtHeight //video.videoHeight
+      scratchCanvas.width  = tgtWidth
+      scratchCanvas.height = tgtHeight
     }
-    sctx.drawImage(video, 0, 0, scratchCanvas.width, scratchCanvas.height)
-    return scratchCanvas //.toDataURL('image/jpeg', .5)
+    sctx.drawImage(video, 0, 0, tgtWidth, tgtHeight)
   }else{
     scratchCanvas.width  = 1
     scratchCanvas.height = 1
-    return scratchCanvas //.toDataURL('image/jpeg', .5)
   }
+  return scratchCanvas
 }
 
  
  
-const BindImage = (gl, resource, binding, textureMode='image', tval=-1,url='', involveCache = true) => {
+const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', involveCache = true) => {
   let texImage
   switch(textureMode){
     case 'canvas':
       texImage = resource
-      if(tval == -1){
-        cache.texImages.push({
-          url,
-          tval,
-          texImage
-        })
-      }
     break
     case 'video':
       if(involveCache && (cacheItem=cache.texImages.filter(v=>v.url==url && tval != -1 && v.tVal == tval)).length){
@@ -1546,7 +1558,7 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1,url='', i
     default:
     break
   }
-  //gl.activeTexture(gl.TEXTURE0)
+  gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, binding)
   if(texImage.width && texImage.height){
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage)
@@ -1998,16 +2010,16 @@ const BasicShader = async (renderer, options=[]) => {
       
       ${uVertCode}
       
-      float camz = cpz / 1e3 * pow(5.0, (log(fov) / 1.609438));
+      float camz = cpz / 1e3 * pow(5.0, log(fov) / 1.609438);
       
       float Z = pos.z + camz + geo.z;
       if(Z > 0.0) {
         if(isParticle != 0.0 && penumbraPass != 0.0) Z += .001;
-        float X = ((pos.x + cpx + geo.x) / Z * fov / resolution.x);
-        float Y = ((pos.y + cpy + geo.y) / Z * fov / resolution.y);
+        float X = (pos.x + cpx + geo.x) / Z / resolution.x * fov;
+        float Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
         
         gl_PointSize = 100.0 * pointSize / Z;
-        gl_Position = vec4(X, Y, Z/100000.0, 1.0);
+        gl_Position = vec4(X, Y, Z/10000.0, 1.0);
         skip = 0.0;
         vUv = uv;
       }else{
@@ -2037,6 +2049,8 @@ const BasicShader = async (renderer, options=[]) => {
     //uniform float penumbraPass;
     uniform vec3 color;
     uniform sampler2D baseTexture;
+    uniform sampler2D supplementalTexture;
+    uniform float supplementalTextureMix;
     uniform float alpha;
     uniform vec3 camPos;
     uniform vec3 camOri;
@@ -2124,7 +2138,9 @@ const BasicShader = async (renderer, options=[]) => {
             gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
           }else{
             ${uFragCode}
-            vec4 texel = texture2D( baseTexture, Coords(0.0));
+            vec2 coords = Coords(0.0);
+            vec4 texel = texture2D( baseTexture, coords);
+            texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
             if(isSprite != 0.0 || isLight != 0.0 || isCrosshair != 0.0){
               gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
             }else{
@@ -2330,6 +2346,9 @@ const BasicShader = async (renderer, options=[]) => {
         dset.locCameraMode = gl.getUniformLocation(dset.program, "cameraMode")
         gl.uniform1f(dset.locCameraMode, renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
 
+        dset.locSupplementalTextureMix = gl.getUniformLocation(dset.program, "supplementalTextureMix")
+        gl.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
+
         dset.locIsLight = gl.getUniformLocation(dset.program, "isLight")
         gl.uniform1f(dset.locIsLight, geometry.isLight ? 1.0 : 0.0)
 
@@ -2364,6 +2383,11 @@ const BasicShader = async (renderer, options=[]) => {
         dset.texture = gl.createTexture()
         gl.bindTexture(gl.TEXTURE_2D, dset.texture)
         dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
+        
+        dset.supplementalTexture = gl.createTexture()
+        gl.bindTexture(gl.TEXTURE_2D, dset.supplementalTexture)
+        dset.locSupplementalTexture= gl.getUniformLocation(dset.program, "supplementalTexture")
+        
         //let image
         if(textureURL){
           dset.iURL = textureURL
@@ -3727,7 +3751,7 @@ const IsPowerOf2 = (v, d=0) => {
   return IsPowerOf2(v/2, d+1)
 }
 
-const LineFaceIntersect = (X1, Y1, Z1, X2, Y2, Z2, facet, autoFlipNormals=false) => {
+const PointInPoly3D = (X1, Y1, Z1, X2, Y2, Z2, facet, autoFlipNormals=false) => {
   let X_, Y_, Z_, d, m, l_,K,J,L,p
   let I_=(A,B,M,D,E,F,G,H)=>(K=((G-E)*(B-F)-(H-F)*(A-E))/(J=(H-F)*(M-A)-(G-E)*(D-B)))>=0&&K<=1&&(L=((M-A)*(B-F)-(D-B)*(A-E))/J)>=0&&L<=1?[A+K*(M-A),B+K*(D-B)]:0
   let Q_= () => [c.width/2+X_/Z_*700, c.height/2+Y_/Z_*700]
@@ -3844,6 +3868,40 @@ const Reflect = (a, n) => {
   let ry = -a[1] - 2 * n[1] * dot
   let rz = -a[2] - 2 * n[2] * dot
   return [-rx*d1, -ry*d1, -rz*d1]
+}
+
+const PointInPoly2D = (X, Y, poly) => {
+  var ax = 0, ay = 0, ct = 0
+  var X1, Y1, X2, Y2, X3, Y3, X4, Y4
+  poly.map(v => {
+    ax += v[0]
+    ay += v[1]
+    ct ++
+  })
+  ax /= ct
+  ay /= ct
+  
+  X1 = X //ax
+  Y1 = Y //ay
+  X2 = 1E6
+  Y2 = 1E6
+  ct = 0
+  var l
+  poly.map((v, i) => {
+    l = i
+    X3 = poly[l][0]
+    Y3 = poly[l][1]
+    l = (i+1) % poly.length
+    X4 = poly[l][0]
+    Y4 = poly[l][1]
+    if(Intersects(X1,Y1,X2,Y2,X3,Y3,X4,Y4)) ct++
+  })
+  return ct == 1
+}
+
+const Intersects = (A,B,M,D,E,F,G,H)=>{
+  var K, J, L
+  return (K=((G-E)*(B-F)-(H-F)*(A-E))/(J=(H-F)*(M-A)-(G-E)*(D-B)))>=0&&K<=1&&(L=((M-A)*(B-F)-(D-B)*(A-E))/J)>=0&&L<=1?[A+K*(M-A),B+K*(D-B)]:false
 }
 
 const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
@@ -4147,7 +4205,9 @@ export {
   Rectangle,
   Q, R,
   SyncNormals,
-  LineFaceIntersect,
+  Intersects,
+  PointInPoly2D,
+  PointInPoly3D,
   Reflect,
   Normal,
   ImageToPo2,

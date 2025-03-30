@@ -28,7 +28,7 @@
       
       var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2.jpg'
       
-      renderer.z = 7
+      renderer.z = 16
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
@@ -49,11 +49,6 @@
         { uniform: {
           type: 'phong',
           value: 0
-        } },
-        { uniform: {
-          type: 'reflection',
-          map: refTexture,
-          value: 1
         } }
       ]
       var canvasShader = await Coordinates.BasicShader(renderer, shaderOptions)
@@ -79,32 +74,42 @@
       scratchCanvas.width = 960
       scratchCanvas.height = 540
       var sctx = scratchCanvas.getContext('2d')
-      sctx.fillStyle = '#f00'
-      sctx.fillRect(0,0,scratchCanvas.width,scratchCanvas.height)
+      var mouseInCanvas = false
       
+      var size = 2.605
+      var tx = size/1.5/2 * (16/9)
+      var ty = size/1.5/2
+      var target = [
+        [-tx, -ty, 0],
+        [tx, -ty, 0],
+        [tx, ty, 0],
+        [-tx, ty, 0],
+      ]
       
       var geoOptions = {
         shapeType: 'rectangle',
         name: 'canvasGeometry',
-        size: 2.605,
-        subs: 4,
-        yaw: Math.PI,
+        //map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
         canvasTexture: scratchCanvas,
-        showNormals: true,
+        canvasTextureMix: 1,
+        size,
+        subs: 3,
+        yaw: Math.PI,
+        showNormals: false,
         flipNormals: false,
         colorMix: 0,
         scaleX: 16/9,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        console.log('canvasGeometry', geometry)
         await canvasShader.ConnectGeometry(geometry)
       })
       
+
       
       var geoOptions = {
         shapeType: 'icosahedron',
-        size: 2e3,
+        size: 1e4,
         subs: 3,
         colorMix: 0,
         map: refTexture,
@@ -126,16 +131,80 @@
         shapes.push(geometry)
       })
       
+      var contactPoint
+      var geoOptions = {
+        shapeType: 'particles',
+        name: 'contact',
+        geometryData: [[0,0,0]],
+        color: 0x00ff44,
+        size: 5,
+        colorMix: 1,
+        alpha: .8,
+        penumbra: .5,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        contactPoint = geometry
+      })
+      
+      var getShaderCoord = (vx, vy, vz) => {
+      
+        var cpx = renderer.x
+        var cpy = renderer.y
+        var cpz = renderer.z
+        var fov = renderer.fov
+        var camz = cpz / 1e3 * Math.pow(5.0, Math.log(fov) / 1.609438)
+        var Z = vz + camz
+        var X = renderer.width / 2 + (vx + cpx) / Z * fov * 2.7
+        var Y = renderer.height / 2 + (vy + cpy) / Z * fov * 2.7
+        return [X, Y, Z]
+        /*
+        float camz = cpz / 1e3 * pow(5.0, (log(fov) / 1.609438));
+        float Z = pos.z + camz + geo.z;
+        float X = ((pos.x + cpx + geo.x) / Z / resolution.x * fov);
+        float Y = ((pos.y + cpy + geo.y) / Z / resolution.y * fov);
+        */
+      }
+      
+      var p, d, px, py, pz
       window.Draw = () => {
         var t = renderer.t
-        //renderer.yaw   += .002
+        
+        var sd = 3
+        var cx = scratchCanvas.width / 2
+        var cy = scratchCanvas.height / 2
+        var cz = 0
+        var ls = cy / 1.1
+        sctx.fillStyle = mouseInCanvas ? '#042' : '#400'
+        sctx.fillRect(0,0,scratchCanvas.width,scratchCanvas.height)
+        sctx.beginPath()
+        sctx.lineJoin = sctx.lineCap = 'round'
+        for(var i=3; i--;){
+          var X = cx + S(p=Math.PI*2/sd*i+t) * ls
+          var Y = cy + C(p) * ls
+          var Z = cz
+          sctx.lineTo(X, Y)
+        }
+        sctx.closePath()
+        sctx.lineWidth = 50
+        sctx.strokeStyle = '#fff2'
+        sctx.stroke()
+        sctx.lineWidth = 20
+        sctx.strokeStyle = '#fff'
+        sctx.stroke()
+        sctx.strokeStyle = '#fff1'
+        sctx.fill()
+        
+        
+        
+        //renderer.yaw   += .001
+        //renderer.pitch  += .002
         shapes.forEach(shape => {
           switch(shape.name){
             case 'background':
             break
             case 'mouseCursor':
               var tz = renderer.z/1e3*renderer.fov
-              var mag = (1/renderer.fov)*383, p, d
+              var mag = (1/renderer.fov)*383
               shape.size = .01
               var X = (renderer.mouseX - renderer.width/2) / renderer.width * mag
               var Y = -(renderer.mouseY - renderer.height/2) / renderer.height *
@@ -156,12 +225,126 @@
               shape.x = X
               shape.y = Y
               shape.z = Z
-             
+              
+              var a = []
+              target.map(v=>{
+                X = v[0]
+                Y = v[1]
+                Z = v[2]
+                p = Math.atan2(X,Z) + renderer.yaw
+                d = Math.hypot(X,Z)
+                X = S(p)*d
+                Z = C(p)*d
+                p = Math.atan2(Y,Z) + renderer.pitch
+                d = Math.hypot(Y,Z)
+                Y = S(p)*d
+                Z = C(p)*d
+                p = Math.atan2(X,Y) + renderer.roll
+                d = Math.hypot(X,Y)
+                X = S(p)*d
+                Y = C(p)*d
+                a = [...a, getShaderCoord(-X,-Y,Z*5)]
+              })
+              mouseInCanvas = Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, a)
+              
+              /*
+              var SX = shape.x
+              var SY = shape.y
+              var SZ = shape.z
+              p = Math.atan2(SX, SZ) + renderer.yaw
+              d = Math.hypot(SX, SZ)
+              SX = S(p) * d
+              SZ = C(p) * d
+              p = Math.atan2(SY, SZ) + renderer.pitch
+              d = Math.hypot(SY, SZ)
+              SY = S(p) * d
+              SZ = C(p) * d
+              p = Math.atan2(SX, SY) + renderer.roll
+              d = Math.hypot(SX, SY)
+              SX = S(p) * d
+              SY = C(p) * d
+
+              // begin canvas stuff
+              var X1 = renderer.x
+              var Y1 = renderer.y
+              var Z1 = renderer.z
+              d = 500
+              var X2 = X1 + (SX - X1) * tz * 4e3
+              var Y2 = Y1 + (SY - Y1) * tz * 4e3
+              var Z2 = Z1 + (SZ - Z1) * d*2
+              var l
+              var a = []
+              target.map(v=>{
+                X = v[0]
+                Y = v[1]
+                Z = v[2]
+                
+                p = Math.atan2(X, Y) - renderer.roll
+                d = Math.hypot(X, Y)
+                X = S(p) * d
+                Y = C(p) * d
+                p = Math.atan2(Y, Z) - renderer.pitch
+                d = Math.hypot(Y, Z)
+                Y = S(p) * d
+                Z = C(p) * d
+                p = Math.atan2(X, Z) - renderer.yaw
+                d = Math.hypot(X, Z)
+                X = S(p) * d
+                Z = C(p) * d
+                
+                a = [...a, [X,Y,Z]]
+              })
+              if(l = Coordinates.LineFaceIntersect(X1, Y1, Z1, X2, Y2, Z2, a)){
+                X = l[0][0] * 5.2
+                Y = l[0][1] * 5.2
+                Z = l[0][2] * 5.2 + .01
+                p = Math.atan2(X, Z) + renderer.yaw
+                d = Math.hypot(X, Z)
+                X = S(p) * d
+                Z = C(p) * d
+                p = Math.atan2(Y, Z) + renderer.pitch
+                d = Math.hypot(Y, Z)
+                Y = S(p) * d
+                Z = C(p) * d
+                p = Math.atan2(X, Y) + renderer.roll
+                d = Math.hypot(X, Y)
+                X = S(p) * d
+                Y = C(p) * d
+
+                contactPoint.x = X
+                contactPoint.y = Y
+                contactPoint.z = Z
+                renderer.Draw(contactPoint)
+                X = l[0][0] * 5.2
+                Y = l[0][1] * 5.2
+                Z = l[0][2] * 5.2 - .01
+                p = Math.atan2(X, Z) + renderer.yaw
+                d = Math.hypot(X, Z)
+                X = S(p) * d
+                Z = C(p) * d
+                p = Math.atan2(Y, Z) + renderer.pitch
+                d = Math.hypot(Y, Z)
+                Y = S(p) * d
+                Z = C(p) * d
+                p = Math.atan2(X, Y) + renderer.roll
+                d = Math.hypot(X, Y)
+                X = S(p) * d
+                Y = C(p) * d
+
+                contactPoint.x = X
+                contactPoint.y = Y
+                contactPoint.z = Z
+                renderer.Draw(contactPoint)
+              }
+              */
+              
             default:
             break
           }
-          //shape.yaw += .01
+          //shape.yaw += .005
           //shape.pitch += .005
+          
+          //if(shape.name != 'canvasGeometry') renderer.Draw(shape)
           renderer.Draw(shape)
         })
       }
