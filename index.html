@@ -12,7 +12,7 @@
   </head>
   <body>
     <script type="module">
-    
+
       import * as Coordinates from
       "./coordinates.js"
       
@@ -25,6 +25,15 @@
         fov: 1400
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      rendererOptions = {
+        ambientLight: .2,
+        fov: 1400,
+        context: {
+          mode: '2d'
+        }
+      }
+      var overlay = await Coordinates.Renderer(rendererOptions)
       
       var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2.jpg'
       
@@ -165,9 +174,104 @@
         */
       }
       
-      var p, d, px, py, pz
+      var p, d, px, py, pz, X, Y, Z
+      var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, X4, Y4, Z4
       window.Draw = () => {
         var t = renderer.t
+        
+        overlay.ctx.clearRect(0,0,overlay.c.width,overlay.c.height)
+        overlay.c.style.background = '#0000'
+        
+        var a = []
+        target.map(v=>{
+          X = v[0]
+          Y = v[1]
+          Z = v[2]
+          p = Math.atan2(X,Z) + renderer.yaw
+          d = Math.hypot(X,Z)
+          X = S(p)*d
+          Z = C(p)*d
+          p = Math.atan2(Y,Z) - renderer.pitch
+          d = Math.hypot(Y,Z)
+          Y = S(p)*d
+          Z = C(p)*d
+          p = Math.atan2(X,Y) - renderer.roll
+          d = Math.hypot(X,Y)
+          X = S(p)*d
+          Y = C(p)*d
+          a = [...a, getShaderCoord(X,Y,Z)]
+        })
+        //mouseInCanvas = Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, a)
+        overlay.ctx.beginPath()
+        a.map(v=>{
+          overlay.ctx.lineTo(...v)
+        })
+        overlay.ctx.closePath()
+        overlay.ctx.lineWidth = 10
+        overlay.ctx.strokeStyle = '#0ff4'
+        overlay.ctx.stroke()
+        overlay.ctx.lineWidth /= 4
+        overlay.ctx.strokeStyle = '#0ff'
+        overlay.ctx.stroke()
+        
+        if(mouseInCanvas){
+          X1 = renderer.width/2
+          Y1 = renderer.height/2
+          Z1 = -1e5
+          X2 = renderer.mouseX
+          Y2 = renderer.mouseY
+          Z2 = 1e5
+          var ip
+          if(ip = Coordinates.PointInPoly3D(X1,Y1,Z1,X2,Y2,Z2,a)){
+            
+            X = ip[0][0] - renderer.width/2
+            Y = ip[0][1] - renderer.height/2
+            Z = 0
+            X /= renderer.width
+            Y /= renderer.height
+            var size = 2170 / (8 / renderer.z)
+            X *= size * (16/9)
+            Y *= size
+            p = Math.atan2(X,Y) + renderer.roll
+            d = Math.hypot(X,Y)
+            X = S(p)*d
+            Y = C(p)*d
+            p = Math.atan2(Y,Z) + renderer.pitch
+            d = Math.hypot(Y,Z)
+            Y = S(p)*d
+            Z = C(p)*d
+            p = Math.atan2(X,Z) - renderer.yaw
+            d = Math.hypot(X,Z)
+            X = S(p)*d
+            Z = C(p)*d
+            X += renderer.width/2
+            Y += renderer.height/2
+            //var l = getShaderCoord(X,Y,Z*5)
+            var l = [X, Y]
+            overlay.ctx.fillStyle = '#ff04'
+            var s = 25
+            overlay.ctx.fillRect(l[0]-s/2, l[1]-s/2, s, s)
+            s /= 5
+            overlay.ctx.fillStyle = '#ff0'
+            overlay.ctx.fillRect(l[0]-s/2, l[1]-s/2, s, s)
+
+            
+            overlay.ctx.beginPath()
+            target.map(v=>{
+              X = v[0] * 335
+              Y = v[1] * 335
+              overlay.ctx.lineTo(X+overlay.c.width/2, Y+overlay.height/2)
+            })
+            overlay.ctx.closePath()
+            overlay.ctx.lineWidth = 10
+            overlay.ctx.strokeStyle = '#40f4'
+            overlay.ctx.stroke()
+            overlay.ctx.lineWidth /= 4
+            overlay.ctx.strokeStyle = '#40f'
+            overlay.ctx.stroke()
+            
+          }
+        }
         
         var sd = 3
         var cx = scratchCanvas.width / 2
@@ -194,8 +298,7 @@
         sctx.strokeStyle = '#fff1'
         sctx.fill()
         
-        
-        
+        //renderer.roll   += .005
         //renderer.yaw   += .001
         //renderer.pitch  += .002
         shapes.forEach(shape => {
@@ -206,10 +309,10 @@
               var tz = renderer.z/1e3*renderer.fov
               var mag = (1/renderer.fov)*383
               shape.size = .01
-              var X = (renderer.mouseX - renderer.width/2) / renderer.width * mag
-              var Y = -(renderer.mouseY - renderer.height/2) / renderer.height *
+              X = (renderer.mouseX - renderer.width/2) / renderer.width * mag
+              Y = -(renderer.mouseY - renderer.height/2) / renderer.height *
               mag / (renderer.width/renderer.height)
-              var Z = -tz+.1
+              Z = -tz+.1
               p = Math.atan2(X, Y) - renderer.roll
               d = Math.hypot(X, Y)
               X = S(p) * d
@@ -235,15 +338,15 @@
                 d = Math.hypot(X,Z)
                 X = S(p)*d
                 Z = C(p)*d
-                p = Math.atan2(Y,Z) + renderer.pitch
+                p = Math.atan2(Y,Z) - renderer.pitch
                 d = Math.hypot(Y,Z)
                 Y = S(p)*d
                 Z = C(p)*d
-                p = Math.atan2(X,Y) + renderer.roll
+                p = Math.atan2(X,Y) - renderer.roll
                 d = Math.hypot(X,Y)
                 X = S(p)*d
                 Y = C(p)*d
-                a = [...a, getShaderCoord(-X,-Y,Z*5)]
+                a = [...a, getShaderCoord(X,Y,Z*5)]
               })
               mouseInCanvas = Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, a)
               
@@ -265,13 +368,13 @@
               SY = C(p) * d
 
               // begin canvas stuff
-              var X1 = renderer.x
-              var Y1 = renderer.y
-              var Z1 = renderer.z
+              X1 = renderer.x
+              Y1 = renderer.y
+              Z1 = renderer.z
               d = 500
-              var X2 = X1 + (SX - X1) * tz * 4e3
-              var Y2 = Y1 + (SY - Y1) * tz * 4e3
-              var Z2 = Z1 + (SZ - Z1) * d*2
+              X2 = X1 + (SX - X1) * tz * 4e3
+              Y2 = Y1 + (SY - Y1) * tz * 4e3
+              Z2 = Z1 + (SZ - Z1) * d*2
               var l
               var a = []
               target.map(v=>{

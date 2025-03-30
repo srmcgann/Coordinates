@@ -83,12 +83,12 @@ const Renderer = async options => {
   const ctx  = c.getContext(context.mode, context.options)
   c.width  = width
   c.height = height
-  const contextType = context[0]
+  const contextType = context.mode
 
-  console.log(`GLSL version: ${ctx.getParameter(ctx.SHADING_LANGUAGE_VERSION)}`)
+  if(context.mode != '2d') console.log(`GLSL version: ${ctx.getParameter(ctx.SHADING_LANGUAGE_VERSION)}`)
   if(exportGPUSpecs) getParams(ctx)
   
-  switch(contextType){
+  switch(context.mode){
     case '2d':
     break
     default:
@@ -1848,646 +1848,647 @@ const BasicShader = async (renderer, options=[]) => {
   }
   
   
-  gl.enable(gl.DEPTH_TEST)
-  //gl.clear(gl.COLOR_BUFFER_BIT)
-  //gl.disable(gl.CULL_FACE)
-  gl.cullFace(gl.BACK)
-  if(renderer.alpha) {
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
-    gl.enable(gl.BLEND)
-    gl.disable(gl.DEPTH_TEST)
-  }else{
-    //gl.cullFace(gl.BACK)
-  }
+  if(renderer.contextType != '2d') {
+    gl.enable(gl.DEPTH_TEST)
+    //gl.clear(gl.COLOR_BUFFER_BIT)
+    //gl.disable(gl.CULL_FACE)
+    gl.cullFace(gl.BACK)
+    if(renderer.alpha) {
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
+      gl.enable(gl.BLEND)
+      gl.disable(gl.DEPTH_TEST)
+    }else{
+      //gl.cullFace(gl.BACK)
+    }
   
-  let uVertDeclaration = ''
-  dataset.optionalUniforms.map(v=>{ uVertDeclaration += ("\n" + v.vertDeclaration + "\n") })
-  let uVertCode= ''
-  dataset.optionalUniforms.map(v=>{ uVertCode += ("\n" + v.vertCode + "\n") })
+    let uVertDeclaration = ''
+    dataset.optionalUniforms.map(v=>{ uVertDeclaration += ("\n" + v.vertDeclaration + "\n") })
+    let uVertCode= ''
+    dataset.optionalUniforms.map(v=>{ uVertCode += ("\n" + v.vertCode + "\n") })
 
-  let uFragDeclaration = ''
-  dataset.optionalUniforms.map(v=>{ uFragDeclaration += ("\n" + v.fragDeclaration + "\n") })
-  let uFragCode= ''
-  dataset.optionalUniforms.map(v=>{ uFragCode += ("\n" + v.fragCode + "\n") })
+    let uFragDeclaration = ''
+    dataset.optionalUniforms.map(v=>{ uFragDeclaration += ("\n" + v.fragDeclaration + "\n") })
+    let uFragCode= ''
+    dataset.optionalUniforms.map(v=>{ uFragCode += ("\n" + v.fragCode + "\n") })
 
-  ret.vert = `
-    precision highp float;
-    #define M_PI 3.14159265358979323
-    attribute vec2 uv;
-    ${uVertDeclaration}
-    
-    uniform float t;
-    uniform vec3 color;
-    uniform float ambientLight;
-    uniform vec3 camPos;
-    uniform vec3 camOri;
-    uniform vec3 geoPos;
-    uniform vec3 geoOri;
-    uniform float pointSize;
-    uniform float isSprite;
-    uniform float isCrosshair;
-    uniform float isLight;
-    uniform float cameraMode;
-    uniform float isParticle;
-    uniform float penumbraPass;
-    //uniform vec4 pointLightPos[16];
-    uniform float fov;
-    uniform float equirectangular;
-    uniform float renderNormals;
-    uniform vec2 resolution;
-    attribute vec3 position;
-    attribute vec3 normal;
-    attribute vec3 normalVec;
-    varying vec2 vUv;
-    varying vec2 uvi;
-    varying vec3 nVec;
-    varying vec3 nVeci;
-    varying vec3 fPos;
-    varying vec3 fPosi;
-    varying vec3 vnorm;
-    varying float skip;
-    varying float hasPhong;
-    
-    
-    vec3 R(vec3 pos, vec3 rot){
-      float p, d;
-      pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
-      pos.z = cos(p)*d;
-      pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
-      pos.z = cos(p)*d;
-      pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
-      pos.y = cos(p)*d;
-      return pos;
-    }
-    
-    void main(){
+    ret.vert = `
+      precision highp float;
+      #define M_PI 3.14159265358979323
+      attribute vec2 uv;
+      ${uVertDeclaration}
       
-      hasPhong = 0.0;
+      uniform float t;
+      uniform vec3 color;
+      uniform float ambientLight;
+      uniform vec3 camPos;
+      uniform vec3 camOri;
+      uniform vec3 geoPos;
+      uniform vec3 geoOri;
+      uniform float pointSize;
+      uniform float isSprite;
+      uniform float isCrosshair;
+      uniform float isLight;
+      uniform float cameraMode;
+      uniform float isParticle;
+      uniform float penumbraPass;
+      //uniform vec4 pointLightPos[16];
+      uniform float fov;
+      uniform float equirectangular;
+      uniform float renderNormals;
+      uniform vec2 resolution;
+      attribute vec3 position;
+      attribute vec3 normal;
+      attribute vec3 normalVec;
+      varying vec2 vUv;
+      varying vec2 uvi;
+      varying vec3 nVec;
+      varying vec3 nVeci;
+      varying vec3 fPos;
+      varying vec3 fPosi;
+      varying vec3 vnorm;
+      varying float skip;
+      varying float hasPhong;
       
-      float cx, cy, cz;
       
-      if(renderNormals == 1.0){
-        cx = normal.x;
-        cy = normal.y;
-        cz = normal.z;
-      }else{
-        cx = position.x;
-        cy = position.y;
-        cz = position.z;
+      vec3 R(vec3 pos, vec3 rot){
+        float p, d;
+        pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
+        pos.z = cos(p)*d;
+        pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
+        pos.z = cos(p)*d;
+        pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
+        pos.y = cos(p)*d;
+        return pos;
       }
       
-      uvi = uv / 2.0;
-      uvi = vec2(uvi.x, .5 - uvi.y);
-      
-      nVeci = normalVec;
-      
-      fPosi = position;
-      vnorm = normal;
-      
-      // camera rotation
-      
-      vec3 geo, pos;
-      float cpx = camPos.x;
-      float cpy = camPos.y;
-      float cpz = camPos.z;
-      
-      if(cameraMode != 0.0 && cameraMode == 1.0){  // 'FPS' mode
-        cx += cpx;
-        cy += cpy;
-        cz += cpz;
-        if(isCrosshair != 0.0){
-          
-          geo = R(geoPos, camOri);
-          pos = R(vec3(cx, cy, cz), geoOri);
-          pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-          nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-          nVec = R(nVec, geoOri);
-          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-          
-        } else if (isSprite != 0.0 || isLight != 0.0){
-          
-          geo = R(geoPos, camOri);
-          pos = R(vec3(cx, cy, cz), geoOri);
-          pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-          nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-          nVec = R(nVec, geoOri);
-          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-          
-        }else{
-          geo = R(geoPos, camOri);
-          pos = R(vec3(cx, cy, cz), geoOri);
-          pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-          nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-          nVec = R(nVec, geoOri);
-          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-        }
-        cpx = 0.0;
-        cpy = 0.0;
-        cpz = 0.0;
-        fPos = vec3(pos.x, pos.y, pos.z);
-      }else{
-        if(isSprite != 0.0 || isCrosshair != 0.0 || isLight != 0.0){
-          geo = R(geoPos, camOri);
-          pos = R(vec3(cx, cy, cz),
-                   vec3(0.0, -camOri.y + M_PI, 0.0));
-          pos = R(vec3(pos.x, pos.y, pos.z),
-                   vec3(-camOri.x, 0.0, -camOri.z ));
-          pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-          nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-          nVec = R(nVec, geoOri);
-          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-
-        }else{
-          geo = R(geoPos, camOri);
-          pos = R(vec3(cx, cy, cz), geoOri);
-          pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-          nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-          nVec = R(nVec, geoOri);
-          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-        }
-        fPos = vec3(pos.x, pos.y, pos.z);
-      }
-      
-      ${uVertCode}
-      
-      float camz = cpz / 1e3 * pow(5.0, log(fov) / 1.609438);
-      
-      float Z = pos.z + camz + geo.z;
-      if(Z > 0.0) {
-        if(isParticle != 0.0 && penumbraPass != 0.0) Z += .001;
-        float X = (pos.x + cpx + geo.x) / Z / resolution.x * fov;
-        float Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
+      void main(){
         
-        gl_PointSize = 100.0 * pointSize / Z;
-        gl_Position = vec4(X, Y, Z/10000.0, 1.0);
-        skip = 0.0;
-        vUv = uv;
-      }else{
-        skip = 1.0;
-      }
-    }
-  `
-  
-  ret.frag = `
-    precision highp float;
-    #define M_PI 3.14159265358979323
-    ${uFragDeclaration}
-    uniform float t;
-    uniform vec2 resolution;
-    uniform float flatShading;
-    uniform float isSprite;
-    uniform float isCrosshair;
-    uniform float isLight;
-    uniform float isParticle;
-    uniform vec4 pointLightPos[128];
-    uniform vec4 pointLightCol[128];
-    uniform int pointLightCount;
-    uniform float ambientLight;
-    uniform float renderNormals;
-    uniform float equirectangular;
-    uniform float colorMix;
-    //uniform float penumbraPass;
-    uniform vec3 color;
-    uniform sampler2D baseTexture;
-    uniform sampler2D supplementalTexture;
-    uniform float supplementalTextureMix;
-    uniform float alpha;
-    uniform vec3 camPos;
-    uniform vec3 camOri;
-    uniform vec3 geoPos;
-    uniform vec3 geoOri;
-    varying vec2 vUv;
-    varying vec2 uvi;
-    varying vec3 vnorm;
-    varying vec3 nVec;
-    varying vec3 nVeci;
-    varying vec3 fPos;
-    varying vec3 fPosi;
-    varying float skip;
-    varying float hasPhong;
-
-    vec4 merge (vec4 col1, vec4 col2){
-      return vec4((col1.rgb * col1.a) + (col2.rgb * col2.a), 1.0);
-    }
-    
-    vec2 Coords(float flatShading) {
-      if(equirectangular == 1.0){
-        float p;
-        float p2;
-        p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(fPosi.x, fPosi.z);
-        float p1;
-        p1 = p / M_PI / 2.0;
-        p2 = flatShading == 1.0 ?
-              acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVec.z*nVeci.z)+.00001)) / M_PI   :
-              p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.00001)) / M_PI;
-        return vec2(p1, p2);
-      }else{
-        return vUv;
-      }
-    }
-
-    vec3 R(vec3 pos, vec3 rot){
-      float p, d;
-      pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
-      pos.z = cos(p)*d;
-      pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
-      pos.z = cos(p)*d;
-      pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
-      pos.y = cos(p)*d;
-      return pos;
-    }
-    
-    vec4 GetPointLight(){
-      
-      float ret = 0.0;
-      vec4 rgba = vec4(0.0, 0.0, 0.0, 1.0);
-      for(int i=0; i < 16; i++){
-        if(i >= pointLightCount) break;
-        vec3 lpos = pointLightPos[i].xyz;
-        lpos.x -= geoPos.x + camPos.x;
-        lpos.y -= geoPos.y + camPos.y;
-        lpos.z -= geoPos.z + camPos.z;
-        lpos = R(lpos, vec3(camOri.x, 0.0, camOri.z ));
-        lpos = R(lpos, vec3(0.0, camOri.y, 0.0));
-
-        float mag = pointLightPos[i].w;
-        ret = mag / (1.0 + pow(1.0 + sqrt((lpos.x-fPos.x) * (lpos.x-fPos.x) +
-                     (lpos.y-fPos.y) * (lpos.y-fPos.y) +
-                     (lpos.z-fPos.z) * (lpos.z-fPos.z)), 2.0) / 3.0) * 40.0;
+        hasPhong = 0.0;
         
-        rgba.r += ret * pointLightCol[i].r;
-        rgba.g += ret * pointLightCol[i].g;
-        rgba.b += ret * pointLightCol[i].b;
-      }
-      
-      return pointLightCount > 0 ? vec4(rgba.rgb + ambientLight, 1.0) : vec4(ambientLight, ambientLight, ambientLight, 1.0);
-    }
-
-    void main() {
-      if(isParticle != 0.0){
-        gl_FragColor = merge(gl_FragColor, vec4(color.rgb, alpha));
-      }else{
-        float mixColorIp = colorMix;
-        float baseColorIp = 1.0 - mixColorIp;
-        vec4 mixColor = vec4(color.rgb, mixColorIp);
-        vec4 light = hasPhong == 1.0 ? GetPointLight() :
-              vec4(ambientLight, ambientLight, ambientLight, 1.0);
-        float colorMag = 1.0;
-        if(skip != 1.0){
-          if(renderNormals == 1.0){
-            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        float cx, cy, cz;
+        
+        if(renderNormals == 1.0){
+          cx = normal.x;
+          cy = normal.y;
+          cz = normal.z;
+        }else{
+          cx = position.x;
+          cy = position.y;
+          cz = position.z;
+        }
+        
+        uvi = uv / 2.0;
+        uvi = vec2(uvi.x, .5 - uvi.y);
+        
+        nVeci = normalVec;
+        
+        fPosi = position;
+        vnorm = normal;
+        
+        // camera rotation
+        
+        vec3 geo, pos;
+        float cpx = camPos.x;
+        float cpy = camPos.y;
+        float cpz = camPos.z;
+        
+        if(cameraMode != 0.0 && cameraMode == 1.0){  // 'FPS' mode
+          cx += cpx;
+          cy += cpy;
+          cz += cpz;
+          if(isCrosshair != 0.0){
+            
+            geo = R(geoPos, camOri);
+            pos = R(vec3(cx, cy, cz), geoOri);
+            pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+            nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+            nVec = R(nVec, geoOri);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            
+          } else if (isSprite != 0.0 || isLight != 0.0){
+            
+            geo = R(geoPos, camOri);
+            pos = R(vec3(cx, cy, cz), geoOri);
+            pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+            nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+            nVec = R(nVec, geoOri);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            
           }else{
-            ${uFragCode}
-            vec2 coords = Coords(0.0);
-            vec4 texel = texture2D( baseTexture, coords);
-            texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
-            if(isSprite != 0.0 || isLight != 0.0 || isCrosshair != 0.0){
-              gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
+            geo = R(geoPos, camOri);
+            pos = R(vec3(cx, cy, cz), geoOri);
+            pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+            nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+            nVec = R(nVec, geoOri);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+          }
+          cpx = 0.0;
+          cpy = 0.0;
+          cpz = 0.0;
+          fPos = vec3(pos.x, pos.y, pos.z);
+        }else{
+          if(isSprite != 0.0 || isCrosshair != 0.0 || isLight != 0.0){
+            geo = R(geoPos, camOri);
+            pos = R(vec3(cx, cy, cz),
+                     vec3(0.0, -camOri.y + M_PI, 0.0));
+            pos = R(vec3(pos.x, pos.y, pos.z),
+                     vec3(-camOri.x, 0.0, -camOri.z ));
+            pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+            nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+            nVec = R(nVec, geoOri);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+
+          }else{
+            geo = R(geoPos, camOri);
+            pos = R(vec3(cx, cy, cz), geoOri);
+            pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+            nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+            nVec = R(nVec, geoOri);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+          }
+          fPos = vec3(pos.x, pos.y, pos.z);
+        }
+        
+        ${uVertCode}
+        
+        float camz = cpz / 1e3 * pow(5.0, log(fov) / 1.609438);
+        
+        float Z = pos.z + camz + geo.z;
+        if(Z > 0.0) {
+          if(isParticle != 0.0 && penumbraPass != 0.0) Z += .001;
+          float X = (pos.x + cpx + geo.x) / Z / resolution.x * fov;
+          float Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
+          
+          gl_PointSize = 100.0 * pointSize / Z;
+          gl_Position = vec4(X, Y, Z/10000.0, 1.0);
+          skip = 0.0;
+          vUv = uv;
+        }else{
+          skip = 1.0;
+        }
+      }
+    `
+    
+    ret.frag = `
+      precision highp float;
+      #define M_PI 3.14159265358979323
+      ${uFragDeclaration}
+      uniform float t;
+      uniform vec2 resolution;
+      uniform float flatShading;
+      uniform float isSprite;
+      uniform float isCrosshair;
+      uniform float isLight;
+      uniform float isParticle;
+      uniform vec4 pointLightPos[128];
+      uniform vec4 pointLightCol[128];
+      uniform int pointLightCount;
+      uniform float ambientLight;
+      uniform float renderNormals;
+      uniform float equirectangular;
+      uniform float colorMix;
+      //uniform float penumbraPass;
+      uniform vec3 color;
+      uniform sampler2D baseTexture;
+      uniform sampler2D supplementalTexture;
+      uniform float supplementalTextureMix;
+      uniform float alpha;
+      uniform vec3 camPos;
+      uniform vec3 camOri;
+      uniform vec3 geoPos;
+      uniform vec3 geoOri;
+      varying vec2 vUv;
+      varying vec2 uvi;
+      varying vec3 vnorm;
+      varying vec3 nVec;
+      varying vec3 nVeci;
+      varying vec3 fPos;
+      varying vec3 fPosi;
+      varying float skip;
+      varying float hasPhong;
+
+      vec4 merge (vec4 col1, vec4 col2){
+        return vec4((col1.rgb * col1.a) + (col2.rgb * col2.a), 1.0);
+      }
+      
+      vec2 Coords(float flatShading) {
+        if(equirectangular == 1.0){
+          float p;
+          float p2;
+          p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(fPosi.x, fPosi.z);
+          float p1;
+          p1 = p / M_PI / 2.0;
+          p2 = flatShading == 1.0 ?
+                acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVec.z*nVeci.z)+.00001)) / M_PI   :
+                p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.00001)) / M_PI;
+          return vec2(p1, p2);
+        }else{
+          return vUv;
+        }
+      }
+
+      vec3 R(vec3 pos, vec3 rot){
+        float p, d;
+        pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
+        pos.z = cos(p)*d;
+        pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
+        pos.z = cos(p)*d;
+        pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
+        pos.y = cos(p)*d;
+        return pos;
+      }
+      
+      vec4 GetPointLight(){
+        
+        float ret = 0.0;
+        vec4 rgba = vec4(0.0, 0.0, 0.0, 1.0);
+        for(int i=0; i < 16; i++){
+          if(i >= pointLightCount) break;
+          vec3 lpos = pointLightPos[i].xyz;
+          lpos.x -= geoPos.x + camPos.x;
+          lpos.y -= geoPos.y + camPos.y;
+          lpos.z -= geoPos.z + camPos.z;
+          lpos = R(lpos, vec3(camOri.x, 0.0, camOri.z ));
+          lpos = R(lpos, vec3(0.0, camOri.y, 0.0));
+
+          float mag = pointLightPos[i].w;
+          ret = mag / (1.0 + pow(1.0 + sqrt((lpos.x-fPos.x) * (lpos.x-fPos.x) +
+                       (lpos.y-fPos.y) * (lpos.y-fPos.y) +
+                       (lpos.z-fPos.z) * (lpos.z-fPos.z)), 2.0) / 3.0) * 40.0;
+          
+          rgba.r += ret * pointLightCol[i].r;
+          rgba.g += ret * pointLightCol[i].g;
+          rgba.b += ret * pointLightCol[i].b;
+        }
+        
+        return pointLightCount > 0 ? vec4(rgba.rgb + ambientLight, 1.0) : vec4(ambientLight, ambientLight, ambientLight, 1.0);
+      }
+
+      void main() {
+        if(isParticle != 0.0){
+          gl_FragColor = merge(gl_FragColor, vec4(color.rgb, alpha));
+        }else{
+          float mixColorIp = colorMix;
+          float baseColorIp = 1.0 - mixColorIp;
+          vec4 mixColor = vec4(color.rgb, mixColorIp);
+          vec4 light = hasPhong == 1.0 ? GetPointLight() :
+                vec4(ambientLight, ambientLight, ambientLight, 1.0);
+          float colorMag = 1.0;
+          if(skip != 1.0){
+            if(renderNormals == 1.0){
+              gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
             }else{
-              texel.a = baseColorIp;
-              vec4 col = merge(mixColor, texel);
-              col.rgb *= light.rgb;
-              gl_FragColor = vec4(col.rgb * colorMag, 1.0);
+              ${uFragCode}
+              vec2 coords = Coords(0.0);
+              vec4 texel = texture2D( baseTexture, coords);
+              texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
+              if(isSprite != 0.0 || isLight != 0.0 || isCrosshair != 0.0){
+                gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
+              }else{
+                texel.a = baseColorIp;
+                vec4 col = merge(mixColor, texel);
+                col.rgb *= light.rgb;
+                gl_FragColor = vec4(col.rgb * colorMag, 1.0);
+              }
             }
           }
         }
       }
-    }
-  `
-  
-  
-  const vertexShader = gl.createShader(gl.VERTEX_SHADER)
-  gl.shaderSource(vertexShader, ret.vert)
-  gl.compileShader(vertexShader)
-
-  const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
-  gl.shaderSource(fragmentShader, ret.frag)
-  gl.compileShader(fragmentShader)
-
-  ret.ConnectGeometry = async (geometry, fromNullShader = false) => {
+    `
     
-    if(0&&(geometry.shapeType == 'point light' || geometry.shapeType == 'sprite') &&
-       typeof geometry?.shader != 'undefined') return
-       
-    var involveCache = geometry.involveCache
+    const vertexShader = gl.createShader(gl.VERTEX_SHADER)
+    gl.shaderSource(vertexShader, ret.vert)
+    gl.compileShader(vertexShader)
 
-    var dset = structuredClone(dataset)
-    ret.datasets = [...ret.datasets, dset]
-    
-    dset.program = gl.createProgram()
-    
-    gl.attachShader(dset.program, vertexShader)
-    gl.attachShader(dset.program, fragmentShader)
-    gl.linkProgram(dset.program)
+    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
+    gl.shaderSource(fragmentShader, ret.frag)
+    gl.compileShader(fragmentShader)
 
-    geometry.shader = ret
-    var textureURL = geometry.map
-    geometry.datasetIdx = ret.datasets.length - 1
+    ret.ConnectGeometry = async (geometry, fromNullShader = false) => {
+      
+      if(0&&(geometry.shapeType == 'point light' || geometry.shapeType == 'sprite') &&
+         typeof geometry?.shader != 'undefined') return
+         
+      var involveCache = geometry.involveCache
 
-    //gl.detachShader(dset.program, vertexShader)
-    //gl.detachShader(dset.program, fragmentShader)
-    //gl.deleteShader(vertexShader)
-    //gl.deleteShader(fragmentShader)
-    
-                              
-    if (gl.getProgramParameter(dset.program, gl.LINK_STATUS)) {
+      var dset = structuredClone(dataset)
+      ret.datasets = [...ret.datasets, dset]
+      
+      dset.program = gl.createProgram()
+      
+      gl.attachShader(dset.program, vertexShader)
+      gl.attachShader(dset.program, fragmentShader)
+      gl.linkProgram(dset.program)
+
+      geometry.shader = ret
+      var textureURL = geometry.map
+      geometry.datasetIdx = ret.datasets.length - 1
+
+      //gl.detachShader(dset.program, vertexShader)
+      //gl.detachShader(dset.program, fragmentShader)
+      //gl.deleteShader(vertexShader)
+      //gl.deleteShader(fragmentShader)
+      
+                                
+      if (gl.getProgramParameter(dset.program, gl.LINK_STATUS)) {
+          
+        gl.useProgram(dset.program)
         
-      gl.useProgram(dset.program)
-      
-      gl.bindBuffer(gl.ARRAY_BUFFER, geometry.vertex_buffer)
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-      dset.locPosition = gl.getAttribLocation(dset.program, "position")
-      gl.vertexAttribPointer(dset.locPosition, 3, gl.FLOAT, false, 0, 0)
-      gl.enableVertexAttribArray(dset.locPosition)
+        gl.bindBuffer(gl.ARRAY_BUFFER, geometry.vertex_buffer)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+        dset.locPosition = gl.getAttribLocation(dset.program, "position")
+        gl.vertexAttribPointer(dset.locPosition, 3, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(dset.locPosition)
 
-      gl.bindBuffer(gl.ARRAY_BUFFER, geometry.uv_buffer)
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
-      dset.locUv= gl.getAttribLocation(dset.program, "uv")
-      gl.vertexAttribPointer(dset.locUv , 2, gl.FLOAT, false, 0, 0)
-      gl.enableVertexAttribArray(dset.locUv)
+        gl.bindBuffer(gl.ARRAY_BUFFER, geometry.uv_buffer)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
+        dset.locUv= gl.getAttribLocation(dset.program, "uv")
+        gl.vertexAttribPointer(dset.locUv , 2, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(dset.locUv)
 
-      gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normal_buffer)
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
-      dset.locNormal = gl.getAttribLocation(dset.program, "normal")
-      gl.vertexAttribPointer(dset.locNormal, 3, gl.FLOAT, true, 0, 0)
-      gl.enableVertexAttribArray(dset.locNormal)
-      
-      gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normalVec_buffer)
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
-      dset.locNormalVec = gl.getAttribLocation(dset.program, "normalVec")
-      gl.vertexAttribPointer(dset.locNormalVec, 3, gl.FLOAT, true, 0, 0)
-      gl.enableVertexAttribArray(dset.locNormalVec)
-      if(!fromNullShader){
-        if(!geometry.isLight){
-          dset.optionalUniforms.map(async (uniform) => {
-            switch(uniform.name){
-              case 'reflection':
-                var url = uniform.map
-                if(url){
-                  let l
-                  let suffix = (l=url.split('.'))[l.length-1].toLowerCase()
-                  uniform.refTexture = gl.createTexture()
-                  switch(suffix){
-                    case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
-                      uniform.textureMode = 'video'
-                      if(involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
-                        console.log('found video in cache... using it')
-                        uniform.video = cacheItem[0].resource
-                        //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
-                        ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
-                        //gl.activeTexture(gl.TEXTURE1)
-                        //BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
-                      }else{
-                        uniform.video = document.createElement('video')
-                        uniform.video.muted = true
-                        uniform.video.playbackRate = uniform.playbackSpeed
-                        uniform.video.defaultPlaybackRate = uniform.playbackSpeed
-                        ret.datasets = [...ret.datasets, {
-                          texture: uniform.refTexture, iURL: url }]
-                        uniform.video.loop = true
-                        if(!uniform.muted && !audioConsent) {
-                          audioConsent = true
-                          GenericPopup('play audio OK?', true, ()=>{
-                            cache.textures.filter(v=>v.url == url)[0].resource.muted = false
-                            cache.textures.filter(v=>v.url == url)[0].resource.currentTime = 0
-                            //cache.textures.filter(v=>v.url == url)[0].resource.playbackRate = cache.textures.filter(v=>v.url == url)[0].resource.defaultPlaybackRate = uniform.playbackSpeed
-                            cache.textures.filter(v=>v.url == url)[0].resource.play()
+        gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normal_buffer)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
+        dset.locNormal = gl.getAttribLocation(dset.program, "normal")
+        gl.vertexAttribPointer(dset.locNormal, 3, gl.FLOAT, true, 0, 0)
+        gl.enableVertexAttribArray(dset.locNormal)
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normalVec_buffer)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
+        dset.locNormalVec = gl.getAttribLocation(dset.program, "normalVec")
+        gl.vertexAttribPointer(dset.locNormalVec, 3, gl.FLOAT, true, 0, 0)
+        gl.enableVertexAttribArray(dset.locNormalVec)
+        if(!fromNullShader){
+          if(!geometry.isLight){
+            dset.optionalUniforms.map(async (uniform) => {
+              switch(uniform.name){
+                case 'reflection':
+                  var url = uniform.map
+                  if(url){
+                    let l
+                    let suffix = (l=url.split('.'))[l.length-1].toLowerCase()
+                    uniform.refTexture = gl.createTexture()
+                    switch(suffix){
+                      case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
+                        uniform.textureMode = 'video'
+                        if(involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
+                          console.log('found video in cache... using it')
+                          uniform.video = cacheItem[0].resource
+                          //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                          ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                          //gl.activeTexture(gl.TEXTURE1)
+                          //BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
+                        }else{
+                          uniform.video = document.createElement('video')
+                          uniform.video.muted = true
+                          uniform.video.playbackRate = uniform.playbackSpeed
+                          uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                          ret.datasets = [...ret.datasets, {
+                            texture: uniform.refTexture, iURL: url }]
+                          uniform.video.loop = true
+                          if(!uniform.muted && !audioConsent) {
+                            audioConsent = true
+                            GenericPopup('play audio OK?', true, ()=>{
+                              cache.textures.filter(v=>v.url == url)[0].resource.muted = false
+                              cache.textures.filter(v=>v.url == url)[0].resource.currentTime = 0
+                              //cache.textures.filter(v=>v.url == url)[0].resource.playbackRate = cache.textures.filter(v=>v.url == url)[0].resource.defaultPlaybackRate = uniform.playbackSpeed
+                              cache.textures.filter(v=>v.url == url)[0].resource.play()
+                            })
+                          }
+                          uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                          uniform.video.oncanplay = async () => {
+                            uniform.video.play()
+                          }
+                          //gl.activeTexture(gl.TEXTURE1)
+                          //BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
+                          cache.textures.push({
+                            url,
+                            resource: uniform.video,
+                            texture: uniform.refTexture
+                          })
+                          await fetch(url).then(res=>res.blob()).then(data => {
+                            uniform.video.src = URL.createObjectURL(data)
                           })
                         }
-                        uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
-                        uniform.video.oncanplay = async () => {
-                          uniform.video.play()
-                        }
-                        //gl.activeTexture(gl.TEXTURE1)
-                        //BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
-                        cache.textures.push({
-                          url,
-                          resource: uniform.video,
-                          texture: uniform.refTexture
-                        })
-                        await fetch(url).then(res=>res.blob()).then(data => {
-                          uniform.video.src = URL.createObjectURL(data)
-                        })
-                      }
-                    break
-                    default:
-                      uniform.textureMode = 'image'
-                      if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
-                        console.log('found image in cache... using it')
-                        var image = cacheItem[0].resource
-                        ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
-                        gl.activeTexture(gl.TEXTURE1)
-                        BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
-                      }else{
-                        var image = new Image()
-                        ret.datasets = [...ret.datasets, {
-                          texture: uniform.refTexture, iURL: url }]
-                        gl.activeTexture(gl.TEXTURE1)
-                        //gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
-                        image.onload = () =>{
+                      break
+                      default:
+                        uniform.textureMode = 'image'
+                        if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
+                          console.log('found image in cache... using it')
+                          var image = cacheItem[0].resource
+                          ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                          gl.activeTexture(gl.TEXTURE1)
                           BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
-                        }
-                        cache.textures.push({
-                          url,
-                          resource: image,
-                          texture: uniform.refTexture
-                        })
-                        await fetch(url).then(res=>res.blob()).then(data => {
-                          image.src = URL.createObjectURL(data)
-                        })
-                      }                        
-                    break
+                        }else{
+                          var image = new Image()
+                          ret.datasets = [...ret.datasets, {
+                            texture: uniform.refTexture, iURL: url }]
+                          gl.activeTexture(gl.TEXTURE1)
+                          //gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
+                          image.onload = () =>{
+                            BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
+                          }
+                          cache.textures.push({
+                            url,
+                            resource: image,
+                            texture: uniform.refTexture
+                          })
+                          await fetch(url).then(res=>res.blob()).then(data => {
+                            image.src = URL.createObjectURL(data)
+                          })
+                        }                        
+                      break
+                    }
                   }
-                }
-                gl.useProgram(dset.program)
-                uniform.locRefOmitEquirectangular = gl.getUniformLocation(dset.program, "refOmitEquirectangular")
-                gl.uniform1f(uniform.locRefOmitEquirectangular,
-                   ( geometry.shapeType == 'rectangle' ||
-                     geometry.shapeType == 'point light' ||
-                     geometry.shapeType == 'sprite' ||
-                     geometry.shapeType == 'particles') ? 1.0 : 0.0)
-                uniform.locRefFlipRefs = gl.getUniformLocation(dset.program, "refFlipRefs")
-                gl.uniform1f(uniform.locRefFlipRefs , uniform.flipReflections)
-                uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
-                gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
-                gl.uniform1i(uniform.locRefTexture, 1)
-                gl.activeTexture(gl.TEXTURE1)
-                gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
-              break
-              case 'phong':
-                uniform.locPhongTheta = gl.getUniformLocation(dset.program, uniform.theta)
-                gl.uniform1f(uniform.locPhongTheta, uniform.theta)
-              break
-            }
-            uniform.locFlatShading = gl.getUniformLocation(dset.program, uniform.flatShadingUniform)
-            gl.uniform1f(uniform.locFlatShading , uniform.flatShading ? 1.0 : 0.0)
-            
-            uniform.loc = gl.getUniformLocation(dset.program, uniform.name)
-            gl[uniform.dataType](uniform.loc, uniform.value)
-          })
-        }
-        dset.locColor = gl.getUniformLocation(dset.program, "color")
-        gl.uniform3f(dset.locColor, ...HexToRGB(geometry.color))
-        
-        if(geometry.shapeType == 'particles'){
-          dset.locPointSize = gl.getUniformLocation(dset.program, "pointSize")
-          gl.uniform1f(dset.locPointSize, geometry.size)
-        }
-        
-        dset.locColorMix = gl.getUniformLocation(dset.program, "colorMix")
-        gl.uniform1f(dset.locColorMix, geometry.colorMix)
+                  gl.useProgram(dset.program)
+                  uniform.locRefOmitEquirectangular = gl.getUniformLocation(dset.program, "refOmitEquirectangular")
+                  gl.uniform1f(uniform.locRefOmitEquirectangular,
+                     ( geometry.shapeType == 'rectangle' ||
+                       geometry.shapeType == 'point light' ||
+                       geometry.shapeType == 'sprite' ||
+                       geometry.shapeType == 'particles') ? 1.0 : 0.0)
+                  uniform.locRefFlipRefs = gl.getUniformLocation(dset.program, "refFlipRefs")
+                  gl.uniform1f(uniform.locRefFlipRefs , uniform.flipReflections)
+                  uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
+                  gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
+                  gl.uniform1i(uniform.locRefTexture, 1)
+                  gl.activeTexture(gl.TEXTURE1)
+                  gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
+                break
+                case 'phong':
+                  uniform.locPhongTheta = gl.getUniformLocation(dset.program, uniform.theta)
+                  gl.uniform1f(uniform.locPhongTheta, uniform.theta)
+                break
+              }
+              uniform.locFlatShading = gl.getUniformLocation(dset.program, uniform.flatShadingUniform)
+              gl.uniform1f(uniform.locFlatShading , uniform.flatShading ? 1.0 : 0.0)
+              
+              uniform.loc = gl.getUniformLocation(dset.program, uniform.name)
+              gl[uniform.dataType](uniform.loc, uniform.value)
+            })
+          }
+          dset.locColor = gl.getUniformLocation(dset.program, "color")
+          gl.uniform3f(dset.locColor, ...HexToRGB(geometry.color))
+          
+          if(geometry.shapeType == 'particles'){
+            dset.locPointSize = gl.getUniformLocation(dset.program, "pointSize")
+            gl.uniform1f(dset.locPointSize, geometry.size)
+          }
+          
+          dset.locColorMix = gl.getUniformLocation(dset.program, "colorMix")
+          gl.uniform1f(dset.locColorMix, geometry.colorMix)
 
-        dset.locIsSprite = gl.getUniformLocation(dset.program, "isSprite")
-        gl.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
+          dset.locIsSprite = gl.getUniformLocation(dset.program, "isSprite")
+          gl.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
 
-        dset.locIsCrosshair = gl.getUniformLocation(dset.program, "isCrosshair")
-        gl.uniform1f(dset.locIsCrosshair, geometry.isCrosshair? 1.0 : 0.0)
+          dset.locIsCrosshair = gl.getUniformLocation(dset.program, "isCrosshair")
+          gl.uniform1f(dset.locIsCrosshair, geometry.isCrosshair? 1.0 : 0.0)
 
-        dset.locCameraMode = gl.getUniformLocation(dset.program, "cameraMode")
-        gl.uniform1f(dset.locCameraMode, renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
+          dset.locCameraMode = gl.getUniformLocation(dset.program, "cameraMode")
+          gl.uniform1f(dset.locCameraMode, renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
 
-        dset.locSupplementalTextureMix = gl.getUniformLocation(dset.program, "supplementalTextureMix")
-        gl.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
+          dset.locSupplementalTextureMix = gl.getUniformLocation(dset.program, "supplementalTextureMix")
+          gl.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
 
-        dset.locIsLight = gl.getUniformLocation(dset.program, "isLight")
-        gl.uniform1f(dset.locIsLight, geometry.isLight ? 1.0 : 0.0)
+          dset.locIsLight = gl.getUniformLocation(dset.program, "isLight")
+          gl.uniform1f(dset.locIsLight, geometry.isLight ? 1.0 : 0.0)
 
-        dset.locIsParticle = gl.getUniformLocation(dset.program, "isParticle")
-        gl.uniform1f(dset.locIsParticle, geometry.isParticle ? 1.0 : 0.0)
+          dset.locIsParticle = gl.getUniformLocation(dset.program, "isParticle")
+          gl.uniform1f(dset.locIsParticle, geometry.isParticle ? 1.0 : 0.0)
 
-        dset.locPenumbraPass = gl.getUniformLocation(dset.program, "penumbraPass")
-        //gl.uniform1f(dset.locPenumbraPass, geometry.penumbra)
+          dset.locPenumbraPass = gl.getUniformLocation(dset.program, "penumbraPass")
+          //gl.uniform1f(dset.locPenumbraPass, geometry.penumbra)
 
-        dset.locAlpha = gl.getUniformLocation(dset.program, "alpha")
-        gl.uniform1f(dset.locAlpha, geometry.alpha)
+          dset.locAlpha = gl.getUniformLocation(dset.program, "alpha")
+          gl.uniform1f(dset.locAlpha, geometry.alpha)
 
-        dset.locPointLights = gl.getUniformLocation(dset.program, "pointLightPos[0]")
+          dset.locPointLights = gl.getUniformLocation(dset.program, "pointLightPos[0]")
 
-        dset.locPointLightCols = gl.getUniformLocation(dset.program, "pointLightCol[0]")
+          dset.locPointLightCols = gl.getUniformLocation(dset.program, "pointLightCol[0]")
 
-        dset.locPointLightCount = gl.getUniformLocation(dset.program, "pointLightCount")
-        gl.uniform1i(dset.locPointLightCount, 0)
+          dset.locPointLightCount = gl.getUniformLocation(dset.program, "pointLightCount")
+          gl.uniform1i(dset.locPointLightCount, 0)
 
-        dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
-        gl.uniform2f(dset.locResolution, renderer.width, renderer.height)
+          dset.locResolution = gl.getUniformLocation(dset.program, "resolution")
+          gl.uniform2f(dset.locResolution, renderer.width, renderer.height)
 
-        dset.locEquirectangular = gl.getUniformLocation(dset.program, "equirectangular")
-        gl.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
+          dset.locEquirectangular = gl.getUniformLocation(dset.program, "equirectangular")
+          gl.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
 
-        dset.locT = gl.getUniformLocation(dset.program, "t")
-        gl.uniform1f(dset.locT, 0)
+          dset.locT = gl.getUniformLocation(dset.program, "t")
+          gl.uniform1f(dset.locT, 0)
 
-        dset.locAmbientLight = gl.getUniformLocation(dset.program, "ambientLight")
-        gl.uniform1f(dset.locAmbientLight, renderer.ambientLight)
+          dset.locAmbientLight = gl.getUniformLocation(dset.program, "ambientLight")
+          gl.uniform1f(dset.locAmbientLight, renderer.ambientLight)
 
-        dset.texture = gl.createTexture()
-        gl.bindTexture(gl.TEXTURE_2D, dset.texture)
-        dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
-        
-        dset.supplementalTexture = gl.createTexture()
-        gl.bindTexture(gl.TEXTURE_2D, dset.supplementalTexture)
-        dset.locSupplementalTexture= gl.getUniformLocation(dset.program, "supplementalTexture")
-        
-        //let image
-        if(textureURL){
-          dset.iURL = textureURL
-          let l
-          let suffix = (l=textureURL.split('.'))[l.length-1].toLowerCase()
-          switch(suffix){
-            case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
-              geometry.textureMode = 'video'
-              if(involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
-                console.log('found video in cache... using it')
-                dset.resource = cacheItem[0].resource
-                //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
-                dset.texture = cacheItem[0].texture
-                //gl.activeTexture(gl.TEXTURE0)
-                //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, textureURL)
-              }else{
-                dset.resource = document.createElement('video')
-                dset.resource.muted = true
-                dset.resource.addEventListener('canplay', () =>{
+          dset.texture = gl.createTexture()
+          gl.bindTexture(gl.TEXTURE_2D, dset.texture)
+          dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
+          
+          dset.supplementalTexture = gl.createTexture()
+          gl.bindTexture(gl.TEXTURE_2D, dset.supplementalTexture)
+          dset.locSupplementalTexture= gl.getUniformLocation(dset.program, "supplementalTexture")
+          
+          //let image
+          if(textureURL){
+            dset.iURL = textureURL
+            let l
+            let suffix = (l=textureURL.split('.'))[l.length-1].toLowerCase()
+            switch(suffix){
+              case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
+                geometry.textureMode = 'video'
+                if(involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
+                  console.log('found video in cache... using it')
+                  dset.resource = cacheItem[0].resource
+                  //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
+                  dset.texture = cacheItem[0].texture
+                  //gl.activeTexture(gl.TEXTURE0)
+                  //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, textureURL)
+                }else{
+                  dset.resource = document.createElement('video')
+                  dset.resource.muted = true
+                  dset.resource.addEventListener('canplay', () =>{
+                    dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
+                  })
+                  dset.resource.loop = true
+                  if(!geometry.muted && !audioConsent) {
+                    audioConsent = true
+                    GenericPopup('play audio OK?', true, ()=>{
+                      dset.resource.muted = false
+                      dset.resource.currentTime = 0
+                      //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = dset.resource.playbackSpeed
+                      dset.resource.play()
+                    })
+                  }
                   dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
-                })
-                dset.resource.loop = true
-                if(!geometry.muted && !audioConsent) {
-                  audioConsent = true
-                  GenericPopup('play audio OK?', true, ()=>{
-                    dset.resource.muted = false
-                    dset.resource.currentTime = 0
-                    //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = dset.resource.playbackSpeed
+                  dset.resource.oncanplay = async () => {
                     dset.resource.play()
+                  }
+                  //gl.activeTexture(gl.TEXTURE0)
+                  //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, textureURL)
+                  cache.textures.push({
+                    url: textureURL,
+                    resource: dset.resource,
+                    texture: dset.texture
+                  })
+                  await fetch(textureURL).then(res=>res.blob()).then(data => {
+                    dset.resource.src = URL.createObjectURL(data)
                   })
                 }
-                dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
-                dset.resource.oncanplay = async () => {
-                  dset.resource.play()
+              break
+              default:
+                geometry.textureMode = 'image'
+                if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==textureURL)).length){
+                  dset.texture = cacheItem[0].texture
+                  var image = cacheItem[0].resource
+                  dset.resource = image
+                  gl.activeTexture(gl.TEXTURE0)
+                  BindImage(gl, image, dset.texture, geometry.textureMode, -1, textureURL)
+                }else{
+                  var image = new Image()
+                  gl.activeTexture(gl.TEXTURE0)
+                  cache.textures.push({
+                    url: textureURL,
+                    resource: image,
+                    texture: dset.texture
+                  })
+                  image.onload = () => {
+                    BindImage(gl, image,
+                            dset.texture, geometry.textureMode, -1, textureURL)
+                  }
+                  await fetch(textureURL).then(res=>res.blob()).then(data => {
+                    image.src = URL.createObjectURL(data)
+                  })
                 }
-                //gl.activeTexture(gl.TEXTURE0)
-                //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, textureURL)
-                cache.textures.push({
-                  url: textureURL,
-                  resource: dset.resource,
-                  texture: dset.texture
-                })
-                await fetch(textureURL).then(res=>res.blob()).then(data => {
-                  dset.resource.src = URL.createObjectURL(data)
-                })
-              }
-            break
-            default:
-              geometry.textureMode = 'image'
-              if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==textureURL)).length){
-                dset.texture = cacheItem[0].texture
-                var image = cacheItem[0].resource
-                dset.resource = image
-                gl.activeTexture(gl.TEXTURE0)
-                BindImage(gl, image, dset.texture, geometry.textureMode, -1, textureURL)
-              }else{
-                var image = new Image()
-                gl.activeTexture(gl.TEXTURE0)
-                cache.textures.push({
-                  url: textureURL,
-                  resource: image,
-                  texture: dset.texture
-                })
-                image.onload = () => {
-                  BindImage(gl, image,
-                          dset.texture, geometry.textureMode, -1, textureURL)
-                }
-                await fetch(textureURL).then(res=>res.blob()).then(data => {
-                  image.src = URL.createObjectURL(data)
-                })
-              }
-            break
+              break
+            }
           }
-        }
-        
-        gl.useProgram(dset.program)
-        gl.uniform1i(dset.locTexture, 0)
-        gl.activeTexture(gl.TEXTURE0)
-        gl.bindTexture(gl.TEXTURE_2D, dset.texture)
+          
+          gl.useProgram(dset.program)
+          gl.uniform1i(dset.locTexture, 0)
+          gl.activeTexture(gl.TEXTURE0)
+          gl.bindTexture(gl.TEXTURE_2D, dset.texture)
 
-        dset.locCamPos         = gl.getUniformLocation(dset.program, "camPos")
-        dset.locCamOri         = gl.getUniformLocation(dset.program, "camOri")
-        dset.locGeoPos         = gl.getUniformLocation(dset.program, "geoPos")
-        dset.locGeoOri         = gl.getUniformLocation(dset.program, "geoOri")
-        dset.locFov            = gl.getUniformLocation(dset.program, "fov")
-        dset.locRenderNormals  = gl.getUniformLocation(dset.program, "renderNormals")
-        gl.uniform3f(dset.locCamPos,        renderer.x, renderer.y, renderer.z)
-        gl.uniform3f(dset.locCamOri,        renderer.roll, renderer.pitch, renderer.yaw)
-        gl.uniform3f(dset.locGeoPos,        renderer.x, renderer.y, renderer.z)
-        gl.uniform3f(dset.locGeoOri,        geometry.roll, geometry.pitch, geometry.yaw)
-        gl.uniform1f(dset.locFov,           renderer.fov)
-        gl.uniform1f(dset.locRenderNormals, 0)
+          dset.locCamPos         = gl.getUniformLocation(dset.program, "camPos")
+          dset.locCamOri         = gl.getUniformLocation(dset.program, "camOri")
+          dset.locGeoPos         = gl.getUniformLocation(dset.program, "geoPos")
+          dset.locGeoOri         = gl.getUniformLocation(dset.program, "geoOri")
+          dset.locFov            = gl.getUniformLocation(dset.program, "fov")
+          dset.locRenderNormals  = gl.getUniformLocation(dset.program, "renderNormals")
+          gl.uniform3f(dset.locCamPos,        renderer.x, renderer.y, renderer.z)
+          gl.uniform3f(dset.locCamOri,        renderer.roll, renderer.pitch, renderer.yaw)
+          gl.uniform3f(dset.locGeoPos,        renderer.x, renderer.y, renderer.z)
+          gl.uniform3f(dset.locGeoOri,        geometry.roll, geometry.pitch, geometry.yaw)
+          gl.uniform1f(dset.locFov,           renderer.fov)
+          gl.uniform1f(dset.locRenderNormals, 0)
+        }
+      }else{
+        var info = gl.getProgramInfoLog(dset.program)
+        var vshaderInfo = gl.getShaderInfoLog(vertexShader)
+        var fshaderInfo = gl.getShaderInfoLog(fragmentShader)
+        console.error(`bad shader :( ${info}`)
+        console.error(`vShader info : ${vshaderInfo}`)
+        console.error(`fShader info : ${fshaderInfo}`)
       }
-    }else{
-      var info = gl.getProgramInfoLog(dset.program)
-      var vshaderInfo = gl.getShaderInfoLog(vertexShader)
-      var fshaderInfo = gl.getShaderInfoLog(fragmentShader)
-      console.error(`bad shader :( ${info}`)
-      console.error(`vShader info : ${vshaderInfo}`)
-      console.error(`fShader info : ${fshaderInfo}`)
     }
   }
   
