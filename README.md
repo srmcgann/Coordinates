@@ -453,7 +453,6 @@ Example:
 var rendererOptions = {
   ambientLight: .5,
   fov: 1500,
-  margin: 0
 }
 var renderer = await Coordinates.Renderer(rendererOptions)
 
