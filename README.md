@@ -445,6 +445,7 @@ Coordinates involves an internal cache for all network resource calls with the U
 If your texture appears faded or you can't get the lighting / colors crisp with the desired contrast, this may be due to the shape's colorMix, which has a nonzero default value. Try setting ``colorMix: 0`` for your geometry, which removes the shape's color from the mix.
 
 <br>
+
 #### canvasTexture
 Geometry loaded with the LoadGeometry method accepts a texture 'map', but a canvas may also be passed, in addition or by itself. The canvas reference is read at the time the shape is drawn, allowing for dynamic textures. Canvases passed may be 2d, webgl, or even a reference to Coordinates renderer screen via the ``renderer.c`` property.
 
