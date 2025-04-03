@@ -126,6 +126,18 @@ var rendererOptions = {
 ```
 <br>
 
+Additionally, a Renderer object contains a number of useful properties:
+```
+renderer.pageX        // window mouse x coordinate
+renderer.pageY        // window mouse y coordinate
+renderer.mouseX       // internal canvas mouse x coordinate
+renderer.mouseY       // internal canvas mouse y coordinate
+renderer.mouseButton  // the browser window mouse button status
+```
+...and others. feel free to view a renderer object in your browser console:
+``console.log(renderer)``
+<br>
+
 ## Lighting
 
 ### Ambient Light
@@ -190,18 +202,20 @@ var shaderOptions = {
 ```
 <br><br>
 
-### DestroyGeometry()
-``Coordinates.DestroyGeometry( geometry)``<br>
-Destroy any references to this shapes created with ``LoadGeometry``.
-Currently applies to lights only, which are the only system-side data
-stored when geometry is created.
-
 ### LoadGeometry()
 ``Coordinates.LoadGeometry( renderer, geoOptions )``<br>
 
 ##### Returns a mesh object, optional async
+<br>
+
+### DestroyGeometry()
+``Coordinates.DestroyGeometry( geometry)``<br>
+Destroy any references to shapes created with ``LoadGeometry``.
+Currently applies to lights only, which are the only system-side data
+stored when geometry is created.
 
 <br>
+
 #### a note about lighting
 the object returned by ``LoadGeometry`` is not kept in system memory. You are expected to create a data structure for managing shapes, without which they have no permanency. A geometry, especially if 'connected' to a shader, is a whole, drawable entity and no special GC (garbage collection) work is required, since they are not stored. The only exception is lights, which are queued internally so that the scene is influenced by them. To remove a light, use the ``DestroyGeometry(shape)`` method, which removes the light source, but not your own reference to it, if any. Recall a light may be visible in your scene with the `showSource: true` property setting, and the shape returned by LoadGeometry (a rectangle) is not stored system-side, and will remain visible after the light is destroyed. You may use, for example if your shapes are in an array named 'shapes' and your light is named 'my light': ``shapes = shapes.filter(v=>v.name != 'my light')`` to remove the shape from your array.
 <br>
@@ -390,7 +404,7 @@ the background as well. See Renderer option 'clearColor', to set the color.<br>
 ### Draw()
 Draws a single geometry created with the ``LoadGeometry`` method<br>
 
-``renderer.Draw( geometry)``
+``renderer.Draw(geometry)``
 
 ##### Returns nothing
 <br><br>
@@ -404,6 +418,15 @@ These color helper methods are also exposed
   RGBToHex
   RGBFromHex
   HexToRGB
+```
+example:<br>
+```
+var geoOptions = {
+  shapeType: 'cube',
+  //...
+  color: Coordinates.HexFromHSV(180, 1, 1),  //teal
+  //...
+}
 ```
 
 ## Tips and tricks
@@ -461,7 +484,7 @@ var n = Coordinates.Normal(facet)
 <br><br>
 ### Reflect()
 Computes the angle of reflection in 3D space, accepting parameters of incident-angle, and normal<br>
-``Reflect = (i, n) ``
+``Reflect = (i, n)``
 <br>
 ``Reflect`` requires input of a source angle, and the facet/plane normal upon which the angle of reflection is occuring.
 <br><br>
@@ -472,3 +495,91 @@ var n = Normal(facet)  // see above for notes about the Normal method
 var rAngle = Coordinates.Reflect(iAngle, n)
 // returned angle is useful for motion vectors or light, e.g. for ray tracing
 ```
+
+<br><br>
+### PointInPoly2D()
+``const PointInPoly2D = (X, Y, polygon)``
+<br><br>
+``PointInPoly2D`` returns true if the point is inside a polygon of any number of sides.<br>
+<br><br>
+Method requires input of 2 numbers, which is the point in question, and a polygon as an array with at least 3 vertices
+<br><br>
+example:
+```js
+var polygon = [ [-1.2, 0, 0],   [0, -1, 0],   [3, 1, 2] ]
+var X = 0,  Y = 0
+var point = Coordinates.PointInPoly2D(X,Y, polygon)
+// returned value: true
+// note: a 3D polygon may be used, but only the first 2 elements [X, Y] are involved
+```
+
+<br><br>
+### Intersects()
+``const Intersects = (X1, Y1, X2, Y2, X3, Y3, X4, Y4)``
+<br><br>
+``Intersects`` returns a 2D vertex of the intersection point if one exists, between 2 line segments, or false if there is no intersection.<br>
+<br><br>
+Method requires input of 8 numbers, the endpoints of the line segments in the order Pa1, Pa2, Pb1, Pb2.
+<br><br>
+example:
+```js
+var X1 = -.5
+var Y1 = -1
+var X2 = 1.5
+var Y2 = 1
+var X3 = 1.5
+var Y3 = -1
+var X4 = -.5
+var Y4 = 1
+var i = Coordinates.Intersects(X1, Y1, X2, Y2, X3, Y3, X4, Y4)
+// returned value: [ 0.5, 0]
+```
+
+<br><br>
+### PointInPoly3D()
+``const PointInPoly3D = (X1, Y1, Z1, X2, Y2, Z2, polygon)``
+<br><br>
+``PointInPoly3D`` returns the intersection point, if any (or false), of a line segment and polygon in 3 dimensions.<br>
+For convenience, the normal of the polygon is also returned as a second element.
+<br><br>
+Method requires input of 6 numbers, which are the 2 end points of a line-segment in 3D space (2x3=6) and a polygon as an array with at least 3 vertices
+<br><br>
+example:
+```js
+var polygon = [ [-1.2, 0, 0],   [0, -1, 0],   [3, 1, 2] ]
+var X1 = .5,  Y1 = -.5,  Z1 = 3
+var X2 = .2,  Y2 = .2,   Z2 = -1
+var point = Coordinates.PointInPoly3D(X1,Y1,Z1,  X2,Y2,Z2,  polygon)
+// returned value: point, normal ->
+  [
+      [
+          0.3148953466981546,
+          -0.067901234567901,
+          0.530894024154322
+      ],
+      [
+          0.3205339025930031,
+          0.38464068311160365,
+          -0.8654415370011083
+      ]
+  ]
+// note: returns false if no intersection exists
+```
+
+<br><br>
+### IsPowerOf2()
+``const IsPowerOf2 = (num)``
+<br><br>
+``IsPowerOf2`` returns a true if the input number is a valid power of 2, or false if not.<br>
+<br><br>
+Method requires input of 1 number.
+<br><br>
+example:
+```js
+var po2 = Coordinates.IsPowerOf2(3)
+// returned value: false
+
+var po2 = Coordinates.IsPowerOf2(4)
+// returned value: true
+```
+
