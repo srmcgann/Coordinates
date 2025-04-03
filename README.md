@@ -127,7 +127,7 @@ var rendererOptions = {
 <br>
 
 Additionally, a Renderer object contains a number of useful properties:
-```
+```js
 renderer.pageX        // window mouse x coordinate
 renderer.pageY        // window mouse y coordinate
 renderer.mouseX       // internal canvas mouse x coordinate
@@ -415,7 +415,7 @@ Draws a single geometry created with the ``LoadGeometry`` method<br>
 ##### Returns nothing
 <br><br>
 These color helper methods are also exposed
-```
+```js
   HSVToHex
   HexFromHSV
   HSVToRGB
@@ -426,7 +426,7 @@ These color helper methods are also exposed
   HexToRGB
 ```
 example:<br>
-```
+```js
 var geoOptions = {
   shapeType: 'cube',
   //...
@@ -449,7 +449,7 @@ If your texture appears faded or you can't get the lighting / colors crisp with 
 Geometry loaded with the LoadGeometry method accepts a texture 'map', but a canvas may also be passed, in addition or by itself. The canvas reference is read at the time the shape is drawn, allowing for dynamic textures. Canvases passed may be 2d, webgl, or even a reference to Coordinates renderer screen via the ``renderer.c`` property.
 
 Example:
-```
+```js
 var rendererOptions = {
   ambientLight: .5,
   fov: 1500,
