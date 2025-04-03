@@ -238,10 +238,10 @@ var geoOptions = {
   playbackSpeed: 1.0,  // if the texture (map) is a video, adjust the speed (.1 to 10)
   canvasTexture: can,  // shapes accept canvases as textures, which are read
                        // dynamically at draw time, allowing for animated textures.
-                       // see the example below, for useage,
-  canvasTextureMix: 1  // If a canvas is provided as a texture, this is the amount 'mixed' with the
+                       // see the example below, for useage.
+  canvasTextureMix: 1, // If a canvas is provided as a texture, this is the amount 'mixed' with the
                        // ordinary texture ('map'), if one is also provided.
-                       // note: reflections, textures, and canvas textures may all be used together.
+                       // note: reflections, color, textures, and canvasTextures may all be used together.
   wireframe: false,    // if true, display shape as lines
   sphereize: 1,        // interpolate a polyhedron to a sphere (=1), and beyond
                          // read more below about this feature
@@ -664,3 +664,4 @@ var po2 = Coordinates.IsPowerOf2(3)
 var po2 = Coordinates.IsPowerOf2(4)
 // returned value: true
 ```
+
