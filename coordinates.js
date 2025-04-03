@@ -296,10 +296,10 @@ const Renderer = async options => {
                     if(uniform.textureMode == 'video'){
                        BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform.map)
                     }
-                    //ctx.useProgram( sProg )
-                    //ctx.activeTexture(ctx.TEXTURE1)
-                    //ctx.uniform1i(uniform.locRefTexture, 1)
-                    //ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
+                    ctx.useProgram( sProg )
+                    ctx.activeTexture(ctx.TEXTURE1)
+                    ctx.uniform1i(uniform.locRefTexture, 1)
+                    ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
                     
                     ctx.uniform1f(uniform.locRefOmitEquirectangular,
                          ( geometry.shapeType == 'rectangle' ||
@@ -787,7 +787,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   var tempCanvas
   if(typeof geoOptions.canvasTexture != 'undefined'){
-    if(canvasTextureMix == -1) canvasTextureMix = map ? .5 : 1
+    if(canvasTextureMix == -1) canvasTextureMix = map ? 1 : 1
     tempCanvas = geoOptions.canvasTexture
     delete geoOptions.canvasTexture
   }else{
@@ -2288,6 +2288,7 @@ const BasicShader = async (renderer, options=[]) => {
                           ret.datasets = [...ret.datasets, {
                             texture: uniform.refTexture, iURL: url }]
                           gl.activeTexture(gl.TEXTURE1)
+                          gl.uniform1f(uniform.locRefFlipRefs , uniform.refTexture)
                           gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
                           image.onload = () =>{
                             BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
@@ -2305,16 +2306,18 @@ const BasicShader = async (renderer, options=[]) => {
                     }
                   }
                   gl.useProgram(dset.program)
+                  gl.activeTexture(gl.TEXTURE1)
                   uniform.locRefOmitEquirectangular = gl.getUniformLocation(dset.program, "refOmitEquirectangular")
                   gl.uniform1f(uniform.locRefOmitEquirectangular,
                      ( geometry.shapeType == 'rectangle' ||
                        geometry.shapeType == 'point light' ||
                        geometry.shapeType == 'sprite' ||
                        geometry.shapeType == 'particles') ? 1.0 : 0.0)
+                    //gl.uniform1f(uniform.locRefFlipRefs , uniform.refTexture)
+                    //gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
                   uniform.locRefFlipRefs = gl.getUniformLocation(dset.program, "refFlipRefs")
                   gl.uniform1f(uniform.locRefFlipRefs , uniform.flipReflections)
                   uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
-                  gl.activeTexture(gl.TEXTURE1)
                   gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
                   gl.uniform1i(uniform.locRefTexture, 1)
                   gl.activeTexture(gl.TEXTURE1)
