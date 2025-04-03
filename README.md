@@ -222,27 +222,33 @@ the object returned by ``LoadGeometry`` is not kept in system memory. You are ex
 
 ```js
 var geoOptions = {
-  name: 'background', // optional name for object
-  x: 0, y: 0, z: 0,   // initial coordinates
-  roll: 0,            // orientation / rotation
+  name: 'background',  // optional name for object
+  x: 0, y: 0, z: 0,    // initial coordinates
+  roll: 0,             // orientation / rotation
   pitch: 0,
   yaw: 0,
-  scaleX: 1,          // resize (at creation)
+  scaleX: 1,           // resize (at creation)
   scaleY: 1,
   scaleZ: 1,
-  color: 0x333333,    // optional color
-  colorMix: .5,       // weight of the color, to mix with texture
-  map: '',            // optional texture, URL to an image, or video.
+  color: 0x333333,     // optional color
+  colorMix: .5,        // weight of the color, to mix with texture
+  map: '',             // optional texture, URL to an image, or video.
                          // for videos, use ``muted: false`` to prompt
                          // the user to play audio, if desired.
-  playbackSpeed: 1.0, // if the texture (map) is a video, adjust the speed (.1 to 10)
-  wireframe: false,   // if true, display shape as lines
-  sphereize: 1,       // interpolate a polyhedron to a sphere (=1), and beyond
+  playbackSpeed: 1.0,  // if the texture (map) is a video, adjust the speed (.1 to 10)
+  canvasTexture: can,  // shapes accept canvases as textures, which are read
+                       // dynamically at draw time, allowing for animated textures.
+                       // see the example below, for useage,
+  canvasTextureMix: 1  // If a canvas is provided as a texture, this is the amount 'mixed' with the
+                       // ordinary texture ('map'), if one is also provided.
+                       // note: reflections, textures, and canvas textures may all be used together.
+  wireframe: false,    // if true, display shape as lines
+  sphereize: 1,        // interpolate a polyhedron to a sphere (=1), and beyond
                          // read more below about this feature
   averageNormals: false, // generate/recompute normals for any shape @ load
-  size: 1,            // not required, but the default may not be appropriate.
-  subs: 0,            // subdivides a polyhedron above, creating exponentially
-                      // more polygons/faces. Advise no more than 4!
+  size: 1,             // not required, but the default may not be appropriate.
+  subs: 0,             // subdivides a polyhedron above, creating exponentially
+                       // more polygons/faces. Advise no more than 4!
   equirectangular: false,  // if enabled, textures are assumed to be spherical
   shapeType: ''    // required.
                    // supported types:
@@ -437,6 +443,79 @@ Videos and images are interchangeable as texture sources. A video may be referen
 Coordinates involves an internal cache for all network resource calls with the URL as a key. There may be occasions to bypass the cache (e.g. displaying the same video at a different speed on two objects), in which case you may inoke the ``involveCache: false`` property which forces a new instance of that resource, available on all configurations where network resources apply. If the involveCache property is used and set to false, the order in which calls occur is relevant to the resulting settings for each instance. Some experimentation may be called for to achieve your desired results.<br><br>
 
 If your texture appears faded or you can't get the lighting / colors crisp with the desired contrast, this may be due to the shape's colorMix, which has a nonzero default value. Try setting ``colorMix: 0`` for your geometry, which removes the shape's color from the mix.
+
+<br>
+#### canvasTexture
+Geometry loaded with the LoadGeometry method accepts a texture 'map', but a canvas may also be passed, in addition or by itself. The canvas reference is read at the time the shape is drawn, allowing for dynamic textures. Canvases passed may be 2d, webgl, or even a reference to Coordinates renderer screen via the ``renderer.c`` property.
+
+Example:
+```
+var rendererOptions = {
+  ambientLight: .5,
+  fov: 1500,
+  margin: 0
+}
+var renderer = await Coordinates.Renderer(rendererOptions)
+
+renderer.z = 10
+
+Coordinates.AnimationLoop(renderer, 'Draw')
+
+var shaderOptions = [
+  { uniform: {
+    type: 'phong',
+    value: .75,
+  } }
+]
+var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+var shapes = []
+
+var myCanvas = document.createElement('canvas')
+myCanvas.width = 512
+myCanvas.height = 512
+var ctx = myCanvas.getContext('2d')
+const updateMyCanvas = () => {
+  ctx.fillStyle = '#000'
+  ctx.fillRect(0, 0, myCanvas.width, myCanvas.height)
+  for(var i = 0; i<3; i++){
+    var p = Math.PI * 2 / 3 * i + renderer.t * 8
+    var X = myCanvas.width/2  + Math.sin(p) * 100
+    var Y = myCanvas.height/2  + Math.cos(p) * 100
+    ctx.beginPath()
+    ctx.arc(X, Y, 50,0,7)
+    ctx.fillStyle = '#f00'
+    ctx.fill()
+  }
+}
+
+var geoOptions = {
+  shapeType: 'cube',
+  size: 5,
+  subs: 3,
+  canvasTexture: myCanvas,
+  color: 0x0000ff
+}
+await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  shapes.push(geometry)
+  await shader.ConnectGeometry(geometry)
+})  
+
+
+window.Draw = () => {
+  updateMyCanvas()
+  shapes.forEach(shape => {
+    shape.yaw += .01
+    shape.pitch += .005
+    renderer.Draw(shape)
+  })
+}
+```
+
+This creates such output<br>
+<center>![example0](README_g0.gif) </center>
+
 
 ## Additional Helper Methods
 
