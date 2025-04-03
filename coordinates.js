@@ -236,24 +236,28 @@ const Renderer = async options => {
               case 'canvas':
                 ctx.activeTexture(ctx.TEXTURE2)
                 BindImage(ctx, geometry.canvasTexture,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
-                ctx.activeTexture(ctx.TEXTURE0)
+                //ctx.activeTexture(ctx.TEXTURE2)
               break
               default:
               break
             }
             
-            /*if(typeof geometry.canvasTexture != 'undefined'){
+            if(typeof geometry.canvasTexture != 'undefined'){
               ctx.activeTexture(ctx.TEXTURE2)
               BindImage(ctx, geometry.canvasTexture, dset.supplementalTexture, 'canvas', renderer.t, geometry.map)
-              ctx.bindTexture(ctx.TEXTURE_2D, dset.supplementalTexture)
-              ctx.uniform1i(dset.locSupplementalTexture, dset.supplementalTexture)
+              //ctx.bindTexture(ctx.TEXTURE_2D, dset.supplementalTexture)
+              //ctx.uniform1i(dset.locSupplementalTexture, dset.supplementalTexture)
+              ctx.uniform1i(dset.locSupplementalTexture, 2)
               ctx.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
-              ctx.activeTexture(ctx.TEXTURE0)
+              //ctx.activeTexture(ctx.TEXTURE2)
             }
-            */
+            
 
+            ctx.activeTexture(ctx.TEXTURE0)
             ctx.uniform1i(dset.locTexture, dset.texture)
+            //ctx.uniform1i(dset.locTexture, 0)
             ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
+            //ctx.activeTexture(ctx.TEXTURE0)
             
             // point lights
             ctx.uniform1i(dset.locPointLightCount, renderer.pointLights.length)
@@ -293,9 +297,9 @@ const Renderer = async options => {
                        BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform.map)
                     }
                     //ctx.useProgram( sProg )
-                    ctx.activeTexture(ctx.TEXTURE1)
-                    ctx.uniform1i(uniform.locRefTexture, 1)
-                    ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
+                    //ctx.activeTexture(ctx.TEXTURE1)
+                    //ctx.uniform1i(uniform.locRefTexture, 1)
+                    //ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
                     
                     ctx.uniform1f(uniform.locRefOmitEquirectangular,
                          ( geometry.shapeType == 'rectangle' ||
@@ -425,9 +429,9 @@ const Renderer = async options => {
     renderer.mouseY = (e.pageY-rect.top) / renderer.c.clientHeight * renderer.height
   })
   window.addEventListener('mousedown', e => {
-    renderer.mouseButton = e.button
+    renderer.mouseButton = e.buttons
   })
-  window.addEventListener('mousedown', e => {
+  window.addEventListener('mouseup', e => {
     renderer.mouseButton = -1
   })
   
@@ -773,6 +777,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'playbackspeed'    :
         playbackSpeed = geoOptions[key]; break
       case 'averagenormals'   :
+        preComputeNormalAssocs = true
         averageNormals = !!geoOptions[key]; break
       default:
         geometry[key] = geoOptions[key]
@@ -1558,7 +1563,7 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', 
     default:
     break
   }
-  gl.activeTexture(gl.TEXTURE0)
+  //gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, binding)
   if(texImage.width && texImage.height){
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage)
@@ -2258,8 +2263,8 @@ const BasicShader = async (renderer, options=[]) => {
                           uniform.video.oncanplay = async () => {
                             uniform.video.play()
                           }
-                          //gl.activeTexture(gl.TEXTURE1)
-                          //BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
+                          gl.activeTexture(gl.TEXTURE1)
+                          BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
                           cache.textures.push({
                             url,
                             resource: uniform.video,
@@ -2283,7 +2288,7 @@ const BasicShader = async (renderer, options=[]) => {
                           ret.datasets = [...ret.datasets, {
                             texture: uniform.refTexture, iURL: url }]
                           gl.activeTexture(gl.TEXTURE1)
-                          //gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
+                          gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
                           image.onload = () =>{
                             BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
                           }
@@ -2309,6 +2314,7 @@ const BasicShader = async (renderer, options=[]) => {
                   uniform.locRefFlipRefs = gl.getUniformLocation(dset.program, "refFlipRefs")
                   gl.uniform1f(uniform.locRefFlipRefs , uniform.flipReflections)
                   uniform.locRefTexture = gl.getUniformLocation(dset.program, "reflectionMap")
+                  gl.activeTexture(gl.TEXTURE1)
                   gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
                   gl.uniform1i(uniform.locRefTexture, 1)
                   gl.activeTexture(gl.TEXTURE1)

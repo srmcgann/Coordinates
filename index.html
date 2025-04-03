@@ -7,7 +7,7 @@
         background: #333;
         margin: 0;
         min-height: 100vh;
-      }
+      },
     </style>
   </head>
   <body>
@@ -21,23 +21,33 @@
       var Rn = Math.random
     
       var rendererOptions = {
-        ambientLight: .2,
-        fov: 1400
+        ambientLight: .1,
+        fov: 1600,
+        width: 1920,
+        height: 1920
+        
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
       rendererOptions = {
         ambientLight: .2,
-        fov: 1400,
+        fov: 1600,
+        width: 1920,
+        height: 1920,
         context: {
           mode: '2d'
         }
       }
       var overlay = await Coordinates.Renderer(rendererOptions)
       
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2.jpg'
+      //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2.jpg'
+      //var refTexture = 'https://i.imgur.com/S8gy47y.mp4'
+      //var refTexture = 'https://i.imgur.com/DIXWQYG.mp4'  //clouds
+      //var refTexture = 'https://i.imgur.com/i69mR4O.mp4'  // pulses
+      var refTexture = 'https://i.imgur.com/m11pgyB.mp4'  // voronoi
       
-      renderer.z = 8
+      renderer.z = 16
+      renderer.roll = Math.PI
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
@@ -55,12 +65,33 @@
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var shaderOptions = [
+        { lighting:
+          {type: 'ambientLight', value: .5}
+        },
         { uniform: {
           type: 'phong',
           value: 0
         } }
       ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting:
+          {type: 'ambientLight', value: .1}
+        },
+        { uniform: {
+          type: 'phong',
+          value: .4,
+          theta: -.6,
+        } },
+        /*{ uniform: {
+          type: 'reflection',
+          map: refTexture,
+          value: .5
+        } }*/
+      ]
       var canvasShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      //console.log(canvasShader)
 
       var shapes = []
 
@@ -69,25 +100,27 @@
         size: 1,
         colorMix: 0,
         scaleZ: .25,
-        scaleX: 16/9,
+        scaleX: renderer.width / renderer.height,
         url: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame_lowpoly.json',
-        map: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame texture2.jpg',
+        map: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame texture.jpg',
       }
-      if(0)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
       })
       
       
       var scratchCanvas = document.createElement('canvas')
-      scratchCanvas.width = 960
-      scratchCanvas.height = 540
-      var sctx = scratchCanvas.getContext('2d')
+      var scratchData
+      scratchCanvas.width = renderer.width
+      scratchCanvas.height = renderer.width
+      var sctx = scratchCanvas.getContext('2d', {willReadFrequently: true})
       var mouseInCanvas = false
       
       var size = 2.605
-      var tx = size/1.5/2 * (16/9)
+      var tx = size/1.5/2 * (renderer.width / renderer.height)
       var ty = size/1.5/2
+      var scSize = tx
       var target = [
         [-tx, -ty, 0],
         [tx, -ty, 0],
@@ -98,16 +131,18 @@
       var geoOptions = {
         shapeType: 'rectangle',
         name: 'canvasGeometry',
-        //map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+        //map: 'https://i.imgur.com/ztYVnB6.mp4',
+        map: refTexture,
         canvasTexture: scratchCanvas,
-        canvasTextureMix: 1,
+        canvasTextureMix: .35,
         size,
-        subs: 3,
+        subs: 4,
         yaw: Math.PI,
+        averageNormals: true,
         showNormals: false,
         flipNormals: false,
         colorMix: 0,
-        scaleX: 16/9,
+        scaleX: renderer.width / renderer.height,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -121,10 +156,13 @@
         size: 1e4,
         subs: 3,
         colorMix: 0,
+        //yaw: Math.PI,
+        pitch: Math.PI,
         map: refTexture,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
+        await backgroundShader.ConnectGeometry(geometry)
       })
       
       var geoOptions = {
@@ -155,52 +193,24 @@
         contactPoint = geometry
       })
       
-      var X, Y, Z
-      
-      var overlayProjectionCoords = () => {
-        var ips = Array(4).fill([0,0])
-        var mx = renderer.mouseX
-        var my = renderer.mouseY
-        var a = []
-        for(var i=0; i<4; i++){
-          var l = (i+1) % 4
-          X = target[l][0]
-          Y = target[l][1]
-          Z = target[l][2]
-          rotate()
-          var ar = getShaderCoord(X,Y,Z)
-          X1 = ar[0]
-          Y1 = ar[1]
-          l = (i + 2) % 4
-          X = target[l][0]
-          Y = target[l][1]
-          Z = target[l][2]
-          rotate()
-          ar = getShaderCoord(X,Y,Z)
-          X2 = ar[0]
-          Y2 = ar[1]
-          var rng = Math.abs(X2-X1)+.001
-          var flr = Math.min(X2,X1)
-          X1 -= flr
-          X2 -= flr
-          ips[i][0] = (mx - flr) / rng * (Math.max(X2,X1) / rng)
-          rng = Math.abs(Y2-Y1)+.001
-          flr = Math.min(Y2,Y1)
-          Y1 -= flr
-          Y2 -= flr
-          ips[i][1] = (my - flr) / rng * (Math.max(Y2,Y1) / rng)
-          console.log(my, flr, rng,  Y2, Y1)
+      var X, Y, Z, cl, rw, sp, br, pulse = 0, mmx=0, mmy=0
+      window.addEventListener('mousedown', e => {
+        if(e.buttons == 1){
+          mmx = renderer.mouseX
+          mmy = renderer.mouseY
+          setTimeout(()=>pulse = 1,0)
         }
-        var ax = 0, ay = 0
-        for(var i = 4; i--;) {
-          ax += ips[i][0]
-          ay += ips[i][1]
-        }
-        ax /= 4
-        ay /= 4
-        return [scratchCanvas.width * ax, scratchCanvas.height * ay]
-      }
+      })
       
+      window.addEventListener('mousemove', e => {
+        if(e.buttons == 1){
+          mmx = renderer.mouseX
+          mmy = renderer.mouseY
+          setTimeout(()=>pulse = 1,0)
+        }
+      })
+      
+
       var getShaderCoord = (vx, vy, vz) => {
         vz *= 5
         var cpx = renderer.x
@@ -208,23 +218,17 @@
         var cpz = renderer.z
         var fov = renderer.fov
         var camz = cpz / 1e3 * Math.pow(5.0, Math.log(fov) / 1.609438)
-        var Z = vz + camz
-        var X = renderer.width / 2 + (vx + cpx) / Z * fov * 2.6
-        var Y = renderer.height / 2 + (vy + cpy) / Z * fov * 2.6
+        Z = vz + camz
+        X = renderer.width / 2 + (vx + cpx) / Z * fov * 2.6
+        Y = renderer.height / 2 + (vy + cpy) / Z * fov * 2.6
         return [X, Y, Z]
-        /*
-        float camz = cpz / 1e3 * pow(5.0, (log(fov) / 1.609438));
-        float Z = pos.z + camz + geo.z;
-        float X = ((pos.x + cpx + geo.x) / Z / resolution.x * fov);
-        float Y = ((pos.y + cpy + geo.y) / Z / resolution.y * fov);
-        */
       }
       
       var mag = (1/renderer.fov)*383
       var mouseInternalCoordsFOV = () => {
         var tz = renderer.z/1e3*renderer.fov
-        X = (renderer.mouseX - renderer.width/2) / renderer.width * mag
-        Y = -(renderer.mouseY - renderer.height/2) / renderer.height *
+        X = (mmx - renderer.width/2) / renderer.width * mag
+        Y = -(mmy - renderer.height/2) / renderer.height *
         mag / (renderer.width/renderer.height)
         Z = -tz+.1
         p = Math.atan2(X, Y) - renderer.roll
@@ -242,6 +246,51 @@
         return [X,Y,Z]
       }
 
+      var camInternalCoordsFOV = () => {
+        var tz = renderer.z/1e3*renderer.fov
+        X = 0
+        Y = 0
+        Z = -tz
+        p = Math.atan2(X, Y) - renderer.roll
+        d = Math.hypot(X, Y)
+        X = S(p) * d
+        Y = C(p) * d
+        p = Math.atan2(Y, Z) - renderer.pitch
+        d = Math.hypot(Y, Z)
+        Y = S(p) * d
+        Z = C(p) * d
+        p = Math.atan2(X, Z) - renderer.yaw
+        d = Math.hypot(X, Z)
+        X = S(p) * d
+        Z = C(p) * d
+        return [X,Y,Z]
+      }
+      
+      var mouseInternalCoords = () => {
+        var tz = renderer.z/1e3*renderer.fov
+        X = (mmx - renderer.width/2) / renderer.width * mag
+        Y = -(mmy - renderer.height/2) / renderer.height *
+        mag / (renderer.width/renderer.height)
+        Z = -tz+.1
+        p = Math.atan2(X, Y) - renderer.roll
+        d = Math.hypot(X, Y)
+        X = S(p) * d
+        Y = C(p) * d
+        return [X,Y,Z]
+      }
+
+      var camInternalCoords = () => {
+        var tz = renderer.z/1e3*renderer.fov
+        X = 0
+        Y = 0
+        Z = -tz
+        p = Math.atan2(X, Y) - renderer.roll
+        d = Math.hypot(X, Y)
+        X = S(p) * d
+        Y = C(p) * d
+        return [X,Y,Z]
+      }
+ 
       var rotate = () => {
         p = Math.atan2(X,Z) + renderer.yaw
         d = Math.hypot(X,Z)
@@ -257,10 +306,91 @@
         Y = C(p)*d
       }
       
+      var unRotate = () => {
+        p = Math.atan2(X,Y) + renderer.roll
+        d = Math.hypot(X,Y)
+        X = S(p)*d
+        Y = C(p)*d
+        p = Math.atan2(Y,Z) + renderer.pitch
+        d = Math.hypot(Y,Z)
+        Y = S(p)*d
+        Z = C(p)*d
+        p = Math.atan2(X,Z) - renderer.yaw
+        d = Math.hypot(X,Z)
+        X = S(p)*d
+        Z = C(p)*d
+      }
+      
       var p, d, px, py, pz, l
       var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, X4, Y4, Z4
-      window.Draw = () => {
+
+
+      var getDepth = (X, Y) => {
+        X /= scSize / 8
+        Y /= scSize / 8
+        var w = scratchCanvas.width
+        var h = scratchCanvas.height
+        X *= w / 100
+        Y *= h / 100
+        var data = scratchData.data
+        var l = Math.min(data.length, Math.max(0,
+                  ((Math.min(w, Math.max(0, X + w/2)) |0) + 
+                 (Math.min(h, Math.max(0, Y + h/2)) |0) * w) * 4
+                ))
+        var red   = data[l+0]
+        var green = data[l+1]
+        var blue  = data[l+2]
+        //var alpha = 255 //data[l+3]
+        var lum   = (red + green + blue) / 3
+        return -(lum / 256)
+      }
+
+      var process = () => {
+        var ar, mx, my , mz, cx, cy, cz
+        var X1, Y1, Z1, X2, Y2, Z2
+        ar = mouseInternalCoords()
+        mx = ar[0]
+        my = ar[1]
+        mz = ar[2]
+        ar = camInternalCoords()
+        X1 = ar[0]
+        Y1 = ar[1]
+        Z1 = ar[2]
+        X2 = X1 - (mx - X1) * 1e5
+        Y2 = Y1 + (my - Y1) * 1e5
+        Z2 = Z1 + (mz - Z1) * 1e5 * 10
+        var a = []
+        target.map(v=>{
+          X = v[0]
+          Y = v[1]
+          Z = v[2]
+          //rotate()
+          a = [...a, [X,Y,Z/5]]
+        })
+        if(ar = Coordinates.PointInPoly3D(X1,Y1,Z1,X2,Y2,Z2, a)){
+          var s = 6.6 * ((renderer.z)/ 8)
+          X = ar[0][0]*s, Y = ar[0][1]*s, Z = ar[0][2] * s * 2
+          ar = getShaderCoord(X,Y,Z)
+          //sctx.fillStyle = '#ff08'
+          //var s = 150
+          //sctx.fillRect(ar[0]-s/2, ar[1]-s/2,s,s)
+          //sctx.fillStyle = '#ff0'
+          //s /= 5
+          //sctx.fillRect(ar[0]-s/2, ar[1]-s/2,s,s)
+          return ar
+        }
+        return false
+      }
+      
+      window.Draw = async () => {
         var t = renderer.t
+        console.log(canvasShader)
+        canvasShader.datasets[0].optionalUniforms[0].theta = -renderer.yaw - 1
+        scratchData = await sctx.getImageData(0,0,scratchCanvas.width, scratchCanvas.height)
+        
+        if(renderer.mouseButton == -1) pulse /= 1.03
+        
+        renderer.z = Math.min(8, Math.max(4, (.3-C(t))*10))
         
         overlay.ctx.clearRect(0,0,overlay.c.width,overlay.c.height)
         overlay.c.style.background = '#0000'
@@ -269,43 +399,45 @@
         var cx = scratchCanvas.width / 2
         var cy = scratchCanvas.height / 2
         var cz = 0
-        var ls = cy / 1.1
-        sctx.fillStyle = mouseInCanvas ? '#042' : '#400'
+        var ls = cy / 1.025
+        sctx.fillStyle = '#0004' // mouseInCanvas ? '#042' : '#400'
         sctx.fillRect(0,0,scratchCanvas.width,scratchCanvas.height)
-        sctx.beginPath()
-        sctx.lineJoin = sctx.lineCap = 'round'
-        for(var i=3; i--;){
-          X = cx + S(p=Math.PI*2/sd*i+t) * ls
-          Y = cy + C(p) * ls
-          Z = cz
-          sctx.lineTo(X, Y)
-        }
-        sctx.closePath()
-        sctx.lineWidth = 50
-        sctx.strokeStyle = '#fff2'
-        sctx.stroke()
-        sctx.lineWidth = 20
-        sctx.strokeStyle = '#fff'
-        sctx.stroke()
-        sctx.strokeStyle = '#fff1'
-        sctx.fill()
         
-        if(mouseInCanvas){
-          var ar = overlayProjectionCoords()
-          console.log(ar)
-          sctx.fillStyle = '#ff08'
-          var s = 50
-          sctx.fillRect(ar[0]-s/2, ar[1]-s/2,s,s)
-          sctx.fillStyle = '#ff0'
-          s /= 5
-          sctx.fillRect(ar[0]-s/2, ar[1]-s/2,s,s)
-        }
+        var m = process()
+          //m = [scratchCanvas.width/2, scratchCanvas.height/2]
+        var mx = m[0]
+        var my = m[1]
+        cl = 50
+        rw = 50
+        br = 1
+        sp = scratchCanvas.width / cl
+        Array(cl*rw*br).fill().map((v, i)=>{
+          X = (i%cl) * sp
+          Y = ((i/cl|0)%rw) * sp
+          Z = (i/cl/rw|0) * sp
+          d = Math.hypot(mx-X,my-Y)
+          p = Math.atan2(mx-X,my-Y)
+          sctx.fillStyle = `hsla(${S(d/100-t*10)*250 + t*500},50%,${50+S(d/100-t*10)*50}%,1)`
+          sctx.fillRect(X-sp/2,Y-sp/2, sp, sp)
+        })
         
-        //renderer.roll   += .005
-        renderer.yaw   = .05
-        //renderer.pitch  = .2
+        renderer.roll   += C(t/2) * .003
+        renderer.yaw   -= .01 //C(t) * .4
+        renderer.pitch  = S(t/2) * .2
         shapes.forEach(shape => {
           switch(shape.name){
+            case 'canvasGeometry':
+              for(var i = 0; i< shape.vertices.length; i+=3){
+                X = shape.vertices[i+0]
+                Y = shape.vertices[i+1]
+                Z = pulse * ((getDepth(X, Y)**2) / 1 + .5)
+                shape.vertices[i+0] = X
+                shape.vertices[i+1] = Y
+                shape.vertices[i+2] = Z
+              }
+              shape.canvasTextureMix = pulse
+              Coordinates.SyncNormals(shape, true)
+            break
             case 'background':
             break
             case 'mouseCursor':
@@ -326,99 +458,8 @@
                 rotate()
                 a = [...a, getShaderCoord(X,Y,Z)]
               })
-              mouseInCanvas = Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, a)
-              
-              /*
-              var SX = shape.x
-              var SY = shape.y
-              var SZ = shape.z
-              p = Math.atan2(SX, SZ) + renderer.yaw
-              d = Math.hypot(SX, SZ)
-              SX = S(p) * d
-              SZ = C(p) * d
-              p = Math.atan2(SY, SZ) + renderer.pitch
-              d = Math.hypot(SY, SZ)
-              SY = S(p) * d
-              SZ = C(p) * d
-              p = Math.atan2(SX, SY) + renderer.roll
-              d = Math.hypot(SX, SY)
-              SX = S(p) * d
-              SY = C(p) * d
+              mouseInCanvas = Coordinates.PointInPoly2D(mmx, mmy, a)
 
-              // begin canvas stuff
-              X1 = renderer.x
-              Y1 = renderer.y
-              Z1 = renderer.z
-              d = 500
-              X2 = X1 + (SX - X1) * tz * 4e3
-              Y2 = Y1 + (SY - Y1) * tz * 4e3
-              Z2 = Z1 + (SZ - Z1) * d*2
-              var l
-              var a = []
-              target.map(v=>{
-                X = v[0]
-                Y = v[1]
-                Z = v[2]
-                
-                p = Math.atan2(X, Y) - renderer.roll
-                d = Math.hypot(X, Y)
-                X = S(p) * d
-                Y = C(p) * d
-                p = Math.atan2(Y, Z) - renderer.pitch
-                d = Math.hypot(Y, Z)
-                Y = S(p) * d
-                Z = C(p) * d
-                p = Math.atan2(X, Z) - renderer.yaw
-                d = Math.hypot(X, Z)
-                X = S(p) * d
-                Z = C(p) * d
-                
-                a = [...a, [X,Y,Z]]
-              })
-              if(l = Coordinates.LineFaceIntersect(X1, Y1, Z1, X2, Y2, Z2, a)){
-                X = l[0][0] * 5.2
-                Y = l[0][1] * 5.2
-                Z = l[0][2] * 5.2 + .01
-                p = Math.atan2(X, Z) + renderer.yaw
-                d = Math.hypot(X, Z)
-                X = S(p) * d
-                Z = C(p) * d
-                p = Math.atan2(Y, Z) + renderer.pitch
-                d = Math.hypot(Y, Z)
-                Y = S(p) * d
-                Z = C(p) * d
-                p = Math.atan2(X, Y) + renderer.roll
-                d = Math.hypot(X, Y)
-                X = S(p) * d
-                Y = C(p) * d
-
-                contactPoint.x = X
-                contactPoint.y = Y
-                contactPoint.z = Z
-                renderer.Draw(contactPoint)
-                X = l[0][0] * 5.2
-                Y = l[0][1] * 5.2
-                Z = l[0][2] * 5.2 - .01
-                p = Math.atan2(X, Z) + renderer.yaw
-                d = Math.hypot(X, Z)
-                X = S(p) * d
-                Z = C(p) * d
-                p = Math.atan2(Y, Z) + renderer.pitch
-                d = Math.hypot(Y, Z)
-                Y = S(p) * d
-                Z = C(p) * d
-                p = Math.atan2(X, Y) + renderer.roll
-                d = Math.hypot(X, Y)
-                X = S(p) * d
-                Y = C(p) * d
-
-                contactPoint.x = X
-                contactPoint.y = Y
-                contactPoint.z = Z
-                renderer.Draw(contactPoint)
-              }
-              */
-              
             default:
             break
           }
