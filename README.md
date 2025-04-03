@@ -515,6 +515,7 @@ window.Draw = () => {
 
 This creates such output<br>
 <center>
+
 ![example2](README_g2.gif) </center>
 
 
