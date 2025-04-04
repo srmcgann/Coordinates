@@ -24,6 +24,11 @@
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
+      rendererOptions = {
+        context: { mode: '2d' }
+      }
+      var overlay = await Coordinates.Renderer(rendererOptions)
+      
       renderer.z = 10
       
       Coordinates.AnimationLoop(renderer, 'Draw')
@@ -36,33 +41,201 @@
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+      var S  = Math.sin
+      var C  = Math.cos
+      var Rn = Math.random
 
       var shapes = []
       
-      var myCanvas = document.createElement('canvas')
-      myCanvas.width = 512
-      myCanvas.height = 512
-      var ctx = myCanvas.getContext('2d')
-      const updateMyCanvas = () => {
-        ctx.fillStyle = '#000'
-        ctx.fillRect(0, 0, myCanvas.width, myCanvas.height)
-        for(var i = 0; i<3; i++){
-          var p = Math.PI * 2 / 3 * i + renderer.t * 8
-          var X = myCanvas.width/2  + Math.sin(p) * 100
-          var Y = myCanvas.height/2  + Math.cos(p) * 100
-          ctx.beginPath()
-          ctx.arc(X, Y, 50,0,7)
-          ctx.fillStyle = '#f00'
-          ctx.fill()
-        }
+      
+      var getShaderCoord = (vx, vy, vz, shape) => {
+        var X, Y, Z
+        var ar = Coordinates.R(vx, vy, vz, {
+          roll: -shape.roll,
+          pitch: -shape.pitch,
+          yaw: shape.yaw,
+          x: shape.x,
+          y: shape.y,
+          z: shape.z,
+        }, false)
+        vx = ar[0]
+        vy = ar[1]
+        vz = ar[2]
+
+        ar = Coordinates.R(vx, vy, vz, {
+          roll: -renderer.roll,
+          pitch: -renderer.pitch,
+          yaw: renderer.yaw,
+          x: renderer.x,
+          y: renderer.y,
+          z: renderer.z,
+        }, true)
+        vx = ar[0]
+        vy = ar[1]
+        vz = ar[2] * 3.25
+        
+        var cpx = renderer.x
+        var cpy = renderer.y
+        var cpz = renderer.z
+        var fov = renderer.fov
+        var camz = cpz / 1e3 * Math.pow(5.0, Math.log(fov) / 1.609438)
+        Z = vz + camz + shape.z
+        X = renderer.width / 2 + (vx + cpx + shape.x) / Z * fov * 1.6
+        Y = renderer.height / 2 + (vy + cpy + shape.y) / Z * fov * 1.6
+        return [X, Y, Z]
       }
+
+      var scratchCanvas = overlay.c
+      scratchCanvas.style.background = '#0000'
+      scratchCanvas.width = renderer.c.width
+      scratchCanvas.height = renderer.c.height
+      var sctx = overlay.ctx
+      const updateCanvas = () => {
+        var X, Y, Z
+        sctx.clearRect(0, 0, scratchCanvas.width, scratchCanvas.height)
+        sctx.fillStyle = '#f00'
+        sctx.fillRect(100,100,100,100)
+        shapes.map(shape => {
+          var a = [], b, p
+          for(var i=0; i<shape.vertices.length; i+=3){
+            if(!(i%9)){
+              sctx.beginPath()
+              b = []
+            }
+            X = shape.vertices[i+0]
+            Y = shape.vertices[i+1]
+            Z = shape.vertices[i+2]
+            var ar = getShaderCoord(X,Y,Z,shape)
+            b = [...b, [ar[0], ar[1]]]
+            
+            if(i%9 == 6){
+              a = [...a, b]
+            }
+            /*sctx.lineTo(...ar)
+            if(i%9 == 6){
+              sctx.closePath()
+              //sctx.lineWidth = 50 / (1 + Z)
+              //sctx.strokeStyle = '#f004'
+              //sctx.stroke()
+              sctx.lineWidth =1
+              sctx.strokeStyle = '#f00'
+              sctx.stroke()
+            }*/
+          }
+          
+          var X1, Y1, X2, Y2, X3, Y3, X4, Y4
+          b = []
+          a.map((triangle, idx) => {
+            X1 = triangle[0][0]
+            Y1 = triangle[0][1]
+            X2 = triangle[1][0]
+            Y2 = triangle[1][1]
+            X3 = triangle[2][0]
+            Y3 = triangle[2][1]
+            b = [...b, [X1,Y1,X2,Y2]]
+            b = [...b, [X2,Y2,X3,Y3]]
+            b = [...b, [X3,Y3,X1,Y1]]
+          })
+          
+          /*var test1, test2
+          var sd = 6, ls = 2e3
+          b = b.filter((seg, idx) => {
+            test1 = false
+            test2 = false
+            
+            X1 = seg[0]
+            Y1 = seg[1]
+            for(var i=sd; (!test1) && i--;){
+              X2 = X1 + S(p = Math.PI*2/sd*i) * ls
+              Y2 = Y1 + C(p) * ls
+              b.map((seg2, idx2) => {
+                if(!test1 && idx2 != idx){
+                  X3 = seg2[0]
+                  Y3 = seg2[1]
+                  X4 = seg2[2]
+                  Y4 = seg2[3]
+                  if(!Coordinates.Intersects(X1,Y1,X2,Y2,X3,Y3,X4,Y4)) test1 = true
+                }
+              })
+            }
+            if(test1){
+              X1 = seg[2]
+              Y1 = seg[3]
+              for(var i=sd; (!test2) && i--;){
+                X2 = X1 + S(p = Math.PI*2/sd*i) * ls
+                Y2 = Y1 + C(p) * ls
+                b.map((seg2, idx2) => {
+                  if(!test2 && idx2 != idx){
+                    X3 = seg2[0]
+                    Y3 = seg2[1]
+                    X4 = seg2[2]
+                    Y4 = seg2[3]
+                    if(!Coordinates.Intersects(X1,Y1,X2,Y2,X3,Y3,X4,Y4)) test2 = true
+                  }
+                })
+              }
+            }
+            return test1 && test2
+          })
+          */
+          
+          var l
+          b = b.filter((seg, idx) => {
+            for(var i = 0; i< b.length; i++){
+              if(i != idx){
+                X1 = seg[0]
+                Y1 = seg[1]
+                X2 = seg[2]
+                Y2 = seg[3]
+                X3 = b[i][0]
+                Y3 = b[i][1]
+                X4 = b[i][2]
+                Y4 = b[i][3]
+                if(
+                  Math.hypot(X3-X1, Y3-Y1) > .0001 &&
+                  Math.hypot(X4-X1, Y4-Y1) > .0001 &&
+                  Math.hypot(X3-X2, Y3-Y2) > .0001 &&
+                  Math.hypot(X4-X2, Y4-Y2) > .0001
+                   ){
+                   var tx = X1, ty = Y1
+                   var d = Math.hypot(X2-X1,Y2-Y1)
+                   X1 += (X1-X2) /d*1000
+                   Y1 += (Y1-Y2) /d*1000
+                   X2 += (X2-tx) /d*1000
+                   Y2 += (Y2-ty) /d*1000
+                  if(l = Coordinates.Intersects(X1,Y1,X2,Y2,X3,Y3,X4,Y4)){
+                    if(
+                      Math.hypot(l[0]-X3, l[1]-Y3) > .0001 &&
+                      Math.hypot(l[0]-X4, l[1]-Y4) > .0001
+                    ) return false
+                  }
+                }
+              }
+            }
+            return true
+          })
+          b.map(seg => {
+            sctx.beginPath()
+            sctx.lineTo(seg[0], seg[1])
+            sctx.lineTo(seg[2], seg[3])
+            sctx.lineWidth = 150 / (1 + Z)
+            sctx.strokeStyle = '#f004'
+            sctx.stroke()
+            sctx.lineWidth /= 10
+            sctx.strokeStyle = '#ff0'
+            sctx.stroke()
+          })
+        })
+      }
+      
       
       var geoOptions = {
         shapeType: 'cube',
-        size: 5,
-        subs: 3,
-        canvasTexture: myCanvas,
-        color: 0x0000ff
+        size: 7,
+        subs: 1,
+        sphereize: 0,
+        averageNormals: true,
+        color: 0xffffff
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -71,12 +244,12 @@
       
       
       window.Draw = () => {
-        updateMyCanvas()
         shapes.forEach(shape => {
           shape.yaw += .01
           shape.pitch += .005
           renderer.Draw(shape)
         })
+        updateCanvas()
       }
       
     </script>
