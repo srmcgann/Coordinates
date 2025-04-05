@@ -7,7 +7,6 @@
         background: #333;
         margin: 0;
         min-height: 100vh;
-        overflow: hidden;
       }
     </style>
   </head>
@@ -15,12 +14,11 @@
     <script type="module">
     
       import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      "./coordinates.js"
     
       var rendererOptions = {
         ambientLight: .5,
-        fov: 1500,
-        margin: 0
+        fov: 1500
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
@@ -31,38 +29,49 @@
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: .75,
+          value: .75
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
+      
+      var S  = Math.sin
+      var C  = Math.cos
+      var Rn = Math.random
 
       var shapes = []
-      
-      var myCanvas = document.createElement('canvas')
-      myCanvas.width = 512
-      myCanvas.height = 512
-      var ctx = myCanvas.getContext('2d')
-      const updateMyCanvas = () => {
-        ctx.fillStyle = '#000'
-        ctx.fillRect(0, 0, myCanvas.width, myCanvas.height)
-        for(var i = 0; i<3; i++){
-          var p = Math.PI * 2 / 3 * i + renderer.t * 8
-          var X = myCanvas.width/2  + Math.sin(p) * 100
-          var Y = myCanvas.height/2  + Math.cos(p) * 100
-          ctx.beginPath()
-          ctx.arc(X, Y, 50,0,7)
-          ctx.fillStyle = '#f00'
-          ctx.fill()
-        }
+
+      var geoOptions = {
+        shapeType: 'obj',
+        url: 'https://srmcgann.github.io/objs/tree/tree.obj',
+        map: 'https://srmcgann.github.io/objs/tree/bark1.jpg',
+        x: 0,
+        y: 0,
+        z: 0,
+        size: .25,
+        //objY: -5,
+        subs: 0,
+        averageNormals: true,
+        color: 0xffffff,
+        exportShape: true,
       }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })  
       
       var geoOptions = {
-        shapeType: 'cube',
-        size: 5,
-        subs: 3,
-        canvasTexture: myCanvas,
-        color: 0x0000ff
+        shapeType: 'obj',
+        url: 'https://srmcgann.github.io/objs/tree/leaves.obj',
+        map: 'https://srmcgann.github.io/objs/tree/leaf_texture.png',
+        x: 0,
+        y: 0,
+        z: 0,
+        size: .25,
+        //objY: -5,
+        subs: 0,
+        averageNormals: true,
+        color: 0xffffff,
+        exportShape: true,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -70,11 +79,159 @@
       })  
       
       
+      
+      
+      var getShaderCoord = (vx, vy, vz, shape) => {
+        var X, Y, Z
+        var ar = Coordinates.R(vx, vy, vz, {
+          roll: -shape.roll,
+          pitch: -shape.pitch,
+          yaw: shape.yaw,
+          x: shape.x,
+          y: shape.y,
+          z: shape.z,
+        }, false)
+        vx = ar[0]
+        vy = ar[1]
+        vz = ar[2]
+
+        ar = Coordinates.R(vx, vy, vz, {
+          roll: -renderer.roll,
+          pitch: -renderer.pitch,
+          yaw: renderer.yaw,
+          x: renderer.x,
+          y: renderer.y,
+          z: renderer.z,
+        }, true)
+        vx = ar[0]
+        vy = ar[1]
+        vz = ar[2]
+        
+        var cpx = renderer.x
+        var cpy = renderer.y
+        var cpz = renderer.z
+        var fov = renderer.fov
+        var camz = cpz / 1e3 * Math.pow(5.0, Math.log(fov) / 1.609438) -cpz
+        Z = vz + camz + shape.z
+        if(Z>0){
+          X = renderer.width / 2 + (vx + cpx + shape.x) / Z * fov / 1.98
+          Y = renderer.height / 2 + (vy + cpy + shape.y) / Z * fov / 1.95
+          return [X, -Y, Z]
+        }
+        return false
+      }
+
+      scratchCanvas = overlay.c
+      scratchCanvas.style.background = '#0000'
+      scratchCanvas.width = renderer.c.width
+      scratchCanvas.height = renderer.c.height
+      var sctx = overlay.ctx
+      const updateCanvas = () => {
+        var X, Y, Z
+        sctx.clearRect(0, 0, scratchCanvas.width, scratchCanvas.height)
+        sctx.fillStyle = '#f00'
+        sctx.fillRect(100,100,100,100)
+        
+        var X1, Y1, X2, Y2, X3, Y3, X4, Y4
+        var p, d, a, b, maxp, tidx, tpart, mind
+
+        const recurse = (ar, idx, oidx=-1, op=9, memo=[]) => {
+          if(oidx == idx) return
+          oidx = idx
+          memo=[...memo, idx]
+          
+          X1 = ar[idx][0]
+          Y1 = ar[idx][1]
+          
+          maxp = tidx = -9
+          ar.map((v, i) =>{
+            if(i!=idx){
+              X2 = ar[i][0]
+              Y2 = ar[i][1]
+              if((p = Math.atan2(Y2-Y1-.00001, X1-X2)) >= maxp && p <= op){
+                maxp = p
+                tidx = i
+              }
+            }
+          })
+          
+          if(tidx == -9) return
+          
+          X2 = ar[tidx][0]
+          Y2 = ar[tidx][1]
+          sctx.beginPath()
+          sctx.lineWidth = 20
+          sctx.strokeStyle = '#ff08'
+          sctx.lineTo(X1,Y1)
+          sctx.lineTo(X2,Y2)
+          sctx.stroke()
+
+          recurse(ar, tidx, oidx, maxp, memo)
+        }        
+        shapes.map(shape => {
+          var a = [], b, p
+          for(var i=0; i<shape.vertices.length; i+=3){
+            if(!(i%9)){
+              sctx.beginPath()
+              b = []
+            }
+            X = shape.vertices[i+0]
+            Y = shape.vertices[i+1]
+            Z = shape.vertices[i+2]
+            var ar = getShaderCoord(X,Y,Z,shape)
+            b = [...b, [ar[0], ar[1]]]
+            
+            if(i%9 == 6){
+              a = [...a, b]
+            }
+            sctx.lineTo(...ar)
+            if(0 && i%9 == 6){
+              sctx.closePath()
+              //sctx.lineWidth = 50 / (1 + Z)
+              //sctx.strokeStyle = '#f004'
+              //sctx.stroke()
+              sctx.lineWidth =1
+              sctx.strokeStyle = '#f00'
+              sctx.stroke()
+            }
+          }
+          
+          var X1, Y1, X2, Y2, X3, Y3, X4, Y4
+          b = []
+          a.map((triangle, idx) => {
+            X1 = triangle[0][0]
+            Y1 = triangle[0][1]
+            X2 = triangle[1][0]
+            Y2 = triangle[1][1]
+            X3 = triangle[2][0]
+            Y3 = triangle[2][1]
+            if(!b.filter(v=>v[0]==X1&&v[1]==Y1).length) {
+              b = [...b, [X1,Y1]]
+            }
+            if(!b.filter(v=>v[0]==X2&&v[1]==Y2).length) {
+              b = [...b, [X2,Y2]]
+            }
+            if(!b.filter(v=>v[0]==X3&&v[1]==Y3).length) {
+              b = [...b, [X3,Y3]]
+            }
+          })
+          var miny = 6e6, midx = -1
+          b.map((v, i) => {
+            if(v[1] <= miny){
+              midx = i
+              miny = v[1]
+            }
+          })
+          recurse(b, midx)
+        })
+      }
+      
+      
+
       window.Draw = () => {
-        updateMyCanvas()
         shapes.forEach(shape => {
           shape.yaw += .01
-          shape.pitch += .005
+          //shape.pitch += .005
           renderer.Draw(shape)
         })
       }
