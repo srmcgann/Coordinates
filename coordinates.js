@@ -13,6 +13,7 @@ const sctx = scratchCanvas.getContext('2d', {
     premultipliedAlpha      : false
   }
 )
+
 const scratchImage = new Image()
 const ModuleBase = 'https://srmcgann.github.io/Coordinates'
 
@@ -107,8 +108,9 @@ const Renderer = async options => {
     document.body.appendChild(c)
   }
   
-  var rsz
+  var rsz, ret
   window.addEventListener('resize', rsz = (e) => {
+    var margin = ret.margin
     var b = document.body
     var n
     var d = c.width !== 0 ? c.height / c.width : 1
@@ -120,10 +122,8 @@ const Renderer = async options => {
       c.style.width = `${n/d - margin*2}px`
     }
   })
-  rsz()
   
-  
-  var ret = {
+  ret = {
     // vars & objects
     c, ctx, contextType, t:0, alpha,
     width, height, x, y, z,
@@ -133,13 +133,15 @@ const Renderer = async options => {
     particleQueue, alphaQueue,
     cameraMode, showCrosshair,
     pageX, pageY, mouseX, mouseY,
-    mouseButton
+    mouseButton, rsz, margin
     
     // functions
     // ...
   }
+  rsz()
   ret[contextType == '2d' ? 'ctx' : 'gl'] = ctx
   var renderer = ret
+  
   
   const Clear = () => {
     switch(contextType){
@@ -154,8 +156,7 @@ const Renderer = async options => {
     }
   }
   renderer['Clear'] = Clear
-  
-  
+    
   const Draw = async (geometry, sortedPass = false, penumbraPass = false) => {
     var shader = geometry.shader
     var dset   = shader.datasets[geometry.datasetIdx]
@@ -411,6 +412,7 @@ const Renderer = async options => {
               ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
             }
           }
+          if(geometry.showBounding) ShowBounding(geometry, renderer)
         }
       }
     }
@@ -663,7 +665,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var normalVec_buffer, NormalVec_Index_Buffer
   var uv_buffer, UV_Index_Buffer, name, shapeType
   var vIndices, nIndices, nVecIndices, uvIndices
-  var canvasTexture, canvasTextureMix
+  var canvasTexture, canvasTextureMix, showBounding
+  var boundingColor
   const gl = renderer.gl
   var shape, exportShape = false
   
@@ -690,6 +693,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var map                    = ''
   var canvasTextureMix       = -1
   var muted                  = true
+  var boundingColor          = 0x88ff22
+  var showBounding           = false
   var isSprite               = 0.0
   var isCrosshair            = 0.0
   var isLight                = 0.0
@@ -774,6 +779,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'geometrydata'     : geometryData = geoOptions[key]; break
       case 'precomputenormalassocs' : preComputeNormalAssocs = geoOptions[key]; break
       case 'texcoords'        : texCoords = geoOptions[key]; break
+      case 'boundingcolor'    : boundingColor = geoOptions[key]; break
+      case 'showbounding'     : showBounding = !!geoOptions[key]; break
       case 'issprite'         :
         isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'iscrosshair'      :
@@ -807,7 +814,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
   
   
-  if(sphereize) averageNormals = true
+  //if(sphereize) averageNormals = true
 
   var vertices    = new Float32Array()
   var normals     = new Float32Array()
@@ -1376,7 +1383,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     textureMode, isSprite, isCrosshair, isLight, playbackSpeed,
     disableDepthTest, lum, alpha, involveCache,
     renderer, isParticle, penumbra, wireframe,
-    canvasTexture, canvasTextureMix
+    canvasTexture, canvasTextureMix, showBounding,
+    boundingColor
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -1636,6 +1644,206 @@ const SyncNormals = (shape, averageNormals=false) => {
     var n = shape.normalVecs
     for(var i = 0; i<n.length; i++) n[i] = avN[i]
   }
+}
+
+const GetShaderCoord = (vx, vy, vz, shape, renderer) => {
+  var X, Y, Z
+  vy *= -1
+  var ar = R(vx, vy, vz, {
+    roll: 0,
+    pitch:  0,
+    yaw: shape.yaw,
+  }, false)
+  vx = ar[0]
+  vy = ar[1]
+  vz = ar[2]
+
+  var ar = R(vx, vy, vz, {
+    roll: 0,
+    pitch: -shape.pitch,
+    yaw: 0,
+  }, false)
+  vx = ar[0]
+  vy = ar[1]
+  vz = ar[2]
+
+  var ar = R(vx, vy, vz, {
+    roll: -shape.roll,
+    pitch:  0,
+    yaw: 0,
+  }, false)
+  vx = ar[0]
+  vy = ar[1]
+  vz = ar[2]
+
+
+  vx += shape.x
+  vy -= shape.y
+  vz += shape.z
+
+
+  ar = R(vx, vy, vz, {
+    roll: 0,
+    pitch: 0,
+    yaw: renderer.yaw,
+  }, false)
+  vx = ar[0]
+  vy = ar[1]
+  vz = ar[2]
+
+  ar = R(vx, vy, vz, {
+    roll: 0,
+    pitch: -renderer.pitch,
+    yaw: 0,
+  }, false)
+  vx = ar[0]
+  vy = ar[1]
+  vz = ar[2]
+
+  ar = R(vx, vy, vz, {
+    roll: -renderer.roll,
+    pitch: 0,
+    yaw: 0,
+  }, false)
+  vx = ar[0]
+  vy = ar[1]
+  vz = ar[2]
+  
+
+  vx += renderer.x
+  vy -= renderer.y
+  vz -= renderer.z
+
+  
+  
+  var cpx = renderer.x
+  var cpy = renderer.y
+  var cpz = renderer.z
+  var fov = renderer.fov
+  var camz = cpz / 1e3 * Math.pow(5.0, Math.log(fov) / 1.609438) +cpz
+  Z = vz + camz
+  if(Z>0){
+    X = renderer.width / 2 + vx / Z * fov / 2
+    Y = renderer.height / 2 + vy / Z * fov / 2
+    return [X, Y, Z]
+  }
+  return false
+}
+
+const ShowBounding = (shape, renderer, draw=true) => {
+
+  var X, Y, Z
+  
+  var X1, Y1, X2, Y2, X3, Y3, X4, Y4
+  var p, d, a, b, maxp, tidx, tpart, mind
+  var memo=[]
+  const recurse = (ar, idx, oidx=-1, op=9) => {
+    if(oidx == idx) return
+    oidx = idx
+    memo=[...memo, idx]
+    
+    X1 = ar[idx][0]
+    Y1 = ar[idx][1]
+    
+    maxp = tidx = -9
+    ar.map((v, i) =>{
+      if(i!=idx){
+        X2 = ar[i][0]
+        Y2 = ar[i][1]
+        if((p = Math.atan2(Y2-Y1-.00001, X1-X2)) >= maxp && p <= op){
+          maxp = p
+          tidx = i
+        }
+      }
+    })
+    
+    if(tidx == -9) return
+    
+    if(draw){
+      X2 = ar[tidx][0]
+      Y2 = ar[tidx][1]
+      overlay.ctx.beginPath()
+      overlay.ctx.lineWidth = 5
+      overlay.ctx.globalAlpha = 1
+      var rgb = RGBFromHex(shape.boundingColor)
+      overlay.ctx.strokeStyle = `rgba(${rgb[0]*256},${rgb[1]*256},${rgb[2]*256},.5)`
+      overlay.ctx.lineTo(X1,Y1)
+      overlay.ctx.lineTo(X2,Y2)
+      overlay.ctx.stroke()
+    }
+
+    recurse(ar, tidx, oidx, maxp)
+  }
+
+  var a = [], b, p, ox=-1, oy=1e6, ax, ay
+  for(var i=0; i<shape.vertices.length; i+=3){
+    if(!(i%9)){
+      ax = ay = 0
+      overlay.ctx.beginPath()
+      b = []
+    }
+    X = shape.vertices[i+0]
+    Y = shape.vertices[i+1]
+    Z = shape.vertices[i+2]
+    var ar = GetShaderCoord(X, Y, Z, shape, renderer)
+    b = [...b, [ar[0], ar[1]]]
+    ax += ar[0]
+    ay += ar[1]
+    
+    if(i%9 == 6){
+      ax /= 3
+      ay /= 3
+      if(Math.hypot(ax-ox, ay-oy) > 10){
+        ox = ax
+        oy = ay
+        a = [...a, b]
+      }
+    }
+    if(ar.length){
+      overlay.ctx.lineTo(...ar)
+      if(false && i%9 == 6){  // show wireframe [disabled]
+        overlay.ctx.closePath()
+        //overlay.ctx.lineWidth = 50 / (1 + Z)
+        //overlay.ctx.strokeStyle = '#f004'
+        //overlay.ctx.stroke()
+        overlay.ctx.lineWidth =1
+        overlay.ctx.strokeStyle = '#f00'
+        overlay.ctx.stroke()
+      }
+    }
+  }
+  
+  var X1, Y1, X2, Y2, X3, Y3, X4, Y4
+  b = []
+  a.map((triangle, idx) => {
+    X1 = triangle[0][0]
+    Y1 = triangle[0][1]
+    X2 = triangle[1][0]
+    Y2 = triangle[1][1]
+    X3 = triangle[2][0]
+    Y3 = triangle[2][1]
+    if(!b.filter(v=>v[0]==X1&&v[1]==Y1).length) {
+      b = [...b, [X1,Y1]]
+    }
+    if(!b.filter(v=>v[0]==X2&&v[1]==Y2).length) {
+      b = [...b, [X2,Y2]]
+    }
+    if(!b.filter(v=>v[0]==X3&&v[1]==Y3).length) {
+      b = [...b, [X3,Y3]]
+    }
+  })
+  var miny = 6e6, midx = -1
+  b.map((v, i) => {
+    if(v[1] <= miny){
+      midx = i
+      miny = v[1]
+    }
+  })
+  recurse(b, midx)
+  
+  return memo.map(idx => [
+    b[idx][0], b[idx][1]
+  ])
 }
 
 const AverageNormals = (verts, normals, shapeType) => {
@@ -3948,6 +4156,14 @@ const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
 
 const AnimationLoop = (renderer, func) => {
   const loop = async () => {
+    overlay.margin = renderer.margin
+    overlay.rsz()
+    overlay.width = renderer.width
+    overlay.height = renderer.height
+    overlay.c.width = renderer.c.width
+    overlay.c.height = renderer.c.height
+    overlay.ctx.clearRect(0, 0, overlay.width, overlay.height)
+    
     if(renderer.ready && typeof window[func] != 'undefined') await window[func]()
       
     // mimic shader rotation function, for z-sorting.
@@ -4204,6 +4420,10 @@ const getParams = ctx => {
   document.body.appendChild(popup)
 }
 
+var overlay        // for sketch-up, e.g. shape-bounding graphics
+overlay = await Renderer({ context: { mode: '2d', margin: 0 } })
+overlay.c.style.background = '#0000'
+overlay.c.style.zIndex = 10000
 
 export {
   Renderer,
@@ -4226,6 +4446,7 @@ export {
   Intersects,
   PointInPoly2D,
   PointInPoly3D,
+  ShowBounding,
   Reflect,
   Normal,
   ImageToPo2,

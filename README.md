@@ -30,6 +30,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
         background: #333;
         margin: 0;
         min-height: 100vh;
+        overflow: hidden;
       }
     </style>
   </head>
@@ -374,8 +375,13 @@ var geoOptions = {
                       // enabled, to copy its raw data for later import as a
                       // 'custom shape'.
   flipNormals: false,    // invert normals
-  url: ''                // url for 'OBJ' format models, or 'custom shapes'.
+  url: '',               // url for 'OBJ' format, or 'custom shapes'.
                          // url is ignored otherwise.
+  showBounding: false,       // use an overlaying canvas to show the bounding perimeter
+                             // of a shape or particle cluster. This property may be set
+                             // at any time, or called manually with the 
+                             // Coordinates.ShowBounding() method - example below
+  boundingColor: 0x88ff22    // change/set the bounding color
 }
 ```
 <br><br>
@@ -386,6 +392,81 @@ between its normal shape (e.g. a cube), and sphere. A value of 0 (zero) is the
 shape's original, expected appearance, and 1 is a sphere. Values less than zero
 or more than 1 are accepted. NOTE! if sphereize is used, you should set
 ``averageNormals: true``, to recompute the data used by reflections, lighting etc.
+<br><br>
+
+### geometry.showBounding = [value]
+This value, when set as an option, draws a bounding line around a shape as rendered in the
+viewport. This can be useful for 'picking' in combination with the mouseX/mouseY renderer
+properties. The ShowBounding method may also be used identically, regardless of geometry
+properties.
+
+code example:
+```js
+var bug, dodec, geoOptions
+
+geoOptions = {
+  shapeType: 'dodecahedron',
+  size: 3.3,
+  sphereize: .01,
+  boundingColor: 0xff0000,
+}
+await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  dodec = geometry
+  await shader.ConnectGeometry(geometry)
+})  
+
+geoOptions = {
+  shapeType: 'custom shape',
+  url: 'https://srmcgann.github.io/Coordinates/custom shapes/ladybug.json',
+  map: 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png',
+  size: .4,
+  y: -4,
+  flipNormals: true,
+  equirectangular: true,
+}
+await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  bug = geometry
+  await shader.ConnectGeometry(geometry)
+})
+
+
+renderer.z = 14
+renderer.pitch = .5
+
+window.Draw = () => {
+  var t = renderer.t
+  renderer.yaw += .005
+  
+  var cl = 3  // columns
+  var rw = 1  // rows
+  var br = 3  // 'bars?'
+  var sp = 8  // spacing
+  
+  for(var i=0; i<cl*rw*br; i++){
+  
+    var shape = i == 4 ? bug : dodec
+    
+    shape.x = ((i%cl)-cl/2 + .5) * sp
+    shape.y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    shape.z = ((i/cl/rw|0)-br/2 + .5) * sp
+    renderer.Draw(shape)
+    
+    // check if mouse cursor is inside a bounding poly. draw if so.
+    // note: this does no automatic depth checking. that is up to you.
+    
+    var poly = Coordinates.ShowBounding(shape, renderer, false)
+    if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, poly)){
+      Coordinates.ShowBounding(shape, renderer, true)
+    }
+  }
+}
+```
+
+The code above produces this result;
+<center>
+
+![picker](README_g2.gif) </center>
+
 <br><br>
 
 ### ConnectGeometry()
