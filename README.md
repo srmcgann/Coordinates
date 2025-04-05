@@ -394,81 +394,6 @@ or more than 1 are accepted. NOTE! if sphereize is used, you should set
 ``averageNormals: true``, to recompute the data used by reflections, lighting etc.
 <br><br>
 
-### geometry.showBounding = [value]
-This value, when set as an option, draws a bounding line around a shape as rendered in the
-viewport. This can be useful for 'picking' in combination with the mouseX/mouseY renderer
-properties. The ShowBounding method may also be used identically, regardless of geometry
-properties.
-
-code example:
-```js
-var bug, dodec, geoOptions
-
-geoOptions = {
-  shapeType: 'dodecahedron',
-  size: 3.3,
-  sphereize: .01,
-  boundingColor: 0xff0000,
-}
-await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-  dodec = geometry
-  await shader.ConnectGeometry(geometry)
-})  
-
-geoOptions = {
-  shapeType: 'custom shape',
-  url: 'https://srmcgann.github.io/Coordinates/custom shapes/ladybug.json',
-  map: 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png',
-  size: .4,
-  y: -4,
-  flipNormals: true,
-  equirectangular: true,
-}
-await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-  bug = geometry
-  await shader.ConnectGeometry(geometry)
-})
-
-
-renderer.z = 14
-renderer.pitch = .5
-
-window.Draw = () => {
-  var t = renderer.t
-  renderer.yaw += .005
-  
-  var cl = 3  // columns
-  var rw = 1  // rows
-  var br = 3  // 'bars?'
-  var sp = 8  // spacing
-  
-  for(var i=0; i<cl*rw*br; i++){
-  
-    var shape = i == 4 ? bug : dodec
-    
-    shape.x = ((i%cl)-cl/2 + .5) * sp
-    shape.y = (((i/cl|0)%rw)-rw/2 + .5) * sp
-    shape.z = ((i/cl/rw|0)-br/2 + .5) * sp
-    renderer.Draw(shape)
-    
-    // check if mouse cursor is inside a bounding poly. draw if so.
-    // note: this does no automatic depth checking. that is up to you.
-    
-    var poly = Coordinates.ShowBounding(shape, renderer, false)
-    if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, poly)){
-      Coordinates.ShowBounding(shape, renderer, true)
-    }
-  }
-}
-```
-
-The code above produces this result;
-<center>
-
-![picker](README_g3.gif) </center>
-
-<br><br>
-
 ### ConnectGeometry()
 Performs linkage between geometry created with the ``LoadGeometry`` method, and a shader created with the ``BasicShader`` method. If not called, <b>Coordinates</b> will use a null shader (no effects) so the shape can be drawn. Connecting geometry to a shader removes it from any previous connections.
 
@@ -659,21 +584,84 @@ var rAngle = Coordinates.Reflect(iAngle, n)
 ```
 
 <br><br>
-### PointInPoly2D()
-``const PointInPoly2D = (X, Y, polygon)``
+
+### ShowBounding()
+``const ShowBounding = (shape, renderer, draw=true)``
 <br><br>
-``PointInPoly2D`` returns true if the point is inside a polygon of any number of sides.<br>
-<br><br>
-Method requires input of 2 numbers, which is the point in question, and a polygon as an array with at least 3 vertices
-<br><br>
-example:
+``ShowBounding`` returns a bounding polygon if the shape is in cam/render view, or false.<br>
+If the ``draw`` param is present, it will determine whether the bounding shape is visible.<br>
+This is useful for testing whether a point is inside or outside the bounding polygon, as in<br>
+'picking' in combination with the mouseX/mouseY renderer properties. The ShowBounding method<br>
+A geometry/shape may also include a ``showBounding``, and/or a ``boundingColor`` property in<br>
+its config options.
+
+code example:
 ```js
-var polygon = [ [-1.2, 0, 0],   [0, -1, 0],   [3, 1, 2] ]
-var X = 0,  Y = 0
-var point = Coordinates.PointInPoly2D(X,Y, polygon)
-// returned value: true
-// note: a 3D polygon may be used, but only the first 2 elements [X, Y] are involved
+var bug, dodec, geoOptions
+
+geoOptions = {
+  shapeType: 'dodecahedron',
+  size: 3.3,
+  sphereize: .01,
+  boundingColor: 0xff0000,
+}
+await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  dodec = geometry
+  await shader.ConnectGeometry(geometry)
+})  
+
+geoOptions = {
+  shapeType: 'custom shape',
+  url: 'https://srmcgann.github.io/Coordinates/custom shapes/ladybug.json',
+  map: 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png',
+  size: .4,
+  y: -4,
+  flipNormals: true,
+  equirectangular: true,
+}
+await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  bug = geometry
+  await shader.ConnectGeometry(geometry)
+})
+
+
+renderer.z = 14
+renderer.pitch = .5
+
+window.Draw = () => {
+  var t = renderer.t
+  renderer.yaw += .005
+  
+  var cl = 3  // columns
+  var rw = 1  // rows
+  var br = 3  // 'bars?'
+  var sp = 8  // spacing
+  
+  for(var i=0; i<cl*rw*br; i++){
+  
+    var shape = i == 4 ? bug : dodec
+    
+    shape.x = ((i%cl)-cl/2 + .5) * sp
+    shape.y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    shape.z = ((i/cl/rw|0)-br/2 + .5) * sp
+    renderer.Draw(shape)
+    
+    // check if mouse cursor is inside a bounding poly. draw if so.
+    // note: this does no automatic depth checking. that is up to you.
+    
+    var poly = Coordinates.ShowBounding(shape, renderer, false)
+    if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, poly)){
+      Coordinates.ShowBounding(shape, renderer, true)
+    }
+  }
+}
 ```
+
+The code above produces this result:
+<center>
+
+![picker](README_g3.gif) </center>
+
 
 <br><br>
 ### Intersects()
@@ -695,6 +683,23 @@ var X4 = -.5
 var Y4 = 1
 var i = Coordinates.Intersects(X1, Y1, X2, Y2, X3, Y3, X4, Y4)
 // returned value: [ 0.5, 0]
+```
+
+<br><br>
+### PointInPoly2D()
+``const PointInPoly2D = (X, Y, polygon)``
+<br><br>
+``PointInPoly2D`` returns true if the point is inside a polygon of any number of sides.<br>
+<br><br>
+Method requires input of 2 numbers, which is the point in question, and a polygon as an array with at least 3 vertices
+<br><br>
+example:
+```js
+var polygon = [ [-1.2, 0, 0],   [0, -1, 0],   [3, 1, 2] ]
+var X = 0,  Y = 0
+var point = Coordinates.PointInPoly2D(X,Y, polygon)
+// returned value: true
+// note: a 3D polygon may be used, but only the first 2 elements [X, Y] are involved
 ```
 
 <br><br>
