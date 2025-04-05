@@ -465,7 +465,7 @@ window.Draw = () => {
 The code above produces this result;
 <center>
 
-![picker](README_g2.gif) </center>
+![picker](README_g3.gif) </center>
 
 <br><br>
 
