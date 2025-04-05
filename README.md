@@ -591,7 +591,7 @@ var rAngle = Coordinates.Reflect(iAngle, n)
 ``ShowBounding`` returns a bounding polygon if the shape is in cam/render view, or false.<br>
 If the ``draw`` param is present, it will determine whether the bounding shape is visible.<br>
 This is useful for testing whether a point is inside or outside the bounding polygon, as in<br>
-'picking' in combination with the mouseX/mouseY renderer properties. The ShowBounding method<br>
+'picking' in combination with the mouseX/mouseY renderer properties.<br><br>
 A geometry/shape may also include a ``showBounding``, and/or a ``boundingColor`` property in<br>
 its config options.
 
