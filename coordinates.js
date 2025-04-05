@@ -490,6 +490,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
       fInd.map(face => {
         var v = new Float32Array(), u = new Float32Array(), n = new Float32Array()
         var vidx, uidx, nidx
+        var useUVs = false, useNormals = false
         face.map(vertex => {
           var vertexParts = vertex.split('/')
           switch(vertexParts.length){
@@ -502,6 +503,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
               uidx = vertexParts[1]
               v = [...v, vInd[vidx-1]]
               u = [...u, uInd[uidx-1]]
+              useUVs = true
             break
             case 3: // verts, uvs, normals
               vidx = vertexParts[0]
@@ -510,6 +512,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
               v = [...v, vInd[vidx-1]]
               u = [...u, uInd[uidx-1]]
               n = [...n, nInd[nidx-1]]
+              useNormals = true
             break
           }
         })
@@ -522,22 +525,26 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
         var X3 = v[2][0]
         var Y3 = v[2][1]
         var Z3 = v[2][2]
-        var NX1 = n[0][0]
-        var NY1 = n[0][1]
-        var NZ1 = n[0][2]
-        var NX2 = n[1][0]
-        var NY2 = n[1][1]
-        var NZ2 = n[1][2]
-        var NX3 = n[2][0]
-        var NY3 = n[2][1]
-        var NZ3 = n[2][2]
+        if(useNormals){
+          var NX1 = n[0][0]
+          var NY1 = n[0][1]
+          var NZ1 = n[0][2]
+          var NX2 = n[1][0]
+          var NY2 = n[1][1]
+          var NZ2 = n[1][2]
+          var NX3 = n[2][0]
+          var NY3 = n[2][1]
+          var NZ3 = n[2][2]
+        }
         if(v.length == 4){
           var X4 = v[3][0]
           var Y4 = v[3][1]
           var Z4 = v[3][2]
-          var NX4 = n[3][0]
-          var NY4 = n[3][1]
-          var NZ4 = n[3][2]
+          if(useNormals){
+            var NX4 = n[3][0]
+            var NY4 = n[3][1]
+            var NZ4 = n[3][2]
+          }
         }
         
         switch(v.length) {
@@ -614,9 +621,10 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
       Y = ret.normals[l+1]
       Z = ret.normals[l+2]
       var ar = [X,Y,Z]
-      if(pt) ar = R(...ar, {roll:0, pitch:pt, yaw:0})
-      if(yw) ar = R(...ar, {roll:0, pitch:0, yaw:yw})
-      if(rl) ar = R(...ar, {roll:rl, pitch:0, yaw:0})
+      //if(pt) ar = R(...ar, {roll:0, pitch:pt, yaw:0})
+      //if(yw) ar = R(...ar, {roll:0, pitch:0, yaw:yw})
+      //if(rl) ar = R(...ar, {roll:rl, pitch:0, yaw:0})
+      ar = R(...ar, {roll:rl, pitch:pt, yaw:yw})
       ret.normals[l+0] = ar[0]
       ret.normals[l+1] = ar[1]
       ret.normals[l+2] = ar[2]
