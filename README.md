@@ -30,6 +30,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
         background: #333;
         margin: 0;
         min-height: 100vh;
+        overflow: hidden;
       }
     </style>
   </head>
@@ -374,8 +375,13 @@ var geoOptions = {
                       // enabled, to copy its raw data for later import as a
                       // 'custom shape'.
   flipNormals: false,    // invert normals
-  url: ''                // url for 'OBJ' format models, or 'custom shapes'.
+  url: '',               // url for 'OBJ' format, or 'custom shapes'.
                          // url is ignored otherwise.
+  showBounding: false,       // use an overlaying canvas to show the bounding perimeter
+                             // of a shape or particle cluster. This property may be set
+                             // at any time, or called manually with the 
+                             // Coordinates.ShowBounding() method - example below
+  boundingColor: 0x88ff22    // change/set the bounding color
 }
 ```
 <br><br>
@@ -578,21 +584,84 @@ var rAngle = Coordinates.Reflect(iAngle, n)
 ```
 
 <br><br>
-### PointInPoly2D()
-``const PointInPoly2D = (X, Y, polygon)``
+
+### ShowBounding()
+``const ShowBounding = (shape, renderer, draw=true)``
 <br><br>
-``PointInPoly2D`` returns true if the point is inside a polygon of any number of sides.<br>
-<br><br>
-Method requires input of 2 numbers, which is the point in question, and a polygon as an array with at least 3 vertices
-<br><br>
-example:
+``ShowBounding`` returns a bounding polygon if the shape is in cam/render view, or false.<br>
+If the ``draw`` param is present, it will determine whether the bounding shape is visible.<br>
+This is useful for testing whether a point is inside or outside the bounding polygon, as in<br>
+'picking' in combination with the mouseX/mouseY renderer properties.<br><br>
+A geometry/shape may also include a ``showBounding``, and/or a ``boundingColor`` property in<br>
+its config options.
+
+code example:
 ```js
-var polygon = [ [-1.2, 0, 0],   [0, -1, 0],   [3, 1, 2] ]
-var X = 0,  Y = 0
-var point = Coordinates.PointInPoly2D(X,Y, polygon)
-// returned value: true
-// note: a 3D polygon may be used, but only the first 2 elements [X, Y] are involved
+var bug, dodec, geoOptions
+
+geoOptions = {
+  shapeType: 'dodecahedron',
+  size: 3.3,
+  sphereize: .01,
+  boundingColor: 0xff0000,
+}
+await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  dodec = geometry
+  await shader.ConnectGeometry(geometry)
+})  
+
+geoOptions = {
+  shapeType: 'custom shape',
+  url: 'https://srmcgann.github.io/Coordinates/custom shapes/ladybug.json',
+  map: 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png',
+  size: .4,
+  y: -4,
+  flipNormals: true,
+  equirectangular: true,
+}
+await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  bug = geometry
+  await shader.ConnectGeometry(geometry)
+})
+
+
+renderer.z = 14
+renderer.pitch = .5
+
+window.Draw = () => {
+  var t = renderer.t
+  renderer.yaw += .005
+  
+  var cl = 3  // columns
+  var rw = 1  // rows
+  var br = 3  // 'bars?'
+  var sp = 8  // spacing
+  
+  for(var i=0; i<cl*rw*br; i++){
+  
+    var shape = i == 4 ? bug : dodec
+    
+    shape.x = ((i%cl)-cl/2 + .5) * sp
+    shape.y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    shape.z = ((i/cl/rw|0)-br/2 + .5) * sp
+    renderer.Draw(shape)
+    
+    // check if mouse cursor is inside a bounding poly. draw if so.
+    // note: this does no automatic depth checking. that is up to you.
+    
+    var poly = Coordinates.ShowBounding(shape, renderer, false)
+    if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, poly)){
+      Coordinates.ShowBounding(shape, renderer, true)
+    }
+  }
+}
 ```
+
+The code above produces this result:
+<center>
+
+![picker](README_g3.gif) </center>
+
 
 <br><br>
 ### Intersects()
@@ -614,6 +683,23 @@ var X4 = -.5
 var Y4 = 1
 var i = Coordinates.Intersects(X1, Y1, X2, Y2, X3, Y3, X4, Y4)
 // returned value: [ 0.5, 0]
+```
+
+<br><br>
+### PointInPoly2D()
+``const PointInPoly2D = (X, Y, polygon)``
+<br><br>
+``PointInPoly2D`` returns true if the point is inside a polygon of any number of sides.<br>
+<br><br>
+Method requires input of 2 numbers, which is the point in question, and a polygon as an array with at least 3 vertices
+<br><br>
+example:
+```js
+var polygon = [ [-1.2, 0, 0],   [0, -1, 0],   [3, 1, 2] ]
+var X = 0,  Y = 0
+var point = Coordinates.PointInPoly2D(X,Y, polygon)
+// returned value: true
+// note: a 3D polygon may be used, but only the first 2 elements [X, Y] are involved
 ```
 
 <br><br>
