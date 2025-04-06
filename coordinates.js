@@ -269,6 +269,7 @@ const Renderer = async options => {
               let col = HexToRGB(geometry.color)
               plcols = [...plcols, ...HexToRGB(geometry.color), 1.0]
             })
+            console.log(plcols)
             if(pldata.length){
               ctx.uniform4fv(dset.locPointLights, pldata)
               ctx.uniform4fv(dset.locPointLightCols, plcols)
@@ -1024,7 +1025,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(!showSource){
           shape = { geometry: [] }
         }else{
-          shape = await Rectangle(Math.max(size, .5) , subs-1, sphereize, flipNormals, shapeType)
+          shape = await Rectangle(Math.max(size, .5) , subs+1, sphereize, flipNormals, shapeType)
         }
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
@@ -1649,6 +1650,7 @@ const SyncNormals = (shape, averageNormals=false) => {
 const GetShaderCoord = (vx, vy, vz, shape, renderer) => {
   var X, Y, Z
   vy *= -1
+
   var ar = R(vx, vy, vz, {
     roll: 0,
     pitch:  0,
@@ -1668,7 +1670,7 @@ const GetShaderCoord = (vx, vy, vz, shape, renderer) => {
   vz = ar[2]
 
   var ar = R(vx, vy, vz, {
-    roll: -shape.roll,
+    roll: -shape.roll + .01,
     pitch:  0,
     yaw: 0,
   }, false)
@@ -1676,12 +1678,41 @@ const GetShaderCoord = (vx, vy, vz, shape, renderer) => {
   vy = ar[1]
   vz = ar[2]
 
+  if(shape.isLight){
+    var ar = R(vx, vy, vz, {
+      roll: renderer.roll,
+      pitch:  0,
+      yaw: 0,
+    }, false)
+    vx = ar[0]
+    vy = ar[1]
+    vz = ar[2]
 
+    var ar = R(vx, vy, vz, {
+      roll: 0,
+      pitch:  renderer.pitch,
+      yaw: 0,
+    }, false)
+    vx = ar[0]
+    vy = ar[1]
+    vz = ar[2]
+
+    var ar = R(vx, vy, vz, {
+      roll: 0,
+      pitch: 0,
+      yaw: -renderer.yaw,
+    }, false)
+    vx = ar[0]
+    vy = ar[1]
+    vz = ar[2]
+  }
+  
   vx += shape.x
   vy -= shape.y
   vz += shape.z
 
 
+  
   ar = R(vx, vy, vz, {
     roll: 0,
     pitch: 0,
@@ -1708,7 +1739,6 @@ const GetShaderCoord = (vx, vy, vz, shape, renderer) => {
   vx = ar[0]
   vy = ar[1]
   vz = ar[2]
-  
 
   vx += renderer.x
   vy -= renderer.y
@@ -1731,12 +1761,15 @@ const GetShaderCoord = (vx, vy, vz, shape, renderer) => {
 }
 
 const ShowBounding = (shape, renderer, draw=true) => {
+  
+  if(shape.isLight) return [] // aesthetic issue with raw rectangles, not critical
 
   var X, Y, Z
   
   var X1, Y1, X2, Y2, X3, Y3, X4, Y4
   var p, d, a, b, maxp, tidx, tpart, mind
   var memo=[]
+
   const recurse = (ar, idx, oidx=-1, op=9) => {
     if(oidx == idx) return
     oidx = idx
@@ -1758,28 +1791,16 @@ const ShowBounding = (shape, renderer, draw=true) => {
     })
     
     if(tidx == -9) return
-    
-    if(draw){
-      X2 = ar[tidx][0]
-      Y2 = ar[tidx][1]
-      overlay.ctx.beginPath()
-      overlay.ctx.lineWidth = 5
-      overlay.ctx.globalAlpha = 1
-      var rgb = RGBFromHex(shape.boundingColor)
-      overlay.ctx.strokeStyle = `rgba(${rgb[0]*256},${rgb[1]*256},${rgb[2]*256},.5)`
-      overlay.ctx.lineTo(X1,Y1)
-      overlay.ctx.lineTo(X2,Y2)
-      overlay.ctx.stroke()
-    }
-
+    if(draw) overlay.ctx.lineTo(...ar[tidx])
     recurse(ar, tidx, oidx, maxp)
   }
 
   var a = [], b, p, ox=-1, oy=1e6, ax, ay
-  for(var i=0; i<shape.vertices.length; i+=3){
-    if(!(i%9)){
+  var sd = 3//shape.isParticle ? 1 : 3
+  for(var i=0; i<shape.vertices.length; i+=sd){
+    if(shape.isParticle || !(i%9)){
       ax = ay = 0
-      overlay.ctx.beginPath()
+      //overlay.ctx.beginPath()
       b = []
     }
     X = shape.vertices[i+0]
@@ -1790,48 +1811,60 @@ const ShowBounding = (shape, renderer, draw=true) => {
     ax += ar[0]
     ay += ar[1]
     
-    if(i%9 == 6){
-      ax /= 3
-      ay /= 3
+    if(shape.isParticle || i%9 == 6){
+      ax /= sd
+      ay /= sd
       if(Math.hypot(ax-ox, ay-oy) > 10){
         ox = ax
         oy = ay
         a = [...a, b]
       }
     }
-    if(ar.length){
-      overlay.ctx.lineTo(...ar)
-      if(false && i%9 == 6){  // show wireframe [disabled]
-        overlay.ctx.closePath()
+    //if(ar.length){
+      //overlay.ctx.lineTo(...ar)
+      //if(false && i%9 == 6){  // show wireframe [disabled]
+        //overlay.ctx.closePath()
         //overlay.ctx.lineWidth = 50 / (1 + Z)
         //overlay.ctx.strokeStyle = '#f004'
         //overlay.ctx.stroke()
-        overlay.ctx.lineWidth =1
-        overlay.ctx.strokeStyle = '#f00'
-        overlay.ctx.stroke()
-      }
-    }
+        //overlay.ctx.lineWidth =1
+        //overlay.ctx.strokeStyle = '#f00'
+        //overlay.ctx.stroke()
+      //}
+    //}
   }
   
-  var X1, Y1, X2, Y2, X3, Y3, X4, Y4
-  b = []
-  a.map((triangle, idx) => {
-    X1 = triangle[0][0]
-    Y1 = triangle[0][1]
-    X2 = triangle[1][0]
-    Y2 = triangle[1][1]
-    X3 = triangle[2][0]
-    Y3 = triangle[2][1]
-    if(!b.filter(v=>v[0]==X1&&v[1]==Y1).length) {
-      b = [...b, [X1,Y1]]
-    }
-    if(!b.filter(v=>v[0]==X2&&v[1]==Y2).length) {
-      b = [...b, [X2,Y2]]
-    }
-    if(!b.filter(v=>v[0]==X3&&v[1]==Y3).length) {
-      b = [...b, [X3,Y3]]
-    }
-  })
+  if(shape.isParticle){
+    var X1, Y1
+    b = []
+    a.map((triangle, idx) => {
+      X1 = triangle[0][0]
+      Y1 = triangle[0][1]
+      if(!b.filter(v=>v[0]==X1&&v[1]==Y1).length) {
+        b = [...b, [X1,Y1]]
+      }
+    })
+  }else{
+    var X1, Y1, X2, Y2, X3, Y3, X4, Y4
+    b = []
+    a.map((triangle, idx) => {
+      X1 = triangle[0][0]
+      Y1 = triangle[0][1]
+      X2 = triangle[1][0]
+      Y2 = triangle[1][1]
+      X3 = triangle[2][0]
+      Y3 = triangle[2][1]
+      if(!b.filter(v=>v[0]==X1&&v[1]==Y1).length) {
+        b = [...b, [X1,Y1]]
+      }
+      if(!b.filter(v=>v[0]==X2&&v[1]==Y2).length) {
+        b = [...b, [X2,Y2]]
+      }
+      if(!b.filter(v=>v[0]==X3&&v[1]==Y3).length) {
+        b = [...b, [X3,Y3]]
+      }
+    })
+  }
   var miny = 6e6, midx = -1
   b.map((v, i) => {
     if(v[1] <= miny){
@@ -1839,7 +1872,18 @@ const ShowBounding = (shape, renderer, draw=true) => {
       miny = v[1]
     }
   })
-  recurse(b, midx)
+  
+  if(b.length){
+    overlay.ctx.lineWidth = 10
+    overlay.ctx.beginPath()
+    overlay.ctx.globalAlpha = 1
+    overlay.ctx.lineTo(...b[midx])
+    recurse(b, midx)
+    var rgb = RGBFromHex(shape.boundingColor)
+    overlay.ctx.closePath()
+    overlay.ctx.strokeStyle = `rgba(${rgb[0]*256},${rgb[1]*256},${rgb[2]*256},.5)`
+    overlay.ctx.stroke()
+  }
   
   return memo.map(idx => [
     b[idx][0], b[idx][1]
@@ -2112,7 +2156,6 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float cameraMode;
       uniform float isParticle;
       uniform float penumbraPass;
-      //uniform vec4 pointLightPos[16];
       uniform float fov;
       uniform float equirectangular;
       uniform float renderNormals;
@@ -2261,8 +2304,8 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float isCrosshair;
       uniform float isLight;
       uniform float isParticle;
-      uniform vec4 pointLightPos[128];
-      uniform vec4 pointLightCol[128];
+      uniform vec4 pointLightPos[16];
+      uniform vec4 pointLightCol[16];
       uniform int pointLightCount;
       uniform float ambientLight;
       uniform float renderNormals;
@@ -2324,11 +2367,11 @@ const BasicShader = async (renderer, options=[]) => {
         float ret = 0.0;
         vec4 rgba = vec4(0.0, 0.0, 0.0, 1.0);
         for(int i=0; i < 16; i++){
-          if(i >= pointLightCount) break;
+          //if(i >= pointLightCount) break;
           vec3 lpos = pointLightPos[i].xyz;
-          lpos.x -= geoPos.x + camPos.x;
-          lpos.y -= geoPos.y + camPos.y;
-          lpos.z -= geoPos.z + camPos.z;
+          lpos.x -= geoPos.x; //- camPos.x;
+          lpos.y -= geoPos.y; //- camPos.y;
+          lpos.z -= geoPos.z; //- camPos.z;
           lpos = R(lpos, vec3(camOri.x, 0.0, camOri.z ));
           lpos = R(lpos, vec3(0.0, camOri.y, 0.0));
 
@@ -3966,7 +4009,7 @@ const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
   
   var ret = await GeometryFromRaw(e, texCoords, size / 1.5,
        Math.max(shapeType == 'sprite' ? 1 : 2, subs),
-             sphereize, flipNormals, true, shapeType)
+             shapeType == 'sprite' ? .1 : sphereize, flipNormals, true, shapeType)
              
   return ret
 }

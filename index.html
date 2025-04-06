@@ -16,10 +16,14 @@
     
       import * as Coordinates from
       "./coordinates.js"
+      
+      var S  = Math.sin
+      var C  = Math.cos
+      var Rn = Math.random
     
       var rendererOptions = {
-        ambientLight: 1,
-        fov: 1500,
+        ambientLight: -.2,
+        fov: 2000,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       Coordinates.AnimationLoop(renderer, 'Draw')
@@ -27,33 +31,119 @@
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: .75
+          value: 1
         } },
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+      const doBounding =  shape => {
+        var poly = Coordinates.ShowBounding(shape, renderer, false)
+        if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, poly)){
+          Coordinates.ShowBounding(shape, renderer, true)
+        }
+      }
 
-      var bug, dodec
+
+      var particles, dodec, floor, particles2
+
+      var iPc = 2e3, p, q
+      var iPls = 200, X, Y, Z
+      var geometryData = Array(iPc).fill().map((v, i) => {
+        var ls = Rn() ** .5 * iPls
+        X = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * ls
+        Y = C(q) * ls
+        Z = C(p) * S(q) * ls
+        return [X, Y, Z]
+      })
 
       var geoOptions = {
-        shapeType: 'custom shape',
-        url: 'https://srmcgann.github.io/Coordinates/custom shapes/ladybug.json',
-        map: 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png',
-        size: .4,
-        y: -4,
-        flipNormals: true,
-        equirectangular: true,
+        shapeType: 'particles',
+        penumbra: .5,
+        name: 'particles',
+        geometryData,
+        size: 3,
+        color: 0x4400ff,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        bug = geometry
+        particles = geometry
+        await shader.ConnectGeometry(geometry)
+      })  
+      
+      var iPc = 500, p, q
+      var iPls = 10, X, Y, Z
+      var geometryData = Array(iPc).fill().map((v, i) => {
+        var ls = Rn() ** .5 * iPls
+        X = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * ls
+        Y = C(q) * ls
+        Z = C(p) * S(q) * ls
+        return [X, Y, Z]
+      })
+
+      var geoOptions = {
+        shapeType: 'particles',
+        penumbra: .5,
+        name: 'particles',
+        geometryData,
+        size: 3,
+        color: 0x00ff44,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        particles2 = geometry
         await shader.ConnectGeometry(geometry)
       })  
       
       
+      var X, Y, Z, tx, ty, tz
+      
+      var cl = 20
+      var rw = 1
+      var br = cl*3
+      var sp = 4
+      var ls = sp/2.1
+      
+      var geometryData = []
+      Array(cl*rw*br).fill().map((v, i) => {
+      
+        var a = []
+        tx = ((i%cl)-cl/2 + .5) * sp * 1.5 + (sp / (2+2/3) * ((i/cl/rw|0)%2 ? -1 : 1)) - sp / (2+2/3)
+        ty = (((i/cl|0)%rw)-rw/2 + .5) * sp -2
+        tz = ((i/cl/rw|0)-br/2 + .5) * sp * (.75**.5) / 2 + sp * (.75**.5) / 4
+        var sd = 6
+        for(i=sd; i--;){
+          X = tx + S(p=Math.PI*2/sd*i+Math.PI/sd) * ls
+          Y = ty
+          Z = tz + C(p) * ls
+          a = [...a, [X,Y,Z]]
+        }
+        
+        if(Math.hypot(tx,tz) < 34 / 2){
+          geometryData = [...geometryData, a]
+        }
+      })
+      
+      var geoOptions = {
+        shapeType: 'dynamic',
+        name: 'floor',
+        map: 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2.jpg',
+        geometryData,
+        color: 0x333333,
+        colorMix: .3,
+        size: 2,
+        y: - 20,
+        sphereize: .2,
+        equirectangular: true
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        floor = geometry
+        await shader.ConnectGeometry(geometry)
+      })
+      
+      
       var geoOptions = {
         shapeType: 'dodecahedron',
-        size: 3.3,
-        sphereize: .01,
+        size: 5,
+        subs: 0, 
+        sphereize: .2,
         boundingColor: 0xff0000,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -61,36 +151,77 @@
         await shader.ConnectGeometry(geometry)
       })  
       
+      var pointLights = []
+      var iplc = 3
+      for(var m = iplc; m--;) {
+        var geoOptions = {
+          shapeType: 'point light',
+          size: 2.5,
+          lum: 2,
+          y: 0,
+          map: `https://srmcgann.github.io/Coordinates/resources/stars/star${(m*3+1)%10}.png`,
+          color: Coordinates.HSVToHex(360/iplc*m + 20, 1, .5),
+          showSource: true
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          pointLights.push(geometry)
+        })  
+      }      
       
-      renderer.z = 14
+      renderer.z = 24
+      renderer.y = 10
       renderer.pitch = .5
 
       window.Draw = () => {
         var t = renderer.t
-        renderer.yaw += .005
+        renderer.yaw -= .005
         
         var cl = 3  // columns
         var rw = 1  // rows
         var br = 3  // 'bars?'
-        var sp = 8  // spacing
+        var sp = 16  // spacing
+        var shape
         
         for(var i=0; i<cl*rw*br; i++){
-        
-          var shape = i == 4 ? bug : dodec
-          
+          switch(i){
+            case 0:  // one of the dodecs, they're all the same shape
+                     // so only apply things to "them" once
+              shape = dodec
+              shape.yaw += .05
+              shape.pitch += .01
+              doBounding(shape)
+            break
+            case 4:
+            shape = particles2
+            shape.yaw += .05
+            shape.pitch += .01
+            doBounding(shape)
+            break
+            default:
+            shape = dodec
+            doBounding(shape)
+            break
+          }
           shape.x = ((i%cl)-cl/2 + .5) * sp
           shape.y = (((i/cl|0)%rw)-rw/2 + .5) * sp
           shape.z = ((i/cl/rw|0)-br/2 + .5) * sp
           renderer.Draw(shape)
-          
-          // check if mouse cursor is inside a bounding poly. draw if so.
-          // note: this does no automatic depth checking. that is up to you.
-          
-          var poly = Coordinates.ShowBounding(shape, renderer, false)
-          if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, poly)){
-            Coordinates.ShowBounding(shape, renderer, true)
-          }
         }
+
+        pointLights.map((light, idx) => {
+          light.y = C(t*4+idx*2) * 16 - 3
+          light.x = S(p=Math.PI*2/pointLights.length*idx + Math.PI/2 - t*5) * 20
+          light.z = C(p) * 20
+          //light.color = Coordinates.HSVToHex(360/iplc*idx + t*10, 1, .5)
+          renderer.Draw(light)
+          
+        })
+
+        shape = floor
+        renderer.Draw(shape)
+        shape = particles
+        renderer.Draw(shape)
+
       }
       
     </script>
