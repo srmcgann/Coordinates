@@ -64,7 +64,7 @@ const Renderer = async options => {
         case 'yaw': yaw = options[key]; break
         case 'fov': fov = options[key]; break
         case 'clearcolor': clearColor = options[key]; break
-        case 'attachTobody': attachToBody = !!options[key]; break
+        case 'attachtobody': attachToBody = !!options[key]; break
         case 'exportgpuspecs': exportGPUSpecs = !!options[key]; break
         case 'margin': margin = options[key]; break
         case 'cameramode': cameraMode = options[key]; break
@@ -269,7 +269,6 @@ const Renderer = async options => {
               let col = HexToRGB(geometry.color)
               plcols = [...plcols, ...HexToRGB(geometry.color), 1.0]
             })
-            console.log(plcols)
             if(pldata.length){
               ctx.uniform4fv(dset.locPointLights, pldata)
               ctx.uniform4fv(dset.locPointLightCols, plcols)
