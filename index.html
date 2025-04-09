@@ -21,10 +21,11 @@
       var C = Math.cos
       var Rn = Math.random
       var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
-      var heightTexture = 'https://boss.mindhackers.org/assets/uploads/1JZ5kI.jpeg'
+      //var heightTexture = 'https://boss.mindhackers.org/assets/uploads/1JZ5kI.jpeg'
+      var heightTexture = 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png'
       
       var rendererOptions = {
-        ambientLight: .5,
+        ambientLight: .1,
         fov: 1600
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
@@ -37,7 +38,8 @@
         { uniform: {
           type: 'phong',
           enabled: true,
-          value: 1.5
+          value: .5,
+          theta: Math.PI + .4
         } },
         { uniform: {
           type: 'reflection',
@@ -65,10 +67,10 @@
         name: 'frame',
         shapeType: 'custom shape',
         url: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame_lowpoly.json',
-        map: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame texture.jpg',
+        map: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame texture2.jpg',
         size: 1.5,
         scaleZ: 1/3,
-        color: 0xffffff,
+        color: 0x000000,
         colorMix: 0,
       }
       if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -83,8 +85,8 @@
         sphereize: 1,
         map: refTexture,
         size: 1e3,
-        color: 0xffffff,
-        colorMix: 0,
+        color: 0x888888,
+        colorMix: .1,
       }
       if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -208,23 +210,27 @@
       }
 
       var geoOptions = {
-        shapeType: 'custom shape',
-        url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_hipoly.json',
+        shapeType: 'dodecahedron',
+        subs: 2,
+        sphereize: 1,
+        //shapeType: 'custom shape',
+        //url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_hipoly.json',
         name: 'canvasRect',
-        showNormals: true,
-        map: 'https://srmcgann.github.io/Coordinates/resources/flat_grey.jpg',
+        showNormals: false,
+        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
         //map: heightTexture,
-        heightMap: heightTexture,
-        heightMapIntensity: 2,
-        scaleX: 9/16,
+        //heightMap: heightTexture,
+        //heightMapIntensity: 1,
+        averageNormals: true,
+        //scaleX: 9/16,
         //scaleUVX: 1,
         //scaleUVY: 1,
-        pitch: Math.PI,
-        yaw: Math.PI,
+        //pitch: Math.PI,
+        yaw: 0,
         //size: 3.192,
-        size: 1,
+        size: 5,
         //scaleX: 16/9,
-        color: 0x333333,
+        color: 0xffffff,
         colorMix: .2,
         exportShape: false,
       }
@@ -260,8 +266,8 @@
       
       window.Draw = () => {
         var t = renderer.t
-        renderer.yaw   = S(t) * .5 + t
-        renderer.pitch = C(t*2) * .05
+        //renderer.yaw   = S(t) * .5 + t
+        //renderer.pitch = C(t*2) * .05
         renderer.z = Math.min(11, Math.max(4, (.3+C(t/6))*24))
         processCanvas()
         
@@ -270,8 +276,8 @@
             case 'background':
             break
             default:
-              shape.yaw -= .01
-              shape.pitch -= .005
+              shape.yaw = -t/2 //S(t) * .5 + Math.PI
+              shape.pitch = C(t*2) * .5
             break
           }
           renderer.Draw(shape)

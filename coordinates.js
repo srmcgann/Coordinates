@@ -250,6 +250,10 @@ const Renderer = async options => {
             }
             
 
+            ctx.activeTexture(ctx.TEXTURE0)
+            ctx.uniform1i(dset.locTexture, dset.texture)
+            //ctx.uniform1i(dset.locTexture, 0)
+            ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
             
             if(geometry.heightMap && dset.heightResource){
               ctx.activeTexture(ctx.TEXTURE4)
@@ -264,9 +268,6 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locUseHeightMap, 0)
             }
             
-            ctx.activeTexture(ctx.TEXTURE0)
-            ctx.uniform1i(dset.locTexture, dset.texture)
-            ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
             
             // point lights
             ctx.uniform1i(dset.locPointLightCount, renderer.pointLights.length)
@@ -1582,8 +1583,10 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', 
         }
       }
     break
-    case 'image': 
     case 'heightmap':
+      texImage = resource
+    break
+    case 'image': 
       if(involveCache && (cacheItem = cache.texImages.filter(v=>v.url==url)).length){
         console.log('found image texture in cache... using it')
         texImage = cacheItem[0].texImage
@@ -2194,7 +2197,6 @@ const BasicShader = async (renderer, options=[]) => {
       varying vec3 nVeci;
       varying vec3 fPos;
       varying vec3 fPosi;
-      varying vec3 vnorm;
       varying float skip;
       varying float hasPhong;
       
@@ -2226,62 +2228,95 @@ const BasicShader = async (renderer, options=[]) => {
           cz = position.z;
         }
         
-        uvi = uv / 2.0;
-        uvi = vec2(uvi.x, .5 - uvi.y);
+        
+        
+/*
+  var b1 = facet[2][0]-facet[1][0], b2 = facet[2][1]-facet[1][1], b3 = facet[2][2]-facet[1][2]
+  var c1 = facet[1][0]-facet[0][0], c2 = facet[1][1]-facet[0][1], c3 = facet[1][2]-facet[0][2]
+  crs = [b2*c3-b3*c2,b3*c1-b1*c3,b1*c2-b2*c1]
+*/  
+        
         if(useHeightMap != 0.0 && renderNormals == 0.0){
-          float uvOffset = .05;
-          float hmi = .2;
+          vec3 thisPos, neighbor1, neighbor2;
+          float uvOffset;
+          float hmi;
           vec4 h;
           vec3 cpos;
           float lum, dx1, dy1, dz1, dx2, dy2, dz2, dx3, dy3, dz3;
+          float b1, b2, b3, c1, c2, c3;
           
+          
+          hmi = .1 * heightMapIntensity;
+          uvOffset = .1;
+          uvi = uv / 4.0;
+          uvi = vec2(uvi.x, .5 - uvi.y);
           h = texture2D( heightMap, uvi);
           lum = ((h.r + h.g + h.b) / 3.0 - 0.5) * hmi;
           cpos = vec3(uvi.x, uvi.y, lum);
           dx1 = cpos.x;
           dy1 = cpos.y;
           dz1 = cpos.z;
-          vec3 thisPos = vec3(dx1, dy1, dz1);
-
+          thisPos = vec3(dx1, dy1, dz1);
           
           h = texture2D( heightMap, vec2(uvi.x + uvOffset, uvi.y));
           lum = ((h.r + h.g + h.b) / 3.0 - 0.5) * hmi;
-          cpos = vec3(uvi.x + uvOffset, uvi.y, lum);
-          dx2 = cpos.x;
-          dy2 = cpos.y;
-          dz2 = cpos.z;
-          vec3 neighbor1 = vec3(dx2, dy2, dz2);
+          neighbor1 = vec3(uvi.x + uvOffset, uvi.y, lum);
 
           h = texture2D( heightMap, vec2(uvi.x, uvi.y - uvOffset));
           lum = ((h.r + h.g + h.b) / 3.0 - 0.5) * hmi;
-          cpos = vec3(uvi.x, uvi.y - uvOffset, lum);
-          dx3 = cpos.x;
-          dy3 = cpos.y;
-          dz3 = cpos.z;
-          vec3 neighbor2 = vec3(dx3, dy3, dz3);
+          neighbor2 = vec3(uvi.x, uvi.y - uvOffset, lum);
 
-          vec3 tangent = neighbor1 - thisPos;
-          vec3 bitangent = neighbor2 - thisPos;
+          b1 = neighbor2.x - neighbor1.x;
+          b2 = neighbor2.y - neighbor1.y;
+          b3 = neighbor2.z - neighbor1.z;
+          c1 = neighbor1.x - thisPos.x;
+          c2 = neighbor1.y - thisPos.y;
+          c3 = neighbor1.z - thisPos.z;
+          nVeci = normalize(vec3(b2*c3-b3*c2,b3*c1-b1*c3,b1*c2-b2*c1)) * -1.0;
           
-          vec3 nVeci = normalize(cross(tangent, bitangent));
-          nVeci *= normalVec;
+          nVec = vec3(-nVeci.x, -nVeci.y, nVeci.z);
+          nVec = R(nVec, geoOri);
+          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
           
-          cx += nVeci.x * heightMapIntensity;
-          cy += nVeci.y * heightMapIntensity;
-          cz += nVeci.z * heightMapIntensity;
+          nVeci = nVec;
+         
           
-          nVec = nVeci; //vec3(nVeci.x * 10.0, nVeci.y * 10.0, nVeci.z);
-          //nVeci = R(nVeci, vec3(-camOri.x, 0.0, 0.0));
-          //nVeci = R(nVeci, vec3(0.0, -camOri.y, 0.0));
-          //nVeci = R(nVeci, vec3(0.0, 0.0, -camOri.z));
-          //nVeci = R(nVeci, vec3(0.0, 0.0, -geoOri.z));
-          //nVeci = R(nVeci, vec3(0.0, -geoOri.y, 0.0));
-          //nVeci = R(nVeci, vec3(-geoOri.x, 0.0, 0.0));
+          
+          hmi = .1 * heightMapIntensity;
+          uvOffset = .05;
+          uvi = uv / 8.0;
+          uvi = vec2(uvi.x, .5 - uvi.y);
+          h = texture2D( heightMap, uvi);
+          lum = ((h.r + h.g + h.b) / 3.0) * hmi;
+          thisPos = vec3(uvi.x, uvi.y, lum);
+          
+          h = texture2D( heightMap, vec2(uvi.x + uvOffset, uvi.y));
+          lum = ((h.r + h.g + h.b) / 3.0) * hmi;
+          neighbor1 = vec3(uvi.x + uvOffset, uvi.y, lum);
+
+          h = texture2D( heightMap, vec2(uvi.x, uvi.y - uvOffset));
+          lum = ((h.r + h.g + h.b) / 3.0) * hmi;
+          neighbor2 = vec3(uvi.x, uvi.y - uvOffset, lum);
+
+          b1 = neighbor2.x - neighbor1.x;
+          b2 = neighbor2.y - neighbor1.y;
+          b3 = neighbor2.z - neighbor1.z;
+          c1 = neighbor1.x - thisPos.x;
+          c2 = neighbor1.y - thisPos.y;
+          c3 = neighbor1.z - thisPos.z;
+          vec3 n = normalize(vec3(b2*c3-b3*c2,b3*c1-b1*c3,b1*c2-b2*c1));
+          
+          n.x *= -1.0;
+          
+          cx -= n.x * normalVec.x * heightMapIntensity;// * 10.0 - 7.5;
+          cy -= n.y * normalVec.y * heightMapIntensity;// * 10.0 - 7.5;
+          cz -= n.z * normalVec.z * heightMapIntensity;// * 10.0 - 7.5;
+          
         }else{
+          uvi = uv / 2.0;
+          uvi = vec2(uvi.x, .5 - uvi.y);
           nVeci = normalVec;
         }
-        
-        vnorm = normal;
         
         fPosi = vec3(cx, cy, cz);
         
@@ -2337,20 +2372,20 @@ const BasicShader = async (renderer, options=[]) => {
             pos = R(vec3(pos.x, pos.y, pos.z),
                      vec3(-camOri.x, 0.0, -camOri.z ));
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            if(useHeightMap == 0.0){
+            //if(useHeightMap == 0.0){
               nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
               nVec = R(nVec, geoOri);
               nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-            }
+            //}
           }else{
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            if(useHeightMap == 0.0){
+            //if(useHeightMap == 0.0){
               nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
               nVec = R(nVec, geoOri);
               nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-            }
+            //}
           }
           fPos = vec3(pos.x, pos.y, pos.z);
         }
@@ -2408,7 +2443,6 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 geoOri;
       varying vec2 vUv;
       varying vec2 uvi;
-      varying vec3 vnorm;
       varying vec3 nVec;
       varying vec3 nVeci;
       varying vec3 fPos;
@@ -2757,7 +2791,7 @@ const BasicShader = async (renderer, options=[]) => {
             dset.locHeightMap = gl.getUniformLocation(dset.program, "heightMap")
             dset.locUseHeightMap = gl.getUniformLocation(dset.program, "useHeightMap")
             dset.locHeightMapIntensity = gl.getUniformLocation(dset.program, "heightMapIntensity")
-            //gl.activeTexture(gl.TEXTURE0)
+            gl.activeTexture(gl.TEXTURE0)
           }
           
           dset.supplementalTexture = gl.createTexture()
@@ -2828,7 +2862,7 @@ const BasicShader = async (renderer, options=[]) => {
                   })
                   image.onload = () => {
                     BindImage(gl, image,
-                            dset.texture, geometry.textureMode, -1, textureURL)
+                      dset.texture, geometry.textureMode, -1, textureURL)
                   }
                   await fetch(textureURL).then(res=>res.blob()).then(data => {
                     image.src = URL.createObjectURL(data)
@@ -2837,10 +2871,10 @@ const BasicShader = async (renderer, options=[]) => {
               break
             }
           }
-          gl.useProgram(dset.program)
-          gl.uniform1i(dset.locTexture, 0)
-          gl.activeTexture(gl.TEXTURE0)
-          gl.bindTexture(gl.TEXTURE_2D, dset.texture)
+          //gl.useProgram(dset.program)
+          //gl.activeTexture(gl.TEXTURE0)
+          //gl.uniform1i(dset.locTexture, 0)
+          //gl.bindTexture(gl.TEXTURE_2D, dset.texture)
 
 
           if(heightMapURL){
@@ -2920,6 +2954,7 @@ const BasicShader = async (renderer, options=[]) => {
               break
             }
           }
+          gl.useProgram( dset.program )
           gl.activeTexture(gl.TEXTURE4)
           gl.uniform1i(dset.locHeightMap, 4)
           gl.bindTexture(gl.TEXTURE_2D, dset.heightTexture)
