@@ -237,7 +237,6 @@ const Renderer = async options => {
               case 'canvas':
                 ctx.activeTexture(ctx.TEXTURE2)
                 BindImage(ctx, geometry.canvasTexture,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
-                //ctx.activeTexture(ctx.TEXTURE2)
               break
               default:
               break
@@ -246,19 +245,28 @@ const Renderer = async options => {
             if(typeof geometry.canvasTexture != 'undefined'){
               ctx.activeTexture(ctx.TEXTURE2)
               BindImage(ctx, geometry.canvasTexture, dset.supplementalTexture, 'canvas', renderer.t, geometry.map)
-              //ctx.bindTexture(ctx.TEXTURE_2D, dset.supplementalTexture)
-              //ctx.uniform1i(dset.locSupplementalTexture, dset.supplementalTexture)
               ctx.uniform1i(dset.locSupplementalTexture, 2)
               ctx.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
-              //ctx.activeTexture(ctx.TEXTURE2)
             }
             
 
+            
+            if(geometry.heightMap && dset.heightResource){
+              ctx.activeTexture(ctx.TEXTURE4)
+              ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
+              BindImage(ctx, dset.heightResource, dset.heightTexture, 'heightmap', renderer.t, geometry.heightMap)
+              ctx.uniform1i(dset.locTexture, dset.heightTexture)
+              ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
+              ctx.uniform1f(dset.locUseHeightMap, 1)
+              ctx.uniform1f(dset.locHeightMapIntensity, geometry.heightMapIntensity)
+              //ctx.activeTexture(ctx.TEXTURE0)
+            }else{
+              ctx.uniform1f(dset.locUseHeightMap, 0)
+            }
+            
             ctx.activeTexture(ctx.TEXTURE0)
             ctx.uniform1i(dset.locTexture, dset.texture)
-            //ctx.uniform1i(dset.locTexture, 0)
             ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
-            //ctx.activeTexture(ctx.TEXTURE0)
             
             // point lights
             ctx.uniform1i(dset.locPointLightCount, renderer.pointLights.length)
@@ -674,6 +682,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var x = 0, y = 0, z = 0
   var roll = 0, pitch = 0, yaw = 0
   var scaleX=1, scaleY=1, scaleZ=1
+  var scaleUVX=1, scaleUVY=1
   var rows             = 16
   var cols             = 40
                // must remain "16, 40" to trigger default quick torus/cylinder
@@ -690,7 +699,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var preComputeNormalAssocs = false
   var flipNormals            = false
   var showNormals            = false
-  var map                    = ''
+  var map                    = '' //`${ModuleBase}/resources/flat_grey.jpg`
+  var heightMap              = ''
+  var heightMapIntensity     = 1
   var canvasTextureMix       = -1
   var muted                  = true
   var boundingColor          = 0x88ff22
@@ -741,57 +752,61 @@ const LoadGeometry = async (renderer, geoOptions) => {
           break
         }
       break
-      case 'size'             : size = geoOptions[key]; break
-      case 'subs'             : subs = geoOptions[key]; break
-      case 'equirectangular'  : equirectangular = !!geoOptions[key]; break
-      case 'flipnormals'      : flipNormals = !!geoOptions[key]; break
-      case 'shownormals'      : showNormals = !!geoOptions[key]; break
-      case 'sphereize'        : sphereize = geoOptions[key]; break
-      case 'objx'             : objX = geoOptions[key]; break
-      case 'objy'             : objY = geoOptions[key]; break
-      case 'objz'             : objZ = geoOptions[key]; break
-      case 'objroll'          : objRoll = geoOptions[key]; break
-      case 'objpitch'         : objPitch = geoOptions[key]; break
-      case 'objyaw'           : objYaw = geoOptions[key]; break
-      case 'scalex'           : scaleX = geoOptions[key]; break
-      case 'scaley'           : scaleY = geoOptions[key]; break
-      case 'scalez'           : scaleZ = geoOptions[key]; break
-      case 'wireframe'        : wireframe = !!geoOptions[key]; break
-      case 'name'             : name = geoOptions[key]; break
-      case 'color'            : color = geoOptions[key]; break
-      case 'colormix'         : colorMix = geoOptions[key]; break
-      case 'exportshape'      : exportShape = !!geoOptions[key]; break
-      case 'penumbra'         : penumbra = geoOptions[key]; break
-      case 'url'              : url = geoOptions[key]; break
-      case 'map'              : map = geoOptions[key]; break
-      case 'rows'             : rows = geoOptions[key]; break
-      case 'disabledepthtest' : disableDepthTest = geoOptions[key]; break
-      case 'cols'             : cols = geoOptions[key]; break
-      case 'canvastexturemix' : canvasTextureMix = geoOptions[key]; break
-      case 'canvastexture'    :
+      case 'size'               : size = geoOptions[key]; break
+      case 'subs'               : subs = geoOptions[key]; break
+      case 'equirectangular'    : equirectangular = !!geoOptions[key]; break
+      case 'flipnormals'        : flipNormals = !!geoOptions[key]; break
+      case 'shownormals'        : showNormals = !!geoOptions[key]; break
+      case 'sphereize'          : sphereize = geoOptions[key]; break
+      case 'objx'               : objX = geoOptions[key]; break
+      case 'objy'               : objY = geoOptions[key]; break
+      case 'objz'               : objZ = geoOptions[key]; break
+      case 'objroll'            : objRoll = geoOptions[key]; break
+      case 'objpitch'           : objPitch = geoOptions[key]; break
+      case 'objyaw'             : objYaw = geoOptions[key]; break
+      case 'scaleuvx'           : scaleUVX = geoOptions[key]; break
+      case 'scaleuvy'           : scaleUVY = geoOptions[key]; break
+      case 'scalex'             : scaleX = geoOptions[key]; break
+      case 'scaley'             : scaleY = geoOptions[key]; break
+      case 'scalez'             : scaleZ = geoOptions[key]; break
+      case 'wireframe'          : wireframe = !!geoOptions[key]; break
+      case 'name'               : name = geoOptions[key]; break
+      case 'color'              : color = geoOptions[key]; break
+      case 'colormix'           : colorMix = geoOptions[key]; break
+      case 'exportshape'        : exportShape = !!geoOptions[key]; break
+      case 'penumbra'           : penumbra = geoOptions[key]; break
+      case 'url'                : url = geoOptions[key]; break
+      case 'map'                : map = geoOptions[key]; break
+      case 'heightmap'          : heightMap = geoOptions[key]; break
+      case 'heightmapintensity' : heightMapIntensity = geoOptions[key]; break
+      case 'rows'               : rows = geoOptions[key]; break
+      case 'disabledepthtest'   : disableDepthTest = geoOptions[key]; break
+      case 'cols'               : cols = geoOptions[key]; break
+      case 'canvastexturemix'   : canvasTextureMix = geoOptions[key]; break
+      case 'canvastexture'      :
         canvasTexture = geoOptions[key]
         textureMode = 'canvas'
         break
-      case 'involvecache'     : involveCache = !!geoOptions[key]; break
-      case 'muted'            : muted = !!geoOptions[key]; break
-      case 'lum'              : lum = geoOptions[key]; break
-      case 'alpha'            : alpha = geoOptions[key]; break
-      case 'geometrydata'     : geometryData = geoOptions[key]; break
+      case 'involvecache'       : involveCache = !!geoOptions[key]; break
+      case 'muted'              : muted = !!geoOptions[key]; break
+      case 'lum'                : lum = geoOptions[key]; break
+      case 'alpha'              : alpha = geoOptions[key]; break
+      case 'geometrydata'       : geometryData = geoOptions[key]; break
       case 'precomputenormalassocs' : preComputeNormalAssocs = geoOptions[key]; break
-      case 'texcoords'        : texCoords = geoOptions[key]; break
-      case 'boundingcolor'    : boundingColor = geoOptions[key]; break
-      case 'showbounding'     : showBounding = !!geoOptions[key]; break
-      case 'issprite'         :
+      case 'texcoords'          : texCoords = geoOptions[key]; break
+      case 'boundingcolor'      : boundingColor = geoOptions[key]; break
+      case 'showbounding'       : showBounding = !!geoOptions[key]; break
+      case 'issprite'           :
         isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
-      case 'iscrosshair'      :
+      case 'iscrosshair'        :
         isCrosshair = (!!geoOptions[key]) ? 1.0: 0.0; break
-      case 'islight'          :
+      case 'islight'            :
         isLight = (!!geoOptions[key]) ? 1.0: 0.0; break
-      case 'issprite'         :
+      case 'issprite'           :
         isParticle = (!!geoOptions[key]) ? 1.0: 0.0; break
-      case 'playbackspeed'    :
+      case 'playbackspeed'      :
         playbackSpeed = geoOptions[key]; break
-      case 'averagenormals'   :
+      case 'averagenormals'     :
         preComputeNormalAssocs = true
         averageNormals = !!geoOptions[key]; break
       default:
@@ -802,7 +817,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   var tempCanvas
   if(typeof geoOptions.canvasTexture != 'undefined'){
-    if(canvasTextureMix == -1) canvasTextureMix = map ? 1 : 1
+    if(canvasTextureMix == -1) canvasTextureMix = 1 //map ? 1 : 1
     tempCanvas = geoOptions.canvasTexture
     delete geoOptions.canvasTexture
   }else{
@@ -1086,6 +1101,13 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
 
+  if(scaleUVX != 1 || scaleUVY != 1) {
+    for(var i = 0; i<uvs.length; i+=2){
+      uvs[i+0] *= scaleUVX
+      uvs[i+1] *= scaleUVY
+    }
+  }
+
   //sphereize
   if(shapeType != 'particles' &&
      (shapeType != 'custom shape' &&
@@ -1188,7 +1210,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
 
-    
     
   if(!resolved || averageNormals || exportShape){
     normalVecs    = new Float32Array()
@@ -1312,7 +1333,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     output.innerHTML = JSON.stringify(processedOutput)
     document.body.appendChild(popup)
   }
-  
+
 
   vertices   = new Float32Array(vertices)
   normals    = new Float32Array(normals)
@@ -1384,7 +1405,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     disableDepthTest, lum, alpha, involveCache,
     renderer, isParticle, penumbra, wireframe,
     canvasTexture, canvasTextureMix, showBounding,
-    boundingColor
+    boundingColor, heightMap, heightMapIntensity
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -1561,7 +1582,8 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', 
         }
       }
     break
-    case 'image':
+    case 'image': 
+    case 'heightmap':
       if(involveCache && (cacheItem = cache.texImages.filter(v=>v.url==url)).length){
         console.log('found image texture in cache... using it')
         texImage = cacheItem[0].texImage
@@ -1960,6 +1982,7 @@ const BasicShader = async (renderer, options=[]) => {
     locUv: null,
     locFov: null,
     program: null,
+    heightMapURL: null,
     optionalUniforms: [],
     optionalLighting: [],
   }
@@ -2159,6 +2182,9 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float equirectangular;
       uniform float renderNormals;
       uniform vec2 resolution;
+      uniform float useHeightMap;
+      uniform float heightMapIntensity;
+      uniform sampler2D heightMap;
       attribute vec3 position;
       attribute vec3 normal;
       attribute vec3 normalVec;
@@ -2202,11 +2228,62 @@ const BasicShader = async (renderer, options=[]) => {
         
         uvi = uv / 2.0;
         uvi = vec2(uvi.x, .5 - uvi.y);
+        if(useHeightMap != 0.0 && renderNormals == 0.0){
+          float uvOffset = .05;
+          float hmi = .2;
+          vec4 h;
+          vec3 cpos;
+          float lum, dx1, dy1, dz1, dx2, dy2, dz2, dx3, dy3, dz3;
+          
+          h = texture2D( heightMap, uvi);
+          lum = ((h.r + h.g + h.b) / 3.0 - 0.5) * hmi;
+          cpos = vec3(uvi.x, uvi.y, lum);
+          dx1 = cpos.x;
+          dy1 = cpos.y;
+          dz1 = cpos.z;
+          vec3 thisPos = vec3(dx1, dy1, dz1);
+
+          
+          h = texture2D( heightMap, vec2(uvi.x + uvOffset, uvi.y));
+          lum = ((h.r + h.g + h.b) / 3.0 - 0.5) * hmi;
+          cpos = vec3(uvi.x + uvOffset, uvi.y, lum);
+          dx2 = cpos.x;
+          dy2 = cpos.y;
+          dz2 = cpos.z;
+          vec3 neighbor1 = vec3(dx2, dy2, dz2);
+
+          h = texture2D( heightMap, vec2(uvi.x, uvi.y - uvOffset));
+          lum = ((h.r + h.g + h.b) / 3.0 - 0.5) * hmi;
+          cpos = vec3(uvi.x, uvi.y - uvOffset, lum);
+          dx3 = cpos.x;
+          dy3 = cpos.y;
+          dz3 = cpos.z;
+          vec3 neighbor2 = vec3(dx3, dy3, dz3);
+
+          vec3 tangent = neighbor1 - thisPos;
+          vec3 bitangent = neighbor2 - thisPos;
+          
+          vec3 nVeci = normalize(cross(tangent, bitangent));
+          nVeci *= normalVec;
+          
+          cx += nVeci.x * heightMapIntensity;
+          cy += nVeci.y * heightMapIntensity;
+          cz += nVeci.z * heightMapIntensity;
+          
+          nVec = nVeci; //vec3(nVeci.x * 10.0, nVeci.y * 10.0, nVeci.z);
+          //nVeci = R(nVeci, vec3(-camOri.x, 0.0, 0.0));
+          //nVeci = R(nVeci, vec3(0.0, -camOri.y, 0.0));
+          //nVeci = R(nVeci, vec3(0.0, 0.0, -camOri.z));
+          //nVeci = R(nVeci, vec3(0.0, 0.0, -geoOri.z));
+          //nVeci = R(nVeci, vec3(0.0, -geoOri.y, 0.0));
+          //nVeci = R(nVeci, vec3(-geoOri.x, 0.0, 0.0));
+        }else{
+          nVeci = normalVec;
+        }
         
-        nVeci = normalVec;
-        
-        fPosi = position;
         vnorm = normal;
+        
+        fPosi = vec3(cx, cy, cz);
         
         // camera rotation
         
@@ -2224,24 +2301,27 @@ const BasicShader = async (renderer, options=[]) => {
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-            nVec = R(nVec, geoOri);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            if(useHeightMap == 0.0){
+              nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+              nVec = R(nVec, geoOri);
+              nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            }
             
           } else if (isSprite != 0.0 || isLight != 0.0){
             
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-            nVec = R(nVec, geoOri);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-            
+            if(useHeightMap == 0.0){
+              nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+              nVec = R(nVec, geoOri);
+              nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            }            
           }else{
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
+            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = R(nVec, geoOri);
             nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
           }
@@ -2257,17 +2337,20 @@ const BasicShader = async (renderer, options=[]) => {
             pos = R(vec3(pos.x, pos.y, pos.z),
                      vec3(-camOri.x, 0.0, -camOri.z ));
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-            nVec = R(nVec, geoOri);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-
+            if(useHeightMap == 0.0){
+              nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+              nVec = R(nVec, geoOri);
+              nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            }
           }else{
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            nVec = vec3(normalVec.x, normalVec.y, normalVec.z);
-            nVec = R(nVec, geoOri);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            if(useHeightMap == 0.0){
+              nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+              nVec = R(nVec, geoOri);
+              nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            }
           }
           fPos = vec3(pos.x, pos.y, pos.z);
         }
@@ -2312,6 +2395,9 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float colorMix;
       //uniform float penumbraPass;
       uniform vec3 color;
+      uniform float useHeightMap;
+      uniform float heightMapIntensity;
+      uniform sampler2D heightMap;
       uniform sampler2D baseTexture;
       uniform sampler2D supplementalTexture;
       uniform float supplementalTextureMix;
@@ -2335,19 +2421,30 @@ const BasicShader = async (renderer, options=[]) => {
       }
       
       vec2 Coords(float flatShading) {
+        vec2 ret;
+        vec3 cpos = vec3(1.0, 1.0, 1.0);
+        /*if(useHeightMap != 0.0){
+          cpos = vec3(fPosi.x, fPosi.y, fPosi.z);
+          vec4 h = texture2D( heightMap, vUv);
+          float lum = ((h.r + h.g + h.b) / 3.0 - 0.5) * heightMapIntensity;
+          cpos.x += nVeci.x * lum;
+          cpos.y += nVeci.y * lum;
+          cpos.z += nVeci.z * lum;
+        }*/
         if(equirectangular == 1.0){
           float p;
           float p2;
-          p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(fPosi.x, fPosi.z);
+          p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z);
           float p1;
           p1 = p / M_PI / 2.0;
           p2 = flatShading == 1.0 ?
                 acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVec.z*nVeci.z)+.00001)) / M_PI   :
-                p2 = acos(fPosi.y / (sqrt(fPosi.x*fPosi.x + fPosi.y*fPosi.y + fPosi.z*fPosi.z)+.00001)) / M_PI;
-          return vec2(p1, p2);
+                p2 = acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) / M_PI;
+          ret = vec2(p1, p2);
         }else{
-          return vUv;
+          ret = vUv;
         }
+        return ret; //vec2(ret.x * cpos.x, ret.y * cpos.y);
       }
 
       vec3 R(vec3 pos, vec3 rot){
@@ -2445,6 +2542,7 @@ const BasicShader = async (renderer, options=[]) => {
 
       geometry.shader = ret
       var textureURL = geometry.map
+      var heightMapURL = geometry.heightMap
       geometry.datasetIdx = ret.datasets.length - 1
 
       //gl.detachShader(dset.program, vertexShader)
@@ -2648,14 +2746,24 @@ const BasicShader = async (renderer, options=[]) => {
           gl.uniform1f(dset.locAmbientLight, renderer.ambientLight)
 
           dset.texture = gl.createTexture()
+          gl.activeTexture(gl.TEXTURE0)
           gl.bindTexture(gl.TEXTURE_2D, dset.texture)
           dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
+          
+          if(geometry.heightMap){
+            dset.heightTexture = gl.createTexture()
+            gl.activeTexture(gl.TEXTURE4)
+            gl.bindTexture(gl.TEXTURE_2D, dset.heightTexture)
+            dset.locHeightMap = gl.getUniformLocation(dset.program, "heightMap")
+            dset.locUseHeightMap = gl.getUniformLocation(dset.program, "useHeightMap")
+            dset.locHeightMapIntensity = gl.getUniformLocation(dset.program, "heightMapIntensity")
+            //gl.activeTexture(gl.TEXTURE0)
+          }
           
           dset.supplementalTexture = gl.createTexture()
           gl.bindTexture(gl.TEXTURE_2D, dset.supplementalTexture)
           dset.locSupplementalTexture= gl.getUniformLocation(dset.program, "supplementalTexture")
           
-          //let image
           if(textureURL){
             dset.iURL = textureURL
             let l
@@ -2729,11 +2837,95 @@ const BasicShader = async (renderer, options=[]) => {
               break
             }
           }
-          
           gl.useProgram(dset.program)
           gl.uniform1i(dset.locTexture, 0)
           gl.activeTexture(gl.TEXTURE0)
           gl.bindTexture(gl.TEXTURE_2D, dset.texture)
+
+
+          if(heightMapURL){
+            dset.heightMapURL = heightMapURL
+            let l
+            let suffix = (l=heightMapURL.split('.'))[l.length-1].toLowerCase()
+            switch(suffix){
+              case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
+                geometry.heightTextureMode = 'video'
+                if(involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.heightMapURL)).length){
+                  console.log('found video in cache... using it')
+                  dset.heightResource = cacheItem[0].resource
+                  //dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = geometry.playbackSpeed
+                  dset.heightTexture = cacheItem[0].texture
+                  //gl.activeTexture(gl.TEXTURE4)
+                  //BindImage(gl, dset.heightResource, dset.heightTexture, geometry.heightTextureMode, -1, heightMapURL)
+                }else{
+                  dset.heightResource = document.createElement('video')
+                  dset.heightResource.muted = true
+                  dset.heightResource.addEventListener('canplay', () =>{
+                    dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = geometry.playbackSpeed
+                  })
+                  dset.heightResource.loop = true
+                  if(!geometry.muted && !audioConsent) {
+                    audioConsent = true
+                    GenericPopup('play audio OK?', true, ()=>{
+                      dset.heightResource.muted = false
+                      dset.heightResource.currentTime = 0
+                      //dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = dset.heightResource.playbackSpeed
+                      dset.heightResource.play()
+                    })
+                  }
+                  dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = geometry.playbackSpeed
+                  dset.heightResource.oncanplay = async () => {
+                    dset.heightResource.play()
+                  }
+                  //gl.activeTexture(gl.TEXTURE4)
+                  //BindImage(gl, dset.heightResource, dset.heightTexture, geometry.heightTextureMode, -1, heightMapURL)
+                  cache.textures.push({
+                    url: heightMapURL,
+                    resource: dset.heightResource,
+                    texture: dset.heightTexture
+                  })
+                  await fetch(heightMapURL).then(res=>res.blob()).then(data => {
+                    dset.heightResource.src = URL.createObjectURL(data)
+                  })
+                }
+              break
+              default:
+                geometry.heightTextureMode = 'image'
+                if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==heightMapURL)).length){
+                  dset.heightTexture = cacheItem[0].texture
+                  var image = cacheItem[0].resource
+                  dset.heightResource = image
+                  gl.activeTexture(gl.TEXTURE4)
+                  BindImage(gl, image, dset.heightTexture, geometry.heightTextureMode, -1, heightMapURL)
+                }else{
+                  var image = new Image()
+                  dset.heightResource = image
+                  gl.activeTexture(gl.TEXTURE4)
+                  cache.textures.push({
+                    url: heightMapURL,
+                    resource: image,
+                    texture: dset.heightTexture
+                  })
+                  image.onload = () => {
+                    gl.useProgram(dset.program)
+                    gl.activeTexture(gl.TEXTURE4)
+                    gl.uniform1i(dset.locHeightMap, 4)
+                    BindImage(gl, image,
+                       dset.heightTexture, 'heightmap', -1, heightMapURL)
+                  }
+                  await fetch(heightMapURL).then(res=>res.blob()).then(data => {
+                    image.src = URL.createObjectURL(data)
+                  })
+                }
+              break
+            }
+          }
+          gl.activeTexture(gl.TEXTURE4)
+          gl.uniform1i(dset.locHeightMap, 4)
+          gl.bindTexture(gl.TEXTURE_2D, dset.heightTexture)
+          gl.activeTexture(gl.TEXTURE0)
+          
+          
 
           dset.locCamPos         = gl.getUniformLocation(dset.program, "camPos")
           dset.locCamOri         = gl.getUniformLocation(dset.program, "camOri")
