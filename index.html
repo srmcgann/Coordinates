@@ -22,7 +22,8 @@
       var Rn = Math.random
       var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
       //var heightTexture = 'https://boss.mindhackers.org/assets/uploads/1JZ5kI.jpeg'
-      var heightTexture = 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png'
+      //var heightTexture = 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png'
+      var heightTexture = 'https://boss.mindhackers.org/assets/uploads/1W3r3b.jpeg'
       
       var rendererOptions = {
         ambientLight: .1,
@@ -43,7 +44,7 @@
         } },
         { uniform: {
           type: 'reflection',
-          enabled: false,
+          enabled: true,
           map: refTexture,
           value: .5
         } },
@@ -210,17 +211,19 @@
       }
 
       var geoOptions = {
-        shapeType: 'dodecahedron',
+        shapeType: 'cube',
+        equirectangular: true,
         subs: 2,
         sphereize: 1,
         //shapeType: 'custom shape',
         //url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_hipoly.json',
         name: 'canvasRect',
         showNormals: false,
-        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+        //map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
         //map: heightTexture,
-        //heightMap: heightTexture,
-        //heightMapIntensity: 1,
+        heightMap: heightTexture,
+        //heightMap: 'https://boss.mindhackers.org/assets/uploads/1JZ5kI.jpeg',
+        heightMapIntensity: 5,
         averageNormals: true,
         //scaleX: 9/16,
         //scaleUVX: 1,
@@ -231,7 +234,7 @@
         size: 5,
         //scaleX: 16/9,
         color: 0xffffff,
-        colorMix: .2,
+        colorMix: .5,
         exportShape: false,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -268,7 +271,7 @@
         var t = renderer.t
         //renderer.yaw   = S(t) * .5 + t
         //renderer.pitch = C(t*2) * .05
-        renderer.z = Math.min(11, Math.max(4, (.3+C(t/6))*24))
+        renderer.z = 11 //Math.min(11, Math.max(4, (.3+C(t/6))*24))
         processCanvas()
         
         shapes.forEach(shape => {
@@ -276,7 +279,7 @@
             case 'background':
             break
             default:
-              shape.yaw = -t/2 //S(t) * .5 + Math.PI
+              shape.yaw = S(t) * .5 + Math.PI
               shape.pitch = C(t*2) * .5
             break
           }

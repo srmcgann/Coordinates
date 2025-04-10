@@ -251,19 +251,19 @@ const Renderer = async options => {
             
 
             ctx.activeTexture(ctx.TEXTURE0)
+            //ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
             ctx.uniform1i(dset.locTexture, dset.texture)
-            //ctx.uniform1i(dset.locTexture, 0)
             ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
             
-            if(geometry.heightMap && dset.heightResource){
+            if(1 && geometry.heightMap && dset.heightResource){
               ctx.activeTexture(ctx.TEXTURE4)
-              ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
-              BindImage(ctx, dset.heightResource, dset.heightTexture, 'heightmap', renderer.t, geometry.heightMap)
-              ctx.uniform1i(dset.locTexture, dset.heightTexture)
-              ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
+              //ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
+              //BindImage(ctx, dset.heightResource, dset.heightTexture, 'heightmap', renderer.t, geometry.heightMap)
+              ctx.uniform1i(dset.locHeightTexture, dset.heightTexture)
               ctx.uniform1f(dset.locUseHeightMap, 1)
               ctx.uniform1f(dset.locHeightMapIntensity, geometry.heightMapIntensity)
-              //ctx.activeTexture(ctx.TEXTURE0)
+              ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
+              ctx.activeTexture(ctx.TEXTURE0)
             }else{
               ctx.uniform1f(dset.locUseHeightMap, 0)
             }
@@ -1586,7 +1586,7 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', 
     case 'heightmap':
       texImage = resource
     break
-    case 'image': 
+    case 'image':
       if(involveCache && (cacheItem = cache.texImages.filter(v=>v.url==url)).length){
         console.log('found image texture in cache... using it')
         texImage = cacheItem[0].texImage
@@ -2034,10 +2034,8 @@ const BasicShader = async (renderer, options=[]) => {
                   flatShadingUniform:  'refFlatShading',
                   dataType:            'uniform1f',
                   vertDeclaration:     `
-                    varying vec3 reflectionPos;
                   `,
                   vertCode:            `
-                    reflectionPos = R(nVeci, geoOri);
                   `,
                   fragDeclaration:     `
                     uniform float reflection;
@@ -2045,13 +2043,13 @@ const BasicShader = async (renderer, options=[]) => {
                     uniform float refOmitEquirectangular;
                     uniform float refFlipRefs;
                     uniform sampler2D reflectionMap;
-                    varying vec3 reflectionPos;
                   `,
                   fragCode:            `
                     //light.rgb *= .5;
                     //light.rgb += .05;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
+                      vec3 reflectionPos = R(nVeci, geoOri);
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
@@ -2088,17 +2086,14 @@ const BasicShader = async (renderer, options=[]) => {
                                           Math.PI+.5: option[key].theta,
                   dataType:            'uniform1f',
                   vertDeclaration:     `
-                    varying vec3 phongPos;
                   `,
                   vertCode:            `
-                    phongPos = nVec; //R(nVeci, geoOri);
                     hasPhong = 1.0;
                   `,
                   fragDeclaration:     `
                     uniform float phong;
                     uniform float phongTheta;
                     uniform float phongFlatShading;
-                    varying vec3 phongPos;
                   `,
                   fragCode:            `
                     if(isLight == 0.0 && isCrosshair == 0.0 &&
@@ -2111,9 +2106,9 @@ const BasicShader = async (renderer, options=[]) => {
                         py = 0.0;
                         pz = 0.0;
                       }else{
-                        px = phongPos.x;
-                        py = phongPos.y;
-                        pz = phongPos.z;
+                        px = nVec.x;
+                        py = nVec.y;
+                        pz = nVec.z;
                       }
                       phongP1 = atan(px, pz) + phongTheta;
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
@@ -2169,6 +2164,7 @@ const BasicShader = async (renderer, options=[]) => {
       
       uniform float t;
       uniform vec3 color;
+      uniform float flatShading;
       uniform float ambientLight;
       uniform vec3 camPos;
       uniform vec3 camOri;
@@ -2237,80 +2233,32 @@ const BasicShader = async (renderer, options=[]) => {
 */  
         
         if(useHeightMap != 0.0 && renderNormals == 0.0){
-          vec3 thisPos, neighbor1, neighbor2;
-          float uvOffset;
-          float hmi;
+          
+          uvi = uv / 2.0;
+          uvi = vec2(uvi.x, .5 - uvi.y);
+          nVeci = normalVec;
           vec4 h;
-          vec3 cpos;
-          float lum, dx1, dy1, dz1, dx2, dy2, dz2, dx3, dy3, dz3;
-          float b1, b2, b3, c1, c2, c3;
+          float lum;
+
+          if(equirectangular != 0.0){
+            float p;
+            float p2;
+            p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(normalVec.x, normalVec.z);
+            float p1;
+            p1 = p / M_PI / 2.0;
+            p2 = flatShading == 1.0 ?
+                  acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
+                  p2 = acos(normalVec.y / (sqrt(normalVec.x*normalVec.x + normalVec.y*normalVec.y + normalVec.z*normalVec.z)+.00001)) / M_PI;
+            uvi = vec2(p1, p2);
+          }else{
+            uvi = uv;
+          }
           
-          
-          hmi = .1 * heightMapIntensity;
-          uvOffset = .1;
-          uvi = uv / 4.0;
-          uvi = vec2(uvi.x, .5 - uvi.y);
           h = texture2D( heightMap, uvi);
-          lum = ((h.r + h.g + h.b) / 3.0 - 0.5) * hmi;
-          cpos = vec3(uvi.x, uvi.y, lum);
-          dx1 = cpos.x;
-          dy1 = cpos.y;
-          dz1 = cpos.z;
-          thisPos = vec3(dx1, dy1, dz1);
-          
-          h = texture2D( heightMap, vec2(uvi.x + uvOffset, uvi.y));
-          lum = ((h.r + h.g + h.b) / 3.0 - 0.5) * hmi;
-          neighbor1 = vec3(uvi.x + uvOffset, uvi.y, lum);
-
-          h = texture2D( heightMap, vec2(uvi.x, uvi.y - uvOffset));
-          lum = ((h.r + h.g + h.b) / 3.0 - 0.5) * hmi;
-          neighbor2 = vec3(uvi.x, uvi.y - uvOffset, lum);
-
-          b1 = neighbor2.x - neighbor1.x;
-          b2 = neighbor2.y - neighbor1.y;
-          b3 = neighbor2.z - neighbor1.z;
-          c1 = neighbor1.x - thisPos.x;
-          c2 = neighbor1.y - thisPos.y;
-          c3 = neighbor1.z - thisPos.z;
-          nVeci = normalize(vec3(b2*c3-b3*c2,b3*c1-b1*c3,b1*c2-b2*c1)) * -1.0;
-          
-          nVec = vec3(-nVeci.x, -nVeci.y, nVeci.z);
-          nVec = R(nVec, geoOri);
-          nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-          
-          nVeci = nVec;
-         
-          
-          
-          hmi = .1 * heightMapIntensity;
-          uvOffset = .05;
-          uvi = uv / 8.0;
-          uvi = vec2(uvi.x, .5 - uvi.y);
-          h = texture2D( heightMap, uvi);
-          lum = ((h.r + h.g + h.b) / 3.0) * hmi;
-          thisPos = vec3(uvi.x, uvi.y, lum);
-          
-          h = texture2D( heightMap, vec2(uvi.x + uvOffset, uvi.y));
-          lum = ((h.r + h.g + h.b) / 3.0) * hmi;
-          neighbor1 = vec3(uvi.x + uvOffset, uvi.y, lum);
-
-          h = texture2D( heightMap, vec2(uvi.x, uvi.y - uvOffset));
-          lum = ((h.r + h.g + h.b) / 3.0) * hmi;
-          neighbor2 = vec3(uvi.x, uvi.y - uvOffset, lum);
-
-          b1 = neighbor2.x - neighbor1.x;
-          b2 = neighbor2.y - neighbor1.y;
-          b3 = neighbor2.z - neighbor1.z;
-          c1 = neighbor1.x - thisPos.x;
-          c2 = neighbor1.y - thisPos.y;
-          c3 = neighbor1.z - thisPos.z;
-          vec3 n = normalize(vec3(b2*c3-b3*c2,b3*c1-b1*c3,b1*c2-b2*c1));
-          
-          n.x *= -1.0;
-          
-          cx -= n.x * normalVec.x * heightMapIntensity;// * 10.0 - 7.5;
-          cy -= n.y * normalVec.y * heightMapIntensity;// * 10.0 - 7.5;
-          cz -= n.z * normalVec.z * heightMapIntensity;// * 10.0 - 7.5;
+          lum = ((h.r + h.g + h.b) / 3.0);
+          cx += normalVec.x * lum;
+          cy += normalVec.y * lum;
+          cz += normalVec.z * lum;
           
         }else{
           uvi = uv / 2.0;
@@ -2332,26 +2280,19 @@ const BasicShader = async (renderer, options=[]) => {
           cy += cpy;
           cz += cpz;
           if(isCrosshair != 0.0){
-            
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            if(useHeightMap == 0.0){
-              nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-              nVec = R(nVec, geoOri);
-              nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-            }
-            
+            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+            nVec = R(nVec, geoOri);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
           } else if (isSprite != 0.0 || isLight != 0.0){
-            
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            if(useHeightMap == 0.0){
-              nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-              nVec = R(nVec, geoOri);
-              nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-            }            
+            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+            nVec = R(nVec, geoOri);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
           }else{
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
@@ -2372,20 +2313,16 @@ const BasicShader = async (renderer, options=[]) => {
             pos = R(vec3(pos.x, pos.y, pos.z),
                      vec3(-camOri.x, 0.0, -camOri.z ));
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            //if(useHeightMap == 0.0){
-              nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-              nVec = R(nVec, geoOri);
-              nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-            //}
+            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+            nVec = R(nVec, geoOri);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
           }else{
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            //if(useHeightMap == 0.0){
-              nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-              nVec = R(nVec, geoOri);
-              nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-            //}
+            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+            nVec = R(nVec, geoOri);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
           }
           fPos = vec3(pos.x, pos.y, pos.z);
         }
@@ -2454,31 +2391,23 @@ const BasicShader = async (renderer, options=[]) => {
         return vec4((col1.rgb * col1.a) + (col2.rgb * col2.a), 1.0);
       }
       
-      vec2 Coords(float flatShading) {
+      vec2 Coords(float flatShading, vec3 nV) {
         vec2 ret;
-        vec3 cpos = vec3(1.0, 1.0, 1.0);
-        /*if(useHeightMap != 0.0){
-          cpos = vec3(fPosi.x, fPosi.y, fPosi.z);
-          vec4 h = texture2D( heightMap, vUv);
-          float lum = ((h.r + h.g + h.b) / 3.0 - 0.5) * heightMapIntensity;
-          cpos.x += nVeci.x * lum;
-          cpos.y += nVeci.y * lum;
-          cpos.z += nVeci.z * lum;
-        }*/
         if(equirectangular == 1.0){
           float p;
           float p2;
-          p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z);
+          vec3 cpos = fPosi;
+          p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z);
           float p1;
           p1 = p / M_PI / 2.0;
           p2 = flatShading == 1.0 ?
-                acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVec.z*nVeci.z)+.00001)) / M_PI   :
+                acos(nV.y / (sqrt(nV.x*nV.x + nV.y*nV.y + nV.z*nV.z)+.00001)) / M_PI   :
                 p2 = acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) / M_PI;
           ret = vec2(p1, p2);
         }else{
           ret = vUv;
         }
-        return ret; //vec2(ret.x * cpos.x, ret.y * cpos.y);
+        return ret;
       }
 
       vec3 R(vec3 pos, vec3 rot){
@@ -2532,8 +2461,64 @@ const BasicShader = async (renderer, options=[]) => {
             if(renderNormals == 1.0){
               gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
             }else{
+              
+              
+              
+              vec3 nV;
+              float p;
+              if(useHeightMap != 0.0){
+                
+                vec2 cr1;
+                vec2 cr2;
+                vec2 cr3;
+                for(float j=0.0; j<3.0; j+=1.0){
+                  // to-do: should be function of heightmap resolution
+                  float tx, ty;
+                  if(j > 0.0){
+                    p = M_PI * 2.0 / 4.0 * j;
+                    tx = sin(p) * .002;
+                    ty = cos(p) * .002;
+                  }else{
+                    tx = 0.0;
+                    ty = 0.0;
+                  }
+                
+                  vec2 hcoords;
+                  if(equirectangular == 1.0){
+                    float p2;
+                    vec3 cpos = fPosi;
+                    p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z);
+                    float p1;
+                    p1 = p / M_PI / 2.0;
+                    p2 = flatShading == 1.0 ?
+                          acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
+                          p2 = acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) / M_PI;
+                    hcoords = vec2(p1+tx, p2+ty);
+                  }else{
+                    hcoords = vUv + vec2(tx, ty);
+                  }
+                  /*switch(j){
+                    case 0.0:
+                      cr1 = hcoords;
+                    break;
+                    case 2.0:
+                      cr2 = hcoords;
+                    break;
+                    case 3.0:
+                      cr3 = hcoords;
+                    break;
+                  }*/
+                }
+                //nV = normalize(cr1 + cr2, +);
+                nV = nVeci;
+              }else{
+                nV = nVeci;
+              }
+              
+              
+              
               ${uFragCode}
-              vec2 coords = Coords(0.0);
+              vec2 coords = Coords(0.0, nV);
               vec4 texel = texture2D( baseTexture, coords);
               texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
               if(isSprite != 0.0 || isLight != 0.0 || isCrosshair != 0.0){
@@ -2786,8 +2771,8 @@ const BasicShader = async (renderer, options=[]) => {
           
           if(geometry.heightMap){
             dset.heightTexture = gl.createTexture()
-            gl.activeTexture(gl.TEXTURE4)
-            gl.bindTexture(gl.TEXTURE_2D, dset.heightTexture)
+            //gl.activeTexture(gl.TEXTURE4)
+            //gl.bindTexture(gl.TEXTURE_2D, dset.heightTexture)
             dset.locHeightMap = gl.getUniformLocation(dset.program, "heightMap")
             dset.locUseHeightMap = gl.getUniformLocation(dset.program, "useHeightMap")
             dset.locHeightMapIntensity = gl.getUniformLocation(dset.program, "heightMapIntensity")
@@ -2854,14 +2839,14 @@ const BasicShader = async (renderer, options=[]) => {
                   BindImage(gl, image, dset.texture, geometry.textureMode, -1, textureURL)
                 }else{
                   var image = new Image()
-                  gl.activeTexture(gl.TEXTURE0)
                   cache.textures.push({
                     url: textureURL,
                     resource: image,
                     texture: dset.texture
                   })
-                  image.onload = () => {
-                    BindImage(gl, image,
+                  image.onload = async () => {
+                    gl.activeTexture(gl.TEXTURE0)
+                    await BindImage(gl, image,
                       dset.texture, geometry.textureMode, -1, textureURL)
                   }
                   await fetch(textureURL).then(res=>res.blob()).then(data => {
@@ -2871,10 +2856,10 @@ const BasicShader = async (renderer, options=[]) => {
               break
             }
           }
-          //gl.useProgram(dset.program)
-          //gl.activeTexture(gl.TEXTURE0)
-          //gl.uniform1i(dset.locTexture, 0)
-          //gl.bindTexture(gl.TEXTURE_2D, dset.texture)
+          gl.useProgram(dset.program)
+          gl.activeTexture(gl.TEXTURE0)
+          gl.uniform1i(dset.locTexture, 0)
+          gl.bindTexture(gl.TEXTURE_2D, dset.texture)
 
 
           if(heightMapURL){
@@ -2927,40 +2912,43 @@ const BasicShader = async (renderer, options=[]) => {
                 geometry.heightTextureMode = 'image'
                 if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==heightMapURL)).length){
                   dset.heightTexture = cacheItem[0].texture
-                  var image = cacheItem[0].resource
-                  dset.heightResource = image
+                  var heightImage = cacheItem[0].resource
+                  dset.heightResource = heightImage
                   gl.activeTexture(gl.TEXTURE4)
-                  BindImage(gl, image, dset.heightTexture, geometry.heightTextureMode, -1, heightMapURL)
+                  BindImage(gl, heightImage, dset.heightTexture, geometry.heightTextureMode, -1, heightMapURL)
                 }else{
-                  var image = new Image()
-                  dset.heightResource = image
-                  gl.activeTexture(gl.TEXTURE4)
+                  var heightImage = new Image()
+                  dset.heightResource = heightImage
                   cache.textures.push({
                     url: heightMapURL,
-                    resource: image,
+                    resource: heightImage,
                     texture: dset.heightTexture
                   })
-                  image.onload = () => {
+                  
+                  heightImage.onload = async () => {
                     gl.useProgram(dset.program)
                     gl.activeTexture(gl.TEXTURE4)
                     gl.uniform1i(dset.locHeightMap, 4)
-                    BindImage(gl, image,
+                    await BindImage(gl, heightImage,
                        dset.heightTexture, 'heightmap', -1, heightMapURL)
+                    gl.activeTexture(gl.TEXTURE0)
                   }
+                  
                   await fetch(heightMapURL).then(res=>res.blob()).then(data => {
-                    image.src = URL.createObjectURL(data)
+                    heightImage.src = URL.createObjectURL(data)
                   })
                 }
               break
             }
           }
-          gl.useProgram( dset.program )
-          gl.activeTexture(gl.TEXTURE4)
-          gl.uniform1i(dset.locHeightMap, 4)
-          gl.bindTexture(gl.TEXTURE_2D, dset.heightTexture)
-          gl.activeTexture(gl.TEXTURE0)
+          //gl.useProgram( dset.program )
+          //gl.activeTexture(gl.TEXTURE4)
+          //gl.uniform1i(dset.locHeightMap, 4)
+          //gl.bindTexture(gl.TEXTURE_2D, dset.heightTexture)
+          //gl.activeTexture(gl.TEXTURE0)
           
           
+          gl.useProgram(dset.program)
 
           dset.locCamPos         = gl.getUniformLocation(dset.program, "camPos")
           dset.locCamOri         = gl.getUniformLocation(dset.program, "camOri")
