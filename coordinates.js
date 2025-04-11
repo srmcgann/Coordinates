@@ -255,10 +255,11 @@ const Renderer = async options => {
             ctx.uniform1i(dset.locTexture, dset.texture)
             ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
             
-            if(1 && geometry.heightMap && dset.heightResource){
+            if(geometry.heightMap){
               ctx.activeTexture(ctx.TEXTURE4)
+              ctx.uniform1i(dset.locHeightMap, 4)
               //ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
-              //BindImage(ctx, dset.heightResource, dset.heightTexture, 'heightmap', renderer.t, geometry.heightMap)
+              BindImage(ctx, dset.heightResource, dset.heightTexture, geometry.heightMapIsCanvas ? 'canvas' : geometry.heightTextureMode, renderer.t, geometry.heightMap)
               ctx.uniform1i(dset.locHeightTexture, dset.heightTexture)
               ctx.uniform1f(dset.locUseHeightMap, 1)
               ctx.uniform1f(dset.locHeightMapIntensity, geometry.heightMapIntensity)
@@ -703,6 +704,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var map                    = '' //`${ModuleBase}/resources/flat_grey.jpg`
   var heightMap              = ''
   var heightMapIntensity     = 1
+  var heightMapIsCanvas  = false
   var canvasTextureMix       = -1
   var muted                  = true
   var boundingColor          = 0x88ff22
@@ -780,6 +782,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'map'                : map = geoOptions[key]; break
       case 'heightmap'          : heightMap = geoOptions[key]; break
       case 'heightmapintensity' : heightMapIntensity = geoOptions[key]; break
+      case 'heightmapiscanvas'  : heightMapIsCanvas= !!geoOptions[key]; break
       case 'rows'               : rows = geoOptions[key]; break
       case 'disabledepthtest'   : disableDepthTest = geoOptions[key]; break
       case 'cols'               : cols = geoOptions[key]; break
@@ -816,17 +819,26 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   })
   
-  var tempCanvas
+  var tempCanvas1, tempCanvas2
   if(typeof geoOptions.canvasTexture != 'undefined'){
-    if(canvasTextureMix == -1) canvasTextureMix = 1 //map ? 1 : 1
-    tempCanvas = geoOptions.canvasTexture
+    if(canvasTextureMix == -1) canvasTextureMix = 1
+    tempCanvas1 = geoOptions.canvasTexture
     delete geoOptions.canvasTexture
   }else{
     canvasTextureMix = 0
   }
+  if(geoOptions.heightMapIsCanvas){
+    tempCanvas2 = geoOptions.heightMap
+    delete geoOptions.heightMap
+  }
+
   geoOptions = structuredClone(geoOptions)
-  if(typeof temp != 'undefined'){
-    geoOptions.canvasTexture = tempCanvas
+
+  if(typeof tempCanvas1 != 'undefined'){
+    geoOptions.canvasTexture = tempCanvas1
+  }
+  if(typeof tempCanvas2 != 'undefined'){
+    geoOptions.heightMap = tempCanvas2
   }
   
   
@@ -1108,7 +1120,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       uvs[i+1] *= scaleUVY
     }
   }
-
+  
   //sphereize
   if(shapeType != 'particles' &&
      (shapeType != 'custom shape' &&
@@ -1406,7 +1418,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     disableDepthTest, lum, alpha, involveCache,
     renderer, isParticle, penumbra, wireframe,
     canvasTexture, canvasTextureMix, showBounding,
-    boundingColor, heightMap, heightMapIntensity
+    boundingColor, heightMap, heightMapIntensity,
+    heightMapIsCanvas
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -1582,9 +1595,6 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', 
           })
         }
       }
-    break
-    case 'heightmap':
-      texImage = resource
     break
     case 'image':
       if(involveCache && (cacheItem = cache.texImages.filter(v=>v.url==url)).length){
@@ -2049,7 +2059,7 @@ const BasicShader = async (renderer, options=[]) => {
                     //light.rgb += .05;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
-                      vec3 reflectionPos = R(nVeci, geoOri);
+                      vec3 reflectionPos = R(nVi, geoOri);
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
@@ -2061,7 +2071,7 @@ const BasicShader = async (renderer, options=[]) => {
                       refP2 = vUv.y;
                     }
                     
-                    vec2 refCoords = vec2(1.0 - refP1, refP2);
+                    vec2 refCoords = vec2(1.0 - refP1 * 2.0, refP2);
                     vec4 refCol = vec4(texture2D(reflectionMap, vec2(refCoords.x, refCoords.y)).rgb * 1.25, reflection / 1.0);
                     mixColor = merge(mixColor, refCol);
                     baseColorIp = 1.0 - reflection;
@@ -2106,9 +2116,9 @@ const BasicShader = async (renderer, options=[]) => {
                         py = 0.0;
                         pz = 0.0;
                       }else{
-                        px = nVec.x;
-                        py = nVec.y;
-                        pz = nVec.z;
+                        px = nV.x;
+                        py = nV.y;
+                        pz = nV.z;
                       }
                       phongP1 = atan(px, pz) + phongTheta;
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
@@ -2234,6 +2244,7 @@ const BasicShader = async (renderer, options=[]) => {
         
         if(useHeightMap != 0.0 && renderNormals == 0.0){
           
+              
           uvi = uv / 2.0;
           uvi = vec2(uvi.x, .5 - uvi.y);
           nVeci = normalVec;
@@ -2243,22 +2254,26 @@ const BasicShader = async (renderer, options=[]) => {
           if(equirectangular != 0.0){
             float p;
             float p2;
-            p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(normalVec.x, normalVec.z);
+            vec3 cpos = vec3(cx, cy, cz);
+            p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z);
             float p1;
             p1 = p / M_PI / 2.0;
             p2 = flatShading == 1.0 ?
                   acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
-                  p2 = acos(normalVec.y / (sqrt(normalVec.x*normalVec.x + normalVec.y*normalVec.y + normalVec.z*normalVec.z)+.00001)) / M_PI;
+                  p2 = (acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) + 0.0) / M_PI;
             uvi = vec2(p1, p2);
-          }else{
+          } else {
             uvi = uv;
           }
-          
+            
+            
           h = texture2D( heightMap, uvi);
-          lum = ((h.r + h.g + h.b) / 3.0);
+          lum = ((h.r + h.g + h.b) / 3.0) * (1.0 + heightMapIntensity) / 2.0;
           cx += normalVec.x * lum;
           cy += normalVec.y * lum;
           cz += normalVec.z * lum;
+          
+
           
         }else{
           uvi = uv / 2.0;
@@ -2463,62 +2478,77 @@ const BasicShader = async (renderer, options=[]) => {
             }else{
               
               
-              
-              vec3 nV;
               float p;
+              vec3 nV, nVi;
               if(useHeightMap != 0.0){
                 
-                vec2 cr1;
-                vec2 cr2;
-                vec2 cr3;
+                float rad = .02;
+                float rad2 = -.1;
+                vec2 cr1, cr2, cr3;
+                float lum1, lum2, lum3;
                 for(float j=0.0; j<3.0; j+=1.0){
-                  // to-do: should be function of heightmap resolution
+                  
+                  // to-do: .002 should be function of heightmap resolution
                   float tx, ty;
-                  if(j > 0.0){
-                    p = M_PI * 2.0 / 4.0 * j;
-                    tx = sin(p) * .002;
-                    ty = cos(p) * .002;
-                  }else{
-                    tx = 0.0;
-                    ty = 0.0;
-                  }
+                  p = M_PI * 2.0 / 3.0 * j;
+                  tx = -sin(p) * rad;
+                  ty = cos(p) * rad;
                 
                   vec2 hcoords;
                   if(equirectangular == 1.0){
+                    float p;
                     float p2;
                     vec3 cpos = fPosi;
-                    p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z);
+                    p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z);
                     float p1;
                     p1 = p / M_PI / 2.0;
                     p2 = flatShading == 1.0 ?
-                          acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
+                          acos(nV.y / (sqrt(nV.x*nV.x + nV.y*nV.y + nV.z*nV.z)+.00001)) / M_PI   :
                           p2 = acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) / M_PI;
-                    hcoords = vec2(p1+tx, p2+ty);
+                    tx += p1;
+                    ty += p2;
+                    hcoords = vec2(tx, ty);
                   }else{
                     hcoords = vUv + vec2(tx, ty);
                   }
-                  /*switch(j){
-                    case 0.0:
-                      cr1 = hcoords;
-                    break;
-                    case 2.0:
-                      cr2 = hcoords;
-                    break;
-                    case 3.0:
-                      cr3 = hcoords;
-                    break;
-                  }*/
+                  
+                  vec4 htexel = texture2D( heightMap, hcoords);
+                  float lum = (htexel.r + htexel.g + htexel.b) / 3.0;
+                  if(j == 0.0) {
+                    lum1 = lum;
+                    cr1 = hcoords;
+                  }
+                  if(j == 1.0) {
+                    lum2 = lum;
+                    cr1 = hcoords;
+                  }
+                  if(j == 2.0) {
+                    lum3 = lum;
+                    cr2 = hcoords;
+                  }
                 }
-                //nV = normalize(cr1 + cr2, +);
-                nV = nVeci;
+
+                float a1 = cr1.x;
+                float a2 = cr1.y;
+                float a3 = (lum1 - 0.5) * rad2;
+                
+                float b1 = cr2.x - a1;
+                float b2 = cr2.y - a2;
+                float b3 = (lum2 - 0.5) * rad2 - a3;
+                float c1 = cr3.x - cr2.x;
+                float c2 = cr3.y - cr2.y;
+                float c3 = (lum3 - 0.5) * rad2 - (lum2 - 0.5) * rad2;
+                vec3 anorm =  vec3(b2*c3-b3*c2, b3*c1-b1*c3, b1*c2-b2*c1) * (1.0 + heightMapIntensity) / 2.0;
+                nV = normalize( nVec + anorm);
+                nVi = normalize( nVeci + anorm);
               }else{
-                nV = nVeci;
+                nV = nVec;
+                nVi = nVeci;
               }
               
               
-              
               ${uFragCode}
-              vec2 coords = Coords(0.0, nV);
+              vec2 coords = Coords(0.0, nVi);
               vec4 texel = texture2D( baseTexture, coords);
               texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
               if(isSprite != 0.0 || isLight != 0.0 || isCrosshair != 0.0){
@@ -2862,7 +2892,9 @@ const BasicShader = async (renderer, options=[]) => {
           gl.bindTexture(gl.TEXTURE_2D, dset.texture)
 
 
-          if(heightMapURL){
+          if(geometry.heightMapIsCanvas){
+            dset.heightResource = heightMapURL
+          }else if(heightMapURL){
             dset.heightMapURL = heightMapURL
             let l
             let suffix = (l=heightMapURL.split('.'))[l.length-1].toLowerCase()
@@ -2930,7 +2962,7 @@ const BasicShader = async (renderer, options=[]) => {
                     gl.activeTexture(gl.TEXTURE4)
                     gl.uniform1i(dset.locHeightMap, 4)
                     await BindImage(gl, heightImage,
-                       dset.heightTexture, 'heightmap', -1, heightMapURL)
+                       dset.heightTexture, geometry.heightTextureMode, -1, heightMapURL)
                     gl.activeTexture(gl.TEXTURE0)
                   }
                   
