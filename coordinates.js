@@ -103,7 +103,7 @@ const Renderer = async options => {
     c.style.left       = '50vw'
     c.style.top        = '50vh'
     c.style.transform  = 'translate(-50%, -50%)'
-    c.style.border     = '1px solid #fff3'
+    //c.style.border     = '1px solid #fff3'
     c.style.background = '#000'
     document.body.appendChild(c)
   }
@@ -396,7 +396,7 @@ const Renderer = async options => {
               dset.locPosition = ctx.getAttribLocation(dset.program, "position")
               ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
               ctx.enableVertexAttribArray(dset.locPosition)
-              ctx.drawElements(geometry.wireframe ? ctx.LINES :
+              ctx.drawElements(geometry.wireframe ? ctx.LINE_STRIP :
                                   ctx.TRIANGLES,
                                 geometry.vertices.length/3|0,
                                 ctx.UNSIGNED_INT,0)
@@ -2063,7 +2063,7 @@ const BasicShader = async (renderer, options=[]) => {
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
-                      refP1 = -atan(px, pz)/ M_PI / 2.0;
+                      refP1 = -atan(px, pz) / M_PI / 4.0;
                       refP2 = acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
                       if(refFlipRefs != 0.0) refP2 = 1.0 - refP2;
                     } else {

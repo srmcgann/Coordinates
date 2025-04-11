@@ -20,15 +20,21 @@
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2.jpg'
+      //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2.jpg'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/ultracloudsbase.jpg'
       //var heightTexture = 'https://boss.mindhackers.org/assets/uploads/1JZ5kI.jpeg'
       //var heightTexture = 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png'
       //var heightTexture = 'https://boss.mindhackers.org/assets/uploads/1W3r3b.jpeg'
-      var heightTexture = 'https://boss.mindhackers.org/assets/uploads/28yC87.mp4'
+      var heightTexture = 'https://boss.mindhackers.org/assets/uploads/1cQ4sU.mp4'
+      //var heightTexture = 'https://boss.mindhackers.org/assets/uploads/21Puj4.png'
       
       var rendererOptions = {
-        ambientLight: .25,
-        fov: 1400
+        ambientLight: .4,
+        width: 1024,
+        height: 1024,
+        fov: 1400,
+        border: 0,
+        margin: 0,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
@@ -37,17 +43,22 @@
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
+        { lighting:
+          {
+            type: 'ambientLight', value: .1
+          }
+        },
         { uniform: {
           type: 'phong',
           enabled: true,
-          value: .3,
+          value: .4,
           //theta: Math.PI - 2
         } },
         { uniform: {
           type: 'reflection',
           enabled: true,
           map: refTexture,
-          value: .6
+          value: .4
         } },
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
@@ -68,14 +79,14 @@
       var geoOptions = {
         name: 'frame',
         shapeType: 'custom shape',
-        url: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame_lowpoly_rectangular.json',
+        url: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame_lowpoly.json',
         map: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame texture2.jpg',
-        size: 1.5,
+        size: 3.25,
         scaleZ: 1/3,
         color: 0x000000,
         colorMix: 0,
       }
-      if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(0) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
       })
@@ -83,23 +94,23 @@
       var geoOptions = {
         shapeType: 'dodecahedron',
         name: 'background',
-        subs: 4,
-        //sphereize: 0,
-        map: refTexture,
+        subs: 3,
+        sphereize: 1,
+        //map: refTexture,
         size: 1e3,
-        color: 0x888888,
-        colorMix: 0,
+        color: 0x333333,
+        colorMix: 1,
       }
       if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await backgroundShader.ConnectGeometry(geometry)
+        //await backgroundShader.ConnectGeometry(geometry)
       })
 
 
       var rendererOptions = {
         context: {mode: '2d', options: { willReadFrequently: true} },
-        width: 1920/20|0,
-        height: 1080/20|0,
+        width: 1024 / 8|0,
+        height: 1024 / 8|0,
         attachToBody: false
       }
       var canvas = await Coordinates.Renderer(rendererOptions)
@@ -111,19 +122,21 @@
       var scratchDataBuffer = Array(canvas.width*canvas.height).fill().map(v=>[1,0])
       
       var cl = 2
-      var rw = 1
+      var rw = 2
       var sp = canvas.width / cl
 
-      Array(cl*rw).fill().map((q,j) => {
-        var tx = (j%cl) * sp
-        var ty = (j/cl|0) * sp
-        for(var m = 50; m--;) {
-          var ls = Rn() * 6, p, X, Y, idx
-          X = (tx + S(p=Math.PI*2*Rn()) * ls) | 0
-          Y = (ty + C(p) * ls) | 0
-          idx = Math.max(0, Math.min(scratchData.length-1, (X + Y * canvas.width) | 0))
-          scratchData[idx][1] = 1
-          scratchDataBuffer[idx][1] = 1
+      Array(cl*rw).fill().map((q, j) => {
+        if(j%cl && (j/cl|0) && (j/cl|0)){
+          var tx = (j%cl) * sp
+          var ty = (j/cl|0) * sp
+          for(var m = 50; m--;) {
+            var ls = Rn() * 6, p, X, Y, idx
+            X = (tx + S(p=Math.PI*2*Rn()) * ls) | 0
+            Y = (ty + C(p) * ls) | 0
+            idx = Math.max(0, Math.min(scratchData.length-1, (X + Y * canvas.width) | 0))
+            scratchData[idx][1] = 1
+            scratchDataBuffer[idx][1] = 1
+          }
         }
       })
       
@@ -136,10 +149,10 @@
         var corner, side, center
         var X, Y, idx, grid
         
-        var da     = 1
-        var db     = .5
-        var f      = .055
-        var k      = .062
+        var da     = 1.1
+        var db     = .7
+        var f      = .03
+        var k      = .058
         var speed  = 1
         
         var c      = canvas.c
@@ -193,10 +206,12 @@
           scratchDataBuffer[j][1] = valB = Math.min(2, Math.max(0,
                                       B + (db * LB + A * B**2 - (k + f) * B) * speed
                                     ))
-          
-          data[i+0] = Math.min(255, valB * 256 * 4 | 0)
-          data[i+1] = Math.min(255, valB * 128 * 4 | 0)
-          data[i+2] = 0; //Math.min(255, valA * 180 |0)
+          red   = Math.min(255, ((.05 + valB * .95)*1.5) ** 2 * 256 * 4  | 0)
+          green = Math.min(255, (valB * 1.5) **2 * 128 * 4 | 0)
+          blue  = Math.min(255, valA * 64 |0)
+          data[i+0] = red
+          data[i+1] = green
+          data[i+2] = blue
           data[i+3] = 255 //alpha
         }
         
@@ -226,9 +241,11 @@
         map: 'https://srmcgann.github.io/Coordinates/custom shapes/dude.jpg',
         //map: heightTexture,
         playbackSpeed: 1,
-        heightMap: heightTexture,
+        
+        //heightMap: heightTexture,
+        //heightMapIntensity: 2,
+        
         //heightMap: 'https://boss.mindhackers.org/assets/uploads/1JZ5kI.jpeg',
-        heightMapIntensity: 2,
         //averageNormals: true,
         //scaleX: 9/16,
         //scaleUVX: 6,
@@ -249,27 +266,83 @@
         await shader.ConnectGeometry(geometry)
       })
       
-      var cl = 2
-      var rw = 2
-      var sp = 5.05
-      for(var i = cl*rw; i--;) {
-        var x = ((i%cl) - cl/2 + .5) * sp * (16/9) * 4 / 3
+      var geoOptions = {
+        shapeType: 'custom shape',
+        equirectangular: true,
+        url: 'https://srmcgann.github.io/Coordinates/custom shapes/dodecahedron_sphere_hipoly.json',
+        //scaleUVX: 2,
+        //scaleUVY: 1,
+        //pitch: Math.PI/2,
+        //map: 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png',
+        map: heightTexture,
+        heightMap: heightTexture,
+        size: 2,
+        color: 0xffffff,
+        colorMix: .1,
+        //exportShape: true
+      }
+      if(0) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      
+      
+      var geoOptions = {
+        shapeType: 'torus',
+        equirectangular: false,
+        //url: 'https://srmcgann.github.io/Coordinates/custom shapes/dodecahedron_sphere_hipoly.json',
+        name: 'sphericalCanvas',
+        z: -6,
+        size: 5,
+        //subs: 3,
+        //canvasTexture: canvas.c,
+        //heightMap: canvas.c,
+        //heightMapIsCanvas: true,
+        map: heightTexture,
+        heightMap: heightTexture,
+        heightMapIntensity: 2,
+        color: 0xffffff,
+        scaleUVX: .5,
+        scaleUVY: .125,
+        colorMix: 0,
+        //sphereize: 1,
+        showNormals: false,
+        //averageNormals: true,
+      }
+      if(0) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      
+      
+      var cl = 1
+      var rw = 1
+      var sp = 1
+      if(1) for(var i = cl*rw; i--;) {
+        var x = ((i%cl) - cl/2 + .5) * sp * 4 / 3 * 2 //* (16/9)
         var y = ((i/cl|0)-rw/2 + .5) * sp * 4 / 3
         var z = 0
         var geoOptions = {
           shapeType: 'rectangle',
-          subs: 5,
+          //url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_hipoly.json',
+          subs: 7,
           showNormals: false,
-          canvasTexture: canvas.c,
+          //map: heightTexture,
+          //scaleUVX: 4,
+          //scaleUVY: 4,
           yaw: Math.PI,
-          heightMap: canvas.c,
-          heightMapIsCanvas: true,
-          heightMapIntensity: 2,
-          size: 2.25,
-          scaleX: 16/9,
+          canvasTexture: canvas.c,
+          
+          //heightMap: canvas.c,
+          //heightMapIsCanvas: true,
+          //heightMapIntensity: 20,
+          
+          size: 5,
+          //scaleY: 16/9,
           x, y, z,
           color: 0xffffff,
           colorMix: 0,
+          exportShape: true,
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
           shapes.push(geometry)
@@ -279,18 +352,24 @@
       
       window.Draw = () => {
         var t = renderer.t
-        renderer.yaw   = S(t/2) * .3
-        renderer.pitch = C(t/4) * .2
-        renderer.z = 10 //Math.min(40, Math.max(20, (.3-C(t))*24))
+        //renderer.yaw   = t / 8
+        //renderer.yaw   = S(t/2) * .3
+        //renderer.pitch = C(t/4) * .2
+        renderer.z = 16.25 //Math.min(40, Math.max(20, (.3-C(t))*24))
         processCanvas()
         
         shapes.forEach(shape => {
           switch(shape.name){
             case 'background':
             break
+            case 'sphericalCanvas':
+              shape.yaw = t //S(t/2) * 2 + Math.PI
+              shape.pitch = t / 2 //S(t/2) * 2 + Math.PI
+              shape.roll = t/4  //S(t/2) * 2 + Math.PI
+            break
             default:
-              //shape.yaw = S(t/2) * 2 + Math.PI
-              //shape.pitch = C(t*2) * .5
+              //shape.pitch = C(t/4) * .5
+              //shape.yaw = S(t/16) * .5 + Math.PI
             break
           }
           renderer.Draw(shape)
