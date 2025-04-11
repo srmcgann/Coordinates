@@ -21,32 +21,39 @@
       var C = Math.cos
       var Rn = Math.random
       var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2.jpg'
+      //var heightTexture = 'https://boss.mindhackers.org/assets/uploads/1JZ5kI.jpeg'
+      //var heightTexture = 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png'
+      //var heightTexture = 'https://boss.mindhackers.org/assets/uploads/1W3r3b.jpeg'
+      var heightTexture = 'https://boss.mindhackers.org/assets/uploads/28yC87.mp4'
       
       var rendererOptions = {
         ambientLight: .25,
-        fov: 1500
+        fov: 1400
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      renderer.z = 10
+      renderer.z = 8
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: .75
+          enabled: true,
+          value: .3,
+          //theta: Math.PI - 2
         } },
         { uniform: {
           type: 'reflection',
+          enabled: true,
           map: refTexture,
-          value: .25
+          value: .6
         } },
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var shaderOptions = [
-        { lighting: { type: 'ambientLight', value: .2 } },
+        { lighting: { type: 'ambientLight', value: .1 } },
         { uniform: {
           type: 'phong',
           value: 0
@@ -62,27 +69,28 @@
         name: 'frame',
         shapeType: 'custom shape',
         url: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame_lowpoly_rectangular.json',
-        map: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame texture3.jpg',
+        map: 'https://srmcgann.github.io/Coordinates/custom shapes/frame/frame texture2.jpg',
         size: 1.5,
-        color: 0xffffff,
+        scaleZ: 1/3,
+        color: 0x000000,
         colorMix: 0,
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
-      })  
-
+      })
+      
       var geoOptions = {
-        shapeType: 'octahedron',
+        shapeType: 'dodecahedron',
         name: 'background',
-        subs: 3,
-        sphereize: 1,
+        subs: 4,
+        //sphereize: 0,
         map: refTexture,
         size: 1e3,
-        color: 0xffffff,
+        color: 0x888888,
         colorMix: 0,
       }
-      if(0) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await backgroundShader.ConnectGeometry(geometry)
       })
@@ -90,8 +98,8 @@
 
       var rendererOptions = {
         context: {mode: '2d', options: { willReadFrequently: true} },
-        width: 1920/10|0,
-        height: 1080/10|0,
+        width: 1920/20|0,
+        height: 1080/20|0,
         attachToBody: false
       }
       var canvas = await Coordinates.Renderer(rendererOptions)
@@ -102,15 +110,15 @@
       var scratchData = Array(canvas.width*canvas.height).fill().map(v=>[1, 0])
       var scratchDataBuffer = Array(canvas.width*canvas.height).fill().map(v=>[1,0])
       
-      var cl = 4
-      var rw = 3
+      var cl = 2
+      var rw = 1
       var sp = canvas.width / cl
 
       Array(cl*rw).fill().map((q,j) => {
         var tx = (j%cl) * sp
         var ty = (j/cl|0) * sp
         for(var m = 50; m--;) {
-          var ls = Rn() * 10, p, X, Y, idx
+          var ls = Rn() * 6, p, X, Y, idx
           X = (tx + S(p=Math.PI*2*Rn()) * ls) | 0
           Y = (ty + C(p) * ls) | 0
           idx = Math.max(0, Math.min(scratchData.length-1, (X + Y * canvas.width) | 0))
@@ -188,7 +196,7 @@
           
           data[i+0] = Math.min(255, valB * 256 * 4 | 0)
           data[i+1] = Math.min(255, valB * 128 * 4 | 0)
-          data[i+2] = Math.min(255, valA * 128 |0)
+          data[i+2] = 0; //Math.min(255, valA * 180 |0)
           data[i+3] = 255 //alpha
         }
         
@@ -205,22 +213,75 @@
 
       var geoOptions = {
         shapeType: 'rectangle',
+        equirectangular: true,
+        //subs: 0,
+        //scaleY: 0,
+        wireframe: false,
+        //sphereize: 1,
+        //shapeType: 'custom shape',
+        url: 'https://srmcgann.github.io/Coordinates/custom shapes/rack.json',
         name: 'canvasRect',
-        subs: 2,
-        canvasTexture: canvas.c,
-        pitch: Math.PI,
-        size: 3.192,
-        scaleX: 16/9,
+        showNormals: false,
+        flipNormals: false,
+        map: 'https://srmcgann.github.io/Coordinates/custom shapes/dude.jpg',
+        //map: heightTexture,
+        playbackSpeed: 1,
+        heightMap: heightTexture,
+        //heightMap: 'https://boss.mindhackers.org/assets/uploads/1JZ5kI.jpeg',
+        heightMapIntensity: 2,
+        //averageNormals: true,
+        //scaleX: 9/16,
+        //scaleUVX: 6,
+        //scaleUVY: 2,
+        //pitch: Math.PI,
+        yaw: 0,
+        //pitch: Math.PI/2,
+        y: 0,
+        //size: 3.192,
+        size: 3,
+        //scaleX: 16/9,
+        color: 0xffffff,
         colorMix: 0,
+        exportShape: false,
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(0)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await backgroundShader.ConnectGeometry(geometry)
+        await shader.ConnectGeometry(geometry)
       })
       
+      var cl = 2
+      var rw = 2
+      var sp = 5.05
+      for(var i = cl*rw; i--;) {
+        var x = ((i%cl) - cl/2 + .5) * sp * (16/9) * 4 / 3
+        var y = ((i/cl|0)-rw/2 + .5) * sp * 4 / 3
+        var z = 0
+        var geoOptions = {
+          shapeType: 'rectangle',
+          subs: 5,
+          showNormals: false,
+          canvasTexture: canvas.c,
+          yaw: Math.PI,
+          heightMap: canvas.c,
+          heightMapIsCanvas: true,
+          heightMapIntensity: 2,
+          size: 2.25,
+          scaleX: 16/9,
+          x, y, z,
+          color: 0xffffff,
+          colorMix: 0,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          //await shader.ConnectGeometry(geometry)
+        })  
+      }
       
       window.Draw = () => {
         var t = renderer.t
+        renderer.yaw   = S(t/2) * .3
+        renderer.pitch = C(t/4) * .2
+        renderer.z = 10 //Math.min(40, Math.max(20, (.3-C(t))*24))
         processCanvas()
         
         shapes.forEach(shape => {
@@ -228,7 +289,8 @@
             case 'background':
             break
             default:
-              //shape.yaw += .01
+              //shape.yaw = S(t/2) * 2 + Math.PI
+              //shape.pitch = C(t*2) * .5
             break
           }
           renderer.Draw(shape)

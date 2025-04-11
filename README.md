@@ -231,11 +231,13 @@ var geoOptions = {
   scaleX: 1,           // resize (at creation)
   scaleY: 1,
   scaleZ: 1,
-  color: 0x333333,     // optional color
-  colorMix: .5,        // weight of the color, to mix with texture
+  scaleUVX: 1,         // resize uvs (at creation), useful for tiling, or un-tiling textures.
+  scaleUVY: 1,         // e.g. scaleUVX:3, scaleUVY:3, -> tiles map x 3. some maps may not tile well!
   map: '',             // optional texture, URL to an image, or video.
                          // for videos, use ``muted: false`` to prompt
                          // the user to play audio, if desired.
+  color: 0x333333,     // optional color
+  colorMix: .5,        // weight of the color, to mix with texture
   playbackSpeed: 1.0,  // if the texture (map) is a video, adjust the speed (.1 to 10)
   canvasTexture: can,  // shapes accept canvases as textures, which are read
                        // dynamically at draw time, allowing for animated textures.
