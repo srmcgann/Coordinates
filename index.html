@@ -15,37 +15,40 @@
     <script type="module">
     
       import * as Coordinates from
-      "./coordinates.js"
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
       
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
     
       var rendererOptions = {
-        ambientLight: .1,
-        fov: 700,
-        width: 1920 / 2,
-        height: 1080 / 2,
+        ambientLight: .4,
+        fov: 600,
+        width: 1920 / 4,
+        height: 1080 / 4,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2.jpg'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2.jpg'
       //var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd5_po2_small.mp4'
-      var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2_small.mp4'
+      //var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2_small.mp4'
+      //var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd3_po2_small.mp4'
+      //var heightMap = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+      var heightMap = 'https://i.imgur.com/PBe2Ei2.mp4'
       
-      renderer.z = 18 * 2
+      renderer.z = 18 * 4
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: .3,
+          value: 0,
           theta: .6,
         } },
         { uniform: {
           type: 'reflection',
           map: refTexture,
-          value: .15
+          value: .0
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
@@ -66,16 +69,21 @@
 
       var geoOptions = {
         shapeType: 'custom shape',
-        url: 'https://srmcgann.github.io/Coordinates/custom shapes/dodecahedron_sphere_hipoly.json',
+        url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_ultrahipoly.json',
         //subs: 3,
-        equirectangular: true,
-        equirectangularHeightmap: true,
-        heightMapIntensity: 2,
-        playbackSpeed: .5,
+        equirectangular: false,
+        //scaleUVX: 2,
+        //scaleUVY: 1,
+        scaleY: 1,
+        pitch: Math.PI,
+        equirectangularHeightmap: false,
+        heightMapIntensity: 5,
+        muted: false,
+        playbackSpeed: 1,
         map: heightMap,
         heightMap,
-        size: 2,
-        color: 0xffffff,
+        size: 1,
+        color: 0x880008,
         colorMix: 0,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -100,7 +108,7 @@
       
       window.Draw = () => {
         var t = renderer.t
-        renderer.z = Math.min(18 * 2, Math.max(8 * 2, (.3+C(t/4)) * 24 * 2))
+        renderer.z = Math.min(18 * 4, Math.max(8 * 4, (.3+C(t/4)) * 24 * 4))
         renderer.yaw += .001
         renderer.pitch = C(t/4) * .25
         shapes.forEach(shape => {
@@ -108,8 +116,9 @@
             case 'background':
             break
             default:
-              shape.yaw += .005
-              shape.pitch = C(t/2) * .4
+              shape.roll -= .0002
+              shape.yaw -= .0005
+              shape.pitch += .001 //C(t) * .4
             break
           }
           renderer.Draw(shape)
