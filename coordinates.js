@@ -263,6 +263,7 @@ const Renderer = async options => {
               ctx.uniform1i(dset.locHeightTexture, dset.heightTexture)
               ctx.uniform1f(dset.locUseHeightMap, 1)
               ctx.uniform1f(dset.locHeightMapIntensity, geometry.heightMapIntensity)
+              ctx.uniform1f(dset.locEquirectangularHeightmap, geometry.equirectangularHeightmap ? 1.0 : 0.0)
               ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
               ctx.activeTexture(ctx.TEXTURE0)
             }else{
@@ -319,7 +320,7 @@ const Renderer = async options => {
                   break
                   case 'phong':
                     uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
-                    ctx.uniform1f(uniform.locPhongTheta, uniform.theta)
+                    ctx.uniform1f(uniform.locPhongTheta, uniform.theta + Math.PI)
                   break
                 }
               }
@@ -698,6 +699,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var color                  = 0x333333
   var colorMix               = .1
   var equirectangular        = false
+  var equirectangularHeightmap = false
   var preComputeNormalAssocs = false
   var flipNormals            = false
   var showNormals            = false
@@ -758,6 +760,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'size'               : size = geoOptions[key]; break
       case 'subs'               : subs = geoOptions[key]; break
       case 'equirectangular'    : equirectangular = !!geoOptions[key]; break
+      case 'equirectangularheightmap' : equirectangularHeightmap = !!geoOptions[key]; break
       case 'flipnormals'        : flipNormals = !!geoOptions[key]; break
       case 'shownormals'        : showNormals = !!geoOptions[key]; break
       case 'sphereize'          : sphereize = geoOptions[key]; break
@@ -812,7 +815,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
         playbackSpeed = geoOptions[key]; break
       case 'averagenormals'     :
         preComputeNormalAssocs = true
-        averageNormals = !!geoOptions[key]; break
+        averageNormals = !!geoOptions[key];
+      break
       default:
         geometry[key] = geoOptions[key]
       break
@@ -1419,7 +1423,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     renderer, isParticle, penumbra, wireframe,
     canvasTexture, canvasTextureMix, showBounding,
     boundingColor, heightMap, heightMapIntensity,
-    heightMapIsCanvas
+    heightMapIsCanvas, equirectangularHeightmap
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -2093,7 +2097,7 @@ const BasicShader = async (renderer, options=[]) => {
                                          false : option[key].flatShading,
                   flatShadingUniform:  'phongFlatShading',
                   theta:                typeof option[key].theta == 'undefined' ?
-                                          Math.PI+.5: option[key].theta,
+                                          .5: option[key].theta,
                   dataType:            'uniform1f',
                   vertDeclaration:     `
                   `,
@@ -2189,6 +2193,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float penumbraPass;
       uniform float fov;
       uniform float equirectangular;
+      uniform float equirectangularHeightmap;
       uniform float renderNormals;
       uniform vec2 resolution;
       uniform float useHeightMap;
@@ -2251,11 +2256,11 @@ const BasicShader = async (renderer, options=[]) => {
           vec4 h;
           float lum;
 
-          if(equirectangular != 0.0){
+          if(equirectangularHeightmap != 0.0){
             float p;
             float p2;
             vec3 cpos = vec3(cx, cy, cz);
-            p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z);
+            p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z) * 2.0;
             float p1;
             p1 = p / M_PI / 2.0;
             p2 = flatShading == 1.0 ?
@@ -2379,6 +2384,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float ambientLight;
       uniform float renderNormals;
       uniform float equirectangular;
+      uniform float equirectangularHeightmap;
       uniform float colorMix;
       //uniform float penumbraPass;
       uniform vec3 color;
@@ -2412,7 +2418,7 @@ const BasicShader = async (renderer, options=[]) => {
           float p;
           float p2;
           vec3 cpos = fPosi;
-          p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z);
+          p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z) * 2.0;
           float p1;
           p1 = p / M_PI / 2.0;
           p2 = flatShading == 1.0 ?
@@ -2483,23 +2489,22 @@ const BasicShader = async (renderer, options=[]) => {
               if(useHeightMap != 0.0){
                 
                 float rad = .02;
-                float rad2 = -.1;
+                float rad2 = -.25;
                 vec2 cr1, cr2, cr3;
                 float lum1, lum2, lum3;
                 for(float j=0.0; j<3.0; j+=1.0){
                   
-                  // to-do: .002 should be function of heightmap resolution
                   float tx, ty;
                   p = M_PI * 2.0 / 3.0 * j;
                   tx = -sin(p) * rad;
-                  ty = cos(p) * rad;
+                  ty = -cos(p) * rad;
                 
                   vec2 hcoords;
-                  if(equirectangular == 1.0){
+                  if(equirectangularHeightmap == 1.0){
                     float p;
                     float p2;
                     vec3 cpos = fPosi;
-                    p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z);
+                    p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z) * 2.0;
                     float p1;
                     p1 = p / M_PI / 2.0;
                     p2 = flatShading == 1.0 ?
@@ -2804,6 +2809,7 @@ const BasicShader = async (renderer, options=[]) => {
             //gl.activeTexture(gl.TEXTURE4)
             //gl.bindTexture(gl.TEXTURE_2D, dset.heightTexture)
             dset.locHeightMap = gl.getUniformLocation(dset.program, "heightMap")
+            dset.locEquirectangularHeightmap = gl.getUniformLocation(dset.program, "equirectangularHeightmap")
             dset.locUseHeightMap = gl.getUniformLocation(dset.program, "useHeightMap")
             dset.locHeightMapIntensity = gl.getUniformLocation(dset.program, "heightMapIntensity")
             gl.activeTexture(gl.TEXTURE0)

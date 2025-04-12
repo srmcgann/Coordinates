@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #333;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "./coordinates.js"
+    
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+    
+
+      var rendererOptions = {
+        ambientLight: .5,
+        fov: 1500
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      renderer.z = 10
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .75
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+      var shapes = []
+
+
+  var rendererOptions = {
+    context: {mode: '2d', options: { willReadFrequently: true} },
+    width: 1024 / 10|0,
+    height: 1024 / 10|0,
+    attachToBody: false
+  }
+  var canvas = await Coordinates.Renderer(rendererOptions)
+  
+  var ctx = canvas.ctx
+  ctx.fillStyle = '#000'
+  ctx.fillRect(0,0,canvas.c.width, canvas.c.height)
+  var scratchData = Array(canvas.width*canvas.height).fill().map(v=>[1, 0])
+  var scratchDataBuffer = Array(canvas.width*canvas.height).fill().map(v=>[1,0])
+  
+  var cl = 2
+  var rw = 2
+  var sp = canvas.width / cl
+
+  Array(cl*rw).fill().map((q, j) => {
+    if(j%cl && (j/cl|0) && (j/cl|0)){
+      var tx = (j%cl) * sp
+      var ty = (j/cl|0) * sp
+      for(var m = 50; m--;) {
+        var ls = Rn() * 6, p, X, Y, idx
+        X = (tx + S(p=Math.PI*2*Rn()) * ls) | 0
+        Y = (ty + C(p) * ls) | 0
+        idx = Math.max(0, Math.min(scratchData.length-1, (X + Y * canvas.width) | 0))
+        scratchData[idx][1] = 1
+        scratchDataBuffer[idx][1] = 1
+      }
+    }
+  })
+  
+  var canvasData = ctx.getImageData(0,0,canvas.width, canvas.height)
+  
+  const processCanvas = () => {
+  
+    var red, green, blue, lum, i, j
+    var lx, mx, rx, uy, my, dy, A, B, A_, B_, LA, LB
+    var corner, side, center
+    var X, Y, idx, grid
+    
+    var da     = 1
+    var db     = .5
+    var f      = .055
+    var k      = .062
+    var speed  = 1
+    
+    var c      = canvas.c
+    var w      = c.width
+    var h      = c.height
+    
+    var data   = canvasData.data
+    
+    for(i = 0; i < data.length; i += 4) {
+    
+      j = i/4
+      A = scratchData[j][0]
+      B = scratchData[j][1]
+      
+      X = j%w
+      Y = j/w|0
+      
+      lx = X-1 >=0 ? X-1 : w-1
+      mx = X
+      rx = X+1 < w ? X+1 : 0
+      uy = Y-1 >=0 ? Y-1 : h-1
+      my = Y
+      dy = Y+1 < h ? Y+1 : 0
+      
+      
+      corner = 1/6/2
+      side   = 1/6
+      center = -1
+      
+      grid = [[lx + uy * w, corner],
+              [mx + uy * w, side],
+              [rx + uy * w, corner],
+              [lx + my * w, side],
+              [mx + my * w, center],
+              [rx + my * w, side],
+              [lx + dy * w, corner],
+              [mx + dy * w, side],
+              [rx + dy * w, corner]]
+      
+      
+      LA = LB = 0
+      grid.forEach(v => {
+        LA += scratchData[v[0]][0] * v[1]
+        LB += scratchData[v[0]][1] * v[1]
+      })
+      
+      var valA, valB
+      scratchDataBuffer[j][0] = valA = Math.min(2, Math.max(0,
+                                  A + (da * LA - A * B**2 + f * (1-A)) * speed
+                                ))
+      scratchDataBuffer[j][1] = valB = Math.min(2, Math.max(0,
+                                  B + (db * LB + A * B**2 - (k + f) * B) * speed
+                                ))
+      red   = Math.min(255, ((.1 + valB * .9)*1.5) ** 2 * 256 * 4  | 0)
+      green = Math.min(255, (valB * 1.5) **2 * 128 * 4 | 0)
+      blue  = Math.min(255, valA * 32 |0)
+      data[i+0] = red
+      data[i+1] = green
+      data[i+2] = blue
+      data[i+3] = 255 //alpha
+    }
+    
+    scratchDataBuffer.map((v, i) => {
+      scratchData[i][0] = v[0]
+      scratchData[i][1] = v[1]
+    })
+    //var temp = scratchData
+    //scratchData = scratchDataBuffer
+    //scratchDataBuffer = temp
+    
+    ctx.putImageData(canvasData, 0, 0)
+  }
+
+  var geoOptions = {
+    shapeType: 'rectangle',
+    equirectangular: false,
+    subs: 3,
+    wireframe: false,
+    name: 'canvasRect',
+    showNormals: false,
+    flipNormals: false,
+    canvasTexture: canvas.c,
+    size: 4,
+    color: 0xffffff,
+    colorMix: 0,
+  }
+  if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })
+        
+      window.Draw = () => {
+        processCanvas()
+        shapes.forEach(shape => {
+          //shape.yaw += .01
+          //shape.pitch += .005
+          renderer.Draw(shape)
+        })
+      }
+      
+    </script>
+  </body>
+</html>
