@@ -236,6 +236,15 @@ var geoOptions = {
   map: '',             // optional texture, URL to an image, or video.
                          // for videos, use ``muted: false`` to prompt
                          // the user to play audio, if desired.
+  equirectangular: false,  // if enabled, textures are assumed to be spherical
+  heightMap: '',       // a geometry modifier texture [image/canvas/video].
+  heightMapIsCanvas: false,  // if a canvas is used for the heightMap, this must be
+                             // set to true.
+  heightMapIntensity: 1,   // if a heightMap is used, this defines the distance from
+                           // zero (in the direction of normals) that the geometry
+                           // is deformed.
+  equirectangularHeightmap: false, // same as 'equirectangular' for a map, but
+                                   // for only the heightMap.
   color: 0x333333,     // optional color
   colorMix: .5,        // weight of the color, to mix with texture
   playbackSpeed: 1.0,  // if the texture (map) is a video, adjust the speed (.1 to 10)
@@ -252,7 +261,6 @@ var geoOptions = {
   size: 1,             // not required, but the default may not be appropriate.
   subs: 0,             // subdivides a polyhedron above, creating exponentially
                        // more polygons/faces. Advise no more than 4!
-  equirectangular: false,  // if enabled, textures are assumed to be spherical
   shapeType: ''    // required.
                    // supported types:
                        • 'tetrahedron'
