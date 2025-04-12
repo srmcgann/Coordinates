@@ -9,6 +9,7 @@ const scratchCanvas = document.createElement('canvas')
 const sctx = scratchCanvas.getContext('2d', {
     alpha                   : true,
     antialias               : true,
+    imageSmoothingEnabled   : true,
     desynchronized          : true,
     premultipliedAlpha      : false
   }
@@ -1506,7 +1507,7 @@ const ImageToPo2 = image => {
   let ret = image
   if ( !(IsPowerOf2(image.width) && IsPowerOf2(image.height)) ) {
     let tCan = document.createElement('canvas')
-    let tCtx = tCan.getContext('2d')
+    let tCtx = tCan.getContext('2d', {imageSmoothingEnabled: true})
     let r = 8
     let tsize=0
     let mdif = 6e6
