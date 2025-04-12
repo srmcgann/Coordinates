@@ -22,14 +22,17 @@
       var Rn = Math.random
     
       var rendererOptions = {
-        ambientLight: .05,
-        fov: 1200
+        ambientLight: .1,
+        fov: 700,
+        width: 1920 / 2,
+        height: 1080 / 2,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2.jpg'
-      var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd3_po2_small.mp4'
+      //var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd5_po2_small.mp4'
+      var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2_small.mp4'
       
-      renderer.z = 20
+      renderer.z = 18 * 2
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
@@ -37,12 +40,12 @@
         { uniform: {
           type: 'phong',
           value: .3,
-          theta: .3,
+          theta: .6,
         } },
         { uniform: {
           type: 'reflection',
           map: refTexture,
-          value: .25
+          value: .15
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
@@ -67,7 +70,8 @@
         //subs: 3,
         equirectangular: true,
         equirectangularHeightmap: true,
-        heightMapIntensity: 1,
+        heightMapIntensity: 2,
+        playbackSpeed: .5,
         map: heightMap,
         heightMap,
         size: 2,
@@ -96,15 +100,16 @@
       
       window.Draw = () => {
         var t = renderer.t
-        renderer.yaw += .0025
-        renderer.pitch = C(t/2) * .25
+        renderer.z = Math.min(18 * 2, Math.max(8 * 2, (.3+C(t/4)) * 24 * 2))
+        renderer.yaw += .001
+        renderer.pitch = C(t/4) * .25
         shapes.forEach(shape => {
           switch(shape.name){
             case 'background':
             break
             default:
-              shape.yaw += .01
-              shape.pitch = C(t*2) * .4
+              shape.yaw += .005
+              shape.pitch = C(t/2) * .4
             break
           }
           renderer.Draw(shape)

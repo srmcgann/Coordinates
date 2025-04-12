@@ -236,7 +236,10 @@ var geoOptions = {
   map: '',             // optional texture, URL to an image, or video.
                          // for videos, use ``muted: false`` to prompt
                          // the user to play audio, if desired.
-  equirectangular: false,  // if enabled, textures are assumed to be spherical
+  equirectangular: false,  // if enabled, textures are assumed to be spherical.
+                           // for example, setting equirectangular: true for a
+                           // cube wraps the texture around it, versus repeating it
+                           // per face.
   heightMap: '',       // a geometry modifier texture [image/canvas/video].
   heightMapIsCanvas: false,  // if a canvas is used for the heightMap, this must be
                              // set to true.
