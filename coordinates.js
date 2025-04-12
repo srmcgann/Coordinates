@@ -2261,7 +2261,7 @@ const BasicShader = async (renderer, options=[]) => {
             float p;
             float p2;
             vec3 cpos = vec3(cx, cy, cz);
-            p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z) * 2.0;
+            p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z) * 1.0;
             float p1;
             p1 = p / M_PI / 2.0;
             p2 = flatShading == 1.0 ?
@@ -2419,7 +2419,7 @@ const BasicShader = async (renderer, options=[]) => {
           float p;
           float p2;
           vec3 cpos = fPosi;
-          p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z) * 2.0;
+          p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z) * 1.0;
           float p1;
           p1 = p / M_PI / 2.0;
           p2 = flatShading == 1.0 ?
@@ -2505,7 +2505,7 @@ const BasicShader = async (renderer, options=[]) => {
                     float p;
                     float p2;
                     vec3 cpos = fPosi;
-                    p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z) * 2.0;
+                    p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z) * 1.0;
                     float p1;
                     p1 = p / M_PI / 2.0;
                     p2 = flatShading == 1.0 ?
