@@ -127,6 +127,35 @@ var rendererOptions = {
 ```
 <br>
 
+### LoadFPSControls
+
+``Coordinates.LoadFPSControls(renderer, options)``<br>
+By default, a renderer/camera object 'orbits' the center point of the coordinate system. This may be useful for some cases, but a mobile camera is also exposed via the LoadFPSControls method. 'FPS' stands for 'First Person Shooter', which loads a game style camera with appropriate mechanics, enabling the following:
+
+  * basic keyboard controls:<br>
+     W / A / S / D      -> move around
+     arrow keys / mouse -> look around
+     shift              -> run / speed boost
+  * optional crosshair, centered<br>
+  * basic keyboard movment<br>
+  
+Note: jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
+
+Loading example:
+
+```js
+var FPSOptions = {
+  showCrosshair: true,  // whether or not to display a crosshair.
+  crosshairSel:  0,     // Three premade crosshair graphics are available,
+                        // or a custom graphic may be used.
+  crosshairMap:  '',    // Optional URL to a custom crosshair graphic.
+                        // If provided, the custom crosshair should be png
+                        // if it involves transparency.
+}
+await Coordinates.LoadFPSControls(renderer, FPSOptions)
+```
+<br>
+
 Additionally, a Renderer object contains a number of useful properties:
 ```js
 renderer.pageX        // window mouse x coordinate
@@ -231,8 +260,15 @@ var geoOptions = {
   scaleX: 1,           // resize (at creation)
   scaleY: 1,
   scaleZ: 1,
-  scaleUVX: 1,         // resize uvs (at creation), useful for tiling, or un-tiling textures.
-  scaleUVY: 1,         // e.g. scaleUVX:3, scaleUVY:3, -> tiles map x 3. some maps may not tile well!
+  scaleUVX: 1,         // resize uvs (at creation), useful for tiling,
+                       // or un-tiling textures.
+  scaleUVY: 1,         // e.g. scaleUVX:3, scaleUVY:3, -> tiles map x 3.
+                         // some maps may not tile well!
+  offsetUVX: 1,        // 'slide' texture right/left. one unit +/- is the 
+                       // texture width, wrapped.
+  offsetUVY: 1,        // 'slide' texture up/down. one unit +/- is the
+                       // texture height, wrapped.
+                       // note: offsetting uvs is performed before scaling.
   map: '',             // optional texture, URL to an image, or video.
                          // for videos, use ``muted: false`` to prompt
                          // the user to play audio, if desired.
