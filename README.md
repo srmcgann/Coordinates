@@ -137,7 +137,7 @@ By default, a renderer/camera object 'orbits' the center point of the coordinate
      arrow keys / mouse -> look around<br>
      shift              -> run / speed boost<br>
   * optional crosshair, centered<br>
-  * basic keyboard movment<br>
+  * arbitrary camera movment<br>
   
 Note: jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
 
