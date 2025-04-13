@@ -141,7 +141,7 @@ By default, a renderer/camera object 'orbits' the center point of the coordinate
   
 Note: jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
 
-Loading example:
+Loading example [with default values]:
 
 ```js
 var FPSOptions = {
