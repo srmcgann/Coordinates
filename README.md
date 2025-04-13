@@ -154,6 +154,9 @@ var FPSOptions = {
 }
 await Coordinates.LoadFPSControls(renderer, FPSOptions)
 ```
+<center>
+
+![crosshairSel](crosshairSel.jpg) </center>
 <br>
 
 Additionally, a Renderer object contains a number of useful properties:
