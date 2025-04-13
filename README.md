@@ -139,7 +139,9 @@ By default, a renderer/camera object 'orbits' the center point of the coordinate
   * optional crosshair, centered<br>
   * arbitrary camera movment<br>
   
-Note: jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
+Notes: The crosshair config options are added to the renderer object when the FPS camera is loaded. For example, ``crosshairSel``, ``showCrosshair`` may be changed on the fly by setting ``renderer.crosshairSel = ...`` etc.
+
+Jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
 
 Loading example [with default values]:
 
