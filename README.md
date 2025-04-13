@@ -127,7 +127,20 @@ var rendererOptions = {
 ```
 <br>
 
-### LoadFPSControls
+Additionally, a Renderer object contains a number of useful properties:
+```js
+renderer.pageX        // window mouse x coordinate
+renderer.pageY        // window mouse y coordinate
+renderer.mouseX       // internal canvas mouse x coordinate
+renderer.mouseY       // internal canvas mouse y coordinate
+renderer.mouseButton  // the browser window mouse button status
+```
+...and others. feel free to view a renderer object in your browser console:
+``console.log(renderer)``
+<br>
+
+
+### LoadFPSControls()
 
 ``Coordinates.LoadFPSControls(renderer, options)``<br>
 By default, a renderer/camera object 'orbits' the center point of the coordinate system. This may be useful for some cases, but a mobile camera is also exposed via the LoadFPSControls method. 'FPS' stands for 'First Person Shooter', which loads a game style camera with appropriate mechanics, enabling the following:
@@ -139,10 +152,6 @@ By default, a renderer/camera object 'orbits' the center point of the coordinate
   * optional crosshair, centered<br>
   * arbitrary camera movment<br>
   
-Notes: The crosshair config options are added to the renderer object when the FPS camera is loaded. For example, ``crosshairSel``, ``showCrosshair`` may be changed on the fly by setting ``renderer.crosshairSel = ...`` etc.
-
-Jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
-
 Loading example [with default values]:
 
 ```js
@@ -156,22 +165,18 @@ var FPSOptions = {
 }
 await Coordinates.LoadFPSControls(renderer, FPSOptions)
 ```
+
+Notes: The crosshair config options are added to the renderer object when the FPS camera is loaded. For example, ``crosshairSel``, ``showCrosshair`` may be changed on the fly by setting ``renderer.crosshairSel = ...`` etc.
+
+If a custom crosshairMap is used, it becomes a 4th element (3) in the crosshairSel array [0, 1, 2, 3]. If specified, crosshairSel is set to this automatically, but can be changed, or changed back.
+
 <center>
 
 ![crosshairSel](crosshairSel.jpg) </center>
 <br>
 
-Additionally, a Renderer object contains a number of useful properties:
-```js
-renderer.pageX        // window mouse x coordinate
-renderer.pageY        // window mouse y coordinate
-renderer.mouseX       // internal canvas mouse x coordinate
-renderer.mouseY       // internal canvas mouse y coordinate
-renderer.mouseButton  // the browser window mouse button status
-```
-...and others. feel free to view a renderer object in your browser console:
-``console.log(renderer)``
-<br>
+Lastly, jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
+
 
 ## Lighting
 
