@@ -167,14 +167,14 @@ var FPSOptions = {
 await Coordinates.LoadFPSControls(renderer, FPSOptions)
 ```
 
-Notes: The crosshair config options are added to the renderer object when the FPS camera is loaded. For example, ``crosshairSel``, ``showCrosshair`` may be changed on the fly by setting ``renderer.crosshairSel = ...`` etc.
-
-If a custom crosshairMap is used, it becomes a 4th element (3) in the crosshairSel array [0, 1, 2, 3]. If specified, crosshairSel is set to this automatically, but can be changed, or changed back.
-
 <center>
 
 ![crosshairSel](crosshairSel.jpg) </center>
 <br>
+
+Notes: The crosshair config options are added to the renderer object when the FPS camera is loaded. For example, ``crosshairSel``, ``showCrosshair`` may be changed on the fly by setting ``renderer.crosshairSel = ...`` etc.
+
+If a custom crosshairMap is used, it becomes a 4th element (3) in the crosshairSel array [0, 1, 2, 3]. If specified, crosshairSel is set to this automatically, but can be changed, or changed back.
 
 Lastly, jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
 
