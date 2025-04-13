@@ -15,110 +15,88 @@
     <script type="module">
     
       import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
-      
-      var S = Math.sin
-      var C = Math.cos
-      var Rn = Math.random
+      "./coordinates.js"
     
+      // instantiate a canvas, 'renderer'. this is also our 'camera'
       var rendererOptions = {
-        ambientLight: .4,
-        fov: 600,
-        width: 1920 / 4,
-        height: 1080 / 4,
+        ambientLight: .5,
+        fov: 1500
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2.jpg'
-      //var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd5_po2_small.mp4'
-      //var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2_small.mp4'
-      //var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd3_po2_small.mp4'
-      //var heightMap = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
-      var heightMap = 'https://i.imgur.com/PBe2Ei2.mp4'
       
-      renderer.z = 18 * 4
+      // back the camera away from the center (move it toward the viewer)
+      renderer.z = 10
       
+      // tell the API where to find our animation function
       Coordinates.AnimationLoop(renderer, 'Draw')
 
+      // invoke a shader - phong in this case for a pseudo-lighting effect
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: 0,
-          theta: .6,
-        } },
-        { uniform: {
-          type: 'reflection',
-          map: refTexture,
-          value: .0
+          value: .75
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-      var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: .2}
-        },
-        { uniform: {
-          type: 'phong',
-          value: 0,
-        } },
-      ]
-      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-
+      // create a scene (it's async, so we can 'await' each call, but that is optional)
       var shapes = []
 
-
       var geoOptions = {
-        shapeType: 'custom shape',
-        url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_ultrahipoly.json',
-        //subs: 3,
-        equirectangular: false,
-        //scaleUVX: 2,
-        //scaleUVY: 1,
-        scaleY: 1,
-        pitch: Math.PI,
-        equirectangularHeightmap: false,
-        heightMapIntensity: 5,
-        muted: false,
-        playbackSpeed: 1,
-        map: heightMap,
-        heightMap,
-        size: 1,
-        color: 0x880008,
-        colorMix: 0,
+        shapeType: 'cube',
+        size: 5,
+        color: 0xffffff,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
-      })  
+      })
       
+      var Rn = Math.random
+      var geometryData = Array(1e3).fill().map(v=>[
+        (Rn()-.5)*1e3,
+        (Rn()-.5)*1e3,
+        (Rn()-.5)*1e3,
+      ])
       var geoOptions = {
-        shapeType: 'dodecahedron',
-        name: 'background',
-        map: refTexture,
-        subs: 3,
-        size: 1e3,
+        shapeType: 'particles',
+        name: 'particles',
+        size: 20,
+        penumbra: .5,
+        alpha: .5,
+        geometryData,
         color: 0xffffff,
-        colorMix: 0,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await backgroundShader.ConnectGeometry(geometry)
-      })  
+        await shader.ConnectGeometry(geometry)
+      })
       
+      var FPSOptions = {
+        showCrosshair: true,  // whether or not to display a crosshair.
+        crosshairSel:  0,     // Three premade crosshair graphics are available,
+                              // or a custom graphic may be used.
+        crosshairMap:  '',    // Optional URL to a custom crosshair graphic.
+                              // If provided, the custom crosshair should be png
+                              // if it involves transparency.
+      }
+      await Coordinates.LoadFPSControls(renderer, FPSOptions)
+
       
       window.Draw = () => {
-        var t = renderer.t
-        renderer.z = Math.min(18 * 4, Math.max(8 * 4, (.3+C(t/4)) * 24 * 4))
-        renderer.yaw += .001
-        renderer.pitch = C(t/4) * .25
+      
+        if(!((renderer.t*60|0)%60)){
+          renderer.crosshairSel++
+          renderer.crosshairSel %= 3
+        }
+      
         shapes.forEach(shape => {
           switch(shape.name){
-            case 'background':
-            break
+            case 'particles': break
             default:
-              shape.roll -= .0002
-              shape.yaw -= .0005
-              shape.pitch += .001 //C(t) * .4
+              shape.yaw += .01
+              shape.pitch += .005
             break
           }
           renderer.Draw(shape)
@@ -128,3 +106,86 @@
     </script>
   </body>
 </html>
+
+
+
+<!--
+  TO DO
+  
+  * re make OBJLoader method, to spec
+
+  
+  ✔ re: 'sphereize', the problem exists of needing to average
+         normals AFTER the shape is sphereized, as the degree is
+         not known prior. Normal averaging is computationally
+         expensive, so a solution, in the context of pre-built shapes,
+         is to provide an optional function "AverageNormals", and
+         instruct users that sphereized shapes may use it, for
+         reflections etc.
+  
+  ✔ re-export 'new shapes' with unit size
+  ✔ fix color mix
+  ✔ come up with solution for averaging normals (for phong etc), with prebuilt shapes
+  
+  * 'grouping' / 'ungrouping' option
+        for geometry, which makes drawing buffers contiguous
+  
+  ✔ sprites [transparent rectangle?]
+  
+  ✔ make uniforms: position, normal etc vec3, vs separate floats
+  
+  * lights
+    └> ✔ ambient
+       ✔  point
+       *  directional
+  
+  * geometry
+    └> ✔ generalize geometry function
+       ✔ add shapeTypes: torus, cylinder
+       ✔  add method / shapeType for points/particles, lines
+       ✔ deformation methods
+       ✔ return "raw" geometry with inbuilt shapes, for 2d context
+       ✔ add 3-axis 'scale' function 
+       
+  ✔ README.md
+    └> ✔  add remaining exposed methods (e.g. color conversions, spatial)
+          as "supplemental"
+  
+  ✔ add renderer object
+  ✔ add camera object
+  ✔ fix FOV
+  ✔ README.md / documentation
+  
+  * sprite sheet system / import basic+custom slicing
+  ✔ add video texture capabilities
+  * cache for API, to include all network-callable items
+  
+  * shapes
+    └> ✔ add shapes (in addtion to Cube)
+       ✔ make non-cube UVs equirectangular
+       ✔ keep shape generation functions, but add 'precompiled' versions for ordinary calls
+       ✔ move rotation function into shader
+       * loading -> compression, direct output of
+                    usable format (no further processing needed)
+
+  * subdivision
+    └> ✔  add optional LOD param for all basic geometry
+       ✔ decouple polygons from UV subdivision (interpolate UVs @ sub)
+       
+  * shaders / textures
+    └> ✔ move shaders into Coordinates module
+       *  bloom / glow shader
+       *  add '# tiling (x/y)' option
+       ✔  phong -> play nice with rectangle
+       ✔  move camera into vertex shader
+       ✔  create pseudo-phong shader
+       ✔  add 'reflectivity' & texture input for it
+       ✔  flat/smooth shading
+       ✔  integrate optional effect shaders
+
+  * functions / methods
+    └> ✔ begin separating module functions as optional includes
+       ✔ migrate functions to coordinates.js module
+       ✔ integrate obj loader
+
+-->

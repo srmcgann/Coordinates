@@ -35,6 +35,7 @@ const Renderer = async options => {
   var attachToBody = true, margin = 10, exportGPUSpecs = false
   var ambientLight = .2, alpha=false, clearColor = 0x000000
   var cameraMode = 'default', showCrosshair = false
+  var crosshairSel = 0, crosshairMap = ''
   var pageX, pageY, mouseX, mouseY, mouseButton
   var context = {
     mode: 'webgl2',
@@ -70,7 +71,9 @@ const Renderer = async options => {
         case 'margin': margin = options[key]; break
         case 'cameramode': cameraMode = options[key]; break
         case 'ambientlight': ambientLight = options[key]; break
-        case 'showcrosshair': showCrosshair = options[key]; break
+        case 'showcrosshair': showCrosshair = !!options[key]; break
+        case 'crosshairsel': crosshairSel = options[key]; break
+        case 'crosshairmap': crosshairMap = options[key]; break
         case 'context':
           context.mode = options[key].mode
           context.options = options[key]['options']
@@ -132,8 +135,8 @@ const Renderer = async options => {
     ready: false, ambientLight,
     pointLights, pointLightCols,
     particleQueue, alphaQueue,
-    cameraMode, showCrosshair,
-    pageX, pageY, mouseX, mouseY,
+    cameraMode, showCrosshair, crosshairSel,
+    crosshairMap, pageX, pageY, mouseX, mouseY,
     mouseButton, rsz, margin
     
     // functions
@@ -166,7 +169,7 @@ const Renderer = async options => {
     if(typeof geometry?.shader != 'undefined'){
       
       // depth + alpha bugfix
-      if(!sortedPass && (geometry.isSprite || geometry.isCrosshair || (geometry.isLight && geometry.showSource))) {
+      if(!sortedPass && (geometry.isSprite || (geometry.isLight && geometry.showSource))) {
         renderer.alphaQueue = [geometry, ...renderer.alphaQueue]
       }else{
         if(!sortedPass && geometry.isParticle ) {
@@ -185,7 +188,6 @@ const Renderer = async options => {
             ctx.uniform1f(dset.locT,               renderer.t)
             ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
             ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
-            ctx.uniform1f(dset.locIsCrosshair,     geometry.isCrosshair)
             ctx.uniform1f(dset.locIsLight,         geometry.isLight)
             
             ctx.uniform1f(dset.locCameraMode,      
@@ -335,7 +337,6 @@ const Renderer = async options => {
             ctx.uniform1f(dset.locIsParticle,      geometry.isParticle)
             ctx.uniform1f(dset.locPenumbraPass,    0)
             ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
-            ctx.uniform1f(dset.locIsCrosshair,     geometry.isCrosshair)
             ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
             ctx.uniform1f(dset.locIsLight,         geometry.isLight)
             
@@ -686,7 +687,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var x = 0, y = 0, z = 0
   var roll = 0, pitch = 0, yaw = 0
   var scaleX=1, scaleY=1, scaleZ=1
-  var scaleUVX=1, scaleUVY=1
+  var scaleUVX  = 1, scaleUVY  = 1
+  var offsetUVX = 0, offsetUVY = 0
   var rows             = 16
   var cols             = 40
                // must remain "16, 40" to trigger default quick torus/cylinder
@@ -713,7 +715,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var boundingColor          = 0x88ff22
   var showBounding           = false
   var isSprite               = 0.0
-  var isCrosshair            = 0.0
   var isLight                = 0.0
   var isParticle             = 0.0
   var wireframe              = false
@@ -773,6 +774,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'objyaw'             : objYaw = geoOptions[key]; break
       case 'scaleuvx'           : scaleUVX = geoOptions[key]; break
       case 'scaleuvy'           : scaleUVY = geoOptions[key]; break
+      case 'offsetuvx'          : offsetUVX = geoOptions[key]; break
+      case 'offsetuvy'          : offsetUVY = geoOptions[key]; break
       case 'scalex'             : scaleX = geoOptions[key]; break
       case 'scaley'             : scaleY = geoOptions[key]; break
       case 'scalez'             : scaleZ = geoOptions[key]; break
@@ -806,8 +809,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'showbounding'       : showBounding = !!geoOptions[key]; break
       case 'issprite'           :
         isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
-      case 'iscrosshair'        :
-        isCrosshair = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'islight'            :
         isLight = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'issprite'           :
@@ -1037,15 +1038,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
           uvs      = [...uvs,      ...v.texCoord]
         })
       break
-      case 'crosshair':
-        isCrosshair = true
-        shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
-        shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
-          uvs      = [...uvs,      ...v.texCoord]
-        })
-      break
       case 'particles':
         isParticle = 1.0
         geometryData.map(v => {
@@ -1119,6 +1111,13 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
 
+  if(offsetUVX != 0 || offsetUVY != 0) {
+    for(var i = 0; i<uvs.length; i+=2){
+      uvs[i+0] += offsetUVX
+      uvs[i+1] += offsetUVY
+    }
+  }
+  
   if(scaleUVX != 1 || scaleUVY != 1) {
     for(var i = 0; i<uvs.length; i+=2){
       uvs[i+0] *= scaleUVX
@@ -1419,7 +1418,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     normalVec_buffer, NormalVec_Index_Buffer,
     nVecIndices, uv_buffer, UV_Index_Buffer,
     vIndices, nIndices, uvIndices, map, video,
-    textureMode, isSprite, isCrosshair, isLight, playbackSpeed,
+    textureMode, isSprite, isLight, playbackSpeed,
     disableDepthTest, lum, alpha, involveCache,
     renderer, isParticle, penumbra, wireframe,
     canvasTexture, canvasTextureMix, showBounding,
@@ -2111,7 +2110,7 @@ const BasicShader = async (renderer, options=[]) => {
                     uniform float phongFlatShading;
                   `,
                   fragCode:            `
-                    if(isLight == 0.0 && isCrosshair == 0.0 &&
+                    if(isLight == 0.0 &&
                        isSprite == 0.0 && isParticle == 0.0){
                       //light.rgb *= .5;
                       float phongP1, phongP2;
@@ -2187,7 +2186,6 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 geoOri;
       uniform float pointSize;
       uniform float isSprite;
-      uniform float isCrosshair;
       uniform float isLight;
       uniform float cameraMode;
       uniform float isParticle;
@@ -2297,19 +2295,12 @@ const BasicShader = async (renderer, options=[]) => {
         float cpz = camPos.z;
         
         if(cameraMode != 0.0 && cameraMode == 1.0){  // 'FPS' mode
-          cx += cpx;
-          cy += cpy;
-          cz += cpz;
-          if(isCrosshair != 0.0){
+          if(isSprite != 0.0 || isLight != 0.0){
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
-            pos = R(vec3(pos.x, pos.y, pos.z), camOri);
-            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = R(nVec, geoOri);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
-          } else if (isSprite != 0.0 || isLight != 0.0){
-            geo = R(geoPos, camOri);
-            pos = R(vec3(cx, cy, cz), geoOri);
+            pos.x += cpx;
+            pos.y += cpy;
+            pos.z += cpz;
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = R(nVec, geoOri);
@@ -2317,6 +2308,9 @@ const BasicShader = async (renderer, options=[]) => {
           }else{
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
+            pos.x += cpx;
+            pos.y += cpy;
+            pos.z += cpz;
             pos = R(vec3(pos.x, pos.y, pos.z), camOri);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = R(nVec, geoOri);
@@ -2327,7 +2321,7 @@ const BasicShader = async (renderer, options=[]) => {
           cpz = 0.0;
           fPos = vec3(pos.x, pos.y, pos.z);
         }else{
-          if(isSprite != 0.0 || isCrosshair != 0.0 || isLight != 0.0){
+          if(isSprite != 0.0 || isLight != 0.0){
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz),
                      vec3(0.0, -camOri.y + M_PI, 0.0));
@@ -2376,7 +2370,6 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec2 resolution;
       uniform float flatShading;
       uniform float isSprite;
-      uniform float isCrosshair;
       uniform float isLight;
       uniform float isParticle;
       uniform vec4 pointLightPos[16];
@@ -2557,7 +2550,7 @@ const BasicShader = async (renderer, options=[]) => {
               vec2 coords = Coords(0.0, nVi);
               vec4 texel = texture2D( baseTexture, coords);
               texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
-              if(isSprite != 0.0 || isLight != 0.0 || isCrosshair != 0.0){
+              if(isSprite != 0.0 || isLight != 0.0){
                 gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
               }else{
                 texel.a = baseColorIp;
@@ -2759,9 +2752,6 @@ const BasicShader = async (renderer, options=[]) => {
 
           dset.locIsSprite = gl.getUniformLocation(dset.program, "isSprite")
           gl.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
-
-          dset.locIsCrosshair = gl.getUniformLocation(dset.program, "isCrosshair")
-          gl.uniform1f(dset.locIsCrosshair, geometry.isCrosshair? 1.0 : 0.0)
 
           dset.locCameraMode = gl.getUniformLocation(dset.program, "cameraMode")
           gl.uniform1f(dset.locCameraMode, renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
@@ -4450,6 +4440,181 @@ const Normal = (facet, autoFlipNormals=false, X1=0, Y1=0, Z1=0) => {
 }
 
 
+const UnloadFPSControls = async (renderer) => {
+  renderer.cameraMode     = 'default'
+  //renderer.crosshairMap   = ''
+  renderer.showCrosshair  = false
+  //renderer.crosshairSel   = 0
+  renderer.useFPSControls = false
+}
+
+const LoadFPSControls = async (renderer, options) => {
+
+  var mspeed = 1
+  var rspeed = 1
+  var grav   = .01
+  renderer.cameraMode     = 'fps'
+  renderer.crosshairMap   = ''
+  renderer.showCrosshair  = true
+  renderer.crosshairSel   = 0
+  renderer.useFPSControls = true
+  var crosshairs = Array(3).fill().map((v, i) => `${ModuleBase}/resources/crosshairs/crosshair${i+1}.png`)
+  if(typeof options != 'undefined'){
+    Object.keys(options).forEach((key, idx) =>{
+      switch(key.toLowerCase()){
+        case 'mspeed': mspeed = options[key]; break
+        case 'rspeed': rspeed = options[key]; break
+        case 'grav': grav = options[key]; break
+        case 'crosshairsel': renderer.crosshairSel = options[key]; break
+        case 'crosshairmap': renderer.crosshairMap = options[key]; break
+        case 'showcrosshair': renderer.showCrosshair = !!options[key]; break
+      }
+    })
+  }
+
+  var crosshairsLoaded = false
+  var crosshairImages  = Array(crosshairs.length).fill()
+  crosshairImages.map(async (v, i) => {
+    crosshairImages[i] = {
+      img: new Image(),
+      loaded: false,
+    }
+    crosshairImages[i].img.onload = () => {
+      crosshairImages[i].loaded = true
+    }
+    await fetch(crosshairs[i]).then(res=>res.blob()).then(data => {
+      crosshairImages[i].img.src = URL.createObjectURL(data)
+    })
+    //return ret
+  })
+  if(renderer.crosshairMap){
+    renderer.crosshairSel = crosshairs.length
+    crosshairImages.push( {img: new Image(), loaded: false} )
+    crosshairImages[crosshairImages.length - 1].img.onload = () => {
+      crosshairImages[crosshairImages.length - 1].loaded = true
+    }
+    await fetch(renderer.crosshairMap).then(res=>res.blob()).then(data => {
+      crosshairImages[crosshairImages.length-1].img.src = URL.createObjectURL(data)
+    })
+  }
+
+  var mx, my
+  var mv = .1 * mspeed
+  var rv = .005 * rspeed
+  var rvx = 0
+  var rvy = 0
+  var px  = 0
+  var py  = 0
+  var pz  = 0
+  var pvx = 0
+  var pvy = 0
+  var pvz = 0
+  var accel = 1
+  var rdrag = 1.66
+  var pdrag = 1.2
+  var mbutton = false
+  renderer.keys = Array(256).fill().map((v, i) => false)
+  renderer.keyTimers = Array(256).fill(0)
+  renderer.keyTimerInterval = .2
+  window.addEventListener('keydown', e => {
+    renderer.keys[e.keyCode] = true
+  })
+  window.addEventListener('keyup', e => {
+    renderer.keys[e.keyCode] = false
+  })
+  window.addEventListener('mousedown', e => {
+    if(e.button === 0) {
+      mbutton = true
+      //jump()
+      //renderer.c.requestFullscreen()
+      renderer.c.requestPointerLock()
+    }
+  })
+  window.addEventListener('mouseup', e => {
+    if(e.button === 0) mbutton = false
+  })
+  window.addEventListener('mousemove', e => {
+    var rect = renderer.c.getBoundingClientRect()
+    mx = (e.pageX - rect.left) / renderer.c.clientWidth * renderer.c.width
+    my = (e.pageY - rect.top) / renderer.c.clientHeight* renderer.c.height
+    rvx -= e.movementX * rv
+    rvy += e.movementY * rv
+  })
+  
+  renderer.doKeys = async () => {
+
+    if(renderer.showCrosshair && crosshairImages[renderer.crosshairSel].loaded) {
+      var s = 200
+      overlay.ctx.drawImage(crosshairImages[renderer.crosshairSel].img,
+        overlay.width / 2 - s/2, overlay.height / 2 - s/2, s, s)
+
+    }
+  
+    renderer.yaw += rvx
+    renderer.pitch += rvy
+    renderer.pitch = Math.min(Math.PI/2, Math.max(-Math.PI/2, renderer.pitch))
+    rvx /= rdrag
+    rvy /= rdrag
+    
+    renderer.x += pvx
+    renderer.y += pvy
+    renderer.z += pvz
+    pvx /= pdrag
+    pvy /= pdrag
+    pvz /= pdrag
+    
+    accel = 1
+    renderer.keys.map((v, i) => {
+      if(renderer.keys[i]){
+        switch(i){
+          case 16:  // shift
+            accel = 3
+          break
+          case 37:  // left arrow
+            rvx += rv * 12
+          break
+          case 38:  // up arrow
+            rvy -= rv * 12
+          break
+          case 39:  // right arrow
+            rvx -= rv * 12
+          break
+          case 40:  // down arrow
+            rvy += rv * 12
+          break
+          case 87:  //w
+            var p1 = -renderer.yaw + Math.PI
+            var p2 = renderer.pitch
+            pvx += S(p1) * mv * accel
+            pvz += C(p1) * mv * accel
+          break
+          case 65:  //a
+            var p1 = -renderer.yaw + Math.PI / 2
+            var p2 = renderer.pitch
+            pvx += S(p1) * mv * accel
+            pvz += C(p1) * mv * accel
+          break
+          case 83:  //s
+            var p1 = -renderer.yaw + Math.PI
+            var p2 = renderer.pitch
+            pvx -= S(p1) * mv * accel
+            pvz -= C(p1) * mv * accel
+          break
+          case 68:  //d
+            var p1 = -renderer.yaw + Math.PI / 2
+            var p2 = renderer.pitch
+            pvx += -S(p1) * mv * accel
+            pvz += -C(p1) * mv * accel
+          break
+          case 32:  //space
+          break
+        }
+      }
+    })
+  }
+}
+      
+
 const AnimationLoop = (renderer, func) => {
   const loop = async () => {
     overlay.margin = renderer.margin
@@ -4458,7 +4623,7 @@ const AnimationLoop = (renderer, func) => {
     overlay.height = renderer.height
     overlay.c.width = renderer.c.width
     overlay.c.height = renderer.c.height
-    overlay.ctx.clearRect(0, 0, overlay.width, overlay.height)
+    //overlay.ctx.clearRect(0, 0, overlay.width, overlay.height)
     
     if(renderer.ready && typeof window[func] != 'undefined') await window[func]()
       
@@ -4490,7 +4655,7 @@ const AnimationLoop = (renderer, func) => {
         var shape = renderer.particleQueue[forSort[idx].idx]
         
         var shouldDisableDepth = () => {
-          return false //shape.isLight || shape.isSprite || shape.isCrosshair ||shape.disableDepthTest
+          return false //shape.isLight || shape.isSprite || shape.disableDepthTest
         }
         
         if(shouldDisableDepth()) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
@@ -4532,7 +4697,7 @@ const AnimationLoop = (renderer, func) => {
         var shape = renderer.alphaQueue[forSort[idx].idx]
         
         var shouldDisableDepth = () => {
-          return false //shape.isLight || shape.isSprite || shape.isCrosshair ||shape.disableDepthTest
+          return false //shape.isLight || shape.isSprite ||shape.disableDepthTest
         }
         
         if(shouldDisableDepth()) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
@@ -4554,6 +4719,10 @@ const AnimationLoop = (renderer, func) => {
     requestAnimationFrame(loop)
     renderer.alphaQueue = new Float32Array()
     renderer.particleQueue = new Float32Array()
+    
+    if(renderer.useFPSControls){
+      await renderer.doKeys()
+    }
   }
   window.addEventListener('load', () => {
     renderer.ready = true
@@ -4759,4 +4928,5 @@ export {
   HexToRGB,
   GeoSphere,
   ModuleBase,
+  LoadFPSControls,
 }

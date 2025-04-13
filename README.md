@@ -138,6 +138,49 @@ renderer.mouseButton  // the browser window mouse button status
 ...and others. feel free to view a renderer object in your browser console:
 ``console.log(renderer)``
 <br>
+<br>
+
+
+## LoadFPSControls()
+
+``Coordinates.LoadFPSControls(renderer, options)``<br>
+By default, a renderer/camera object 'orbits' the center point of the coordinate system. This may be useful in some cases but a mobile camera is also exposed via the ``LoadFPSControls`` method. 'FPS' stands for 'First Person Shooter', which loads a game style camera with appropriate mechanics, enabling the following:
+
+  * basic keyboard controls:<br>
+     W / A / S / D      -> move around<br>
+     arrow keys / mouse -> look around<br>
+     shift              -> run / speed boost<br>
+  * optional crosshair, centered<br>
+  * arbitrary camera movment<br>
+  
+Loading example [with default values]:
+
+```js
+var FPSOptions = {
+  showCrosshair: true,  // whether or not to display a crosshair.
+  crosshairSel:  0,     // Three premade crosshair graphics are available,
+                        // or a custom graphic may be used.
+  crosshairMap:  '',    // Optional URL to a custom crosshair graphic.
+                        // If provided, the custom crosshair should be png
+                        // if it involves transparency.
+}
+await Coordinates.LoadFPSControls(renderer, FPSOptions)
+
+// optionally, the controls may be unloaded...
+Coordinates.UnloadFPSControls(renderer)
+```
+
+<center>
+
+![crosshairSel](crosshairSel.jpg) </center>
+<br>
+
+Notes: The crosshair config options are added to the renderer object when the FPS camera is loaded. For example, ``crosshairSel``, ``showCrosshair`` may be changed on the fly by setting ``renderer.crosshairSel = ...`` etc.
+
+If a custom crosshairMap is used, it becomes a 4th element (3) in the crosshairSel array [0, 1, 2, 3]. If specified, crosshairSel is set to this automatically, but can be changed, or changed back.
+
+Lastly, jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
+
 
 ## Lighting
 
@@ -231,8 +274,15 @@ var geoOptions = {
   scaleX: 1,           // resize (at creation)
   scaleY: 1,
   scaleZ: 1,
-  scaleUVX: 1,         // resize uvs (at creation), useful for tiling, or un-tiling textures.
-  scaleUVY: 1,         // e.g. scaleUVX:3, scaleUVY:3, -> tiles map x 3. some maps may not tile well!
+  scaleUVX: 1,         // resize uvs (at creation), useful for tiling,
+                       // or un-tiling textures.
+  scaleUVY: 1,         // e.g. scaleUVX:3, scaleUVY:3, -> tiles map x 3.
+                         // some maps may not tile well!
+  offsetUVX: 1,        // 'slide' texture right/left. one unit +/- is the 
+                       // texture width, wrapped.
+  offsetUVY: 1,        // 'slide' texture up/down. one unit +/- is the
+                       // texture height, wrapped.
+                       // note: offsetting uvs is performed before scaling.
   map: '',             // optional texture, URL to an image, or video.
                          // for videos, use ``muted: false`` to prompt
                          // the user to play audio, if desired.
