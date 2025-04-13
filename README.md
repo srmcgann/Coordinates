@@ -133,9 +133,9 @@ var rendererOptions = {
 By default, a renderer/camera object 'orbits' the center point of the coordinate system. This may be useful for some cases, but a mobile camera is also exposed via the LoadFPSControls method. 'FPS' stands for 'First Person Shooter', which loads a game style camera with appropriate mechanics, enabling the following:
 
   * basic keyboard controls:<br>
-     W / A / S / D      -> move around
-     arrow keys / mouse -> look around
-     shift              -> run / speed boost
+     W / A / S / D      -> move around<br>
+     arrow keys / mouse -> look around<br>
+     shift              -> run / speed boost<br>
   * optional crosshair, centered<br>
   * basic keyboard movment<br>
   
