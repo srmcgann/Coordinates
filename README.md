@@ -144,7 +144,7 @@ renderer.mouseButton  // the browser window mouse button status
 ## LoadFPSControls()
 
 ``Coordinates.LoadFPSControls(renderer, options)``<br>
-By default, a renderer/camera object 'orbits' the center point of the coordinate system. This may be useful for some cases, but a mobile camera is also exposed via the LoadFPSControls method. 'FPS' stands for 'First Person Shooter', which loads a game style camera with appropriate mechanics, enabling the following:
+By default, a renderer/camera object 'orbits' the center point of the coordinate system. This may be useful in some cases but a mobile camera is also exposed via the ``LoadFPSControls`` method. 'FPS' stands for 'First Person Shooter', which loads a game style camera with appropriate mechanics, enabling the following:
 
   * basic keyboard controls:<br>
      W / A / S / D      -> move around<br>
