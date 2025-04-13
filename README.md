@@ -165,6 +165,9 @@ var FPSOptions = {
                         // if it involves transparency.
 }
 await Coordinates.LoadFPSControls(renderer, FPSOptions)
+
+// optionally, the controls may be unloaded...
+Coordinates.UnloadFPSControls(renderer)
 ```
 
 <center>
