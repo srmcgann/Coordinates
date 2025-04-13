@@ -138,9 +138,10 @@ renderer.mouseButton  // the browser window mouse button status
 ...and others. feel free to view a renderer object in your browser console:
 ``console.log(renderer)``
 <br>
+<br>
 
 
-### LoadFPSControls()
+## LoadFPSControls()
 
 ``Coordinates.LoadFPSControls(renderer, options)``<br>
 By default, a renderer/camera object 'orbits' the center point of the coordinate system. This may be useful for some cases, but a mobile camera is also exposed via the LoadFPSControls method. 'FPS' stands for 'First Person Shooter', which loads a game style camera with appropriate mechanics, enabling the following:
