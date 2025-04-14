@@ -152,7 +152,7 @@ By default, a renderer/camera object 'orbits' the center point of the coordinate
      shift              -> run / speed boost<br>
   * optional crosshair, centered<br>
   * arbitrary camera movment<br>
-  
+
 Loading example [with default values]:
 
 ```js
@@ -163,6 +163,10 @@ var FPSOptions = {
   crosshairMap:  '',    // Optional URL to a custom crosshair graphic.
                         // If provided, the custom crosshair should be png
                         // if it involves transparency.
+  useKeys:       true,  // enabled by default, you may use the FPS camera only,
+                        // without keys/mouse, by setting useKeys: false. This
+                        // might be useful for environments where the default
+                        // center-pointing camera isn't appropriate.
 }
 await Coordinates.LoadFPSControls(renderer, FPSOptions)
 
@@ -175,7 +179,10 @@ Coordinates.UnloadFPSControls(renderer)
 ![crosshairSel](crosshairSel.jpg) </center>
 <br>
 
-Notes: The crosshair config options are added to the renderer object when the FPS camera is loaded. For example, ``crosshairSel``, ``showCrosshair`` may be changed on the fly by setting ``renderer.crosshairSel = ...`` etc.
+Notes: The FPS camera config options are added to the renderer object when the FPS camera is loaded. For example, ``crosshairSel``, ``showCrosshair`` may be changed on the fly by setting ``renderer.crosshairSel = ...`` etc.
+
+It's important also to be aware of the 'clipspace limitation' of every webgl application. The vertex shaders must reduce all geometry into unit space, including the Z dimension. This means all shapes and positions are divided so as to fit reasonably into the space of -1 to 1, for each dimension. This is a feature of *gl, so as to be able to efficiently 'clip' unused geometry. Shrinking geometry into unit space, while creating the illusion of a large area has the tradeoff of floating point errors on the small scale, such as z-fighting / artifacts. So to avoid such errors, a space of 10,000 units is generally available. With the default (center-oriented) camera, this is seldom a problem, but with a mobile camera it's very easy to 'leave' the clip space, which requires the programmer to anticipate and provide for some 'recentering' or 'space tiling' approach. Be aware, if the camera moves sufficiently far from the origin, the geometry may disappear due to leaving the apportioned space.
+
 
 If a custom crosshairMap is used, it becomes a 4th element (3) in the crosshairSel array [0, 1, 2, 3]. If specified, crosshairSel is set to this automatically, but can be changed, or changed back.
 
