@@ -4456,6 +4456,7 @@ const LoadFPSControls = async (renderer, options) => {
   renderer.cameraMode     = 'fps'
   renderer.crosshairMap   = ''
   renderer.showCrosshair  = true
+  renderer.useKeys        = true
   renderer.crosshairSel   = 0
   renderer.useFPSControls = true
   var crosshairs = Array(3).fill().map((v, i) => `${ModuleBase}/resources/crosshairs/crosshair${i+1}.png`)
@@ -4466,11 +4467,14 @@ const LoadFPSControls = async (renderer, options) => {
         case 'rspeed': rspeed = options[key]; break
         case 'grav': grav = options[key]; break
         case 'crosshairsel': renderer.crosshairSel = options[key]; break
+        case 'usekeys': renderer.useKeys = !!options[key]; break
         case 'crosshairmap': renderer.crosshairMap = options[key]; break
         case 'showcrosshair': renderer.showCrosshair = !!options[key]; break
       }
     })
   }
+  
+  console.log(renderer.useKeys, options)
 
   var crosshairsLoaded = false
   var crosshairImages  = Array(crosshairs.length).fill()
@@ -4498,119 +4502,120 @@ const LoadFPSControls = async (renderer, options) => {
     })
   }
 
-  var mx, my
-  var mv = .1 * mspeed
-  var rv = .005 * rspeed
-  var rvx = 0
-  var rvy = 0
-  var px  = 0
-  var py  = 0
-  var pz  = 0
-  var pvx = 0
-  var pvy = 0
-  var pvz = 0
-  var accel = 1
-  var rdrag = 1.66
-  var pdrag = 1.2
-  var mbutton = false
-  renderer.keys = Array(256).fill().map((v, i) => false)
-  renderer.keyTimers = Array(256).fill(0)
-  renderer.keyTimerInterval = .2
-  window.addEventListener('keydown', e => {
-    renderer.keys[e.keyCode] = true
-  })
-  window.addEventListener('keyup', e => {
-    renderer.keys[e.keyCode] = false
-  })
-  window.addEventListener('mousedown', e => {
-    if(e.button === 0) {
-      mbutton = true
-      //jump()
-      //renderer.c.requestFullscreen()
-      renderer.c.requestPointerLock()
-    }
-  })
-  window.addEventListener('mouseup', e => {
-    if(e.button === 0) mbutton = false
-  })
-  window.addEventListener('mousemove', e => {
-    var rect = renderer.c.getBoundingClientRect()
-    mx = (e.pageX - rect.left) / renderer.c.clientWidth * renderer.c.width
-    my = (e.pageY - rect.top) / renderer.c.clientHeight* renderer.c.height
-    rvx -= e.movementX * rv
-    rvy += e.movementY * rv
-  })
-  
-  renderer.doKeys = async () => {
-
-    if(renderer.showCrosshair && crosshairImages[renderer.crosshairSel].loaded) {
-      var s = 200
-      overlay.ctx.drawImage(crosshairImages[renderer.crosshairSel].img,
-        overlay.width / 2 - s/2, overlay.height / 2 - s/2, s, s)
-
-    }
-  
-    renderer.yaw += rvx
-    renderer.pitch += rvy
-    renderer.pitch = Math.min(Math.PI/2, Math.max(-Math.PI/2, renderer.pitch))
-    rvx /= rdrag
-    rvy /= rdrag
+  if(renderer.useKeys){
+    var mx, my
+    var mv = .1 * mspeed
+    var rv = .005 * rspeed
+    var rvx = 0
+    var rvy = 0
+    var px  = 0
+    var py  = 0
+    var pz  = 0
+    var pvx = 0
+    var pvy = 0
+    var pvz = 0
+    var accel = 1
+    var rdrag = 1.66
+    var pdrag = 1.2
+    var mbutton = false
+    renderer.keys = Array(256).fill().map((v, i) => false)
+    renderer.keyTimers = Array(256).fill(0)
+    renderer.keyTimerInterval = .2
     
-    renderer.x += pvx
-    renderer.y += pvy
-    renderer.z += pvz
-    pvx /= pdrag
-    pvy /= pdrag
-    pvz /= pdrag
-    
-    accel = 1
-    renderer.keys.map((v, i) => {
-      if(renderer.keys[i]){
-        switch(i){
-          case 16:  // shift
-            accel = 3
-          break
-          case 37:  // left arrow
-            rvx += rv * 12
-          break
-          case 38:  // up arrow
-            rvy -= rv * 12
-          break
-          case 39:  // right arrow
-            rvx -= rv * 12
-          break
-          case 40:  // down arrow
-            rvy += rv * 12
-          break
-          case 87:  //w
-            var p1 = -renderer.yaw + Math.PI
-            var p2 = renderer.pitch
-            pvx += S(p1) * mv * accel
-            pvz += C(p1) * mv * accel
-          break
-          case 65:  //a
-            var p1 = -renderer.yaw + Math.PI / 2
-            var p2 = renderer.pitch
-            pvx += S(p1) * mv * accel
-            pvz += C(p1) * mv * accel
-          break
-          case 83:  //s
-            var p1 = -renderer.yaw + Math.PI
-            var p2 = renderer.pitch
-            pvx -= S(p1) * mv * accel
-            pvz -= C(p1) * mv * accel
-          break
-          case 68:  //d
-            var p1 = -renderer.yaw + Math.PI / 2
-            var p2 = renderer.pitch
-            pvx += -S(p1) * mv * accel
-            pvz += -C(p1) * mv * accel
-          break
-          case 32:  //space
-          break
-        }
+    window.addEventListener('keydown', e => {
+      renderer.keys[e.keyCode] = true
+    })
+    window.addEventListener('keyup', e => {
+      renderer.keys[e.keyCode] = false
+    })
+    window.addEventListener('mousedown', e => {
+      if(e.button === 0) {
+        mbutton = true
+        //jump()
+        //renderer.c.requestFullscreen()
+        renderer.c.requestPointerLock()
       }
     })
+    window.addEventListener('mouseup', e => {
+      if(e.button === 0) mbutton = false
+    })
+    window.addEventListener('mousemove', e => {
+      var rect = renderer.c.getBoundingClientRect()
+      mx = (e.pageX - rect.left) / renderer.c.clientWidth * renderer.c.width
+      my = (e.pageY - rect.top) / renderer.c.clientHeight* renderer.c.height
+      rvx -= e.movementX * rv
+      rvy += e.movementY * rv
+    })
+    
+    renderer.doKeys = async () => {
+      if(renderer.showCrosshair && crosshairImages[renderer.crosshairSel].loaded) {
+        var s = 200
+        overlay.ctx.drawImage(crosshairImages[renderer.crosshairSel].img,
+          overlay.width / 2 - s/2, overlay.height / 2 - s/2, s, s)
+      }
+    
+      renderer.yaw += rvx
+      renderer.pitch += rvy
+      renderer.pitch = Math.min(Math.PI/2, Math.max(-Math.PI/2, renderer.pitch))
+      rvx /= rdrag
+      rvy /= rdrag
+      
+      renderer.x += pvx
+      renderer.y += pvy
+      renderer.z += pvz
+      pvx /= pdrag
+      pvy /= pdrag
+      pvz /= pdrag
+      
+      accel = 1
+      renderer.keys.map((v, i) => {
+        if(renderer.keys[i]){
+          switch(i){
+            case 16:  // shift
+              accel = 3
+            break
+            case 37:  // left arrow
+              rvx += rv * 12
+            break
+            case 38:  // up arrow
+              rvy -= rv * 12
+            break
+            case 39:  // right arrow
+              rvx -= rv * 12
+            break
+            case 40:  // down arrow
+              rvy += rv * 12
+            break
+            case 87:  //w
+              var p1 = -renderer.yaw + Math.PI
+              var p2 = renderer.pitch
+              pvx += S(p1) * mv * accel
+              pvz += C(p1) * mv * accel
+            break
+            case 65:  //a
+              var p1 = -renderer.yaw + Math.PI / 2
+              var p2 = renderer.pitch
+              pvx += S(p1) * mv * accel
+              pvz += C(p1) * mv * accel
+            break
+            case 83:  //s
+              var p1 = -renderer.yaw + Math.PI
+              var p2 = renderer.pitch
+              pvx -= S(p1) * mv * accel
+              pvz -= C(p1) * mv * accel
+            break
+            case 68:  //d
+              var p1 = -renderer.yaw + Math.PI / 2
+              var p2 = renderer.pitch
+              pvx += -S(p1) * mv * accel
+              pvz += -C(p1) * mv * accel
+            break
+            case 32:  //space
+            break
+          }
+        }
+      })
+    }
   }
 }
       
@@ -4720,7 +4725,7 @@ const AnimationLoop = (renderer, func) => {
     renderer.alphaQueue = new Float32Array()
     renderer.particleQueue = new Float32Array()
     
-    if(renderer.useFPSControls){
+    if(renderer.useKeys){
       await renderer.doKeys()
     }
   }
