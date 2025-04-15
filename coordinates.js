@@ -1634,7 +1634,7 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', 
 }
 
 
-const SyncNormals = (shape, averageNormals=false) => {
+const SyncNormals = (shape, averageNormals=false, flipNormals=false) => {
   var v = shape.vertices
   var normals = new Float32Array()
   var facet = new Float32Array()
@@ -1676,9 +1676,9 @@ const SyncNormals = (shape, averageNormals=false) => {
       shape.normals[i*2+0] = nx1
       shape.normals[i*2+1] = ny1
       shape.normals[i*2+2] = nz1
-      shape.normals[i*2+3] = nx1 + a[0]
-      shape.normals[i*2+4] = ny1 + a[1]
-      shape.normals[i*2+5] = nz1 + a[2]
+      shape.normals[i*2+3] = nx1 + a[0] * (flipNormals ? -1 : 1)
+      shape.normals[i*2+4] = ny1 + a[1] * (flipNormals ? -1 : 1)
+      shape.normals[i*2+5] = nz1 + a[2] * (flipNormals ? -1 : 1)
     }
     var n = shape.normalVecs
     for(var i = 0; i<n.length; i++) n[i] = avN[i]
@@ -4533,25 +4533,29 @@ const LoadFPSControls = async (renderer, options) => {
         mbutton = true
         //jump()
         //renderer.c.requestFullscreen()
-        renderer.c.requestPointerLock()
+        renderer.c.requestPointerLock({unadjustedMovement: true})
       }
     })
     window.addEventListener('mouseup', e => {
       if(e.button === 0) mbutton = false
     })
     window.addEventListener('mousemove', e => {
-      var rect = renderer.c.getBoundingClientRect()
-      mx = (e.pageX - rect.left) / renderer.c.clientWidth * renderer.c.width
-      my = (e.pageY - rect.top) / renderer.c.clientHeight* renderer.c.height
-      rvx -= e.movementX * rv
-      rvy += e.movementY * rv
+      if(document.pointerLockElement == renderer.c){
+        var rect = renderer.c.getBoundingClientRect()
+        mx = (e.pageX - rect.left) / renderer.c.clientWidth * renderer.c.width
+        my = (e.pageY - rect.top) / renderer.c.clientHeight* renderer.c.height
+        rvx -= e.movementX * rv
+        rvy += e.movementY * rv
+      }
     })
     
     renderer.doKeys = async () => {
       if(renderer.showCrosshair && crosshairImages[renderer.crosshairSel].loaded) {
         var s = 200
+        overlay.ctx.globalAlpha = .6
         overlay.ctx.drawImage(crosshairImages[renderer.crosshairSel].img,
           overlay.width / 2 - s/2, overlay.height / 2 - s/2, s, s)
+        overlay.ctx.globalAlpha = 1
       }
     
       renderer.yaw += rvx
