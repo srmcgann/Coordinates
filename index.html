@@ -17,6 +17,10 @@
       import * as Coordinates from
       "./coordinates.js"
       
+      var S  = Math.sin
+      var C  = Math.cos
+      var Rn = Math.random
+      
       var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
     
       var rendererOptions = {
@@ -25,18 +29,19 @@
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      renderer.z = 20
+      renderer.z = 0
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: .25
+          value: .5
         } },
         { uniform: {
           type: 'reflection',
           value: .25,
+          enabled: true,
           map: refTexture
         } }
       ]
@@ -44,17 +49,15 @@
 
       var shapes = []
       var geoOptions = {
-        shapeType: 'obj',
-        url: 'https://srmcgann.github.io/objs/tree c/tree c bare.obj',
-        map: 'https://srmcgann.github.io/objs/tree c/tree c 3.jpg',
-        size: .25,
-        y: -5,
-        averageNormals: true,
+        shapeType: 'custom shape',
+        url: 'https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c.json',
+        map: 'https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c 2.jpg',
+        size: 2,
+        y: 0,
         color: 0xffffff,
         colorMix: 0,
-        exportShape: true,
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
       })
@@ -76,12 +79,74 @@
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
+      })
+
+      const floor = (X, Z) => {
+        var d = Math.hypot(X, Z) / 100
+        return (C(d) * S(d)) * 10
+      }
+
+      var X, Y, Z
+      var cl = 16
+      var rw = 1
+      var br = 16
+      var sp = 1
+      var tx, ty, tz
+      var ls = 2**.5 / 2, p, a
+      var texCoords = []
+      var minX = 6e6, maxX = -6e6
+      var minZ = 6e6, maxZ = -6e6
+      
+      geometryData = Array(cl*rw*br).fill().map((v, i) => {
+        tx = ((i%cl) - cl/2 + .5) * sp
+        ty = -1
+        tz = ((i/cl/rw|0) - br/2 + .5) * sp
+        a = []
+        for(var j = 4; j--;){
+          X = tx + S(p = Math.PI*2/4*j + Math.PI/4) * ls
+          Z = tz + C(p) * ls
+          Y = ty + floor(X, Z)
+          a = [...a, [X, Y, Z]]
+          if(X < minX) minX = X
+          if(X > maxX) maxX = X
+          if(Z < minZ) minZ = Z
+          if(Z > maxZ) maxZ = Z
+        }
+        return a
+      })
+      
+      var rangeX = maxX - minX
+      var rangeZ = maxZ - minZ
+      geometryData.map(face => {
+        var a = []
+        face.map(q=>{
+          var uvx = (q[0] - minX) / rangeX
+          var uvz = (q[2] - minZ) / rangeZ
+          a = [...a, [uvx, uvz]]
+        })
+        texCoords = [...texCoords, a]
+      })
+      
+      var geoOptions = {
+        shapeType: 'dynamic',
+        name: 'floor',
+        size: 5,
+        //averageNormals: true,
+        geometryData,
+        texCoords,
+        color: 0xff0000,
+        colorMix: 0,
+        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        Coordinates.SyncNormals(geometry, true, true)
+        shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
       })
       
       var FPSOptions = {
         showCrosshair: true,  // whether or not to display a crosshair.
-        crosshairSel:  0,     // Three premade crosshair graphics are available,
+        crosshairSel:  2,     // Three premade crosshair graphics are available,
                               // or a custom graphic may be used.
         crosshairMap:  '',    // Optional URL to a custom crosshair graphic.
                               // If provided, the custom crosshair should be png
@@ -92,14 +157,42 @@
       
       window.Draw = () => {
       
-        if(!((renderer.t*60|0)%60)){
-          renderer.crosshairSel++
-          renderer.crosshairSel %= 3
-        }
+        renderer.y = floor(-renderer.x / 10, -renderer.z / 10) - 20
       
         shapes.forEach(shape => {
           switch(shape.name){
-            case 'particles': break
+            case 'particles':
+            break
+            case 'floor':
+              var ax, ay, az, nax, nay, naz
+              for(var i=0; i<shape.vertices.length; i+=9){
+                ax = ay = az = nax = nay = naz = 0
+                
+                for(var m = 3; m--;){
+                  ax += shape.vertices[i+m*3+0]
+                  ay += shape.vertices[i+m*3+1]
+                  az += shape.vertices[i+m*3+2]
+                }
+                ax /= 3 
+                ay /= 3 
+                az /= 3
+                
+                var mag = 14 //20 * (2**.5/2)
+                if(ax + renderer.x > cl/1*sp*mag) nax -= cl*sp*2*mag
+                if(ax + renderer.x < -cl/1*sp*mag) nax += cl*sp*2*mag
+                if(az + renderer.z > br/1*sp*mag) naz -= br*sp*2*mag
+                if(az + renderer.z < -br/1*sp*mag) naz += br*sp*2*mag
+                
+                for(var m = 3; m--;){
+                  shape.vertices[i+m*3+0] += nax
+                  shape.vertices[i+m*3+2] += naz
+                  shape.vertices[i+m*3+1] = floor(shape.vertices[i+m*3+0],
+                                              shape.vertices[i+m*3+2])
+                }
+              }
+              
+              //Coordinates.SyncNormals(shape, false)
+            break
             default:
               shape.yaw += .0025
               //shape.pitch += .005

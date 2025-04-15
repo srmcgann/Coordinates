@@ -407,7 +407,8 @@ var geoOptions = {
                          // averaging them with a significant performance cost.
                          // Example:
                          //   shape.vertices[212] -= .2         (why not?)
-                         //   SyncNormals(shape, true)  (reflections fixed!)
+                         //   Coordinates.SyncNormals(shape, true) 
+                         //      //(reflections fixed!)
                          // 
                          // Lastly, SyncNormals() can and will generate
                          // new normals for the supplied shape. All shape types offer
