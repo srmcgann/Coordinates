@@ -163,6 +163,8 @@ var FPSOptions = {
   crosshairMap:  '',    // Optional URL to a custom crosshair graphic.
                         // If provided, the custom crosshair should be png
                         // if it involves transparency.
+  mSpeed:        1.0,   // constant movement speed multiplier.
+  rSpeed:        1.0,   // constant rotational speed multiplier.
   useKeys:       true,  // enabled by default, you may use the FPS camera only,
                         // without keys/mouse, by setting useKeys: false. This
                         // might be useful for environments where the default
