@@ -4533,18 +4533,20 @@ const LoadFPSControls = async (renderer, options) => {
         mbutton = true
         //jump()
         //renderer.c.requestFullscreen()
-        renderer.c.requestPointerLock()
+        renderer.c.requestPointerLock({unadjustedMovement: true})
       }
     })
     window.addEventListener('mouseup', e => {
       if(e.button === 0) mbutton = false
     })
     window.addEventListener('mousemove', e => {
-      var rect = renderer.c.getBoundingClientRect()
-      mx = (e.pageX - rect.left) / renderer.c.clientWidth * renderer.c.width
-      my = (e.pageY - rect.top) / renderer.c.clientHeight* renderer.c.height
-      rvx -= e.movementX * rv
-      rvy += e.movementY * rv
+      if(document.pointerLockElement == renderer.c){
+        var rect = renderer.c.getBoundingClientRect()
+        mx = (e.pageX - rect.left) / renderer.c.clientWidth * renderer.c.width
+        my = (e.pageY - rect.top) / renderer.c.clientHeight* renderer.c.height
+        rvx -= e.movementX * rv
+        rvy += e.movementY * rv
+      }
     })
     
     renderer.doKeys = async () => {

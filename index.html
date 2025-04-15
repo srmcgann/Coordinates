@@ -29,7 +29,7 @@
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      renderer.z = 0
+      renderer.z = 10
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
@@ -41,7 +41,7 @@
         { uniform: {
           type: 'reflection',
           value: .25,
-          enabled: true,
+          enabled: false,
           map: refTexture
         } }
       ]
@@ -82,24 +82,24 @@
       })
 
       const floor = (X, Z) => {
-        var d = Math.hypot(X, Z) / 100
-        return (C(d) * S(d)) * 10
+        var d = Math.hypot(X, Z) / 20
+        return (C(d) + S(d)) *5 - 6
       }
 
       var X, Y, Z
       var cl = 16
       var rw = 1
       var br = 16
-      var sp = 1
+      var sp = .25
       var tx, ty, tz
-      var ls = 2**.5 / 2, p, a
+      var ls = 2**.5 / 2 * sp, p, a
       var texCoords = []
       var minX = 6e6, maxX = -6e6
       var minZ = 6e6, maxZ = -6e6
       
       geometryData = Array(cl*rw*br).fill().map((v, i) => {
         tx = ((i%cl) - cl/2 + .5) * sp
-        ty = -1
+        ty = 0
         tz = ((i/cl/rw|0) - br/2 + .5) * sp
         a = []
         for(var j = 4; j--;){
@@ -155,9 +155,10 @@
       }
       await Coordinates.LoadFPSControls(renderer, FPSOptions)
       
+      var mag = 12.5 //20 * (2**.5/2)
       window.Draw = () => {
       
-        renderer.y = floor(-renderer.x / 10, -renderer.z / 10) - 20
+        renderer.y = -floor(-renderer.x, -renderer.z) -5
       
         shapes.forEach(shape => {
           switch(shape.name){
@@ -177,7 +178,6 @@
                 ay /= 3 
                 az /= 3
                 
-                var mag = 14 //20 * (2**.5/2)
                 if(ax + renderer.x > cl/1*sp*mag) nax -= cl*sp*2*mag
                 if(ax + renderer.x < -cl/1*sp*mag) nax += cl*sp*2*mag
                 if(az + renderer.z > br/1*sp*mag) naz -= br*sp*2*mag
