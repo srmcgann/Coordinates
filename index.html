@@ -20,77 +20,180 @@
       var S  = Math.sin
       var C  = Math.cos
       var Rn = Math.random
+      var playbackSpeed = 2
       
-      var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/fake_equirectangular_sky_2.jpg'
+      var heightMap = 'https://srmcgann.github.io/Coordinates/resources/circletile.jpg'
     
       var rendererOptions = {
-        ambientLight: .2,
-        fov: 1500
+        ambientLight: .45,
+        fov: 1400,
+        margin: 0,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
-      
-      renderer.z = 10
-      
       Coordinates.AnimationLoop(renderer, 'Draw')
+      
+      renderer.z = 30
+
+      const floor = (X, Z) => {
+        var d = Math.hypot(X, Z) / 500
+        return (S(X/66) * S(Z/66)) * 20
+      }
 
       var shaderOptions = [
+        { lighting: { type: 'ambientLight', value: -.4} },
         { uniform: {
           type: 'phong',
-          value: .5
+          value: .02
         } },
         { uniform: {
           type: 'reflection',
-          value: .25,
-          enabled: false,
+          value: .33,
+          enabled: true,
+          playbackSpeed,
           map: refTexture
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+      var shaderOptions = [
+        { lighting: { type: 'ambientLight', value: -.4} },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+        { uniform: {
+          type: 'reflection',
+          value: .75,
+          enabled: false,
+          playbackSpeed,
+          map: refTexture
+        } }
+      ]
+      var floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
       var shapes = []
+      var trees = []
+      var base_trees = []
+      
+      var tree_cl = 4
+      var tree_rw = 1
+      var tree_br = 4
+      var tree_sp = 32 * 12.5 / 2
+      
+      const loadTree = async (url, map, size, flipNormals=false) => {
+        var geoOptions = {
+          shapeType: 'custom shape',
+          name: 'tree',
+          involveCache: true,
+          flipNormals,
+          url,
+          map,
+          size,
+          x,
+          z,
+          y: floor(x, z),
+          //scaleY: 2,
+          color: 0x000000,
+          colorMix: 0,
+          exportShape: false,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          base_trees = [...base_trees, geometry]
+          await shader.ConnectGeometry(geometry)
+        })
+      }
+      for(var i=Math.max(0, Math.min(3, tree_cl*tree_rw*tree_br)); i--;){
+        await loadTree('https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c large.json',
+                 `https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c ${i+2}.jpg`, 1)
+      }
+      await loadTree('https://srmcgann.github.io/Coordinates/custom shapes/tree/tree.json',
+               `https://srmcgann.github.io/Coordinates/custom shapes/tree/bark.jpg`, 20, true)
+      await loadTree('https://srmcgann.github.io/Coordinates/custom shapes/tree/leaves.json',
+               `https://srmcgann.github.io/Coordinates/custom shapes/tree/leaf.png`, 20, true)
+      
+      if(1) for(var i=tree_cl*tree_rw*tree_br; i--;){
+        var x = ((i%tree_cl) - tree_cl/2 + .5) * tree_sp
+        var y = (((i/tree_cl|0)%tree_cl) - tree_rw/2 + .5) * tree_sp
+        var z = ((i/tree_cl/tree_rw|0) - tree_br/2 + .5) * tree_sp
+        var tidx = (i*1.25|0)%(base_trees.length-1)
+        trees = [...trees, {x, y, z, shape: base_trees[tidx]}]
+        if(tidx == base_trees.length-2){
+          trees = [...trees, {x, y, z, shape: base_trees[tidx+1]}]
+        }
+      }
+
       var geoOptions = {
-        shapeType: 'custom shape',
-        url: 'https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c.json',
-        map: 'https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c 2.jpg',
-        size: 2,
-        y: 0,
+        shapeType: 'dodecahedron',
+        name: 'background',
+        subs: 1,
+        sphereize: 1,
+        //scaleUVX: 4,
+        //scaleUVY: 4,
+        playbackSpeed,
+        map: refTexture,
+        size: 1e3,
         color: 0xffffff,
         colorMix: 0,
       }
       if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
       })
       
-      var Rn = Math.random
-      var geometryData = Array(1e3).fill().map(v=>[
-        (Rn()-.5)*1e3,
-        (Rn()-.5)*1e3,
-        (Rn()-.5)*1e3,
-      ])
+      if(1){
+        var geometryData = Array(200).fill().map(v=>[
+          (Rn()-.5)*1e3,
+          (Rn()-.5)*1e3,
+          (Rn()-.5)*1e3,
+        ])
+        var geoOptions = {
+          shapeType: 'particles',
+          name: 'particles',
+          size: 20,
+          penumbra: .25,
+          alpha: .5,
+          geometryData,
+          color: 0xff88ff,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+        })
+
+        var geometryData = Array(200).fill().map(v=>[
+          (Rn()-.5)*1e3,
+          (Rn()-.5)*1e3,
+          (Rn()-.5)*1e3,
+        ])
+        var geoOptions = {
+          shapeType: 'particles',
+          name: 'particles',
+          size: 20,
+          penumbra: .25,
+          alpha: .5,
+          geometryData,
+          color: 0x44ffff,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+        })
+      }
+
       var geoOptions = {
-        shapeType: 'particles',
-        name: 'particles',
-        size: 20,
-        penumbra: .5,
-        alpha: .5,
-        geometryData,
+        shapeType: 'point light',
+        name: 'point light',
+        size: 1,
+        lum: 70,
         color: 0xffffff,
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
       })
-
-      const floor = (X, Z) => {
-        var d = Math.hypot(X, Z) / 20
-        return (C(d) + S(d)) *5 - 6
-      }
 
       var X, Y, Z
       var cl = 16
       var rw = 1
       var br = 16
-      var sp = .25
+      var sp = 2
       var tx, ty, tz
       var ls = 2**.5 / 2 * sp, p, a
       var texCoords = []
@@ -130,42 +233,118 @@
       var geoOptions = {
         shapeType: 'dynamic',
         name: 'floor',
+        equirectangular: false,
         size: 5,
-        //averageNormals: true,
+        averageNormals: false,
         geometryData,
+        scaleUVX: 2,
+        scaleUVY: 2,
         texCoords,
-        color: 0xff0000,
+        color: 0xffffff,
         colorMix: 0,
-        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+        fipNormals: true,
+        //pitch: Math.PI,
+        //heightMap: heightMap,
+        //heightMapIntensity: 32,
+        map: heightMap,
+        playbackSpeed
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         Coordinates.SyncNormals(geometry, true, true)
         shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
+        await floorShader.ConnectGeometry(geometry)
       })
       
       var FPSOptions = {
-        showCrosshair: true,  // whether or not to display a crosshair.
-        crosshairSel:  2,     // Three premade crosshair graphics are available,
-                              // or a custom graphic may be used.
-        crosshairMap:  '',    // Optional URL to a custom crosshair graphic.
-                              // If provided, the custom crosshair should be png
-                              // if it involves transparency.
-        useKeys: true
+        showCrosshair: true,
+        crosshairSel:  2,
+        crosshairMap:  '',
+        useKeys: true,
+        mSpeed: 10,
+        rSpeed: 1,
       }
       await Coordinates.LoadFPSControls(renderer, FPSOptions)
       
       var mag = 12.5 //20 * (2**.5/2)
+      var ax, ay, az, nax, nay, naz
+      
+      var grav = .666
+      var playervy = 0
+      renderer.c.onmousedown = e => {
+        if(renderer.hasTraction && e.button == 2){
+          playervy -= 20
+        }
+      }
+      
       window.Draw = () => {
-      
-        renderer.y = -floor(-renderer.x, -renderer.z) -5
-      
+        var t = renderer.t
+        
+        if(renderer.t - renderer.lastInteraction > 3){
+          renderer.keys[87] = true
+        }
+        
+        playervy += grav
+        renderer.y += playervy
+        var fl = -floor(-renderer.x, -renderer.z) - 32
+        if(renderer.y > fl - 1){
+          renderer.y = fl
+          playervy = 0
+          renderer.hasTraction = true
+        }else{
+          renderer.hasTraction = false
+        }
+        trees.forEach(tree => {
+          var shape = tree.shape
+          switch(shape.name){
+            case 'tree':
+              ax = ay = az = nax = nay = naz = 0
+              ax = tree.x
+              ay = tree.y
+              az = tree.z
+              if(ax + renderer.x > cl/1*sp*mag) nax -= cl*sp*2*mag
+              if(ax + renderer.x < -cl/1*sp*mag) nax += cl*sp*2*mag
+              if(az + renderer.z > br/1*sp*mag) naz -= br*sp*2*mag
+              if(az + renderer.z < -br/1*sp*mag) naz += br*sp*2*mag
+              shape.x = tree.x += nax
+              shape.z = tree.z += naz
+              shape.yaw = t / 5
+              shape.y = tree.y = floor(shape.x, shape.z)
+              //shape.colorMix = 1 // (1+(1+Math.hypot(renderer.x-shape.x,
+                                  //                  renderer.z-shape.z))**2/9999)
+            break
+          }
+          renderer.Draw(shape)
+        })
         shapes.forEach(shape => {
           switch(shape.name){
+            case 'background':
+              shape.x = -renderer.x
+              shape.y = -renderer.y
+              shape.z = -renderer.z
+            break
+            case 'point light':
+              // shape.x = -renderer.x
+              shape.y = renderer.y - floor(shape.x, shape.z) + 300
+              // shape.z = renderer.z
+            break
             case 'particles':
+              for(var i=0; i<shape.vertices.length; i+=3){
+                ax = ay = az = nax = nay = naz = 0
+                nax = shape.vertices[i+0]
+                nay = shape.vertices[i+1]
+                naz = shape.vertices[i+2]
+                while(nax + renderer.x > cl/1*sp*mag) nax -= cl*sp*2*mag
+                while(nax + renderer.x < -cl/1*sp*mag) nax += cl*sp*2*mag
+                while(naz + renderer.z > br/1*sp*mag) naz -= br*sp*2*mag
+                while(naz + renderer.z < -br/1*sp*mag) naz += br*sp*2*mag
+                
+                shape.vertices[i+0] = nax
+                shape.vertices[i+2] = naz
+                //shape.vertices[i+1] = floor(shape.vertices[i+0],
+                //                            shape.vertices[i+2])
+              }
             break
             case 'floor':
-              var ax, ay, az, nax, nay, naz
               for(var i=0; i<shape.vertices.length; i+=9){
                 ax = ay = az = nax = nay = naz = 0
                 
@@ -187,7 +366,7 @@
                   shape.vertices[i+m*3+0] += nax
                   shape.vertices[i+m*3+2] += naz
                   shape.vertices[i+m*3+1] = floor(shape.vertices[i+m*3+0],
-                                              shape.vertices[i+m*3+2])
+                                              shape.vertices[i+m*3+2]) - 3
                 }
               }
               
