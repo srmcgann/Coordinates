@@ -701,7 +701,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var sphereize              = 0
   var color                  = 0x333333
   var colorMix               = .1
-  var equirectangular        = false
+  var equirectangular        = -1
   var equirectangularHeightmap = false
   var preComputeNormalAssocs = false
   var flipNormals            = false
@@ -948,7 +948,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   if(!resolved){
     switch(shapeType){
       case 'tetrahedron':
-        equirectangular = true
+        if(equirectangular == -1) equirectangular = true
         shape = await Tetrahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
@@ -957,7 +957,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'octahedron':
-        equirectangular = true
+        if(equirectangular == -1) equirectangular = true
         shape = await Octahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
@@ -966,7 +966,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'icosahedron':
-        equirectangular = true
+        if(equirectangular == -1) equirectangular = true
         shape = await Icosahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
@@ -1071,7 +1071,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         uvs      = shape.uvs
       break
       case 'dodecahedron':
-        equirectangular = true
+        if(equirectangular == -1) equirectangular = true
         shape = await Dodecahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices    = [...vertices, ...v.position]
@@ -1106,7 +1106,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     switch(shapeType){
       case 'tetrahedron': case 'octahedron':
       case 'dodecahedron': case 'icosahedron':
-      equirectangular = true
+      if(equirectangular == -1) equirectangular = true
       break
     }
   }
@@ -1405,6 +1405,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, uvIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
 
+  if(equirectangular == -1) equirectangular = false
 
   var updateGeometry = {
     x, y, z,
@@ -1582,7 +1583,7 @@ const VideoToImage = video => {
 const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', involveCache = true) => {
   let texImage
   switch(textureMode){
-    case 'canvas':
+    case 'canvas': case 'heightImage':
       texImage = resource
     break
     case 'video':
@@ -2938,7 +2939,7 @@ const BasicShader = async (renderer, options=[]) => {
                 }
               break
               default:
-                geometry.heightTextureMode = 'image'
+                geometry.heightTextureMode = 'heightImage'
                 if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==heightMapURL)).length){
                   dset.heightTexture = cacheItem[0].texture
                   var heightImage = cacheItem[0].resource
@@ -4453,12 +4454,14 @@ const LoadFPSControls = async (renderer, options) => {
   var mspeed = 1
   var rspeed = 1
   var grav   = .01
-  renderer.cameraMode     = 'fps'
-  renderer.crosshairMap   = ''
-  renderer.showCrosshair  = true
-  renderer.useKeys        = true
-  renderer.crosshairSel   = 0
-  renderer.useFPSControls = true
+  renderer.cameraMode      = 'fps'
+  renderer.crosshairMap    = ''
+  renderer.showCrosshair   = true
+  renderer.lastInteraction = 0
+  renderer.hasTraction     = true
+  renderer.useKeys         = true
+  renderer.crosshairSel    = 0
+  renderer.useFPSControls  = true
   var crosshairs = Array(3).fill().map((v, i) => `${ModuleBase}/resources/crosshairs/crosshair${i+1}.png`)
   if(typeof options != 'undefined'){
     Object.keys(options).forEach((key, idx) =>{
@@ -4473,8 +4476,6 @@ const LoadFPSControls = async (renderer, options) => {
       }
     })
   }
-  
-  console.log(renderer.useKeys, options)
 
   var crosshairsLoaded = false
   var crosshairImages  = Array(crosshairs.length).fill()
@@ -4524,11 +4525,14 @@ const LoadFPSControls = async (renderer, options) => {
     
     window.addEventListener('keydown', e => {
       renderer.keys[e.keyCode] = true
+      renderer.lastInteraction = renderer.t
     })
     window.addEventListener('keyup', e => {
       renderer.keys[e.keyCode] = false
+      renderer.lastInteraction = renderer.t
     })
     window.addEventListener('mousedown', e => {
+      renderer.lastInteraction = renderer.t
       if(e.button === 0) {
         mbutton = true
         //jump()
@@ -4537,9 +4541,11 @@ const LoadFPSControls = async (renderer, options) => {
       }
     })
     window.addEventListener('mouseup', e => {
+      renderer.lastInteraction = renderer.t
       if(e.button === 0) mbutton = false
     })
     window.addEventListener('mousemove', e => {
+      renderer.lastInteraction = renderer.t
       if(document.pointerLockElement == renderer.c){
         var rect = renderer.c.getBoundingClientRect()
         mx = (e.pageX - rect.left) / renderer.c.clientWidth * renderer.c.width
@@ -4567,12 +4573,14 @@ const LoadFPSControls = async (renderer, options) => {
       renderer.x += pvx
       renderer.y += pvy
       renderer.z += pvz
-      pvx /= pdrag
-      pvy /= pdrag
-      pvz /= pdrag
+      if(renderer.hasTraction){
+        pvx /= pdrag
+        pvy /= pdrag
+        pvz /= pdrag
+      }
       
       accel = 1
-      renderer.keys.map((v, i) => {
+      if(renderer.hasTraction) renderer.keys.map((v, i) => {
         if(renderer.keys[i]){
           switch(i){
             case 16:  // shift
