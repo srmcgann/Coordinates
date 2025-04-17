@@ -301,6 +301,7 @@ const Renderer = async options => {
             })
             
             ctx.useProgram( sProg )
+            
             dset.optionalUniforms.map((uniform) => {
               if(typeof uniform?.loc === 'object'){
                 ctx[uniform.dataType](uniform.loc,      uniform.value)
@@ -326,6 +327,20 @@ const Renderer = async options => {
                     ctx.uniform1f(uniform.locPhongTheta, uniform.theta + Math.PI)
                   break
                 }
+              }
+            })
+
+
+            dset.optionalPlugins.map((plugin) => {
+              switch(plugin.name) {
+                case 'post processing':
+                  var val
+                  switch(plugin.value){
+                    case 'equirectangular': val = 1.0; break
+                    default               : val = 0.0; break
+                  }
+                  ctx.uniform1f(dset.locPlugin, val)
+                break
               }
             })
 
@@ -473,7 +488,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
   var ret = { vertices: [], normals: [], uvs: [] }
   var a, X, Y, Z
   if(involveCache && (cacheItem = cache.objFiles.filter(v=>v.url == url)).length){
-    ret = cacheItem[0].ret
+    ret = structuredClone(cacheItem[0].ret)
   }else{
     var vInd = new Float32Array()
     var nInd = new Float32Array()
@@ -854,9 +869,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var normals     = new Float32Array()
   var normalVecs  = new Float32Array()
   var uvs         = new Float32Array()
-  
-  var resolved = false
+
   var fileURL, hint
+  var resolved    = false
   
   if(shapeType.indexOf('custom shape') != -1){
     fileURL = url
@@ -902,6 +917,22 @@ const LoadGeometry = async (renderer, geoOptions) => {
             resolved = true;
             url = `${ModuleBase}/new%20shapes/`
             fileURL = `${url}${hint}.json`
+            if(involveCache && (cacheItem = cache.geometry.filter(v=>v.url==fileURL)).length){
+              console.log(`found geometry (${hint}) in cache... using it`)
+              var data        = structuredClone(cacheItem[0].data)
+              vertices        = data.vertices
+              normals         = data.normals
+              normalVecs      = data.normalVecs
+              uvs             = data.uvs
+            }else{
+              await fetch(fileURL).then(res=>res.json()).then(data => {
+                vertices    = data.vertices
+                normals     = data.normals
+                normalVecs  = data.normalVecs
+                uvs         = data.uvs
+                cache.geometry.push({data, url: fileURL})
+              })
+            }
           }else{
             // unresolved shape
           }
@@ -914,7 +945,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     switch(shapeType){
       case 'custom shape':
         if(involveCache && (cacheItem = cache.customShapes.filter(v=>v.url==url)).length){
-          var data   = cacheItem[0].data
+          console.log(`found custom shape in cache... using it`)
+          var data   = structuredClone(cacheItem[0].data)
           vertices   = data.vertices
           normals    = data.normals
           normalVecs = data.normalVecs
@@ -934,15 +966,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       default: break
     }
-  }else{
-    await fetch(fileURL).then(res=>res.json()).then(data=>{
-      vertices    = data.vertices
-      normals     = data.normals
-      normalVecs  = data.normalVecs
-      uvs         = data.uvs
-      resolved    = true
-      //cache.customShapes.push({data, url})
-    })
   }
 
   if(!resolved){
@@ -984,8 +1007,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'torus knot':
-        shape = await TorusKnot(size, subs, sphereize,
-                      flipNormals, shapeType, rows, cols)
+        shape = await TorusKnot(size, subs, rows, cols, sphereize,
+                      flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
           normals  = [...normals,  ...v.normal]
@@ -993,8 +1016,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'cylinder':
-        shape = await Cylinder(size, subs, sphereize,
-                      flipNormals, shapeType, rows, cols)
+        shape = await Cylinder(size, subs, rows, cols, sphereize,
+                      flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
           normals  = [...normals,  ...v.normal]
@@ -2001,6 +2024,7 @@ const BasicShader = async (renderer, options=[]) => {
     locFov: null,
     program: null,
     heightMapURL: null,
+    optionalPlugins: [],
     optionalUniforms: [],
     optionalLighting: [],
   }
@@ -2008,6 +2032,22 @@ const BasicShader = async (renderer, options=[]) => {
   options.map(option => {
     Object.keys(option).forEach((key, idx) => {
       switch(key.toLowerCase()){
+        case 'plugin':
+          switch(option[key].type.toLowerCase()){
+            case 'post processing': 
+              if(typeof option[key]?.enabled == 'undefined' ||
+                 !!option[key].enabled){
+                var pluginOption = {
+                  name: option[key].type,
+                  value: option[key].value.toLowerCase(),
+                }
+                dataset.optionalPlugins.push( pluginOption )
+              }
+            break
+            default:
+            break
+          }
+        break
         case 'lighting':
           switch(option[key].type.toLowerCase()){
             case 'ambientlight': 
@@ -2181,6 +2221,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 color;
       uniform float flatShading;
       uniform float ambientLight;
+      uniform float plugin;
       uniform vec3 camPos;
       uniform vec3 camOri;
       uniform vec3 geoPos;
@@ -2240,7 +2281,6 @@ const BasicShader = async (renderer, options=[]) => {
         }
         
         
-        
 /*
   var b1 = facet[2][0]-facet[1][0], b2 = facet[2][1]-facet[1][1], b3 = facet[2][2]-facet[1][2]
   var c1 = facet[1][0]-facet[0][0], c2 = facet[1][1]-facet[0][1], c3 = facet[1][2]-facet[0][2]
@@ -2249,7 +2289,7 @@ const BasicShader = async (renderer, options=[]) => {
         
         if(useHeightMap != 0.0 && renderNormals == 0.0){
           
-              
+
           uvi = uv / 2.0;
           uvi = vec2(uvi.x, .5 - uvi.y);
           nVeci = normalVec;
@@ -2270,14 +2310,13 @@ const BasicShader = async (renderer, options=[]) => {
           } else {
             uvi = uv;
           }
-            
+
             
           h = texture2D( heightMap, uvi);
           lum = ((h.r + h.g + h.b) / 3.0) * (1.0 + heightMapIntensity) / 2.0;
           cx += normalVec.x * lum;
           cy += normalVec.y * lum;
           cz += normalVec.z * lum;
-          
 
           
         }else{
@@ -2347,18 +2386,34 @@ const BasicShader = async (renderer, options=[]) => {
         
         float camz = cpz / 1e3 * pow(5.0, log(fov) / 1.609438);
         
+        float X, Y;
         float Z = pos.z + camz + geo.z;
-        if(Z > 0.0) {
-          if(isParticle != 0.0 && penumbraPass != 0.0) Z += .001;
-          float X = (pos.x + cpx + geo.x) / Z / resolution.x * fov;
-          float Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
+        if(isParticle != 0.0 && penumbraPass != 0.0) Z += .001;
+        if( plugin ==  1.0 ){   // equirectangular post-processing plugin
+          X = pos.x + camPos.x + geo.x;
+          Y = pos.y + camPos.y + geo.y;
+          Z = pos.z + camPos.z + geo.z;
+          float dist = sqrt(X*X + Y*Y + Z*Z);
+          //X /= dist;
+          //Y /= dist;
           
-          gl_PointSize = 100.0 * pointSize / Z;
-          gl_Position = vec4(X, Y, Z/10000.0, 1.0);
+          float p1 = atan(X, Z) / M_PI;
+          float p2 = acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0;
+          gl_PointSize = 100.0 * pointSize / dist;
+          gl_Position = vec4(p1, p2, dist/10000.0, 1.0);
           skip = 0.0;
           vUv = uv;
-        }else{
-          skip = 1.0;
+        } else {  // default projection
+          X = (pos.x + cpx + geo.x) / Z / resolution.x * fov;
+          Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
+          if(Z > 0.0) {
+            gl_PointSize = 100.0 * pointSize / Z;
+            gl_Position = vec4(X, Y, Z/10000.0, 1.0);
+            skip = 0.0;
+            vUv = uv;
+          }else{
+            skip = 1.0;
+          }
         }
       }
     `
@@ -2369,6 +2424,7 @@ const BasicShader = async (renderer, options=[]) => {
       ${uFragDeclaration}
       uniform float t;
       uniform vec2 resolution;
+      uniform float plugin;
       uniform float flatShading;
       uniform float isSprite;
       uniform float isLight;
@@ -2796,6 +2852,10 @@ const BasicShader = async (renderer, options=[]) => {
           gl.bindTexture(gl.TEXTURE_2D, dset.texture)
           dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
           
+          if(dset.optionalPlugins.length){
+            dset.locPlugin = gl.getUniformLocation(dset.program, "plugin")
+          }
+
           if(geometry.heightMap){
             dset.heightTexture = gl.createTexture()
             //gl.activeTexture(gl.TEXTURE4)
@@ -3637,7 +3697,7 @@ const GeoSphere = (mx, my, mz, iBc, size) => {
   return [mx, my, mz, size, B, a]
 }
 
-const Cylinder = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType, rw, cl) => {
+const Cylinder = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, shapeType='cylinder') => {
   var ret = new Float32Array()
   var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
   var TX1,TY1, TX2,TY2, TX3,TY3, TX4,TY4
@@ -3693,7 +3753,7 @@ const Cylinder = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, sh
                          sphereize, flipNormals, true, shapeType)
 }
 
-const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType, rw, cl) => {
+const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='torus', rw, cl) => {
   var ret = new Float32Array()
   var X, Y, Z
   var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
@@ -3774,7 +3834,7 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
                          sphereize, flipNormals, true, shapeType)
 }
 
-const TorusKnot = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType, rw, cl) => {
+const TorusKnot = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, shapeType='torus knot') => {
   var ret = new Float32Array()
   var X, Y, Z
   var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
@@ -3894,7 +3954,7 @@ const TorusKnot = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
 
 
 
-const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
+const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='tetrahedron') => {
   var X, Y, Z, p, tx, ty, ax, ay, az
   var f, i, j, l, a, b, ct, sz = 1
   var geometry = new Float32Array()
@@ -3965,7 +4025,7 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
                          sphereize, flipNormals, false, shapeType)
  }
 
-const Octahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
+const Octahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='octahedron') => {
   var X, Y, Z, p, tx, ty
   var f, i, j, l, a, b, sz = 1
   var geometry = new Float32Array()
@@ -4010,7 +4070,7 @@ const Octahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, 
 }
 
     
-const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
+const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='icosahedron') => {
   var i, X, Y, Z, d1, b, p, r, tx, ty
   var out, f, j, l, phi, a, cp
   var idx1a, idx2a, idx3a
@@ -4090,7 +4150,7 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
                          sphereize, flipNormals, false, shapeType)
 }
 
-const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
+const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='dodecahedron') => {
   var i, X, Y, Z, d1, b, p, r, tx, ty, f, i, j, l
   var ret = new Float32Array()
   var a = new Float32Array()
@@ -4204,7 +4264,7 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
 
 
 
-const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
+const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='cube') => {
   var p, pi=Math.PI, a, b, l, i, j, k, tx, ty, X, Y, Z
   var position, texCoord
   var geometry = new Float32Array()
@@ -4232,7 +4292,7 @@ const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeT
   return ret
 }
 
-const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType) => {
+const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='rectangle') => {
   var p, pi=Math.PI, a, b, l, i, j, k, tx, ty, X, Y, Z
   var position, texCoord
   var geometry = new Float32Array()
