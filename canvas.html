@@ -52,8 +52,8 @@
       willReadFrequently: true,
       imageSmoothingEnabled: true,
     } },
-    width: 1024 / 1|0,
-    height: 1024 / 1|0,
+    width: 1024 / 4|0,
+    height: 1024 / 4|0,
     attachToBody: false
   }
   var canvas = await Coordinates.Renderer(rendererOptions)
@@ -69,7 +69,7 @@
   var sp = canvas.width / cl
 
   Array(cl*rw).fill().map((q, j) => {
-    if(1 || j%cl && (j/cl|0) && (j/cl|0)){
+    if(j%cl && (j/cl|0) && (j/cl|0)){
       var tx = (j%cl) * sp
       var ty = (j/cl|0) * sp
       for(var m = 50; m--;) {
@@ -189,7 +189,7 @@
   })
         
       window.Draw = () => {
-        for(var n=2; n--;) processCanvas()
+        for(var n=8; n--;) processCanvas()
         shapes.forEach(shape => {
           //shape.yaw += .01
           //shape.pitch += .005
@@ -200,3 +200,86 @@
     </script>
   </body>
 </html>
+
+
+
+<!--
+  TO DO
+  
+  * re make OBJLoader method, to spec
+
+  
+  ✔ re: 'sphereize', the problem exists of needing to average
+         normals AFTER the shape is sphereized, as the degree is
+         not known prior. Normal averaging is computationally
+         expensive, so a solution, in the context of pre-built shapes,
+         is to provide an optional function "AverageNormals", and
+         instruct users that sphereized shapes may use it, for
+         reflections etc.
+  
+  ✔ re-export 'new shapes' with unit size
+  ✔ fix color mix
+  ✔ come up with solution for averaging normals (for phong etc), with prebuilt shapes
+  
+  * 'grouping' / 'ungrouping' option
+        for geometry, which makes drawing buffers contiguous
+  
+  ✔ sprites [transparent rectangle?]
+  
+  ✔ make uniforms: position, normal etc vec3, vs separate floats
+  
+  * lights
+    └> ✔ ambient
+       ✔  point
+       *  directional
+  
+  * geometry
+    └> ✔ generalize geometry function
+       ✔ add shapeTypes: torus, cylinder
+       ✔  add method / shapeType for points/particles, lines
+       ✔ deformation methods
+       ✔ return "raw" geometry with inbuilt shapes, for 2d context
+       ✔ add 3-axis 'scale' function 
+       
+  ✔ README.md
+    └> ✔  add remaining exposed methods (e.g. color conversions, spatial)
+          as "supplemental"
+  
+  ✔ add renderer object
+  ✔ add camera object
+  ✔ fix FOV
+  ✔ README.md / documentation
+  
+  * sprite sheet system / import basic+custom slicing
+  ✔ add video texture capabilities
+  * cache for API, to include all network-callable items
+  
+  * shapes
+    └> ✔ add shapes (in addtion to Cube)
+       ✔ make non-cube UVs equirectangular
+       ✔ keep shape generation functions, but add 'precompiled' versions for ordinary calls
+       ✔ move rotation function into shader
+       * loading -> compression, direct output of
+                    usable format (no further processing needed)
+
+  * subdivision
+    └> ✔  add optional LOD param for all basic geometry
+       ✔ decouple polygons from UV subdivision (interpolate UVs @ sub)
+       
+  * shaders / textures
+    └> ✔ move shaders into Coordinates module
+       *  bloom / glow shader
+       *  add '# tiling (x/y)' option
+       ✔  phong -> play nice with rectangle
+       ✔  move camera into vertex shader
+       ✔  create pseudo-phong shader
+       ✔  add 'reflectivity' & texture input for it
+       ✔  flat/smooth shading
+       ✔  integrate optional effect shaders
+
+  * functions / methods
+    └> ✔ begin separating module functions as optional includes
+       ✔ migrate functions to coordinates.js module
+       ✔ integrate obj loader
+
+-->
