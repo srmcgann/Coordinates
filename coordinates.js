@@ -287,7 +287,7 @@ const Renderer = async options => {
               ctx.uniform4fv(dset.locPointLights, pldata)
               ctx.uniform4fv(dset.locPointLightCols, plcols)
             }
-
+            
             var ambLight = renderer.ambientLight
 
             dset.optionalLighting.map(lighting => {
@@ -330,13 +330,16 @@ const Renderer = async options => {
               }
             })
 
-
+            var equirectangularPlugin = false
             dset.optionalPlugins.map((plugin) => {
               switch(plugin.name) {
                 case 'post processing':
                   var val
                   switch(plugin.value){
-                    case 'equirectangular': val = 1.0; break
+                    case 'equirectangular':
+                      val = 1.0;
+                      equirectangularPlugin = true
+                      break
                     default               : val = 0.0; break
                   }
                   ctx.uniform1f(dset.locPlugin, val)
@@ -369,11 +372,11 @@ const Renderer = async options => {
             ctx.uniform1f(dset.locFov,             renderer.fov)
             ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
             ctx.uniform1f(dset.locRenderNormals,   0)
-            
-            
+
+
             //ctx.disable(ctx.CULL_FACE)
             //ctx.cullFace(ctx.BACK)
-           
+
             // bind buffers
             ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
             ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
@@ -405,8 +408,28 @@ const Renderer = async options => {
 
             // vertices
             if(geometry?.vertices?.length){
+              
+              
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
+              if(equirectangularPlugin){
+                var verts =  new Float32Array()
+                for(var i=0; i<geometry.vertices; i+=9){
+                  var X1 = geometry.vertices[i+0]
+                  var Y1 = geometry.vertices[i+1]
+                  var Z1 = geometry.vertices[i+2]
+                  var X2 = geometry.vertices[i+3]
+                  var Y2 = geometry.vertices[i+4]
+                  var Z2 = geometry.vertices[i+5]
+                  var X3 = geometry.vertices[i+6]
+                  var Y3 = geometry.vertices[i+7]
+                  var Z4 = geometry.vertices[i+8]
+                  
+                }
+                ctx.bufferData(ctx.ARRAY_BUFFER, verts, ctx.STATIC_DRAW)
+              }else{
+                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
+              }
+              
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
               ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
@@ -717,7 +740,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var color                  = 0x333333
   var colorMix               = .1
   var equirectangular        = -1
-  var equirectangularHeightmap = false
+  var equirectangularHeightmap = -1
   var preComputeNormalAssocs = false
   var flipNormals            = false
   var showNormals            = false
@@ -972,6 +995,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     switch(shapeType){
       case 'tetrahedron':
         if(equirectangular == -1) equirectangular = true
+        if(equirectangularHeightmap == -1) equirectangularHeightmap = true
         shape = await Tetrahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
@@ -981,6 +1005,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'octahedron':
         if(equirectangular == -1) equirectangular = true
+        if(equirectangularHeightmap == -1) equirectangularHeightmap = true
         shape = await Octahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
@@ -990,6 +1015,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'icosahedron':
         if(equirectangular == -1) equirectangular = true
+        if(equirectangularHeightmap == -1) equirectangularHeightmap = true
         shape = await Icosahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices = [...vertices, ...v.position]
@@ -1095,6 +1121,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'dodecahedron':
         if(equirectangular == -1) equirectangular = true
+        if(equirectangularHeightmap == -1) equirectangularHeightmap = true
         shape = await Dodecahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices    = [...vertices, ...v.position]
@@ -1130,6 +1157,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'tetrahedron': case 'octahedron':
       case 'dodecahedron': case 'icosahedron':
       if(equirectangular == -1) equirectangular = true
+      if(equirectangularHeightmap == -1) equirectangularHeightmap = true
       break
     }
   }
@@ -1429,6 +1457,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
 
   if(equirectangular == -1) equirectangular = false
+  if(equirectangularHeightmap == -1) equirectangularHeightmap = false
 
   var updateGeometry = {
     x, y, z,
@@ -1709,9 +1738,92 @@ const SyncNormals = (shape, averageNormals=false, flipNormals=false) => {
   }
 }
 
-const GetShaderCoord = (vx, vy, vz, shape, renderer) => {
+const GetShaderCoord = (vx, vy, vz, shape, renderer, nx=0, ny=0, nz=0, uvx=0, uvy=0) => {
   var X, Y, Z
+
+  var dset   = shape.shader.datasets[shape.datasetIdx]
+  var equirectangularPlugin
+  dset.optionalPlugins.map((plugin) => {
+    switch(plugin.name) {
+      case 'post processing':
+        switch(plugin.value){
+          case 'equirectangular':
+            equirectangularPlugin = true
+            break
+          default:
+            equirectangularPlugin = false
+          break
+        }
+      break
+    }
+  })
+
+  if(shape.heightMap && SHMdata.length){
+
+
+
+
+
+/*
+  if(useHeightMap != 0.0 && renderNormals == 0.0){
+    nVeci = normalVec;
+    vec4 h;
+    float lum;
+
+    if(equirectangularHeightmap != 0.0){
+      float p;
+      float p2;
+      vec3 cpos = vec3(cx, cy, cz);
+      p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z);
+      float p1;
+      p1 = p / M_PI / 2.0;
+      p2 = flatShading == 1.0 ?
+            acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
+            acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) / M_PI;
+      uvi = vec2(p1, p2);
+    } else {
+      uvi = uv;
+    }
+
+      
+    h = texture2D( heightMap, uvi);
+    lum = ((h.r + h.g + h.b) / 3.0) * (heightMapIntensity) / 2.0;
+    cx += normalVec.x * lum;
+    cy += normalVec.y * lum;
+    cz += normalVec.z * lum;
+*/
+
+    
+    var uvi
+    if(shape.equirectangularHeightmap){
+      var p, p1, p2
+      var hvx = vx
+      var hvy = vy
+      var hvz = vz
+      var dist = Math.hypot(hvx, hvy, hvz)
+      p = Math.atan2(hvx, hvz)
+      p1 = p / Math.PI / 2;
+      p2 = Math.acos(hvy / (Math.hypot(hvx, hvy, hvz)+.00001)) / Math.PI;
+      uvi = [p1, p2];
+    } else {
+      uvi = [uvx, uvy];
+    }
+
+    var idx     = (((scratchHeightMap.width * uvi[0]) | 0) + ((scratchHeightMap.height * scratchHeightMap.width * uvi[1]) | 0)) * 4
+    var red     = SHMdata[idx+0] / 256
+    var green   = SHMdata[idx+1] / 256
+    var blue    = SHMdata[idx+2] / 256
+    //var alpha = SHMdata[idx+3] / 256
+    
+    
+    var lum = ((red + green + blue) / 3) * (shape.heightMapIntensity) / 2
+    vx += nx * lum
+    vy += ny * lum
+    vz += nz * lum
+  }
+  
   vy *= -1
+  
 
   var ar = R(vx, vy, vz, {
     roll: 0,
@@ -1772,8 +1884,6 @@ const GetShaderCoord = (vx, vy, vz, shape, renderer) => {
   vx += shape.x
   vy -= shape.y
   vz += shape.z
-
-
   
   ar = R(vx, vy, vz, {
     roll: 0,
@@ -1802,24 +1912,39 @@ const GetShaderCoord = (vx, vy, vz, shape, renderer) => {
   vy = ar[1]
   vz = ar[2]
 
-  vx += renderer.x
-  vy -= renderer.y
-  vz -= renderer.z
+  var posx = vx
+  var posy = vy
+  var posz = vz
 
-  
-  
-  var cpx = renderer.x
-  var cpy = renderer.y
-  var cpz = renderer.z
-  var fov = renderer.fov
-  var camz = cpz / 1e3 * Math.pow(5.0, Math.log(fov) / 1.609438) +cpz
-  Z = vz + camz
-  if(Z>0){
-    X = renderer.width / 2 + vx / Z * fov / 2
-    Y = renderer.height / 2 + vy / Z * fov / 2
-    return [X, Y, Z]
+  if(equirectangularPlugin){
+    posx += renderer.x
+    posy -= renderer.y
+    X = posx + renderer.x
+    Y = posy + renderer.y
+    Z = posz + renderer.z
+    var dist = Math.hypot(X, Y, Z)
+    var p1 = Math.atan2(X, Z) / Math.PI
+    var p2 = Math.acos(Y / (dist + .0001)) / Math.PI * 2.0 - 1.0
+    return [renderer.width  / 2 + p1 * renderer.width / 2,
+            renderer.height / 2 + p2 * renderer.height / 2, dist]
+  }else{
+    vx += renderer.x
+    vy -= renderer.y
+    vz -= renderer.z
+    
+    var cpx = renderer.x
+    var cpy = renderer.y
+    var cpz = renderer.z
+    var fov = renderer.fov
+    var camz = cpz / 1e3 * Math.pow(5.0, Math.log(fov) / 1.609438) +cpz
+    Z = vz + camz
+    if(Z>0){
+      X = renderer.width / 2 + vx / Z * fov / 2
+      Y = renderer.height / 2 + vy / Z * fov / 2
+      return [X, Y, Z]
+    }
+    return false
   }
-  return false
 }
 
 const ShowBounding = (shape, renderer, draw=true) => {
@@ -1857,8 +1982,22 @@ const ShowBounding = (shape, renderer, draw=true) => {
     recurse(ar, tidx, oidx, maxp)
   }
 
-  var a = [], b, p, ox=-1, oy=1e6, ax, ay
-  var sd = 3//shape.isParticle ? 1 : 3
+  var a     = [], b, p, ox=-1, oy=1e6, ax, ay, nx, ny, nz, uvx, uvy
+  var sd    = 3 //shape.isParticle ? 1 : 3
+  var dset  = shape.shader.datasets[shape.datasetIdx]
+
+  if(shape.heightMap){
+    if(shape.heightTextureMode == 'video') {
+      scratchHeightMap.width  = dset.heightResource.videoWidth / 2
+      scratchHeightMap.height = dset.heightResource.videoHeight / 2
+    } else {
+      scratchHeightMap.width  = dset.heightResource.width / 2
+      scratchHeightMap.height = dset.heightResource.height / 2
+    }
+    SHMctx.drawImage(dset.heightResource, 0, 0, scratchHeightMap.width, scratchHeightMap.height)
+    SHMdata = scratchHeightMap.width ? SHMctx.getImageData(0,0, scratchHeightMap.width, scratchHeightMap.height).data : []
+  }
+  
   for(var i=0; i<shape.vertices.length; i+=sd){
     if(shape.isParticle || !(i%9)){
       ax = ay = 0
@@ -1868,7 +2007,13 @@ const ShowBounding = (shape, renderer, draw=true) => {
     X = shape.vertices[i+0]
     Y = shape.vertices[i+1]
     Z = shape.vertices[i+2]
-    var ar = GetShaderCoord(X, Y, Z, shape, renderer)
+    nx = i+0 < shape.normalVecs.length ? shape.normalVecs[i+0] : 0
+    ny = i+1 < shape.normalVecs.length ? shape.normalVecs[i+1] : 0
+    nz = i+2 < shape.normalVecs.length ? shape.normalVecs[i+2] : 0
+    var uidx = (i/sd | 0) * 2
+    uvx = uidx+0 < shape.uvs.length ? shape.uvs[uidx+0] : 0
+    uvy = uidx+1 < shape.uvs.length ? shape.uvs[uidx+1] : 0
+    var ar = GetShaderCoord(X, Y, Z, shape, renderer, nx, ny, nz, uvx, uvy)
     b = [...b, [ar[0], ar[1]]]
     ax += ar[0]
     ay += ar[1]
@@ -2288,10 +2433,6 @@ const BasicShader = async (renderer, options=[]) => {
 */  
         
         if(useHeightMap != 0.0 && renderNormals == 0.0){
-          
-
-          uvi = uv / 2.0;
-          uvi = vec2(uvi.x, .5 - uvi.y);
           nVeci = normalVec;
           vec4 h;
           float lum;
@@ -2300,12 +2441,12 @@ const BasicShader = async (renderer, options=[]) => {
             float p;
             float p2;
             vec3 cpos = vec3(cx, cy, cz);
-            p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z) * 1.0;
+            p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z);
             float p1;
             p1 = p / M_PI / 2.0;
             p2 = flatShading == 1.0 ?
                   acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
-                  p2 = (acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) + 0.0) / M_PI;
+                  acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) / M_PI;
             uvi = vec2(p1, p2);
           } else {
             uvi = uv;
@@ -2313,7 +2454,7 @@ const BasicShader = async (renderer, options=[]) => {
 
             
           h = texture2D( heightMap, uvi);
-          lum = ((h.r + h.g + h.b) / 3.0) * (1.0 + heightMapIntensity) / 2.0;
+          lum = ((h.r + h.g + h.b) / 3.0) * (heightMapIntensity) / 2.0;
           cx += normalVec.x * lum;
           cy += normalVec.y * lum;
           cz += normalVec.z * lum;
@@ -2394,8 +2535,6 @@ const BasicShader = async (renderer, options=[]) => {
           Y = pos.y + camPos.y + geo.y;
           Z = pos.z + camPos.z + geo.z;
           float dist = sqrt(X*X + Y*Y + Z*Z);
-          //X /= dist;
-          //Y /= dist;
           
           float p1 = atan(X, Z) / M_PI;
           float p2 = acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0;
@@ -4700,7 +4839,6 @@ const AnimationLoop = (renderer, func) => {
     overlay.height = renderer.height
     overlay.c.width = renderer.c.width
     overlay.c.height = renderer.c.height
-    //overlay.ctx.clearRect(0, 0, overlay.width, overlay.height)
     
     if(renderer.ready && typeof window[func] != 'undefined') await window[func]()
       
@@ -4966,6 +5104,10 @@ var overlay        // for sketch-up, e.g. shape-bounding graphics
 overlay = await Renderer({ context: { mode: '2d', margin: 0 } })
 overlay.c.style.background = '#0000'
 overlay.c.style.zIndex = 10000
+
+var scratchHeightMap = document.createElement('canvas')
+var SHMctx = scratchHeightMap.getContext('2d', {willReadFrequently: true})
+var SHMdata
 
 export {
   Renderer,

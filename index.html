@@ -18,23 +18,37 @@
       "./coordinates.js"
     
       var rendererOptions = {
-        ambientLight: .5,
-        fov: 1500
+        ambientLight: .2,
+        fov: 1500,
+        width: 1920 / 1.5,
+        height: 1080 / 1.5
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      renderer.z = 0
-      
+      renderer.z = 12
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+      var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/pano3.jpg'
+      var heightMap  = 'https://boss.mindhackers.org/assets/uploads/26qq09.jpeg'
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: .75
+          value: .2,
+          //theta: Math.PI / 2
+        } },
+        { uniform: {
+          type: 'reflection',
+          value: .33,
+          enabled: true,
+          map: refTexture
         } },
         { plugin: {
           type: 'post processing',
-          value: 'equirectangular'
+          value: 'equirectangular',
+          enabled: false,
         } },
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
@@ -47,21 +61,31 @@
       var framework = await Coordinates.Icosahedron(1, 0, 0, false)
       console.log(framework)
       
-      var cl = 2
-      var rw = 2
-      var br = 2
-      var sp = 10
+      var cl = 1
+      var rw = 1
+      var br = 1
+      var sp = 16
       Array(cl*rw*br).fill().map((v, i) => {
         var x = ((i%cl)-cl/2 + .5) * sp
         var y = (((i/cl|0)%rw)-rw/2 + .5) * sp
         var z = ((i/cl/rw|0)-br/2 + .5) * sp
         var geoOptions = {
           shapeType: 'cube',
+          sphereize: -.5,
+          equirectangular: false,
+          equirectangularHeightMap: false,
+          averageNormals: true,
           size: 5,
-          subs: 2,
-          showNormals: true,
+          subs: 4,
+          map: heightMap,
+          heightMap,
+          heightMapIntensity: 4,
+          showNormals: false,
           x,y,z,
           color: 0xffffff,
+          colorMix: .2,
+          showBounding: false,
+          exportShape: true
         }
         Coordinates.LoadGeometry(renderer, geoOptions).then(geometry => {
           shapes.push(geometry)
@@ -70,8 +94,12 @@
       })
       
       window.Draw = () => {
+        //renderer.pitch += .01
+        //renderer.yaw  = Math.PI
         shapes.forEach(shape => {
+          //shape.roll += .008
           shape.yaw += .01
+          shape.pitch += .01
           shape.pitch += .005
           renderer.Draw(shape)
         })
