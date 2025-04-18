@@ -18,8 +18,8 @@
       "./coordinates.js"
     
       var rendererOptions = {
-        ambientLight: .1,
-        fov: 1500,
+        ambientLight: .4,
+        fov: 1000,
         width: 1920 / 1.5,
         height: 1080 / 1.5
       }
@@ -29,13 +29,17 @@
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
-      var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/pano3.jpg'
       //var heightMap  = 'https://srmcgann.github.io/Coordinates/resources/fake_equirectangular_sky.jpg'
-      var heightMap  = 'https://i.imgur.com/UejKIDY.mp4'
+      //var heightMap  = 'https://i.imgur.com/UejKIDY.mp4'
       //var heightMap  = 'https://i.imgur.com/AQHiFZT.mp4'
+      //var heightMap  = 'https://i.imgur.com/Ad8pyZy.mp4'
+      var heightMap  = 'https://i.imgur.com/tZ8gfw2.mp4'
+      var refTexture = heightMap//'https://srmcgann.github.io/skyboxes3/HDRI/pano2.jpg'
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
+        { lighting: { type: 'ambientLight', value: .25 }
+        },
         { uniform: {
           type: 'phong',
           value: .2,
@@ -43,7 +47,7 @@
         } },
         { uniform: {
           type: 'reflection',
-          value: .25,
+          value: .5,
           enabled: true,
           map: refTexture
         } },
@@ -57,14 +61,31 @@
 
 
       var shapes = []
-      
+
+
+      var geoOptions = {
+        shapeType: 'icosahedron',
+        name: 'background',
+        //sphereize: 1,
+        equirectangular: true,
+        size: 1e3,
+        subs: 3,
+        averageNormals: false,
+        color: 0xffffff,
+        colorMix: 0,
+        map: refTexture,
+      }
+      Coordinates.LoadGeometry(renderer, geoOptions).then(geometry => {
+        shapes.push(geometry)
+        //shader.ConnectGeometry(geometry)
+      })        
       
       // Icosahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType)
       var framework = await Coordinates.Icosahedron(1, 0, 0, false)
       
-      var cl = 3
+      var cl = 1
       var rw = 1
-      var br = 3
+      var br = 1
       var sp = 12
       Array(cl*rw*br).fill().map((v, i) => {
         var x = ((i%cl)-cl/2 + .5) * sp
@@ -76,6 +97,7 @@
           //sphereize: -.5,
           equirectangular: true,
           equirectangularHeightMap: true,
+          playbackSpeed: 1,
           averageNormals: false,
           size: 1,
           yaw: Math.PI,
@@ -84,11 +106,11 @@
           heightMap,
           scaleuvx: 1,
           scaleuvy: 1,
-          heightMapIntensity: 2,
+          heightMapIntensity: 4,
           showNormals: false,
           x,y,z,
           color: 0xffffff,
-          colorMix: .05,
+          colorMix: 0,
           showBounding: false,
           exportShape: false
         }
@@ -101,15 +123,21 @@
       window.Draw = () => {
         var t = renderer.t
         renderer.z = Math.min(16, Math.max(8, (.3+C(t/2))*32))
-        renderer.pitch += .002
-        renderer.yaw += .005
-        renderer.roll += .002
+        renderer.pitch += C(t/2) * .002
+        renderer.yaw += .001
+        //renderer.roll += .002
         //renderer.yaw  = Math.PI
         shapes.forEach((shape, idx) => {
-          //shape.roll += .008
-          shape.yaw += .005 * (idx%2 ? 1 : -1)
-          shape.roll += .0005
-          shape.pitch += .002 * (idx%2 ? 1 : -1)
+          switch(shape.name){
+            case 'background':
+            break
+            default:
+              //shape.roll += .008
+              shape.yaw += .005 * (idx%2 ? 1 : -1)
+              shape.roll += .002
+              shape.pitch += .005 * (idx%2 ? 1 : -1)
+            break
+          }
           renderer.Draw(shape)
         })
       }
