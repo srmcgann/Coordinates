@@ -18,19 +18,21 @@
       "./coordinates.js"
     
       var rendererOptions = {
-        ambientLight: .2,
+        ambientLight: .1,
         fov: 1500,
         width: 1920 / 1.5,
         height: 1080 / 1.5
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      renderer.z = 12
+      renderer.z = 10
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
       var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/pano3.jpg'
-      var heightMap  = 'https://boss.mindhackers.org/assets/uploads/26qq09.jpeg'
+      //var heightMap  = 'https://srmcgann.github.io/Coordinates/resources/fake_equirectangular_sky.jpg'
+      var heightMap  = 'https://i.imgur.com/UejKIDY.mp4'
+      //var heightMap  = 'https://i.imgur.com/AQHiFZT.mp4'
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
@@ -41,7 +43,7 @@
         } },
         { uniform: {
           type: 'reflection',
-          value: .33,
+          value: .25,
           enabled: true,
           map: refTexture
         } },
@@ -59,33 +61,36 @@
       
       // Icosahedron = (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType)
       var framework = await Coordinates.Icosahedron(1, 0, 0, false)
-      console.log(framework)
       
-      var cl = 1
+      var cl = 3
       var rw = 1
-      var br = 1
-      var sp = 16
+      var br = 3
+      var sp = 12
       Array(cl*rw*br).fill().map((v, i) => {
         var x = ((i%cl)-cl/2 + .5) * sp
         var y = (((i/cl|0)%rw)-rw/2 + .5) * sp
         var z = ((i/cl/rw|0)-br/2 + .5) * sp
         var geoOptions = {
-          shapeType: 'cube',
-          sphereize: -.5,
-          equirectangular: false,
-          equirectangularHeightMap: false,
-          averageNormals: true,
-          size: 5,
-          subs: 4,
+          shapeType: 'custom shape',
+          url: 'https://srmcgann.github.io/Coordinates/custom%20shapes/neg_warp_cube_hires.json',
+          //sphereize: -.5,
+          equirectangular: true,
+          equirectangularHeightMap: true,
+          averageNormals: false,
+          size: 1,
+          yaw: Math.PI,
+          //subs: 4,
           map: heightMap,
           heightMap,
-          heightMapIntensity: 4,
+          scaleuvx: 1,
+          scaleuvy: 1,
+          heightMapIntensity: 2,
           showNormals: false,
           x,y,z,
           color: 0xffffff,
-          colorMix: .2,
+          colorMix: .05,
           showBounding: false,
-          exportShape: true
+          exportShape: false
         }
         Coordinates.LoadGeometry(renderer, geoOptions).then(geometry => {
           shapes.push(geometry)
@@ -94,13 +99,17 @@
       })
       
       window.Draw = () => {
-        //renderer.pitch += .01
+        var t = renderer.t
+        renderer.z = Math.min(16, Math.max(8, (.3+C(t/2))*32))
+        renderer.pitch += .002
+        renderer.yaw += .005
+        renderer.roll += .002
         //renderer.yaw  = Math.PI
-        shapes.forEach(shape => {
+        shapes.forEach((shape, idx) => {
           //shape.roll += .008
-          shape.yaw += .01
-          shape.pitch += .01
-          shape.pitch += .005
+          shape.yaw += .005 * (idx%2 ? 1 : -1)
+          shape.roll += .0005
+          shape.pitch += .002 * (idx%2 ? 1 : -1)
           renderer.Draw(shape)
         })
       }
