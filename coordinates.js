@@ -854,8 +854,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'playbackspeed'      :
         playbackSpeed = geoOptions[key]; break
       case 'averagenormals'     :
-        preComputeNormalAssocs = true
-        averageNormals = !!geoOptions[key];
+        averageNormals = geoOptions[key];
+        preComputeNormalAssocs = averageNormals
       break
       default:
         geometry[key] = geoOptions[key]
