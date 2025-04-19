@@ -122,12 +122,22 @@ var rendererOptions = {
       antialias:     true,
       desynchronize: true,
     }
-  }
+  },
+  plugins: [                    // optional plugins.
+    {
+      enabled: true
+      type: 'post processing',      // plugin type.
+      value: 'equirectangular',     // the subtype.
+      params: [ 'omitSplitCheck' ], // optional performance
+                                    // optimization. see notes
+                                    // and example below.
+    }
+  ],
 }
 ```
 <br>
 
-Additionally, a Renderer object contains a number of useful properties:
+Additionally, a Renderer object contains a number of useful properties, auto-updated:
 ```js
 renderer.pageX        // window mouse x coordinate
 renderer.pageY        // window mouse y coordinate
@@ -248,15 +258,7 @@ var shaderOptions = {
           // "po2" is required by *gl for texture wrapping
       value: .5,  // intensity. range: 0 = invisible, to 1 = total, may be over/under clocked
       flatShading: false,
-    },
-    { plugin: {                     // optional plugins.
-      enabled: true
-      type: 'post processing',      // plugin type.
-      value: 'equirectangular',     // the subtype.
-      params: [ 'omitSplitCheck' ], // optional performance
-                                    // optimization. see notes
-                                    // and example below.
-    } }
+    }
   }
 }
 ```
@@ -608,17 +610,29 @@ This creates such output<br>
 ## Plugins
 
 ### Post Processing
-Shaders objects returned by the ``Basic Shader()`` method, may include a plugin stack, optionally. The library of available plugins is growing but here is one example:<br>
+Camera/renderer objects returned by the ``Renderer()`` method, may include a plugin stack, optionally. The library of available plugins is growing but here is one example:<br>
 
 ```js
+var rendererOptions = {
+  ambientLight: .1,
+  fov: 1500,
+  margin: 0,
+  plugins: [
+    {
+      type: 'post processing',
+      value: 'equirectangular',
+      enabled: true,
+    }
+  ],
+}
+var renderer = await Coordinates.Renderer(rendererOptions)
+
+Coordinates.AnimationLoop(renderer, 'Draw')
+
 var shaderOptions = [
   { uniform: {
     type: 'phong',
     value: .75
-  } },
-  { plugin: {
-    type: 'post processing',
-    value: 'equirectangular',
   } }
 ]
 var shader = await Coordinates.BasicShader(renderer, shaderOptions)

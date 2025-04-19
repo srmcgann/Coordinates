@@ -51,10 +51,32 @@ const Renderer = async options => {
   var particleQueue = []
   var pointLights = []
   var pointLightCols = []
+  var optionalPlugins = []
   
   if(typeof options != 'undefined'){
     Object.keys(options).forEach((key, idx) =>{
       switch(key.toLowerCase()){
+        case 'plugins':
+          options[key].map(option => {
+            switch(option.type.toLowerCase()){
+              case 'post processing': 
+                if(typeof option[key]?.enabled == 'undefined' ||
+                   !!option[key].enabled){
+                  var pluginOption = {
+                    name: option.type.toLowerCase(),
+                    value: option.value.toLowerCase(),
+                    params: option?.params ?
+                              option.params.map(v=>v.toLowerCase()) : [],
+                    enabled: true
+                  }
+                  optionalPlugins.push( pluginOption )
+                }
+              break
+              default:
+              break
+            }
+          })
+        break
         case 'width': width = options[key]; break
         case 'height': height = options[key]; break
         case 'alpha': alpha = options[key]; break
@@ -137,7 +159,7 @@ const Renderer = async options => {
     particleQueue, alphaQueue,
     cameraMode, showCrosshair, crosshairSel,
     crosshairMap, pageX, pageY, mouseX, mouseY,
-    mouseButton, rsz, margin
+    mouseButton, rsz, margin, optionalPlugins
     
     // functions
     // ...
@@ -166,6 +188,25 @@ const Renderer = async options => {
     var dset   = shader.datasets[geometry.datasetIdx]
     var sProg  = dset.program
     
+    var equirectangularPlugin, omitSplitCheck
+    renderer.optionalPlugins.map((plugin) => {
+      switch(plugin.name) {
+        case 'post processing':
+          switch(plugin.value){
+            case 'equirectangular':
+              if(!!plugin.enabled){
+                equirectangularPlugin = true
+                omitSplitCheck = !!(plugin.params.indexOf('omitsplitcheck') != -1)
+              }
+              break
+            default:
+              equirectangularPlugin = false
+            break
+          }
+        break
+      }
+    })
+    
     if(typeof geometry?.shader != 'undefined'){
       
       // depth + alpha bugfix
@@ -175,29 +216,19 @@ const Renderer = async options => {
         if(!sortedPass && geometry.isParticle ) {
           renderer.particleQueue = [geometry, ...renderer.particleQueue]
         }else{
-          
-          var dset   = geometry.shader.datasets[geometry.datasetIdx]
-          var equirectangularPlugin, omitSplitCheck
-          dset.optionalPlugins.map((plugin) => {
-            switch(plugin.name) {
-              case 'post processing':
-                switch(plugin.value){
-                  case 'equirectangular':
-                    if(!!plugin.enabled){
-                      equirectangularPlugin = true
-                      omitSplitCheck = !!(plugin.params.indexOf('omitsplitcheck') != -1)
-                    }
-                    break
-                  default:
-                    equirectangularPlugin = false
-                  break
-                }
-              break
-            }
-          })
 
           ctx.useProgram( sProg )
+
+          
           for(var m = 0; m < ((equirectangularPlugin && !omitSplitCheck) ? 2 : 1); m++){
+            
+            // plugins
+            renderer.locPlugin = ctx.getUniformLocation(dset.program, "plugin")
+            renderer.locOmitSplitCheck = ctx.getUniformLocation(dset.program, "omitSplitCheck")
+            renderer.locSplitCheckPass = ctx.getUniformLocation(dset.program, "splitCheckPass")
+            ctx.uniform1f(renderer.locPlugin, equirectangularPlugin ? 1 : 0)
+            ctx.uniform1f(renderer.locOmitSplitCheck, omitSplitCheck ? 1 : 0)
+            ctx.uniform1f(renderer.locSplitCheckPass, m)
             
             if(geometry.showBounding) {
               var bounding = ShowBounding(geometry, renderer, geometry.showBounding,
@@ -236,6 +267,7 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locFov,             renderer.fov)
               ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
               ctx.uniform1f(dset.locRenderNormals,   0)
+
 
               // vertices
               if(geometry?.vertices?.length){
@@ -359,16 +391,6 @@ const Renderer = async options => {
                 }
               })
 
-
-              //ctx.useProgram( sProg )
-              
-              
-              // plugins
-              ctx.uniform1f(dset.locPlugin, equirectangularPlugin ? 1 : 0)
-              ctx.uniform1f(dset.locOmitSplitCheck, omitSplitCheck ? 1 : 0)
-              ctx.uniform1f(dset.locSplitCheckPass, m)
-              
-              
               
               // other uniforms
               ctx.uniform1f(dset.locT,               renderer.t)
@@ -394,8 +416,6 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locRenderNormals,   0)
 
 
-              //ctx.disable(ctx.CULL_FACE)
-              //ctx.cullFace(ctx.BACK)
 
               // bind buffers
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
@@ -405,8 +425,6 @@ const Renderer = async options => {
               ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
               ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-
-              
 
 
               //normals
@@ -674,18 +692,10 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
     Y = ret.vertices[i+1]
     Z = ret.vertices[i+2]
     var ar = [X,Y,Z]
-    if(pt) ar = R(...ar, {roll:0, pitch:pt, yaw:0})
-    if(yw) ar = R(...ar, {roll:0, pitch:0, yaw:yw})
-    if(rl) ar = R(...ar, {roll:rl, pitch:0, yaw:0})
+    R_pyr(...ar, {roll:rl, pitch:pt, yaw:yw})
     ret.vertices[i+0] = ar[0]
     ret.vertices[i+1] = ar[1]
     ret.vertices[i+2] = ar[2]
-    //ret.vertices[i+0] += tx
-    //ret.vertices[i+1] += ty
-    //ret.vertices[i+2] += tz
-    //ret.vertices[i+0] *= scale
-    //ret.vertices[i+1] *= scale
-    //ret.vertices[i+2] *= scale
 
     for(var m = 2; m--;){
       var l = m ? i*2 : i*2+3
@@ -693,10 +703,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
       Y = ret.normals[l+1]
       Z = ret.normals[l+2]
       var ar = [X,Y,Z]
-      //if(pt) ar = R(...ar, {roll:0, pitch:pt, yaw:0})
-      //if(yw) ar = R(...ar, {roll:0, pitch:0, yaw:yw})
-      //if(rl) ar = R(...ar, {roll:rl, pitch:0, yaw:0})
-      ar = R(...ar, {roll:rl, pitch:pt, yaw:yw})
+      ar = R_rpy(...ar, {roll:rl, pitch:pt, yaw:yw})
       ret.normals[l+0] = ar[0]
       ret.normals[l+1] = ar[1]
       ret.normals[l+2] = ar[2]
@@ -717,6 +724,63 @@ const R = (X,Y,Z, cam, m=false) => {
   X = S(p=A(X,Z)+Yw)*(d=H(X,Z))
   Z = C(p)*d
   Y = S(p=A(Y,Z)+Pt)*(d=H(Y,Z))
+  Z = C(p)*d
+  if(m){
+    var oX = cam.x, oY = cam.y, oZ = cam.z
+    X += oX
+    Y += oY
+    Z += oZ
+  }
+  return [X, Y, Z]
+}
+
+const R_ypr = (X,Y,Z, cam, m=false) => {
+  var M = Math, p, d
+  var H=M.hypot, A=M.atan2
+  var Rl = cam.roll, Pt = cam.pitch, Yw = cam.yaw
+  X = S(p=A(X,Z)+Yw)*(d=H(X,Z))
+  Z = C(p)*d
+  Y = S(p=A(Y,Z)+Pt)*(d=H(Y,Z))
+  Z = C(p)*d
+  X = S(p=A(X,Y)+Rl)*(d=H(X,Y))
+  Y = C(p)*d
+  if(m){
+    var oX = cam.x, oY = cam.y, oZ = cam.z
+    X += oX
+    Y += oY
+    Z += oZ
+  }
+  return [X, Y, Z]
+}
+
+const R_pyr = (X,Y,Z, cam, m=false) => {
+  var M = Math, p, d
+  var H=M.hypot, A=M.atan2
+  var Rl = cam.roll, Pt = cam.pitch, Yw = cam.yaw
+  Y = S(p=A(Y,Z)+Pt)*(d=H(Y,Z))
+  Z = C(p)*d
+  X = S(p=A(X,Z)+Yw)*(d=H(X,Z))
+  Z = C(p)*d
+  X = S(p=A(X,Y)+Rl)*(d=H(X,Y))
+  Y = C(p)*d
+  if(m){
+    var oX = cam.x, oY = cam.y, oZ = cam.z
+    X += oX
+    Y += oY
+    Z += oZ
+  }
+  return [X, Y, Z]
+}
+
+const R_rpy = (X,Y,Z, cam, m=false) => {
+  var M = Math, p, d
+  var H=M.hypot, A=M.atan2
+  var Rl = cam.roll, Pt = cam.pitch, Yw = cam.yaw
+  X = S(p=A(X,Y)+Rl)*(d=H(X,Y))
+  Y = C(p)*d
+  Y = S(p=A(Y,Z)+Pt)*(d=H(Y,Z))
+  Z = C(p)*d
+  X = S(p=A(X,Z)+Yw)*(d=H(X,Z))
   Z = C(p)*d
   if(m){
     var oX = cam.x, oY = cam.y, oZ = cam.z
@@ -1768,7 +1832,7 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
                         nx=0, ny=0, nz=0, uvx=0, uvy=0,
                         equirectangularPlugin=false, omitSplitCheck=true,
                         splitCheckPass=0) => {
-  var X, Y, Z
+  var X, Y, Z, ar
   if(geometry.heightMap && SHMdata.length){
     var uvi
     if(geometry.equirectangularHeightmap){
@@ -1800,104 +1864,73 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   
   vy *= -1
   
-
-  var ar = R(vx, vy, vz, {
-    roll: 0,
-    pitch:  0,
-    yaw: geometry.yaw,
-  }, false)
-  vx = ar[0]
-  vy = ar[1]
-  vz = ar[2]
-
-  var ar = R(vx, vy, vz, {
-    roll: 0,
+  ar = R_ypr(vx, vy, vz, {
+    roll:  -geometry.roll + .01,
     pitch: -geometry.pitch,
-    yaw: 0,
-  }, false)
-  vx = ar[0]
-  vy = ar[1]
-  vz = ar[2]
-
-  var ar = R(vx, vy, vz, {
-    roll: -geometry.roll + .01,
-    pitch:  0,
-    yaw: 0,
+    yaw:   geometry.yaw,
   }, false)
   vx = ar[0]
   vy = ar[1]
   vz = ar[2]
 
   if(geometry.isLight){
-    var ar = R(vx, vy, vz, {
-      roll: renderer.roll,
-      pitch:  0,
-      yaw: 0,
+    ar = R_rpy(vx, vy, vz, {
+      roll:  renderer.roll,
+      pitch: renderer.pitch,
+      yaw:  -renderer.yaw,
+    }, false)
+    vx = ar[0]
+    vy = ar[1]
+    vz = ar[2]
+  }
+
+  var cpx = renderer.x
+  var cpy = renderer.y
+  var cpz = renderer.z
+
+  vx += geometry.x
+  vy -= geometry.y
+  vz += geometry.z
+  var posx, posy, posz
+  if(renderer.cameraMode.toLowerCase() == 'fps'){
+    vx += cpx
+    vy -= cpy
+    vz += cpz
+    
+    ar = R_ypr(vx, vy, vz, {
+      roll: -renderer.roll,
+      pitch: -renderer.pitch,
+      yaw: renderer.yaw,
     }, false)
     vx = ar[0]
     vy = ar[1]
     vz = ar[2]
 
-    var ar = R(vx, vy, vz, {
-      roll: 0,
-      pitch:  renderer.pitch,
-      yaw: 0,
-    }, false)
-    vx = ar[0]
-    vy = ar[1]
-    vz = ar[2]
-
-    var ar = R(vx, vy, vz, {
-      roll: 0,
-      pitch: 0,
-      yaw: -renderer.yaw,
+    cpx = 0
+    cpy = 0
+    cpz = 0
+  }else{
+    ar = R_ypr(vx, vy, vz, {
+      roll: -renderer.roll,
+      pitch: -renderer.pitch,
+      yaw: renderer.yaw,
     }, false)
     vx = ar[0]
     vy = ar[1]
     vz = ar[2]
   }
   
-  vx += geometry.x
-  vy -= geometry.y
-  vz += geometry.z
+  posx = vx
+  posy = vy
+  posz = vz
   
-  ar = R(vx, vy, vz, {
-    roll: 0,
-    pitch: 0,
-    yaw: renderer.yaw,
-  }, false)
-  vx = ar[0]
-  vy = ar[1]
-  vz = ar[2]
-
-  ar = R(vx, vy, vz, {
-    roll: 0,
-    pitch: -renderer.pitch,
-    yaw: 0,
-  }, false)
-  vx = ar[0]
-  vy = ar[1]
-  vz = ar[2]
-
-  ar = R(vx, vy, vz, {
-    roll: -renderer.roll,
-    pitch: 0,
-    yaw: 0,
-  }, false)
-  vx = ar[0]
-  vy = ar[1]
-  vz = ar[2]
-
-  var posx = vx
-  var posy = vy
-  var posz = vz
   var skip = false
   if(equirectangularPlugin){
-    posx += renderer.x
-    posy -= renderer.y
-    X = posx + renderer.x
-    Y = posy + renderer.y
-    Z = posz + renderer.z
+    //posx += renderer.x
+    //posy -= renderer.y
+    X = posx + cpx
+    Y = posy - cpy
+    Z = posz + cpz
     var dist = Math.hypot(X, Y, Z)
     var p1, d
     if(!omitSplitCheck){
@@ -1922,18 +1955,15 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
       p1 = Math.atan2(X, Z) / Math.PI
     }
     
-    var p2 = Math.acos(Y / (dist + .0001)) / Math.PI * 2.0 - 1.0
+    var p2 = -(Math.acos(Y / (dist + .0001)) / Math.PI * 2.0 - 1.0)
     return skip ? false : [renderer.width  / 2 + p1 * renderer.width / 2,
                            renderer.height / 2 + p2 * renderer.height / 2,
                            dist]
   }else{
-    vx += renderer.x
-    vy -= renderer.y
-    vz -= renderer.z
+    vx += cpx
+    vy -= cpy
+    vz -= cpz
     
-    var cpx = renderer.x
-    var cpy = renderer.y
-    var cpz = renderer.z
     var fov = renderer.fov
     var camz = cpz / 1e3 * Math.pow(5.0, Math.log(fov) / 1.609438) +cpz
     Z = vz + camz
@@ -2207,7 +2237,6 @@ const BasicShader = async (renderer, options=[]) => {
     locFov: null,
     program: null,
     heightMapURL: null,
-    optionalPlugins: [],
     optionalUniforms: [],
     optionalLighting: [],
   }
@@ -2215,25 +2244,6 @@ const BasicShader = async (renderer, options=[]) => {
   options.map(option => {
     Object.keys(option).forEach((key, idx) => {
       switch(key.toLowerCase()){
-        case 'plugin':
-          switch(option[key].type.toLowerCase()){
-            case 'post processing': 
-              if(typeof option[key]?.enabled == 'undefined' ||
-                 !!option[key].enabled){
-                var pluginOption = {
-                  name: option[key].type.toLowerCase(),
-                  value: option[key].value.toLowerCase(),
-                  params: option[key]?.params ?
-                            option[key].params.map(v=>v.toLowerCase()) : [],
-                  enabled: true
-                }
-                dataset.optionalPlugins.push( pluginOption )
-              }
-            break
-            default:
-            break
-          }
-        break
         case 'lighting':
           switch(option[key].type.toLowerCase()){
             case 'ambientlight': 
@@ -2290,7 +2300,7 @@ const BasicShader = async (renderer, options=[]) => {
                     //light.rgb += .05;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
-                      vec3 reflectionPos = R(nVi, geoOri);
+                      vec3 reflectionPos = R_ypr(nVi, geoOri);
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
@@ -2518,7 +2528,7 @@ const BasicShader = async (renderer, options=[]) => {
         float cpy = camPos.y;
         float cpz = camPos.z;
         
-        if(cameraMode != 0.0 && cameraMode == 1.0){  // 'FPS' mode
+        if(cameraMode == 1.0){  // 'FPS' mode
           if(isSprite != 0.0 || isLight != 0.0){
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
@@ -2573,10 +2583,11 @@ const BasicShader = async (renderer, options=[]) => {
         float X, Y;
         float Z = pos.z + camz + geo.z;
         if(isParticle != 0.0 && penumbraPass != 0.0) Z += .001;
+        
         if( plugin ==  1.0 ){   // equirectangular post-processing plugin
-          X = pos.x + camPos.x + geo.x;
-          Y = pos.y + camPos.y + geo.y;
-          Z = pos.z + camPos.z + geo.z;
+          X = pos.x + cpx + geo.x;
+          Y = pos.y + cpy + geo.y;
+          Z = pos.z + cpz + geo.z;
           float dist = sqrt(X*X + Y*Y + Z*Z);
           float p1;
           if(omitSplitCheck == 0.0){
@@ -2602,7 +2613,7 @@ const BasicShader = async (renderer, options=[]) => {
             p1 = atan(X, Z) / M_PI;
           }
           if(skip == 0.0){
-            float p2 = acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0;
+            float p2 = - (acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0);
             gl_PointSize = 100.0 * pointSize / dist;
             gl_Position = vec4(p1, p2, dist/10000.0, 1.0);
             vUv = uv;
@@ -2686,7 +2697,7 @@ const BasicShader = async (renderer, options=[]) => {
         return ret;
       }
 
-      vec3 R(vec3 pos, vec3 rot){
+      vec3 R_ypr(vec3 pos, vec3 rot){
         float p, d;
         pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
         pos.z = cos(p)*d;
@@ -2694,6 +2705,17 @@ const BasicShader = async (renderer, options=[]) => {
         pos.z = cos(p)*d;
         pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
         pos.y = cos(p)*d;
+        return pos;
+      }
+      
+      vec3 R_yrp(vec3 pos, vec3 rot){
+        float p, d;
+        pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
+        pos.z = cos(p)*d;
+        pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
+        pos.y = cos(p)*d;
+        pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
+        pos.z = cos(p)*d;
         return pos;
       }
       
@@ -2707,8 +2729,7 @@ const BasicShader = async (renderer, options=[]) => {
           lpos.x -= geoPos.x; //- camPos.x;
           lpos.y -= geoPos.y; //- camPos.y;
           lpos.z -= geoPos.z; //- camPos.z;
-          lpos = R(lpos, vec3(camOri.x, 0.0, camOri.z ));
-          lpos = R(lpos, vec3(0.0, camOri.y, 0.0));
+          lpos = R_yrp(lpos, vec3(camOri.x, 0.0, camOri.z ));
 
           float mag = pointLightPos[i].w;
           ret = mag / (1.0 + pow(1.0 + sqrt((lpos.x-fPos.x) * (lpos.x-fPos.x) +
@@ -3056,11 +3077,11 @@ const BasicShader = async (renderer, options=[]) => {
           gl.bindTexture(gl.TEXTURE_2D, dset.texture)
           dset.locTexture = gl.getUniformLocation(dset.program, "baseTexture")
           
-          if(dset.optionalPlugins.length){
-            dset.locPlugin = gl.getUniformLocation(dset.program, "plugin")
-            dset.locOmitSplitCheck = gl.getUniformLocation(dset.program, "omitSplitCheck")
-            dset.locSplitCheckPass = gl.getUniformLocation(dset.program, "splitCheckPass")
-          }
+          //if(renderer.optionalPlugins.length){
+          //  renderer.locPlugin = gl.getUniformLocation(dset.program, "plugin")
+          //  renderer.locOmitSplitCheck = gl.getUniformLocation(dset.program, "omitSplitCheck")
+          //  renderer.locSplitCheckPass = gl.getUniformLocation(dset.program, "splitCheckPass")
+          //}
 
           if(geometry.heightMap){
             dset.heightTexture = gl.createTexture()
@@ -4410,15 +4431,11 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
       X = q[0]
       Y = q[1]
       Z = q[2]
-      r = R(X, Y, Z, {x:0, y:0, z:0,
-                         roll:  0,
-                         pitch: 0,
-                         yaw:   Math.PI/2})
-      
-      r = R(r[0], r[1], r[2], {x:0, y:0, z:0,
+      r = R_ypr(X, Y, Z, {x:0, y:0, z:0,
                          roll:  0,
                          pitch: Math.PI/2,
-                         yaw:   0})
+                         yaw:   Math.PI/2})
+      
       q[0] = r[0]
       q[1] = r[1]
       q[2] = r[2]
@@ -4430,15 +4447,11 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
       X = q[0]
       Y = q[1]
       Z = q[2]
-      r = R(X, Y, Z, {x:0, y:0, z:0,
-                         roll:  0,
+      r = R_ypr(X, Y, Z, {x:0, y:0, z:0,
+                         roll:  Math.PI/2,
                          pitch: 0,
                          yaw:   Math.PI/2})
       
-      r = R(r[0], r[1], r[2], {x:0, y:0, z:0,
-                         roll:  Math.PI/2,
-                         pitch: 0,
-                         yaw:   0})
       q[0] = r[0]
       q[1] = r[1]
       q[2] = r[2]
