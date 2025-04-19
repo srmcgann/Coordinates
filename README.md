@@ -249,6 +249,14 @@ var shaderOptions = {
       value: .5,  // intensity. range: 0 = invisible, to 1 = total, may be over/under clocked
       flatShading: false,
     },
+    { plugin: {                     // optional plugins.
+      enabled: true
+      type: 'post processing',      // plugin type.
+      value: 'equirectangular',     // the subtype.
+      params: [ 'omitSplitCheck' ], // optional performance
+                                    // optimization. see notes
+                                    // and example below.
+    } }
   }
 }
 ```
@@ -595,6 +603,64 @@ This creates such output<br>
 <center>
 
 ![example2](README_g2.gif) </center>
+
+
+## Plugins
+
+### Post Processing
+Shaders objects returned by the ``Basic Shader()`` method, may include a plugin stack, optionally. The library of available plugins is growing but here is one example:<br>
+
+```js
+var shaderOptions = [
+  { uniform: {
+    type: 'phong',
+    value: .75
+  } },
+  { plugin: {
+    type: 'post processing',
+    value: 'equirectangular',
+  } }
+]
+var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+var shapes = []
+
+var cl = 2, rw = 2, br = 2, sp = 8
+for(var i = 0; i<cl*rw*br; i++) {
+  var x = ((i%cl) -cl/2) * sp
+  var y = (((i/cl|0)%rw) - rw/2 + .5) * sp
+  var z = ((i/cl/rw|0)-br/2 + .5) * sp
+  var geoOptions = {
+    shapeType: 'cube',
+    x, y, z,
+    size: 2,
+    subs: 2,
+    colorMix: .6
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+}
+
+renderer.z = 0
+
+window.Draw = () => {
+  var t = renderer.t
+  renderer.yaw   = t
+  renderer.pitch = t
+  shapes.forEach(shape => {
+    shape.yaw   += .01
+    shape.pitch += .05
+    renderer.Draw(shape)
+  })
+}
+```
+This creates such output<br>
+<center>
+
+![example4](README_g4.gif) </center>
+
 
 
 ## Additional Helper Methods
