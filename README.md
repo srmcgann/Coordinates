@@ -123,15 +123,16 @@ var rendererOptions = {
       desynchronize: true,
     }
   },
-  { plugin: {                     // optional plugins.
-    enabled: true
-    type: 'post processing',      // plugin type.
-    value: 'equirectangular',     // the subtype.
-    params: [ 'omitSplitCheck' ], // optional performance
-                                  // optimization. see notes
-                                  // and example below.
+  plugins: [                    // optional plugins.
+    {
+      enabled: true
+      type: 'post processing',      // plugin type.
+      value: 'equirectangular',     // the subtype.
+      params: [ 'omitSplitCheck' ], // optional performance
+                                    // optimization. see notes
+                                    // and example below.
     }
-  }
+  ],
 }
 ```
 <br>
