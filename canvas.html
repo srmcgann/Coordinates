@@ -26,8 +26,11 @@
         ambientLight: .4,
         fov: 1500,
         width: 1920 / 2,
-        height: 1920 / 2,
+        height: 1080 / 2,
         margin: 0,
+        plugins: [
+          { type: 'post processing', value: 'equirectangular' }
+        ]
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
@@ -35,251 +38,74 @@
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
+      var bug, dodec, geoOptions
+
+
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: 0
+          value: .75
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
-      var shapes = []
-
-
-  var rendererOptions = {
-    context: {mode: '2d', options: {
-      willReadFrequently: true,
-      imageSmoothingEnabled: true,
-    } },
-    width: 1024 / 4|0,
-    height: 1024 / 4|0,
-    attachToBody: false
-  }
-  var canvas = await Coordinates.Renderer(rendererOptions)
-  
-  var ctx = canvas.ctx
-  ctx.fillStyle = '#000'
-  ctx.fillRect(0,0,canvas.c.width, canvas.c.height)
-  var scratchData = Array(canvas.width*canvas.height).fill().map(v=>[1, 0])
-  var scratchDataBuffer = Array(canvas.width*canvas.height).fill().map(v=>[1,0])
-  
-  var cl = 2
-  var rw = 2
-  var sp = canvas.width / cl
-
-  Array(cl*rw).fill().map((q, j) => {
-    if(j%cl && (j/cl|0) && (j/cl|0)){
-      var tx = (j%cl) * sp
-      var ty = (j/cl|0) * sp
-      for(var m = 50; m--;) {
-        var ls = Rn() * 6, p, X, Y, idx
-        X = (tx + S(p=Math.PI*2*Rn()) * ls) | 0
-        Y = (ty + C(p) * ls) | 0
-        idx = Math.max(0, Math.min(scratchData.length-1, (X + Y * canvas.width) | 0))
-        scratchData[idx][1] = 1
-        scratchDataBuffer[idx][1] = 1
+      geoOptions = {
+        shapeType: 'dodecahedron',
+        size: 3.3,
+        sphereize: .01,
+        boundingColor: 0xff0000,
       }
-    }
-  })
-  
-  var canvasData = ctx.getImageData(0,0,canvas.width, canvas.height)
-  
-  const processCanvas = () => {
-  
-    var red, green, blue, lum, i, j
-    var lx, mx, rx, uy, my, dy, A, B, A_, B_, LA, LB
-    var corner, side, center
-    var X, Y, idx, grid
-    
-    var da     = 1
-    var db     = .5
-    var f      = .055
-    var k      = .062
-    var speed  = 1
-    
-    var c      = canvas.c
-    var w      = c.width
-    var h      = c.height
-    
-    var data   = canvasData.data
-    
-    for(i = 0; i < data.length; i += 4) {
-    
-      j = i/4
-      A = scratchData[j][0]
-      B = scratchData[j][1]
-      
-      X = j%w
-      Y = j/w|0
-      
-      lx = X-1 >=0 ? X-1 : w-1
-      mx = X
-      rx = X+1 < w ? X+1 : 0
-      uy = Y-1 >=0 ? Y-1 : h-1
-      my = Y
-      dy = Y+1 < h ? Y+1 : 0
-      
-      
-      corner = 1/6/2
-      side   = 1/6
-      center = -1
-      
-      grid = [[lx + uy * w, corner],
-              [mx + uy * w, side],
-              [rx + uy * w, corner],
-              [lx + my * w, side],
-              [mx + my * w, center],
-              [rx + my * w, side],
-              [lx + dy * w, corner],
-              [mx + dy * w, side],
-              [rx + dy * w, corner]]
-      
-      
-      LA = LB = 0
-      grid.forEach(v => {
-        LA += scratchData[v[0]][0] * v[1]
-        LB += scratchData[v[0]][1] * v[1]
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        dodec = geometry
+        await shader.ConnectGeometry(geometry)
+      })  
+
+      geoOptions = {
+        shapeType: 'custom shape',
+        url: 'https://srmcgann.github.io/Coordinates/custom shapes/ladybug.json',
+        map: 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png',
+        size: .4,
+        y: -4,
+        flipNormals: true,
+        equirectangular: true,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        bug = geometry
+        await shader.ConnectGeometry(geometry)
       })
-      
-      var valA, valB
-      scratchDataBuffer[j][0] = valA = Math.min(2, Math.max(0,
-                                  A + (da * LA - A * B**2 + f * (1-A)) * speed
-                                ))
-      scratchDataBuffer[j][1] = valB = Math.min(2, Math.max(0,
-                                  B + (db * LB + A * B**2 - (k + f) * B) * speed
-                                ))
-      red   = Math.min(255, (valB * 1.5) **2 * 256 * 2 | 0)
-      //green = Math.min(255, (valB * 1.5) **2 * 128 * 2 | 0)
-      //blue  = Math.min(255, valA * 32 |0)
-      data[i+0] = red /2
-      data[i+1] = red ** 2 / 24
-      data[i+2] = red // 1.5
-      data[i+3] = 255 //alpha
-    }
-    
-    scratchDataBuffer.map((v, i) => {
-      scratchData[i][0] = v[0]
-      scratchData[i][1] = v[1]
-    })
-    //var temp = scratchData
-    //scratchData = scratchDataBuffer
-    //scratchDataBuffer = temp
-    
-    ctx.putImageData(canvasData, 0, 0)
-  }
 
-  var geoOptions = {
-    shapeType: 'rectangle',
-    equirectangular: false,
-    subs: 3,
-    x: -.05,
-    wireframe: false,
-    name: 'canvasRect',
-    showNormals: false,
-    flipNormals: false,
-    canvasTexture: canvas.c,
-    size: 5.38,
-    color: 0xffffff,
-    colorMix: 0,
-  }
-  if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    shapes.push(geometry)
-    //await shader.ConnectGeometry(geometry)
-  })
-        
+
+      renderer.z = 14
+      renderer.pitch = .5
+
       window.Draw = () => {
-        for(var n=8; n--;) processCanvas()
-        shapes.forEach(shape => {
-          //shape.yaw += .01
-          //shape.pitch += .005
+        var t = renderer.t
+        renderer.yaw += .005
+        
+        var cl = 3  // columns
+        var rw = 1  // rows
+        var br = 3  // 'bars?'
+        var sp = 8  // spacing
+        
+        for(var i=0; i<cl*rw*br; i++){
+        
+          var shape = i == 4 ? bug : dodec
+          
+          shape.x = ((i%cl)-cl/2 + .5) * sp
+          shape.y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+          shape.z = ((i/cl/rw|0)-br/2 + .5) * sp
           renderer.Draw(shape)
-        })
+          
+          // check if mouse cursor is inside a bounding poly. draw if so.
+          // note: this does no automatic depth checking. that is up to you.
+          
+          var poly = Coordinates.ShowBounding(shape, renderer, false)
+          if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, poly)){
+            Coordinates.ShowBounding(shape, renderer, true)
+          }
+        }
       }
-      
     </script>
   </body>
 </html>
-
-
-
-<!--
-  TO DO
-  
-  * re make OBJLoader method, to spec
-
-  
-  ✔ re: 'sphereize', the problem exists of needing to average
-         normals AFTER the shape is sphereized, as the degree is
-         not known prior. Normal averaging is computationally
-         expensive, so a solution, in the context of pre-built shapes,
-         is to provide an optional function "AverageNormals", and
-         instruct users that sphereized shapes may use it, for
-         reflections etc.
-  
-  ✔ re-export 'new shapes' with unit size
-  ✔ fix color mix
-  ✔ come up with solution for averaging normals (for phong etc), with prebuilt shapes
-  
-  * 'grouping' / 'ungrouping' option
-        for geometry, which makes drawing buffers contiguous
-  
-  ✔ sprites [transparent rectangle?]
-  
-  ✔ make uniforms: position, normal etc vec3, vs separate floats
-  
-  * lights
-    └> ✔ ambient
-       ✔  point
-       *  directional
-  
-  * geometry
-    └> ✔ generalize geometry function
-       ✔ add shapeTypes: torus, cylinder
-       ✔  add method / shapeType for points/particles, lines
-       ✔ deformation methods
-       ✔ return "raw" geometry with inbuilt shapes, for 2d context
-       ✔ add 3-axis 'scale' function 
-       
-  ✔ README.md
-    └> ✔  add remaining exposed methods (e.g. color conversions, spatial)
-          as "supplemental"
-  
-  ✔ add renderer object
-  ✔ add camera object
-  ✔ fix FOV
-  ✔ README.md / documentation
-  
-  * sprite sheet system / import basic+custom slicing
-  ✔ add video texture capabilities
-  * cache for API, to include all network-callable items
-  
-  * shapes
-    └> ✔ add shapes (in addtion to Cube)
-       ✔ make non-cube UVs equirectangular
-       ✔ keep shape generation functions, but add 'precompiled' versions for ordinary calls
-       ✔ move rotation function into shader
-       * loading -> compression, direct output of
-                    usable format (no further processing needed)
-
-  * subdivision
-    └> ✔  add optional LOD param for all basic geometry
-       ✔ decouple polygons from UV subdivision (interpolate UVs @ sub)
-       
-  * shaders / textures
-    └> ✔ move shaders into Coordinates module
-       *  bloom / glow shader
-       *  add '# tiling (x/y)' option
-       ✔  phong -> play nice with rectangle
-       ✔  move camera into vertex shader
-       ✔  create pseudo-phong shader
-       ✔  add 'reflectivity' & texture input for it
-       ✔  flat/smooth shading
-       ✔  integrate optional effect shaders
-
-  * functions / methods
-    └> ✔ begin separating module functions as optional includes
-       ✔ migrate functions to coordinates.js module
-       ✔ integrate obj loader
-
--->
