@@ -196,11 +196,13 @@ const Renderer = async options => {
             case 'equirectangular':
               if(!!plugin.enabled){
                 equirectangularPlugin = true
+                renderer.equirectangularPlugin = true
                 omitSplitCheck = !!(plugin.params.indexOf('omitsplitcheck') != -1)
               }
               break
             default:
               equirectangularPlugin = false
+              renderer.equirectangularPlugin = false
             break
           }
         break
@@ -1925,6 +1927,7 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   posz = vz
   
   var skip = false
+  
   if(equirectangularPlugin){
     //posx += renderer.x
     //posy -= renderer.y
@@ -1977,8 +1980,12 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
 }
 
 const ShowBounding = (shape, renderer, draw=true,
-                      equirectangularPlugin=false,
+                      equirectangularPlugin=-1,
                       omitSplitCheck=true, splitCheckPass=0) => {
+                        
+  if(equirectangularPlugin == -1){
+    equirectangularPlugin = renderer.equirectangularPlugin
+  }
   
   if(shape.isLight) return [] // aesthetic issue with raw rectangles, not critical
 

@@ -12,176 +12,68 @@
     </style>
   </head>
   <body>
-    <script type="module">
-    
-      import * as Coordinates from
-      "./coordinates.js"
-      
-      var refTexture = 'https://i.imgur.com/eTpFQDt.mp4'
-      var refTexture2 = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
-      var S = Math.sin
-      var C = Math.cos
-      var Rn = Math.random
-    
+<script type="module">
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
 var rendererOptions = {
-  alpha: false,
-  width: 1920,  // the interior viewport dimensions (pixels)
-  height: 1080,
-  clearColor: 0x333333,  // grey
-  fov: 2e3,  // "field of vision", the camera's focal length
-             // useful range:
-             //   500 (perspective) to 100,000 (orthographic)
-  ambientLight: .5,
-  x:    0, y:     0, z:   0,
-  roll: 0, pitch: 0, yaw: 0,
-  margin: 10,  // the viewport will expand to fill as much of the
-               // visible page as possible, resizing automatically,
-               // with a margin of this amount
-  attachToBody: true, // this can be set to false, for
-                      // background/buffer operations if needed
-  context: {
-    mode: 'webgl2',   // 2d is semi-implemented,
-                      // not working at this time
-    options: {
-      alpha:         true,
-      antialias:     true,
-      desynchronize: true,
-    }
-  },
-  plugins: [                    // optional plugins.
+  ambientLight: .1,
+  fov: 1500,
+  margin: 0,
+  plugins: [
     {
+      type: 'post processing',
+      value: 'equirectangular',
       enabled: true,
-      type: 'post processing',      // plugin type.
-      value: 'equirectangular',     // the subtype.
-      //params: [ 'omitSplitCheck' ], // optional performance
-                                    // optimization. see notes
-                                    // and example below.
     }
   ],
 }
-      var canvasTexture = await Coordinates.Renderer(rendererOptions)
+var renderer = await Coordinates.Renderer(rendererOptions)
 
-      var rendererOptions = {
-        ambientLight: .1,
-        fov: 1500
-      }
-      var renderer = await Coordinates.Renderer(rendererOptions)
+Coordinates.AnimationLoop(renderer, 'Draw')
 
-      Coordinates.AnimationLoop(renderer, 'Draw')
+var shaderOptions = [
+  { uniform: {
+    type: 'phong',
+    value: .75
+  } }
+]
+var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-      var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: 0}},
-        { uniform: {
-          type: 'phong',
-          value: .5
-        } }
-      ]
-      var shader = await Coordinates.BasicShader(canvasTexture, shaderOptions)
+var shapes = []
 
-      var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: 0},
-        },
-        { uniform: {
-          type: 'phong',
-          value: .2
-        } },
-        { uniform: {
-          type: 'reflection',
-          value: .3,
-          enabled: true,
-          map: refTexture2
-        } },
-      ]
-      var rendereredShader = await Coordinates.BasicShader(renderer, shaderOptions)
+var cl = 2, rw = 2, br = 2, sp = 8
+for(var i = 0; i<cl*rw*br; i++) {
+  var x = ((i%cl) -cl/2) * sp
+  var y = (((i/cl|0)%rw) - rw/2 + .5) * sp
+  var z = ((i/cl/rw|0)-br/2 + .5) * sp
+  var geoOptions = {
+    shapeType: 'cube',
+    x, y, z,
+    size: 2,
+    subs: 2,
+    colorMix: .6
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+}
 
-      var shapes = []
+renderer.z = 0
 
-      var geoOptions = {
-        shapeType: 'octahedron',
-        name: 'interior_orb_background',
-        subs: 3,
-        //sphereize: 1,
-        //averageNormals: true,
-        size: 1e3,
-        map: refTexture,
-        playbackSpeed: .9,
-        colorMix: 0,
-      }
-      await Coordinates.LoadGeometry(canvasTexture, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        //await shader.ConnectGeometry(geometry)
-      })
-      
-      var cl = 2, rw = 1, br = 2, sp = 8
-      for(var i = 0; i<cl*rw*br; i++) {
-        var x = ((i%cl) -cl/2) * sp
-        var y = (((i/cl|0)%rw) - rw/2 + .5) * sp
-        var z = ((i/cl/rw|0)-br/2 + .5) * sp
-        var geoOptions = {
-          shapeType: 'cube',
-          x, y, z,
-          map: 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2.jpg',
-          size: 2,
-          subs: 1,
-          equirectangular: true,
-          colorMix: 0
-        }
-        await Coordinates.LoadGeometry(canvasTexture, geoOptions).then(async (geometry) => {
-          shapes.push(geometry)
-          await shader.ConnectGeometry(geometry)
-        })  
-      }
+window.Draw = () => {
+  var t = renderer.t
+  renderer.yaw   = t
+  renderer.pitch = t
+  shapes.forEach(shape => {
+    shape.yaw   += .01
+    shape.pitch += .05
+    renderer.Draw(shape)
+  })
+}
 
-      var heightMap = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
-      
-      var geoOptions = {
-        shapeType: 'dodecahedron',
-        name: 'orb',
-        subs: 3,
-        heightMap,
-        heightMapIntensity: 4,
-        //map: heightMap,
-        equirectangularHeightMap: true,
-        sphereize: .5,
-        exportShape: true,
-        averageNormals: true,
-        size: 10,
-        canvasTexture: canvasTexture.c,
-        colorMix: 0,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await rendereredShader.ConnectGeometry(geometry)
-      })  
-
-
-      canvasTexture.z = 0
-      renderer.z      = 14
-
-      window.Draw = () => {
-        var t = canvasTexture.t
-        canvasTexture.yaw   = t
-        renderer.yaw   = -t
-        canvasTexture.pitch = t
-        shapes.forEach(shape => {
-          switch(shape.name){
-            case 'interior_orb_background':
-              canvasTexture.Draw(shape)
-            break
-            case 'orb':
-              shape.yaw   -= .01
-              shape.pitch = C(t*4) / 3
-              renderer.Draw(shape)
-            break
-            default:
-              shape.yaw   += .01
-              shape.pitch += .05
-              canvasTexture.Draw(shape)
-            break
-          }
-        })
-      }
-
-    </script>
+</script>
   </body>
 </html>
