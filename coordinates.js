@@ -60,14 +60,14 @@ const Renderer = async options => {
           options[key].map(option => {
             switch(option.type.toLowerCase()){
               case 'post processing': 
-                if(typeof option[key]?.enabled == 'undefined' ||
-                   !!option[key].enabled){
+                if(typeof option?.enabled == 'undefined' ||
+                   !!option.enabled){
                   var pluginOption = {
                     name: option.type.toLowerCase(),
                     value: option.value.toLowerCase(),
+                    enabled: !!option.enabled,
                     params: option?.params ?
                               option.params.map(v=>v.toLowerCase()) : [],
-                    enabled: true
                   }
                   optionalPlugins.push( pluginOption )
                 }
