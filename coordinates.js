@@ -2651,6 +2651,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float isSprite;
       uniform float isLight;
       uniform float isParticle;
+      uniform float cameraMode;
       uniform vec4 pointLightPos[16];
       uniform vec4 pointLightCol[16];
       uniform int pointLightCount;
@@ -2736,12 +2737,11 @@ const BasicShader = async (renderer, options=[]) => {
           lpos.x -= geoPos.x; //- camPos.x;
           lpos.y -= geoPos.y; //- camPos.y;
           lpos.z -= geoPos.z; //- camPos.z;
-          lpos = R_yrp(lpos, vec3(camOri.x, 0.0, camOri.z ));
+          lpos = R_yrp(lpos, vec3(camOri.x, camOri.y, camOri.z ));
 
           float mag = pointLightPos[i].w;
-          ret = mag / (1.0 + pow(1.0 + sqrt((lpos.x-fPos.x) * (lpos.x-fPos.x) +
-                       (lpos.y-fPos.y) * (lpos.y-fPos.y) +
-                       (lpos.z-fPos.z) * (lpos.z-fPos.z)), 2.0) / 3.0) * 40.0;
+          ret = mag / (1.0 + pow(1.0 + sqrt((lpos.x-fPos.x) * (lpos.x-fPos.x) + (lpos.y-fPos.y) * (lpos.y-fPos.y) +
+          + (lpos.z-fPos.z) * (lpos.z-fPos.z)), 2.0) / 3.0) * 40.0;
           
           rgba.r += ret * pointLightCol[i].r;
           rgba.g += ret * pointLightCol[i].g;
