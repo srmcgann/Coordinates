@@ -20,24 +20,45 @@
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
-      var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
     
       var rendererOptions = {
-        ambientLight: .1,
-        fov: 1500
+        ambientLight: .25,
+        fov: 1000,
+        width: 1920 / 2,
+        height: 1080 / 2,
+        margin: 0,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: .05}},
         { uniform: {
           type: 'phong',
-          value: .2
+          value: .3,
+          theta: .5,
         } },
         { uniform: {
           type: 'reflection',
-          value: .4,
+          value: .2,
+          enabled: false,
+          map: refTexture
+        } },
+      ]
+      var earfShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: .25}},
+        { uniform: {
+          type: 'phong',
+          value: .4
+        } },
+        { uniform: {
+          type: 'reflection',
+          value: .5,
+          enabled: true,
           map: refTexture
         } },
       ]
@@ -49,8 +70,8 @@
       
       var x=0, y=0, z=0
       
-      var grid = []
-      var tShape = await Coordinates.Tetrahedron(20, 0, 1)
+      var grid = Coordinates.GeoSphere(0,0,0,16,32)[4]
+      /*await Coordinates.Cube(32, 0, 1)
       for(var i = 0; i< tShape.geometry.length; i+=3){
         var X1 = tShape.geometry[i+0].position[0]
         var Y1 = tShape.geometry[i+0].position[1]
@@ -65,62 +86,94 @@
         var ay = (Y1 + Y2 + Y3) / 3
         var az = (Z1 + Z2 + Z3) / 3
         grid = [...grid, [ax, ay, az]]
-      }
-      console.log(grid, tShape)
+      }*/
       
       var geoOptions = {
-        shapeType: 'cube',
-        name: 'cube',
-        size: 1,
-        subs: 0,
-        flipNormals: false,
-        scaleZ: 5,
-        color: 0xffffff,
-        colorMix: .25,
+        shapeType: 'dodecahedron',
+        name: 'background',
+        size: 1e3,
+        involveCache: false,
+        subs: 2,
+        //sphereize: 1,
         x, y, z,
+        map: refTexture,
+        equirectangular: true,
+        colorMix: 0,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
       })
       
       var geoOptions = {
         shapeType: 'custom shape',
-        name: 'flower',
-        url: 'https://srmcgann.github.io/Coordinates/custom shapes/flower 1/flower 1.json',
-        map: 'https://srmcgann.github.io/Coordinates/custom shapes/flower 1/flower 1 texture 3.jpg',
-        size: 1,
-        flipNormals: true,
-        color: 0xffffff,
-        colorMix: 0,
+        involveCache: false,
+        name: 'earf',
+        //subs: 3,
+        //sphereize: 1,
+        //averageNormals: true,
+        size: .8,
         x, y, z,
+        url: 'https://srmcgann.github.io/Coordinates/custom shapes/icosahedron_sphere_medres.json',
+        map: 'https://srmcgann.github.io/Coordinates/resources/earth_with_clouds_animated_lowres.mp4',
+        heightMap: 'https://srmcgann.github.io/Coordinates/resources/earth_heightmap_lowres.jpg',
+        heightMapIntensity: 8,
+        playbackSpeed: 2,
+        equirectangular: true,
+        equirectangularHeightmap: true,
+        colorMix: 0,
+        //exportShape: true,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        foliage.push(geometry)
-        await shader.ConnectGeometry(geometry)
+        shapes.push(geometry)
+        await earfShader.ConnectGeometry(geometry)
       })
       
-      var geoOptions = {
-        shapeType: 'custom shape',
-        name: 'tree c',
-        url: 'https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c.json',
-        map: 'https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c 2.jpg',
-        size: .75,
-        color: 0xffffff,
-        colorMix: 0,
-        x, y, z,
+      for(var m = 4; m--;) {
+        var geoOptions = {
+          shapeType: 'custom shape',
+          involveCache: false,
+          name: 'flower',
+          url: 'https://srmcgann.github.io/Coordinates/custom shapes/flower 1/flower 1.json',
+          map: `https://srmcgann.github.io/Coordinates/custom%20shapes/flower%201/flower%201%20texture%20${m+1}_lowres.jpg`,
+          size: 1.66,
+          scaleX: 2,
+          scaleZ: 2,
+          flipNormals: true,
+          color: 0xffffff,
+          colorMix: 0,
+          x, y, z,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          foliage.push(geometry)
+          await shader.ConnectGeometry(geometry)
+        })
+      
+        var geoOptions = {
+          shapeType: 'custom shape',
+          involveCache: false,
+          name: 'tree c',
+          url: 'https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c.json',
+          map: `https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c ${m+2}_lowres.jpg`,
+          scaleX: 2,
+          scaleZ: 2,
+          size: .75,
+          color: 0xffffff,
+          colorMix: 0,
+          x, y, z,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          foliage.push(geometry)
+          await shader.ConnectGeometry(geometry)
+        })
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        foliage.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })
       
       var geoOptions = {
         shapeType: 'custom shape',
         name: 'tree',
         url: 'https://srmcgann.github.io/Coordinates/custom shapes/tree/tree.json',
         map: 'https://srmcgann.github.io/Coordinates/custom shapes/tree/bark.jpg',
-        size: 1.5,
+        size: 2.5,
+        //flipNormals: true,
         color: 0xffffff,
         colorMix: 0,
         x, y, z,
@@ -130,78 +183,80 @@
         await shader.ConnectGeometry(geometry)
       })
       
+      var treeLeaves
       var geoOptions = {
         shapeType: 'custom shape',
         name: 'leaves',
         url: 'https://srmcgann.github.io/Coordinates/custom shapes/tree/leaves.json',
         map: 'https://srmcgann.github.io/Coordinates/custom shapes/tree/leaf.png',
-        size: 1.5,
+        size: 2.5,
         color: 0xffffff,
         colorMix: 0,
         x, y, z,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        foliage.push(geometry)
+        treeLeaves = geometry
         await shader.ConnectGeometry(geometry)
       })
       
       
-      var X, Y, Z, p, p1, p2, d
+      var X, Y, Z, l, p, p1, p2, d, yaw, pitch, roll, shp
       
       window.Draw = () => {
       
         var t = renderer.t
-        renderer.z = 32
-        renderer.yaw = t
-        //renderer.pitch = t
-        
-        /*
-        var idx = 0
-        var tct = foliage.length - 1
-        foliage.map(item => {
-          switch(item.name){
-            case 'flower':
-            idx ++
-            break
-            case 'tree c':
-            idx ++
-            break
-            case 'tree':
-            idx ++
-            break
-            case 'leaves':
-            break
-          }
-          item.yaw += .01
-          item.x = ((idx%tct)- tct / 2 +.5) * 20
-          renderer.Draw(item)
-        })
-        */
-        
-        
-        // yaw, pitch, roll
-        
+        renderer.z = Math.min(100, Math.max(60, (.3+C(t/2))*120))
+        renderer.pitch = C(t/2) / 3
+        renderer.yaw   = -t / 6
         shapes.forEach((shape, idx) => {
           switch(shape.name){
-            case 'cube':
-              grid.map(v => {
+            case 'background':
+              //shape.yaw   = -renderer.yaw
+              //shape.pitch = renderer.pitch
+              renderer.Draw(shape)
+            break
+            case 'earf':
+              grid.map((v, i) => {
                 X = v[0]
                 Y = v[1]
                 Z = v[2]
+                
+                //p = Math.atan(X, Z) + t
+                //d = Math.hypot(X, Z)
+                //X = S(p) * d
+                //Z = C(p) * d
+                
+                //p = Math.atan(Y, Z) + C(t*2) / 20
+                //d = Math.hypot(Y, Z)
+                //Y = S(p) * d
+                //Z = C(p) * d
               
                 d = Math.hypot(X, Y, Z)
-                var yaw =  -Math.acos(X/d) - Math.PI / 2
-                var pitch = Math.atan2(Y, Z) 
+                roll  = Math.atan2(-X, -Y)
+                pitch = Math.acos(-Z/d) + Math.PI / 2
+                yaw   = t * (i%2 ? 1 : -1)
               
-                var shp = foliage[idx%3]
-                shp.yaw  = yaw
-                shp.pitch =  pitch
+                shp = foliage[l=i%foliage.length]
+                shp.roll  = roll
+                shp.pitch = pitch
+                shp.yaw   = yaw
                 shp.x = X
                 shp.y = Y
                 shp.z = Z
-                
                 renderer.Draw(shp)
+                
+                if(shp.name=='tree'){
+                  shp = treeLeaves
+                  shp.roll  = roll
+                  shp.pitch = pitch
+                  shp.yaw   = yaw
+                  shp.x = X
+                  shp.y = Y
+                  shp.z = Z
+                  renderer.Draw(shp)
+                }
               })
+              renderer.Draw(shape)
             break
           }
         })
