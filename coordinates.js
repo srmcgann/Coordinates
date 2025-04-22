@@ -3860,7 +3860,7 @@ const GeoSphere = (mx, my, mz, iBc, size) => {
     Z = Rn()-.5
     return  [X,Y,Z]
   })
-  for(let m=20;m--;){
+  for(let m=50;m--;){
     B.map((v,i)=>{
       X = v[0]
       Y = v[1]
@@ -3870,7 +3870,7 @@ const GeoSphere = (mx, my, mz, iBc, size) => {
           X2=q[0]
           Y2=q[1]
           Z2=q[2]
-          d=1+(Math.hypot(X-X2,Y-Y2,Z-Z2)*(3+iBc/70)*3)**3
+          d=1+(Math.hypot(X-X2,Y-Y2,Z-Z2)*(3+iBc/80)*3)**3
           X+=(X-X2)*9/d
           Y+=(Y-Y2)*9/d
           Z+=(Z-Z2)*9/d
