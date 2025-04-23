@@ -151,6 +151,12 @@ renderer.mouseButton  // the browser window mouse button status
 <br>
 
 
+## DestroyRenderer()
+
+``Coordinates.DestroyRenderer(renderer)``<br>
+When a camera/renderer is instantiated it may begin an animation loop, as well as place a canvas on the screen. Pass a renderer object to this method to elminate the canvas and cancel the loop, e.g. for performance reasons.<br>
+
+
 ## LoadFPSControls()
 
 ``Coordinates.LoadFPSControls(renderer, options)``<br>
