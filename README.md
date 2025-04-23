@@ -175,6 +175,7 @@ var FPSOptions = {
                         // if it involves transparency.
   mSpeed:        1.0,   // constant movement speed multiplier.
   rSpeed:        1.0,   // constant rotational speed multiplier.
+  focusRequiredForMouse: true,  // if set to false, mouse-over is processed without clicking
   useKeys:       true,  // enabled by default, you may use the FPS camera only,
                         // without keys/mouse, by setting useKeys: false. This
                         // might be useful for environments where the default
