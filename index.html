@@ -20,11 +20,11 @@
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+      var refTexture = 'https://srmcgann.github.io/skyboxes7/HDRI/space.jpg'
     
       var rendererOptions = {
-        ambientLight: .25,
-        fov: 1000,
+        ambientLight: .2,
+        fov: 800,
         width: 1920 / 2,
         height: 1080 / 2,
         margin: 0,
@@ -34,15 +34,15 @@
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: .05}},
+        { lighting: {type: 'ambientLight', value: .2}},
         { uniform: {
           type: 'phong',
-          value: .3,
-          theta: .5,
+          value: .5,
+          theta: .35,
         } },
         { uniform: {
           type: 'reflection',
-          value: .2,
+          value: .4,
           enabled: false,
           map: refTexture
         } },
@@ -50,14 +50,15 @@
       var earfShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: .25}},
+        { lighting: {type: 'ambientLight', value: .3}},
         { uniform: {
           type: 'phong',
-          value: .4
+          value: .8,
+          theta: .5
         } },
         { uniform: {
           type: 'reflection',
-          value: .5,
+          value: .2,
           enabled: true,
           map: refTexture
         } },
@@ -117,7 +118,7 @@
         map: 'https://srmcgann.github.io/Coordinates/resources/earth_with_clouds_animated_lowres.mp4',
         heightMap: 'https://srmcgann.github.io/Coordinates/resources/earth_heightmap_lowres.jpg',
         heightMapIntensity: 8,
-        playbackSpeed: 2,
+        playbackSpeed: 1.5,
         equirectangular: true,
         equirectangularHeightmap: true,
         colorMix: 0,
@@ -135,7 +136,7 @@
           name: 'flower',
           url: 'https://srmcgann.github.io/Coordinates/custom shapes/flower 1/flower 1.json',
           map: `https://srmcgann.github.io/Coordinates/custom%20shapes/flower%201/flower%201%20texture%20${m+1}_lowres.jpg`,
-          size: 1.66,
+          size: 1.5,
           scaleX: 2,
           scaleZ: 2,
           flipNormals: true,
@@ -154,9 +155,9 @@
           name: 'tree c',
           url: 'https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c.json',
           map: `https://srmcgann.github.io/Coordinates/custom shapes/tree c/tree c ${m+2}_lowres.jpg`,
-          scaleX: 2,
-          scaleZ: 2,
-          size: .75,
+          scaleX: 1.25,
+          scaleZ: 1.25,
+          size: .9,
           color: 0xffffff,
           colorMix: 0,
           x, y, z,
@@ -172,7 +173,9 @@
         name: 'tree',
         url: 'https://srmcgann.github.io/Coordinates/custom shapes/tree/tree.json',
         map: 'https://srmcgann.github.io/Coordinates/custom shapes/tree/bark.jpg',
-        size: 2.5,
+        size: 3,
+        scaleX: 1.5,
+        scaleZ: 1.5,
         //flipNormals: true,
         color: 0xffffff,
         colorMix: 0,
@@ -187,9 +190,12 @@
       var geoOptions = {
         shapeType: 'custom shape',
         name: 'leaves',
+        //flipNormals: true,
         url: 'https://srmcgann.github.io/Coordinates/custom shapes/tree/leaves.json',
         map: 'https://srmcgann.github.io/Coordinates/custom shapes/tree/leaf.png',
-        size: 2.5,
+        size: 3,
+        scaleX: 1.5,
+        scaleZ: 1.5,
         color: 0xffffff,
         colorMix: 0,
         x, y, z,
@@ -202,12 +208,25 @@
       
       var X, Y, Z, l, p, p1, p2, d, yaw, pitch, roll, shp
       
+      console.log(shader, earfShader)
+      
+      
       window.Draw = () => {
       
         var t = renderer.t
-        renderer.z = Math.min(100, Math.max(60, (.3+C(t/2))*120))
-        renderer.pitch = C(t/2) / 3
-        renderer.yaw   = -t / 6
+        shader.datasets.map(dataset=>{
+          if(typeof dataset.optionalUniforms != 'undefined' && dataset.optionalUniforms.length){
+            dataset.optionalUniforms.filter(uniform=>uniform.name == 'phong')[0].theta = t * 2
+          }
+        })
+        earfShader.datasets.map(dataset=>{
+          if(typeof dataset.optionalUniforms != 'undefined' && dataset.optionalUniforms.length){
+            dataset.optionalUniforms.filter(uniform=>uniform.name == 'phong')[0].theta = t * 2
+          }
+        })
+        renderer.z = Math.min(125, Math.max(70, (.3+C(t/4))*150))
+        renderer.pitch = C(t/6)
+        renderer.yaw   = -t / 8
         shapes.forEach((shape, idx) => {
           switch(shape.name){
             case 'background':
@@ -220,23 +239,13 @@
                 X = v[0]
                 Y = v[1]
                 Z = v[2]
-                
-                //p = Math.atan(X, Z) + t
-                //d = Math.hypot(X, Z)
-                //X = S(p) * d
-                //Z = C(p) * d
-                
-                //p = Math.atan(Y, Z) + C(t*2) / 20
-                //d = Math.hypot(Y, Z)
-                //Y = S(p) * d
-                //Z = C(p) * d
               
                 d = Math.hypot(X, Y, Z)
                 roll  = Math.atan2(-X, -Y)
                 pitch = Math.acos(-Z/d) + Math.PI / 2
-                yaw   = t * (i%2 ? 1 : -1)
+                yaw   = t * (i%2 ? .5 : -.5)
               
-                shp = foliage[l=i%foliage.length]
+                shp = foliage[l=(i+2)%foliage.length]
                 shp.roll  = roll
                 shp.pitch = pitch
                 shp.yaw   = yaw
