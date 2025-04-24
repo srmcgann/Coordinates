@@ -151,6 +151,12 @@ renderer.mouseButton  // the browser window mouse button status
 <br>
 
 
+## DestroyRenderer()
+
+``Coordinates.DestroyRenderer(renderer)``<br>
+When a camera/renderer is instantiated it may begin an animation loop, as well as place a canvas on the screen. Pass a renderer object to this method to elminate the canvas and cancel the loop, e.g. for performance reasons.<br>
+
+
 ## LoadFPSControls()
 
 ``Coordinates.LoadFPSControls(renderer, options)``<br>
@@ -175,6 +181,7 @@ var FPSOptions = {
                         // if it involves transparency.
   mSpeed:        1.0,   // constant movement speed multiplier.
   rSpeed:        1.0,   // constant rotational speed multiplier.
+  focusRequiredForMouse: true,  // if set to false, mouse-over is processed without clicking
   useKeys:       true,  // enabled by default, you may use the FPS camera only,
                         // without keys/mouse, by setting useKeys: false. This
                         // might be useful for environments where the default
