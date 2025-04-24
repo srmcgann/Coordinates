@@ -186,6 +186,8 @@ var FPSOptions = {
                         // without keys/mouse, by setting useKeys: false. This
                         // might be useful for environments where the default
                         // center-pointing camera isn't appropriate.
+  flyMode:       false, // un-restrict camera movement.
+                        // by default the camera is pinned to Y=0
 }
 await Coordinates.LoadFPSControls(renderer, FPSOptions)
 
