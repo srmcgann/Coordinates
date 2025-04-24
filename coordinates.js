@@ -35,7 +35,7 @@ const Renderer = async options => {
   var attachToBody = true, margin = 10, exportGPUSpecs = false
   var ambientLight = .2, alpha=false, clearColor = 0x000000
   var cameraMode = 'default', showCrosshair = false
-  var crosshairSel = 0, crosshairMap = ''
+  var crosshairSel = 0, crosshairMap = '', active = true
   var pageX, pageY, mouseX, mouseY, mouseButton
   var context = {
     mode: 'webgl2',
@@ -60,12 +60,12 @@ const Renderer = async options => {
           options[key].map(option => {
             switch(option.type.toLowerCase()){
               case 'post processing': 
-                if(typeof option?.enabled == 'undefined' ||
+                if(typeof option.enabled == 'undefined' ||
                    !!option.enabled){
                   var pluginOption = {
                     name: option.type.toLowerCase(),
                     value: option.value.toLowerCase(),
-                    enabled: !!option.enabled,
+                    enabled: typeof option.enabled == 'undefined' || !!option.enabled,
                     params: option?.params ?
                               option.params.map(v=>v.toLowerCase()) : [],
                   }
@@ -156,7 +156,7 @@ const Renderer = async options => {
     roll, pitch, yaw, fov,
     ready: false, ambientLight,
     pointLights, pointLightCols,
-    particleQueue, alphaQueue,
+    particleQueue, alphaQueue, active,
     cameraMode, showCrosshair, crosshairSel,
     crosshairMap, pageX, pageY, mouseX, mouseY,
     mouseButton, rsz, margin, optionalPlugins
@@ -530,8 +530,24 @@ const Renderer = async options => {
   return renderer
 }
 
-const DestroyViewport = el => {
-  el.remove()
+const ResizeRenderer = async (renderer, width, height) => {
+  renderer.width = width
+  renderer.height = height
+  renderer.c.width = width
+  renderer.c.height = height
+  renderer.rsz()
+  switch(renderer.ctx.mode){
+    case '2d':
+    break
+    default:
+      renderer.ctx.viewport(0, 0, renderer.c.width, renderer.c.height)
+    break
+  }
+}
+
+const DestroyRenderer = async (renderer) => {
+  renderer.c.remove()
+  renderer.active = false
 }
 
 const DestroyShape = shape => {
@@ -1596,6 +1612,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
 const GenericPopup = async (msg='', isPrompt=false, callback=()=>{},
                              width=400, height= 300) => {
   var popup = document.createElement('div')
+  popup.className = 'genericPopup'
   popup.style.position = 'fixed'
   popup.style.zIndex = 100000
   popup.style.left = '50%'
@@ -2620,7 +2637,7 @@ const BasicShader = async (renderer, options=[]) => {
             p1 = atan(X, Z) / M_PI;
           }
           if(skip == 0.0){
-            float p2 = - (acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0);
+            float p2 = - (acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0) * 1.05;
             gl_PointSize = 100.0 * pointSize / dist;
             gl_Position = vec4(p1, p2, dist/10000.0, 1.0);
             vUv = uv;
@@ -2765,8 +2782,6 @@ const BasicShader = async (renderer, options=[]) => {
             if(renderNormals == 1.0){
               gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
             }else{
-              
-              
               float p;
               vec3 nV, nVi;
               if(useHeightMap != 0.0){
@@ -4740,14 +4755,15 @@ const LoadFPSControls = async (renderer, options) => {
   var mspeed = 1
   var rspeed = 1
   var grav   = .01
-  renderer.cameraMode      = 'fps'
-  renderer.crosshairMap    = ''
-  renderer.showCrosshair   = true
-  renderer.lastInteraction = 0
-  renderer.hasTraction     = true
-  renderer.useKeys         = true
-  renderer.crosshairSel    = 0
-  renderer.useFPSControls  = true
+  renderer.cameraMode            = 'fps'
+  renderer.crosshairMap          = ''
+  renderer.showCrosshair         = true
+  renderer.lastInteraction       = 0
+  renderer.hasTraction           = true
+  renderer.focusRequiredForMouse = true
+  renderer.useKeys               = true
+  renderer.crosshairSel          = 0
+  renderer.useFPSControls        = true
   var crosshairs = Array(3).fill().map((v, i) => `${ModuleBase}/resources/crosshairs/crosshair${i+1}.png`)
   if(typeof options != 'undefined'){
     Object.keys(options).forEach((key, idx) =>{
@@ -4759,6 +4775,7 @@ const LoadFPSControls = async (renderer, options) => {
         case 'usekeys': renderer.useKeys = !!options[key]; break
         case 'crosshairmap': renderer.crosshairMap = options[key]; break
         case 'showcrosshair': renderer.showCrosshair = !!options[key]; break
+        case 'focusrequiredformouse': renderer.focusRequiredForMouse = !!options[key]; break
       }
     })
   }
@@ -4823,7 +4840,8 @@ const LoadFPSControls = async (renderer, options) => {
         mbutton = true
         //jump()
         //renderer.c.requestFullscreen()
-        renderer.c.requestPointerLock({unadjustedMovement: true})
+        var el = document.querySelectorAll('.genericPopup')
+        if(!el.length) renderer.c.requestPointerLock({unadjustedMovement: true})
       }
     })
     window.addEventListener('mouseup', e => {
@@ -4832,7 +4850,7 @@ const LoadFPSControls = async (renderer, options) => {
     })
     window.addEventListener('mousemove', e => {
       renderer.lastInteraction = renderer.t
-      if(document.pointerLockElement == renderer.c){
+      if(document.pointerLockElement == renderer.c || !renderer.focusRequiredForMouse){
         var rect = renderer.c.getBoundingClientRect()
         mx = (e.pageX - rect.left) / renderer.c.clientWidth * renderer.c.width
         my = (e.pageY - rect.top) / renderer.c.clientHeight* renderer.c.height
@@ -5018,6 +5036,7 @@ const AnimationLoop = (renderer, func) => {
 
     
     renderer.t += 1/60 //performance.now() / 1000
+    //if(renderer.active) requestAnimationFrame(loop)
     requestAnimationFrame(loop)
     renderer.alphaQueue = new Float32Array()
     renderer.particleQueue = new Float32Array()
@@ -5200,7 +5219,8 @@ export {
   Renderer,
   LoadGeometry,
   BasicShader,
-  DestroyViewport,
+  DestroyRenderer,
+  ResizeRenderer,
   DestroyShape,
   AnimationLoop,
   Tetrahedron,
