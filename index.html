@@ -1,209 +1,250 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=800,initial-scale=1.5">
-    <title>equirectangular re-mapper</title>
-    <link rel="icon" href="./favicon.png">
+    <title>Coordinates boilerplate example</title>
     <style>
       body, html{
-        background: #000;
+        background: #333;
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
       }
-      .overlay{
-        width: 100vw;
-        height: 100vh;
-        position: fixed;
-        top: 0;
-        left: 0;
-        opacity: .7;
-        z-index: 10000;
-      }
-      .overlayContent{
-        object-fit: contain;
-        width: 100vw;
-        height: 100vh;
-      }
     </style>
   </head>
   <body>
-    <div class="overlay">
-      <video
-        id="loadingVideo"
-        class="overlayContent"
-        loop autoplay muted
-        src="./loading.mp4"
-      ></video>
-    </div>
-<script type="module">
-
-  var S = Math.sin
-  var C = Math.cos
-  var Rn = Math.random
-  var refTexture = url
-  var shader, geoOptions
-  var urlParts, probe
-  
-  
-  import * as Coordinates from
-  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
-
-  var l = location.href.toLowerCase().split('url=')
-  var url
-  if(l.length>1){
-    url = location.href.split('url=')[1].split('&')[0]
-  }else{
-    url = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
-  }
-  
-  var l = location.href.toLowerCase().split('plugin=')
-  var plugin
-  if(l.length>1){
-    plugin = !!eval(location.href.toLowerCase().split('plugin=')[1].split('&')[0])
-  }else{
-    plugin = true
-  }
-  
-  var l = location.href.toLowerCase().split('muted=')
-  var muted
-  if(l.length>1){
-    muted = !!eval(location.href.toLowerCase().split('muted=')[1].split('&')[0])
-  }else{
-    muted = true
-  }
-  
-  var l = location.href.toLowerCase().split('playbackspeed=')
-  var playbackSpeed
-  if(l.length>1){
-    playbackSpeed = +location.href.toLowerCase().split('playbackspeed=')[1].split('&')[0]
-  }else{
-    playbackSpeed = 1
-  }
-  
-  var l = location.href.toLowerCase().split('fov=')
-  var fov
-  if(l.length>1){
-    fov = +location.href.toLowerCase().split('fov=')[1].split('&')[0]
-  }else{
-    fov = 300
-  }
-  
-  var l = location.href.toLowerCase().split('ambientlight=')
-  var ambientLight
-  if(l.length>1){
-    ambientLight = +location.href.toLowerCase().split('ambientlight=')[1].split('&')[0]
-  }else{
-    ambientLight= .4
-  }
-  
-  var rendererOptions = {
-    ambientLight, fov,
-    margin: 0,
-    plugins: [
-      {
-        type: 'post processing',
-        value: 'equirectangular',
-      }
-    ],
-  }
-  var renderer = await Coordinates.Renderer(rendererOptions)
-
-  Coordinates.AnimationLoop(renderer, 'Draw')
-
-  var shapes = []
-  var resourceType
-
-  var refTexture = url
-  var shader, geoOptions
-  var urlParts, probe
-  
-  var launch = async (width, height) => {
-    var ar = width / height
-    width = Math.min(1e3, width)
-    height = width / ar
-    await Coordinates.ResizeRenderer(renderer, width, height)
-    renderer.fov = Math.hypot(width, height) / 2
-    renderer.optionalPlugins[0].enabled = plugin
-
-    var shaderOptions = [
-      { uniform: {
-        type: 'phong',
-        value: .75
-      } }
-    ]
-    shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-    geoOptions = {
-      shapeType: 'custom shape',
-      name: 'background',
-      equirectangular: true,
-      url: 'https://srmcgann.github.io/Coordinates/custom shapes/icosahedron_sphere_medres.json',
-      map: refTexture,
-      muted,
-      playbackSpeed,
-      color: 0xffffff,
-      colorMix: 0,
-    }
-    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      shapes.push(geometry)
-    })
+    <script type="module">
     
-    document.querySelectorAll('.overlay').forEach(e => e.style.display = 'none')
-    loadingVideo.pause()
-  }
+      import * as Coordinates from
+      "./coordinates.js"
+      
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+    
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/fake_equirectangular_sky.jpg'
+    
+      var rendererOptions = {
+        ambientLight: .2,
+        fov: 1500
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      renderer.z = 10
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+      
+      var shapes = []
+      
 
-  urlParts = url.toLowerCase().split('.')
-  switch(urlParts[urlParts.length - 1]){
-    case 'jpg': case 'jpeg': case 'png': case 'bmp': case 'webp': case 'gif':
-      resourceType = 'image'
-    break
-    case 'mp4': case 'mkv': case 'ogv': case 'webm': case 'avi':
-      resourceType = 'video'
-    break
-  }
-  
-  await fetch(url).then(res=>res.blob()).then(data => {
-    switch(resourceType){
-      case 'image':
-        probe = new Image()
-        probe.onload = async () => await launch(probe.width, probe.height)
-      break
-      case 'video':
-        probe = document.createElement('video')
-        probe.onloadedmetadata = async () => await launch(probe.videoWidth, probe.videoHeight)
-      break
-    }
-    probe.src = URL.createObjectURL(data)
-  })
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .75
+        } },
+        { uniform: {
+          type: 'reflection',
+          value: .2,
+          enabled: true,
+          map: refTexture
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-  Coordinates.LoadFPSControls(renderer, {
-    mSpeed: 0,
-    focusRequiredForMouse: false,
-    showCrosshair: false
-  })
-  
-  window.onmousewheel = e => {
-    var newFOV = renderer.fov
-    newFOV += e.wheelDelta * (1+newFOV / 100) / 20
-    renderer.fov = Math.min(20000, Math.max(100, newFOV))
-  }
-  
-  window.onkeyup = e => {
-    if(e.keyCode == 69){
-      renderer.optionalPlugins[0].enabled = !renderer.optionalPlugins[0].enabled
-    }
-  }
-  
-  window.Draw = () => {
-    renderer.z = 0
-    shapes.forEach(shape => {
-      var t = renderer.t
-      renderer.Draw(shape)
-    })
-  }
-</script>
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: .4},
+        },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } }
+      ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        name: 'background',
+        subs: 2,
+        size: 600,
+        colorMix: 0,
+        map: refTexture,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await backgroundShader.ConnectGeometry(geometry)
+      }) 
+      
+
+      const floor = (X, Z) => {
+        //var d = Math.hypot(X, Z) / 500
+        return (S(X/32) * S(Z/32)) * 20
+      }
+
+      
+      
+      var X, Y, Z
+      var cl = 16
+      var rw = 1
+      var br = 16
+      var sp = 2
+      var tx, ty, tz
+      var ls = 2**.5 / 2 * sp, p, a
+      var texCoords = []
+      var minX = 6e6, maxX = -6e6
+      var minZ = 6e6, maxZ = -6e6
+      var mag = 12.5 //20 * (2**.5/2)
+      var ax, ay, az, nax, nay, naz
+      
+      geometryData = Array(cl*rw*br).fill().map((v, i) => {
+        tx = ((i%cl) - cl/2 + .5) * sp
+        ty = 0
+        tz = ((i/cl/rw|0) - br/2 + .5) * sp
+        a = []
+        for(var j = 4; j--;){
+          X = tx + S(p = Math.PI*2/4*j + Math.PI/4) * ls
+          Z = tz + C(p) * ls
+          Y = ty + floor(X, Z)
+          a = [...a, [X, Y, Z]]
+          if(X < minX) minX = X
+          if(X > maxX) maxX = X
+          if(Z < minZ) minZ = Z
+          if(Z > maxZ) maxZ = Z
+        }
+        return a
+      })
+      
+      var rangeX = maxX - minX
+      var rangeZ = maxZ - minZ
+      geometryData.map(face => {
+        var a = []
+        face.map(q=>{
+          var uvx = (q[0] - minX) / rangeX
+          var uvz = (q[2] - minZ) / rangeZ
+          a = [...a, [uvx, uvz]]
+        })
+        texCoords = [...texCoords, a]
+      })
+      
+      var geoOptions = {
+        shapeType: 'dynamic',
+        name: 'floor',
+        equirectangular: false,
+        size: 5,
+        averageNormals: true,
+        geometryData,
+        scaleUVX: 4,
+        scaleUVY: 4,
+        texCoords,
+        color: 0xffffff,
+        colorMix: 0,
+        fipNormals: true,
+        //pitch: Math.PI,
+        //heightMap: heightMap,
+        //heightMapIntensity: 32,
+        //map: heightMap,
+        map: 'https://srmcgann.github.io/Coordinates/resources/rd4_po2_small.mp4',
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        Coordinates.SyncNormals(geometry, true, true)
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      
+
+
+      var iPc = 1e3
+      var G   = cl * sp * mag * 2
+      var geometryData = Array(iPc).fill().map(v=>{
+        X = (Rn()-.5) * G
+        Y = (Rn()-.5) * G
+        Z = (Rn()-.5) * G
+        return [X, Y, Z]
+      })
+      
+      var geoOptions = {
+        shapeType: 'particles',
+        name: 'particles',
+        geometryData,
+        size: 24,
+        alpha: .5,
+        penumbra: .5,
+        color: 0xffffff,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+      })  
+      
+      
+      Coordinates.LoadFPSControls(renderer, {
+        flyMode: true,
+        mSpeed: 5,
+      })
+      
+      window.Draw = () => {
+        var t = renderer.t
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'particles':
+              for(var i=0; i<shape.vertices.length; i+=3){
+                nax = nay = naz = 0
+                ax = shape.vertices[i+0]
+                ay = shape.vertices[i+1]
+                az = shape.vertices[i+2]
+                
+                if(ax + renderer.x > cl/1*sp*mag) nax -= cl*sp*2*mag
+                if(ax + renderer.x < -cl/1*sp*mag) nax += cl*sp*2*mag
+                if(ay + renderer.y > br/1*sp*mag) nay -= br*sp*2*mag
+                if(ay + renderer.y < -br/1*sp*mag) nay += br*sp*2*mag
+                if(az + renderer.z > br/1*sp*mag) naz -= br*sp*2*mag
+                if(az + renderer.z < -br/1*sp*mag) naz += br*sp*2*mag
+              
+                shape.vertices[i+0] += nax
+                shape.vertices[i+1] += nay
+                shape.vertices[i+2] += naz
+              }
+            break
+            case 'background':
+              shape.x = -renderer.x
+              shape.y = -renderer.y
+              shape.z = -renderer.z
+            break
+            case 'floor':
+              for(var i=0; i<shape.vertices.length; i+=9){
+                ax = ay = az = nax = nay = naz = 0
+
+                for(var m = 3; m--;){
+                  ax += shape.vertices[i+m*3+0]
+                  ay += shape.vertices[i+m*3+1]
+                  az += shape.vertices[i+m*3+2]
+                }
+                ax /= 3 
+                ay /= 3 
+                az /= 3
+                
+                if(ax + renderer.x > cl/1*sp*mag) nax -= cl*sp*2*mag
+                if(ax + renderer.x < -cl/1*sp*mag) nax += cl*sp*2*mag
+                if(az + renderer.z > br/1*sp*mag) naz -= br*sp*2*mag
+                if(az + renderer.z < -br/1*sp*mag) naz += br*sp*2*mag
+                
+                for(var m = 3; m--;){
+                  shape.vertices[i+m*3+0] += nax
+                  shape.vertices[i+m*3+2] += naz
+                  shape.vertices[i+m*3+1] = floor(shape.vertices[i+m*3+0],
+                                              shape.vertices[i+m*3+2]) - 3
+                }
+              }
+              if(!((t*60|0)%500) || (t<1)) Coordinates.SyncNormals(shape, true)
+            break
+            default:
+              shape.yaw += .01
+              shape.pitch += .005
+            break
+          }
+          renderer.Draw(shape)
+        })
+      }
+      
+    </script>
   </body>
 </html>
