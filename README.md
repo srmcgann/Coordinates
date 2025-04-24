@@ -169,6 +169,8 @@ By default, a renderer/camera object 'orbits' the center point of the coordinate
   * optional crosshair, centered<br>
   * arbitrary camera movment<br>
 
+Note: the optional properties below are also added to the renderer object, which is handy for toggling or resetting values on the fly.
+
 Loading example [with default values]:
 
 ```js
