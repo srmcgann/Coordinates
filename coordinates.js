@@ -4761,6 +4761,7 @@ const LoadFPSControls = async (renderer, options) => {
   renderer.lastInteraction       = 0
   renderer.hasTraction           = true
   renderer.focusRequiredForMouse = true
+  renderer.flyMode               = false
   renderer.useKeys               = true
   renderer.crosshairSel          = 0
   renderer.useFPSControls        = true
@@ -4772,6 +4773,7 @@ const LoadFPSControls = async (renderer, options) => {
         case 'rspeed': rspeed = options[key]; break
         case 'grav': grav = options[key]; break
         case 'crosshairsel': renderer.crosshairSel = options[key]; break
+        case 'flymode': renderer.flyMode = options[key]; break
         case 'usekeys': renderer.useKeys = !!options[key]; break
         case 'crosshairmap': renderer.crosshairMap = options[key]; break
         case 'showcrosshair': renderer.showCrosshair = !!options[key]; break
@@ -4883,6 +4885,26 @@ const LoadFPSControls = async (renderer, options) => {
         pvz /= pdrag
       }
       
+      if(renderer.flyMode){
+        console.log(renderer.mouseButton)
+        var p1 = -renderer.yaw + Math.PI
+        var p2 = renderer.pitch
+        switch(renderer.mouseButton){
+          case 1:
+            pvx -= S(p1) * S(p2) * mv * accel
+            pvy += C(p2) * mv * accel
+            pvz -= C(p1) * S(p2) * mv * accel
+          break
+          case 2:
+            pvx += S(p1) * S(p2) * mv * accel
+            pvy -= C(p2) * mv * accel
+            pvz += C(p1) * S(p2) * mv * accel
+          break
+          default:
+          break
+        }
+      }
+      
       accel = 1
       if(renderer.hasTraction) renderer.keys.map((v, i) => {
         if(renderer.keys[i]){
@@ -4904,27 +4926,49 @@ const LoadFPSControls = async (renderer, options) => {
             break
             case 87:  //w
               var p1 = -renderer.yaw + Math.PI
-              var p2 = renderer.pitch
-              pvx += S(p1) * mv * accel
-              pvz += C(p1) * mv * accel
+              var p2 = renderer.pitch + Math.PI / 2
+              if(renderer.flyMode){
+                pvx += S(p1) * S(p2) * mv * accel
+                pvy -= C(p2) * mv * accel
+                pvz += C(p1) * S(p2) * mv * accel
+              }else{
+                pvx += S(p1) * mv * accel
+                pvz += C(p1) * mv * accel
+              }
             break
             case 65:  //a
               var p1 = -renderer.yaw + Math.PI / 2
-              var p2 = renderer.pitch
-              pvx += S(p1) * mv * accel
-              pvz += C(p1) * mv * accel
+              var p2 = renderer.pitch + Math.PI / 2
+              if(renderer.flyMode){
+                pvx += S(p1) * mv * accel
+                pvz += C(p1) * mv * accel
+              }else{
+                pvx += S(p1) * mv * accel
+                pvz += C(p1) * mv * accel
+              }
             break
             case 83:  //s
               var p1 = -renderer.yaw + Math.PI
-              var p2 = renderer.pitch
-              pvx -= S(p1) * mv * accel
-              pvz -= C(p1) * mv * accel
+              var p2 = renderer.pitch + Math.PI / 2
+              if(renderer.flyMode){
+                pvx -= S(p1) * S(p2) * mv * accel
+                pvy += C(p2) * mv * accel
+                pvz -= C(p1) * S(p2) * mv * accel
+              }else{
+                pvx -= S(p1) * mv * accel
+                pvz -= C(p1) * mv * accel
+              }
             break
             case 68:  //d
               var p1 = -renderer.yaw + Math.PI / 2
-              var p2 = renderer.pitch
-              pvx += -S(p1) * mv * accel
-              pvz += -C(p1) * mv * accel
+              var p2 = renderer.pitch + Math.PI / 2
+              if(renderer.flyMode){
+                pvx += -S(p1) * mv * accel
+                pvz += -C(p1) * mv * accel
+              }else{
+                pvx += -S(p1) * mv * accel
+                pvz += -C(p1) * mv * accel
+              }
             break
             case 32:  //space
             break
