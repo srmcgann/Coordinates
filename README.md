@@ -176,6 +176,7 @@ Loading example [with default values]:
 ```js
 var FPSOptions = {
   showCrosshair: true,  // whether or not to display a crosshair.
+  crosshairSize: 1,     // crosshair graphic size multiplier
   crosshairSel:  0,     // Three premade crosshair graphics are available,
                         // or a custom graphic may be used.
   crosshairMap:  '',    // Optional URL to a custom crosshair graphic.
@@ -192,6 +193,7 @@ var FPSOptions = {
                         // by default the camera is pinned to Y=0.
                         // with flyMode enabled, mousebuttons will control vertical
                         // movement, in addition to the usual keys
+  grav:          .01,   // a gravity value, if needed
 }
 await Coordinates.LoadFPSControls(renderer, FPSOptions)
 
