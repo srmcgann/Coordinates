@@ -1,19 +1,43 @@
-<!DOCTYPE html>
 <html>
   <head>
-    <title>Coordinates boilerplate example</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=800,initial-scale=1.5">
+    <title>equirectangular re-mapper</title>
+    <link rel="icon" href="./favicon.png">
     <style>
       body, html{
-        background: #333;
+        background: #000;
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
       }
+      .overlay{
+        width: 100vw;
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        opacity: .7;
+        z-index: 10000;
+      }
+      .overlayContent{
+        object-fit: contain;
+        width: 100vw;
+        height: 100vh;
+      }
     </style>
   </head>
   <body>
-    <script type="module">
-    
+    <div class="overlay">
+      <video
+        id="loadingVideo"
+        class="overlayContent"
+        loop autoplay muted
+        src="https://boss.mindhackers.org/remapper/loading.mp4"
+      ></video>
+    </div>
+    <script type="module">    
       import * as Coordinates from
       "./coordinates.js"
     

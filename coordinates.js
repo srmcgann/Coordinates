@@ -2555,11 +2555,15 @@ const BasicShader = async (renderer, options=[]) => {
         if(cameraMode == 1.0){  // 'FPS' mode
           if(isSprite != 0.0 || isLight != 0.0){
             geo = R(geoPos, camOri);
-            pos = R(vec3(cx, cy, cz), geoOri);
-            pos.x += cpx;
-            pos.y += cpy;
-            pos.z += cpz;
-            pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+            pos = R(vec3(cx, cy, cz),
+                     vec3(0.0, -camOri.y + M_PI, 0.0));
+            pos = R(vec3(pos.x, pos.y, pos.z),
+                     vec3(-camOri.x, 0.0, -camOri.z ));
+            pos = R(pos, geoOri);
+            //pos.x += cpx;
+            //pos.y += cpy;
+            //pos.z += cpz;
+            pos = R(pos, camOri);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = R(nVec, geoOri);
             nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
@@ -2569,7 +2573,7 @@ const BasicShader = async (renderer, options=[]) => {
             pos.x += cpx;
             pos.y += cpy;
             pos.z += cpz;
-            pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+            pos = R(pos, camOri);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = R(nVec, geoOri);
             nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
@@ -2577,27 +2581,27 @@ const BasicShader = async (renderer, options=[]) => {
           cpx = 0.0;
           cpy = 0.0;
           cpz = 0.0;
-          fPos = vec3(pos.x, pos.y, pos.z);
+          fPos = pos;
         }else{
           if(isSprite != 0.0 || isLight != 0.0){
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz),
                      vec3(0.0, -camOri.y + M_PI, 0.0));
-            pos = R(vec3(pos.x, pos.y, pos.z),
+            pos = R(pos,
                      vec3(-camOri.x, 0.0, -camOri.z ));
-            pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+            pos = R(pos, camOri);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = R(nVec, geoOri);
             nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
           }else{
             geo = R(geoPos, camOri);
             pos = R(vec3(cx, cy, cz), geoOri);
-            pos = R(vec3(pos.x, pos.y, pos.z), camOri);
+            pos = R(pos, camOri);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = R(nVec, geoOri);
             nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
           }
-          fPos = vec3(pos.x, pos.y, pos.z);
+          fPos = pos;
         }
         
         ${uVertCode}
@@ -4758,6 +4762,7 @@ const LoadFPSControls = async (renderer, options) => {
   renderer.cameraMode            = 'fps'
   renderer.crosshairMap          = ''
   renderer.showCrosshair         = true
+  renderer.crosshairSize         = 1
   renderer.lastInteraction       = 0
   renderer.hasTraction           = true
   renderer.focusRequiredForMouse = true
@@ -4769,11 +4774,12 @@ const LoadFPSControls = async (renderer, options) => {
   if(typeof options != 'undefined'){
     Object.keys(options).forEach((key, idx) =>{
       switch(key.toLowerCase()){
-        case 'mspeed': mspeed = options[key]; break
-        case 'rspeed': rspeed = options[key]; break
-        case 'grav': grav = options[key]; break
-        case 'crosshairsel': renderer.crosshairSel = options[key]; break
-        case 'flymode': renderer.flyMode = options[key]; break
+        case 'mspeed': mspeed = +options[key]; break
+        case 'rspeed': rspeed = +options[key]; break
+        case 'grav': grav = +options[key]; break
+        case 'crosshairsel': renderer.crosshairSel = +options[key]; break
+        case 'crosshairsize': renderer.crosshairSize = +options[key]; break
+        case 'flymode': renderer.flyMode = !!options[key]; break
         case 'usekeys': renderer.useKeys = !!options[key]; break
         case 'crosshairmap': renderer.crosshairMap = options[key]; break
         case 'showcrosshair': renderer.showCrosshair = !!options[key]; break
@@ -4863,7 +4869,7 @@ const LoadFPSControls = async (renderer, options) => {
     
     renderer.doKeys = async () => {
       if(renderer.showCrosshair && crosshairImages[renderer.crosshairSel].loaded) {
-        var s = 200
+        var s = 200 * renderer.crosshairSize
         overlay.ctx.globalAlpha = .6
         overlay.ctx.drawImage(crosshairImages[renderer.crosshairSel].img,
           overlay.width / 2 - s/2, overlay.height / 2 - s/2, s, s)
@@ -4879,14 +4885,13 @@ const LoadFPSControls = async (renderer, options) => {
       renderer.x += pvx
       renderer.y += pvy
       renderer.z += pvz
-      if(renderer.hasTraction){
+      if(renderer.hasTraction || renderer.flyMode){
         pvx /= pdrag
         pvy /= pdrag
         pvz /= pdrag
       }
       
       if(renderer.flyMode){
-        console.log(renderer.mouseButton)
         var p1 = -renderer.yaw + Math.PI
         var p2 = renderer.pitch
         switch(renderer.mouseButton){
@@ -4906,7 +4911,7 @@ const LoadFPSControls = async (renderer, options) => {
       }
       
       accel = 1
-      if(renderer.hasTraction) renderer.keys.map((v, i) => {
+      if(renderer.hasTraction || renderer.flyMode) renderer.keys.map((v, i) => {
         if(renderer.keys[i]){
           switch(i){
             case 16:  // shift
