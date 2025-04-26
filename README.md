@@ -917,3 +917,23 @@ var po2 = Coordinates.IsPowerOf2(4)
 // returned value: true
 ```
 
+
+<br><br>
+### GetShaderCoord()
+``const GetShaderCoord = (vx, vy, vz, geometry, renderer)``
+<br><br>
+``GetShaderCoord`` returns the rasterized [x, y(, z)] canvas coordinate of a provided vertex ``(vx, vy, vz, ...``, relative to a given shape-geometry and renderer, using their current settings. These may include things like a heightmap and/or equirectangular plugin. The returned point represents where on the 2D canvas, the 3D point will be drawn. The provided shape-geometry has a position, orientation, and possible displacement modifier(s), which are factored into the output. This method may be useful for plotting overlay graphics, or interactivity which depends on click location for example.<br>
+<br><br>
+Method requires input of 3 numbers, x/y/z of a vertex, a shape-geometry object, and a renderer object.
+<br><br>
+example:
+```js
+var vx = geometry.vertices[0]
+var vy = geometry.vertices[1]
+var vz = geometry.vertices[2]
+var px = GetShaderCoord (vx, vy, vz, geometry, renderer)
+// px = returned value [X, Y(, Z)], where the actual first vertex
+// in the shape geometry will be drawn on canvas. the z/depth
+//  component is also returned.
+```
+
