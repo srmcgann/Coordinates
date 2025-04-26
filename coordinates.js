@@ -5090,7 +5090,7 @@ const AnimationLoop = (renderer, func) => {
     renderer.alphaQueue = new Float32Array()
     renderer.particleQueue = new Float32Array()
     
-    if(renderer.useKeys){
+    if(renderer.useKeys && renderer.doKeys){
       await renderer.doKeys()
     }
   }
