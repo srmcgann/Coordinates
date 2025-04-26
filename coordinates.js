@@ -2056,7 +2056,7 @@ const ShowBounding = (shape, renderer, draw=true,
   for(var i=0; i<shape.vertices.length; i+=sd){
     if(shape.isParticle || !(i%9)){
       ax = ay = 0
-      //overlay.ctx.beginPath()
+      //Overlay.ctx.beginPath()
       b = []
     }
     X = shape.vertices[i+0]
@@ -2087,15 +2087,15 @@ const ShowBounding = (shape, renderer, draw=true,
         }
       }
       //if(ar.length){
-        //overlay.ctx.lineTo(...ar)
+        //Overlay.ctx.lineTo(...ar)
         //if(false && i%9 == 6){  // show wireframe [disabled]
-          //overlay.ctx.closePath()
-          //overlay.ctx.lineWidth = 50 / (1 + Z)
-          //overlay.ctx.strokeStyle = '#f004'
-          //overlay.ctx.stroke()
-          //overlay.ctx.lineWidth =1
-          //overlay.ctx.strokeStyle = '#f00'
-          //overlay.ctx.stroke()
+          //Overlay.ctx.closePath()
+          //Overlay.ctx.lineWidth = 50 / (1 + Z)
+          //Overlay.ctx.strokeStyle = '#f004'
+          //Overlay.ctx.stroke()
+          //Overlay.ctx.lineWidth =1
+          //Overlay.ctx.strokeStyle = '#f00'
+          //Overlay.ctx.stroke()
         //}
       //}
     }
@@ -2144,43 +2144,43 @@ const ShowBounding = (shape, renderer, draw=true,
   
   var l
   if(b.length){
-    //overlay.ctx.lineTo(...b[midx])
+    //Overlay.ctx.lineTo(...b[midx])
     recurse(b, midx)
     if(draw) {
       var rgb = RGBFromHex(shape.boundingColor)
-      overlay.ctx.strokeStyle = `rgba(${rgb[0]*256},${rgb[1]*256},${rgb[2]*256},.5)`
-      overlay.ctx.globalAlpha = 1
-      overlay.ctx.beginPath()
+      Overlay.ctx.strokeStyle = `rgba(${rgb[0]*256},${rgb[1]*256},${rgb[2]*256},.5)`
+      Overlay.ctx.globalAlpha = 1
+      Overlay.ctx.beginPath()
       pts.map((v, i) => {
-        overlay.ctx.lineWidth = 10
+        Overlay.ctx.lineWidth = 10
         var lx1 = pts[i][0]
         var ly1 = pts[i][1]
         var lx2 = pts[l=(i+1)%pts.length][0]
         var ly2 = pts[l][1]
         if(omitSplitCheck){
-          overlay.ctx.moveTo(lx1, ly1)
-          overlay.ctx.lineTo(lx2, ly2)
+          Overlay.ctx.moveTo(lx1, ly1)
+          Overlay.ctx.lineTo(lx2, ly2)
         }else{
           if(splitCheckPass == 0){
-            if(lx1 >= overlay.width/2 - overlay.width/8 &&
-               lx1 < overlay.width + overlay.width/8 &&
-               lx2 >= overlay.width/2 - overlay.width/8 &&
-               lx2 < overlay.width + overlay.width/8){
-              overlay.ctx.moveTo(lx1, ly1)
-              overlay.ctx.lineTo(lx2, ly2)
+            if(lx1 >= Overlay.width/2 - Overlay.width/8 &&
+               lx1 < Overlay.width + Overlay.width/8 &&
+               lx2 >= Overlay.width/2 - Overlay.width/8 &&
+               lx2 < Overlay.width + Overlay.width/8){
+              Overlay.ctx.moveTo(lx1, ly1)
+              Overlay.ctx.lineTo(lx2, ly2)
              }
           }else{
-            if(lx1 <= overlay.width/2 + overlay.width/8 &&
-               lx1 > -overlay.width/8 &&
-               lx2 <= overlay.width/2 + overlay.width/8 &&
-               lx2 > -overlay.width/8){
-              overlay.ctx.moveTo(lx1, ly1)
-              overlay.ctx.lineTo(lx2, ly2)
+            if(lx1 <= Overlay.width/2 + Overlay.width/8 &&
+               lx1 > -Overlay.width/8 &&
+               lx2 <= Overlay.width/2 + Overlay.width/8 &&
+               lx2 > -Overlay.width/8){
+              Overlay.ctx.moveTo(lx1, ly1)
+              Overlay.ctx.lineTo(lx2, ly2)
              }
           }
         }
       })
-      overlay.ctx.stroke()
+      Overlay.ctx.stroke()
     }
   }
   
@@ -4870,10 +4870,10 @@ const LoadFPSControls = async (renderer, options) => {
     renderer.doKeys = async () => {
       if(renderer.showCrosshair && crosshairImages[renderer.crosshairSel].loaded) {
         var s = 200 * renderer.crosshairSize
-        overlay.ctx.globalAlpha = .6
-        overlay.ctx.drawImage(crosshairImages[renderer.crosshairSel].img,
-          overlay.width / 2 - s/2, overlay.height / 2 - s/2, s, s)
-        overlay.ctx.globalAlpha = 1
+        Overlay.ctx.globalAlpha = .6
+        Overlay.ctx.drawImage(crosshairImages[renderer.crosshairSel].img,
+          Overlay.width / 2 - s/2, Overlay.height / 2 - s/2, s, s)
+        Overlay.ctx.globalAlpha = 1
       }
     
       renderer.yaw += rvx
@@ -4983,16 +4983,16 @@ const LoadFPSControls = async (renderer, options) => {
     }
   }
 }
-      
+
 
 const AnimationLoop = (renderer, func) => {
   const loop = async () => {
-    overlay.margin = renderer.margin
-    overlay.rsz()
-    overlay.width = renderer.width
-    overlay.height = renderer.height
-    overlay.c.width = renderer.c.width
-    overlay.c.height = renderer.c.height
+    Overlay.margin = renderer.margin
+    Overlay.rsz()
+    Overlay.width = renderer.width
+    Overlay.height = renderer.height
+    Overlay.c.width = renderer.c.width
+    Overlay.c.height = renderer.c.height
     
     if(renderer.ready && typeof window[func] != 'undefined') await window[func]()
       
@@ -5255,10 +5255,10 @@ const getParams = ctx => {
   document.body.appendChild(popup)
 }
 
-var overlay        // for sketch-up, e.g. shape-bounding graphics
-overlay = await Renderer({ context: { mode: '2d', margin: 0 } })
-overlay.c.style.background = '#0000'
-overlay.c.style.zIndex = 10000
+var Overlay        // for sketch-up, e.g. shape-bounding graphics
+Overlay = await Renderer({ context: { mode: '2d', margin: 0 } })
+Overlay.c.style.background = '#0000'
+Overlay.c.style.zIndex = 10000
 
 var scratchHeightMap = document.createElement('canvas')
 var SHMctx = scratchHeightMap.getContext('2d', {willReadFrequently: true})
@@ -5304,4 +5304,5 @@ export {
   GeoSphere,
   ModuleBase,
   LoadFPSControls,
+  Overlay,
 }
