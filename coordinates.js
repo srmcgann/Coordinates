@@ -5287,6 +5287,7 @@ export {
   PointInPoly2D,
   PointInPoly3D,
   ShowBounding,
+  GetShaderCoord,
   Reflect,
   Normal,
   ImageToPo2,
