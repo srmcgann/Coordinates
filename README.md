@@ -934,6 +934,6 @@ var vz = geometry.vertices[2]
 var px = GetShaderCoord (vx, vy, vz, geometry, renderer)
 // px = returned value [X, Y(, Z)], where the actual first vertex
 // in the shape geometry will be drawn on canvas. the z/depth
-//  component is also returned.
+// component is also returned.
 ```
 
