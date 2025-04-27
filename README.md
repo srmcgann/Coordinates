@@ -304,6 +304,12 @@ var geoOptions = {
   roll: 0,             // orientation / rotation
   pitch: 0,
   yaw: 0,
+  rotationMode: 0,     // options are 0, 1, or 2, representing the order of axes a shape is rotated about.
+                       // this is useful for situations when the default results in incorrect rotations,
+                       // e.g. when the FPS camera is used.
+                       // 0 is yaw, then pitch, then roll  (normal rotation)
+                       // 1 is pitch, then yaw, then roll  (shapes that rotate in an FPS env)
+                       // 2 is roll, then pitch, then yaw  (needed rarely if ever)
   scaleX: 1,           // resize (at creation)
   scaleY: 1,
   scaleZ: 1,
