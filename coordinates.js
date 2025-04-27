@@ -5281,7 +5281,7 @@ export {
   Torus,
   TorusKnot,
   Rectangle,
-  Q, R,
+  Q, R, R_ypr, R_pyr, R_rpy,
   SyncNormals,
   Intersects,
   PointInPoly2D,
