@@ -224,6 +224,9 @@ const Renderer = async options => {
           
           for(var m = 0; m < ((equirectangularPlugin && !omitSplitCheck) ? 2 : 1); m++){
             
+            // rotation mode
+            ctx.uniform1i(dset.locRotationMode, geometry.rotationMode)
+            
             // plugins
             renderer.locPlugin = ctx.getUniformLocation(dset.program, "plugin")
             renderer.locOmitSplitCheck = ctx.getUniformLocation(dset.program, "omitSplitCheck")
@@ -841,6 +844,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var color                  = 0x333333
   var colorMix               = .1
   var equirectangular        = -1
+  var rotationMode           = 0
   var equirectangularHeightmap = -1
   var preComputeNormalAssocs = false
   var flipNormals            = false
@@ -905,6 +909,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'flipnormals'        : flipNormals = !!geoOptions[key]; break
       case 'shownormals'        : showNormals = !!geoOptions[key]; break
       case 'sphereize'          : sphereize = geoOptions[key]; break
+      case 'rotationmode'       : rotationMode = geoOptions[key]; break
       case 'objx'               : objX = geoOptions[key]; break
       case 'objy'               : objY = geoOptions[key]; break
       case 'objz'               : objZ = geoOptions[key]; break
@@ -1584,7 +1589,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     renderer, isParticle, penumbra, wireframe,
     canvasTexture, canvasTextureMix, showBounding,
     boundingColor, heightMap, heightMapIntensity,
-    heightMapIsCanvas, equirectangularHeightmap
+    heightMapIsCanvas, equirectangularHeightmap,
+    rotationMode
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -2446,6 +2452,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 camOri;
       uniform vec3 geoPos;
       uniform vec3 geoOri;
+      uniform int rotationMode;
       uniform float omitSplitCheck;
       uniform float splitCheckPass;
       uniform float pointSize;
@@ -2474,15 +2481,33 @@ const BasicShader = async (renderer, options=[]) => {
       varying float skip;
       varying float hasPhong;
       
-      // modified for flock game, from stock
-      vec3 R(vec3 pos, vec3 rot){
+      
+      vec3 R(vec3 pos, vec3 rot, int isGeo){
         float p, d;
-        pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
-        pos.z = cos(p)*d;
-        pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
-        pos.z = cos(p)*d;
-        pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
-        pos.y = cos(p)*d;
+        if(rotationMode == 0 || isGeo == 0) {
+          pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
+          pos.z = cos(p)*d;
+          pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
+          pos.z = cos(p)*d;
+          pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
+          pos.y = cos(p)*d;
+        }
+        if(rotationMode == 1 && isGeo == 1) {
+          pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
+          pos.z = cos(p)*d;
+          pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
+          pos.z = cos(p)*d;
+          pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
+          pos.y = cos(p)*d;
+        }
+        if(rotationMode == 2 && isGeo == 1) {
+          pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
+          pos.y = cos(p)*d;
+          pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
+          pos.z = cos(p)*d;
+          pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
+          pos.z = cos(p)*d;
+        }
         return pos;
       }
       
@@ -2502,12 +2527,6 @@ const BasicShader = async (renderer, options=[]) => {
           cz = position.z;
         }
         
-        
-/*
-  var b1 = facet[2][0]-facet[1][0], b2 = facet[2][1]-facet[1][1], b3 = facet[2][2]-facet[1][2]
-  var c1 = facet[1][0]-facet[0][0], c2 = facet[1][1]-facet[0][1], c3 = facet[1][2]-facet[0][2]
-  crs = [b2*c3-b3*c2,b3*c1-b1*c3,b1*c2-b2*c1]
-*/  
         
         if(useHeightMap != 0.0 && renderNormals == 0.0){
           nVeci = normalVec;
@@ -2554,29 +2573,29 @@ const BasicShader = async (renderer, options=[]) => {
         
         if(cameraMode == 1.0){  // 'FPS' mode
           if(isSprite != 0.0 || isLight != 0.0){
-            geo = R(geoPos, camOri);
+            geo = R(geoPos, camOri, 0);
             pos = R(vec3(cx, cy, cz),
-                     vec3(0.0, -camOri.y + M_PI, 0.0));
+                     vec3(0.0, -camOri.y + M_PI, 0.0), 0);
             pos = R(vec3(pos.x, pos.y, pos.z),
-                     vec3(-camOri.x, 0.0, -camOri.z ));
-            pos = R(pos, geoOri);
+                     vec3(-camOri.x, 0.0, -camOri.z ), 0);
+            pos = R(pos, geoOri, 1);
             //pos.x += cpx;
             //pos.y += cpy;
             //pos.z += cpz;
-            pos = R(pos, camOri);
+            pos = R(pos, camOri, 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = R(nVec, geoOri);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            nVec = R(nVec, geoOri, 1);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z), 0);
           }else{
-            geo = R(geoPos, camOri);
-            pos = R(vec3(cx, cy, cz), geoOri);
+            geo = R(geoPos, camOri, 0);
+            pos = R(vec3(cx, cy, cz), geoOri, 1);
             pos.x += cpx;
             pos.y += cpy;
             pos.z += cpz;
-            pos = R(pos, camOri);
+            pos = R(pos, camOri, 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = R(nVec, geoOri);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            nVec = R(nVec, geoOri, 1);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z), 0);
           }
           cpx = 0.0;
           cpy = 0.0;
@@ -2584,22 +2603,22 @@ const BasicShader = async (renderer, options=[]) => {
           fPos = pos;
         }else{
           if(isSprite != 0.0 || isLight != 0.0){
-            geo = R(geoPos, camOri);
+            geo = R(geoPos, camOri, 0);
             pos = R(vec3(cx, cy, cz),
-                     vec3(0.0, -camOri.y + M_PI, 0.0));
+                     vec3(0.0, -camOri.y + M_PI, 0.0), 0);
             pos = R(pos,
-                     vec3(-camOri.x, 0.0, -camOri.z ));
-            pos = R(pos, camOri);
+                     vec3(-camOri.x, 0.0, -camOri.z ), 0);
+            pos = R(pos, camOri, 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = R(nVec, geoOri);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            nVec = R(nVec, geoOri, 1);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z), 0);
           }else{
-            geo = R(geoPos, camOri);
-            pos = R(vec3(cx, cy, cz), geoOri);
-            pos = R(pos, camOri);
+            geo = R(geoPos, camOri, 0);
+            pos = R(vec3(cx, cy, cz), geoOri, 1);
+            pos = R(pos, camOri, 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = R(nVec, geoOri);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z));
+            nVec = R(nVec, geoOri, 1);
+            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z), 0);
           }
           fPos = pos;
         }
@@ -2620,7 +2639,7 @@ const BasicShader = async (renderer, options=[]) => {
           float p1;
           if(omitSplitCheck == 0.0){
             if(splitCheckPass == 0.0){
-              vec3 rot = R(vec3(X, Y, Z), vec3(0,0,M_PI/2.0));
+              vec3 rot = R(vec3(X, Y, Z), vec3(0,0,M_PI/2.0), 0);
               X = rot.x;
               Y = rot.y;
               Z = rot.z;
@@ -2628,7 +2647,7 @@ const BasicShader = async (renderer, options=[]) => {
               skip = p1 <= -0.75 ? 1.0 : 0.0;
               p1 += .5;
             }else{
-              vec3 rot = R(vec3(X, Y, Z), vec3(0,0,-M_PI/2.0));
+              vec3 rot = R(vec3(X, Y, Z), vec3(0,0,-M_PI/2.0), 0);
               X = rot.x;
               Y = rot.y;
               Z = rot.z;
@@ -3097,6 +3116,9 @@ const BasicShader = async (renderer, options=[]) => {
 
           dset.locAmbientLight = gl.getUniformLocation(dset.program, "ambientLight")
           gl.uniform1f(dset.locAmbientLight, renderer.ambientLight)
+
+          dset.locRotationMode= gl.getUniformLocation(dset.program, "rotationMode")
+          gl.uniform1i(dset.locRotationMode, geometry.rotationMode)
 
           dset.texture = gl.createTexture()
           gl.activeTexture(gl.TEXTURE0)
