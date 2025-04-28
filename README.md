@@ -225,7 +225,7 @@ Ambient light is available, optionally, as a parameter for shader instances, or 
 ### Point Lights
 
 Point lights are invoked as a shapeType (``'point light'``), displayed optionally in scene with a default sprite, when the property is set ``showSource: true``. the ``color`` property describes the emmissive light color. ``lum`` sets the light power. ``size`` sets the sprite size, if used. ``map`` overrides the default sprite with a custom sprite texture, alpha supported. more below.
-<br>
+<br><br>
 
 ## Other Methods
 
@@ -294,7 +294,7 @@ stored when geometry is created.
 <br>
 
 #### a note about lighting
-the object returned by ``LoadGeometry`` is not kept in system memory. You are expected to create a data structure for managing shapes, without which they have no permanency. A geometry, especially if 'connected' to a shader, is a whole, drawable entity and no special GC (garbage collection) work is required, since they are not stored. The only exception is lights, which are queued internally so that the scene is influenced by them. To remove a light, use the ``DestroyGeometry(shape)`` method, which removes the light source, but not your own reference to it, if any. Recall a light may be visible in your scene with the `showSource: true` property setting, and the shape returned by LoadGeometry (a rectangle) is not stored system-side, and will remain visible after the light is destroyed. You may use, for example if your shapes are in an array named 'shapes' and your light is named 'my light': ``shapes = shapes.filter(v=>v.name != 'my light')`` to remove the shape from your array.
+An object returned by ``LoadGeometry`` is not kept in system memory. You are expected to create a data structure for managing shapes, without which they have no permanency. A geometry, especially if 'connected' to a shader, is a whole, drawable entity and no special GC (garbage collection) work is required, since they are not stored. The only exception is lights, which are queued internally so that the scene is influenced by them. To remove a light, use the ``DestroyGeometry(shape)`` method, which removes the light source, but not your own reference to it, if any. Recall a light may be visible in your scene with the `showSource: true` property setting, and the shape returned by LoadGeometry (a rectangle) is not stored system-side, and will remain visible after the light is destroyed. You may use, for example if your shapes are in an array named 'shapes' and your light is named 'my light': ``shapes = shapes.filter(v=>v.name != 'my light')`` to remove the shape from your array.
 <br>
 
 ```js
@@ -304,6 +304,12 @@ var geoOptions = {
   roll: 0,             // orientation / rotation
   pitch: 0,
   yaw: 0,
+  rotationMode: 0,     // options are 0, 1, or 2, representing the order of axes a shape is rotated about.
+                       // this is useful for situations when the default results in incorrect rotations,
+                       // e.g. when the FPS camera is used.
+                       // 0 is yaw, then pitch, then roll  (normal rotation)
+                       // 1 is pitch, then yaw, then roll  (shapes that rotate in an FPS env)
+                       // 2 is roll, then pitch, then yaw  (needed rarely if ever)
   scaleX: 1,           // resize (at creation)
   scaleY: 1,
   scaleZ: 1,
@@ -936,4 +942,3 @@ var px = GetShaderCoord (vx, vy, vz, geometry, renderer)
 // in the shape geometry will be drawn on canvas. the z/depth
 // component is also returned.
 ```
-
