@@ -2474,12 +2474,12 @@ const BasicShader = async (renderer, options=[]) => {
       varying float skip;
       varying float hasPhong;
       
-      
+      // modified for flock game, from stock
       vec3 R(vec3 pos, vec3 rot){
         float p, d;
-        pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
-        pos.z = cos(p)*d;
         pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
+        pos.z = cos(p)*d;
+        pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
         pos.z = cos(p)*d;
         pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
         pos.y = cos(p)*d;
