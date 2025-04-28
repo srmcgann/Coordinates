@@ -923,7 +923,6 @@ var po2 = Coordinates.IsPowerOf2(4)
 // returned value: true
 ```
 
-
 <br><br>
 ### GetShaderCoord()
 ``const GetShaderCoord = (vx, vy, vz, geometry, renderer)``
@@ -942,3 +941,135 @@ var px = GetShaderCoord (vx, vy, vz, geometry, renderer)
 // in the shape geometry will be drawn on canvas. the z/depth
 // component is also returned.
 ```
+
+<br><br>
+### Overlay
+``Coordinates.Overlay`` is a transparent 2d canvas created atop every renderer viewport by default, with matching width/height. It is used for displaying bounding outlines if they are configured, but it is exposed for other purposes as well. The Overlay is an ordinary ``Renderer`` object like any camera/renderer, but with a '2d' canvas type, full transparency and is auto-cleared between frames. Its context is ``Overlay.ctx``, and the element itself is ``Overlay.c``. With these, any 2d canvas operations may be performed.<br><br>
+
+a complete working example:
+```js
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #333;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+      var rendererOptions = {
+        ambientLight: .5,
+        fov: 2e3,
+        z: 85
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .75
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shapes = []
+      
+      var playerNum = 4, p
+      for(var i=0; i<playerNum; i++){
+        var x = Math.sin(p = Math.PI*2/playerNum*i) * 48
+        var y = Math.cos(p) * 24
+        var z = 0
+        var geoOptions = {
+          name: 'player ' + (i+1),
+          shapeType: 'cube',
+          size: 10,
+          x, y, z,
+          color: Coordinates.HSVToHex(360/playerNum*i,1,1),
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await shader.ConnectGeometry(geometry)
+        })
+      }
+      
+      Coordinates.LoadFPSControls(renderer)
+      
+      var ctx = Coordinates.Overlay.ctx
+      
+      const strokeCustom = () => {
+        ctx.globalAlpha = .2
+        ctx.lineWidth = 10
+        ctx.stroke()
+        ctx.globalAlpha = .5
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+
+      const drawPlayerNames = shape => {
+        var pt = Coordinates.GetShaderCoord(0,0,0, shape, renderer)
+        var rad = 60
+        ctx.fillStyle = ctx.strokeStyle = '#0f8'
+        ctx.beginPath()
+        ctx.arc(pt[0], pt[1],rad,0,7)
+        strokeCustom()
+        
+        var lx, ly
+        ctx.beginPath()
+        if(pt[0] > Coordinates.Overlay.c.width/2){
+          lx = -1
+          ctx.textAlign = 'right'
+        }else{
+          lx = 1
+          ctx.textAlign = 'left'
+        }
+        if(pt[1] > Coordinates.Overlay.c.height/2){
+          ly = -1
+        }else{
+          ly = 1
+        }
+        var d = Math.hypot(lx, ly)
+        ctx.lineTo(pt[0]+lx/d*rad, pt[1]+ly/d*rad)
+        ctx.lineTo(pt[0]+lx/d*rad*3, pt[1]+ly/d*rad*2.2)
+        ctx.lineTo(pt[0]+lx/d*rad*10, pt[1]+ly/d*rad*2.2)
+        strokeCustom()
+        
+        ctx.globalAlpha = .8
+        var fontsize = rad / 1.5
+        ctx.font = fontsize+'px verdana'
+        lx = pt[0]+lx/d*rad*3.5
+        ly = pt[1]+ly/d*rad*2.2
+        ctx.lineWidth = 5
+        ctx.strokeStyle = '#000d'
+        ctx.strokeText(shape.name, lx, ly-fontsize/6)
+        ctx.fillText(shape.name, lx, ly-fontsize/6)
+      }
+
+      window.Draw = () => {
+        shapes.forEach(shape => {
+          shape.yaw += .01
+          shape.pitch += .005
+          renderer.Draw(shape)
+          drawPlayerNames(shape)
+        })
+      }
+      
+    </script>
+  </body>
+</html>
+```
+The code above produces this result:
+<center>
+
+![picker](README_g5.gif) </center>
