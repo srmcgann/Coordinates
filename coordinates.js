@@ -108,8 +108,9 @@ const Renderer = async options => {
   
   const c    = document.createElement('canvas')
   const ctx  = c.getContext(context.mode, context.options)
-  c.width  = width
-  c.height = height
+  c.width    = width
+  c.height   = height
+  c.tabIndex = 0
   const contextType = context.mode
 
   if(context.mode != '2d') console.log(`GLSL version: ${ctx.getParameter(ctx.SHADING_LANGUAGE_VERSION)}`)
