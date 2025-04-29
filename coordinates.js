@@ -4859,12 +4859,16 @@ const LoadFPSControls = async (renderer, options) => {
     renderer.keyTimerInterval = .2
     
     window.addEventListener('keydown', e => {
-      renderer.keys[e.keyCode] = true
-      renderer.lastInteraction = renderer.t
+      if(document.activeElement.nodeName == 'CANVAS'){
+        renderer.keys[e.keyCode] = true
+        renderer.lastInteraction = renderer.t
+      }
     })
     window.addEventListener('keyup', e => {
-      renderer.keys[e.keyCode] = false
-      renderer.lastInteraction = renderer.t
+      if(document.activeElement.nodeName == 'CANVAS'){
+        renderer.keys[e.keyCode] = false
+        renderer.lastInteraction = renderer.t
+      }
     })
     window.addEventListener('mousedown', e => {
       renderer.lastInteraction = renderer.t
@@ -4899,7 +4903,7 @@ const LoadFPSControls = async (renderer, options) => {
           Overlay.width / 2 - s/2, Overlay.height / 2 - s/2, s, s)
         Overlay.ctx.globalAlpha = 1
       }
-    
+
       renderer.yaw += rvx
       renderer.pitch += rvy
       renderer.pitch = Math.min(Math.PI/2, Math.max(-Math.PI/2, renderer.pitch))
@@ -4909,13 +4913,13 @@ const LoadFPSControls = async (renderer, options) => {
       renderer.x += pvx
       renderer.y += pvy
       renderer.z += pvz
-      if(renderer.hasTraction || renderer.flyMode){
+      if(document.activeElement.nodeName == 'CANVAS' && (renderer.hasTraction || renderer.flyMode)){
         pvx /= pdrag
         pvy /= pdrag
         pvz /= pdrag
       }
-      
-      if(renderer.flyMode){
+
+      if(renderer.flyMode && document.activeElement.nodeName == 'CANVAS'){
         var p1 = -renderer.yaw + Math.PI
         var p2 = renderer.pitch
         switch(renderer.mouseButton){
@@ -4935,7 +4939,8 @@ const LoadFPSControls = async (renderer, options) => {
       }
       
       accel = 1
-      if(renderer.hasTraction || renderer.flyMode) renderer.keys.map((v, i) => {
+      if(document.activeElement.nodeName == 'CANVAS' &&
+        (renderer.hasTraction || renderer.flyMode)) renderer.keys.map((v, i) => {
         if(renderer.keys[i]){
           switch(i){
             case 16:  // shift
