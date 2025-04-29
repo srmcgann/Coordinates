@@ -5280,7 +5280,7 @@ const getParams = ctx => {
 var Overlay        // for sketch-up, e.g. shape-bounding graphics
 Overlay = await Renderer({ context: { mode: '2d', margin: 0 } })
 Overlay.c.style.background = '#0000'
-Overlay.c.style.zIndex = 10000
+Overlay.c.style.zIndex = 10
 
 var scratchHeightMap = document.createElement('canvas')
 var SHMctx = scratchHeightMap.getContext('2d', {willReadFrequently: true})
