@@ -111,6 +111,7 @@ const Renderer = async options => {
   c.width    = width
   c.height   = height
   c.tabIndex = 0
+  c.style.outline = 'none'
   const contextType = context.mode
 
   if(context.mode != '2d') console.log(`GLSL version: ${ctx.getParameter(ctx.SHADING_LANGUAGE_VERSION)}`)
