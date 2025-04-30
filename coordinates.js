@@ -5288,6 +5288,8 @@ const getParams = ctx => {
   document.body.appendChild(popup)
 }
 
+const GenHash = data => Hash.GenHash(data)
+
 var Overlay        // for sketch-up, e.g. shape-bounding graphics
 Overlay = await Renderer({ context: { mode: '2d', margin: 0 } })
 Overlay.c.style.background = '#0000'
@@ -5339,5 +5341,5 @@ export {
   ModuleBase,
   LoadFPSControls,
   Overlay,
-  Hash,
+  GenHash,
 }
