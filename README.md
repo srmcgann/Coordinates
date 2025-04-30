@@ -226,6 +226,14 @@ renderer.keys.map((v, i) => {
 })
 ```
 
+Another useful property is ``renderer.lastInteraction``, which shows the last ``renderer.t`` value at which user input was received by mouse or keyboard. This is good for detecting and acting on 'idleness', e.g., in your loop:
+
+```js
+if(renderer.t - renderer.lastInteraction > 60){
+  console.log('user has been idle for 1 minute!')
+}
+```
+
 Lastly, jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
 <br>
 <br>
@@ -1088,4 +1096,3 @@ The code above produces this result:
 <center>
 
 ![picker](README_g5.gif) </center>
-
