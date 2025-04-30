@@ -4585,9 +4585,10 @@ const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
     [0, 1],
   ]]
   
+  
   var ret = await GeometryFromRaw(e, texCoords, size / 1.5,
        Math.max(shapeType == 'sprite' ? 1 : 2, subs),
-             shapeType == 'sprite' ? .1 : sphereize, flipNormals, true, shapeType)
+             shapeType == 'sprite' || shapeType == 'point light' ? 0 : sphereize, flipNormals, true, shapeType)
              
   return ret
 }
