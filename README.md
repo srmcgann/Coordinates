@@ -155,7 +155,7 @@ renderer.mouseButton  // the browser window mouse button status
 
 ``Coordinates.DestroyRenderer(renderer)``<br>
 When a camera/renderer is instantiated it may begin an animation loop, as well as place a canvas on the screen. Pass a renderer object to this method to elminate the canvas and cancel the loop, e.g. for performance reasons.<br>
-
+<br>
 
 ## LoadFPSControls()
 
@@ -204,7 +204,6 @@ Coordinates.UnloadFPSControls(renderer)
 <center>
 
 ![crosshairSel](crosshairSel.jpg) </center>
-<br>
 
 If a custom crosshairMap is used, it becomes a 4th element (3) in the crosshairSel array [0, 1, 2, 3]. If specified, crosshairSel is set to this automatically, but can be changed, or changed back.
 
@@ -212,8 +211,24 @@ Notes: The FPS camera config options are added to the renderer object when the F
 
 It's important also to be aware of the 'clipspace limitation' of every webgl application. The vertex shaders must reduce all geometry into unit space, including the Z dimension. This means all shapes and positions are divided so as to fit reasonably into the space of -1 to 1, for each dimension. This is a feature of *gl, so as to be able to efficiently 'clip' unused geometry. Shrinking geometry into unit space, while creating the illusion of a large area has the tradeoff of floating point errors on the small scale, such as z-fighting / artifacts. So to avoid such errors, a space of 10,000 units is generally made available by this API. With the default (center-oriented) camera, this is seldom a problem, but using the mobile/FPS camera it's very easy to 'leave' the clip space, which requires the programmer to anticipate and provide for some 'recentering' or 'space tiling' approach. Be aware, if the camera moves sufficiently far from the origin, the geometry may disappear due to leaving the apportioned space.
 
-Lastly, jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
+#### Additional Properties Exposed by LoadFPSControls
 
+As mentioned, the camera config options (``flymode``, ``showCrosshair``, etc.) are attached to the ``renderer`` object passed to ``LoadFPSControls``, but additionally, some other helpful properties are attached as well:<br>
+``renderer.keys`` is an array of bools (true/false) with 256 elements corresponding to the ASCII keyCode of keyboard inputs. This array is updated by the API with a listener, and is created when ``LoadFPSControls`` is invoked. In your animation loop you may check key states, e.g.:
+
+```js
+renderer.keys.map((v, i) => {
+  if(v) switch(i){
+    case 32:
+      console.log('spacebar down')
+    break
+  }
+})
+```
+
+Lastly, jumping, gravity, and other assumptions about the environment are not provided at this time. For game development approaches, the developer will need to bring in their own methods.
+<br>
+<br>
 
 ## Lighting
 
