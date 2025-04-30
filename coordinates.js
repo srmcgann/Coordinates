@@ -2,6 +2,10 @@
 // Scott McGann - whitehotrobot@gmail.com
 // all rights reserved - ©2025
 
+// includes
+import * as Hash from "https://srmcgann.github.io/GenHash/hash.js"
+
+
 const S = Math.sin, C = Math.cos, Rn = Math.random
 var audioConsent = false
 //new OffscreenCanvas(256, 256); * might be superior
@@ -5335,4 +5339,5 @@ export {
   ModuleBase,
   LoadFPSControls,
   Overlay,
+  Hash,
 }
