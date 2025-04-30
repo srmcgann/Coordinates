@@ -1794,7 +1794,8 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', 
   }
   //gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, binding)
-  if(texImage.width && texImage.height){
+  if(typeof texImage != 'undefined' && 
+     texImage.width && texImage.height){
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage)
   }
   //gl.generateMipmap(gl.TEXTURE_2D)
