@@ -1099,13 +1099,13 @@ The code above produces this result:
 
 <br><br>
 ### GenHash()
-``Coordinates.GenHash`` accepts string data as a parameter, returning a custom, unique 32 character hash. Hashes are useful for many things, including fingerprinting of unique items.
+``Coordinates.GenHash`` accepts string data as a parameter, returning a custom, unique 32 character hash. Hashes are useful for many things, including fingerprinting of unique items which may be of arbitrary size/length.
 <br>
 
 example:
 ```js
 var ar = ['apples', 'bananas', 'peaches']
-ar.map(v=>v={name: v, hash: Coordinates.GenHash(v)})
+ar = ar.map(v=>({name: v, hash: Coordinates.GenHash(v)}))
 
 /* ar ->
 [
