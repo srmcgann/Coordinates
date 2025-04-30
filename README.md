@@ -1096,3 +1096,36 @@ The code above produces this result:
 <center>
 
 ![picker](README_g5.gif) </center>
+
+<br><br>
+### GenHash()
+``Coordinates.GenHash`` accepts string data as a parameter, returning a custom, unique 32 character hash. Hashes are useful for many things, including fingerprinting of unique items.
+<br>
+
+example:
+```js
+var ar = ['apples', 'bananas', 'peaches']
+ar.map(v=>v={name: v, hash: Coordinates.GenHash(v)})
+
+/* ar ->
+[
+    {
+        "name": "apples",
+        "hash": "uvxzDFJLPVX379djprxBDJNT157bdhvz"
+    },
+    {
+        "name": "bananas",
+        "hash": "LMOQUW026cekoquAGIOSU04aimosuyMQ"
+    },
+    {
+        "name": "peaches",
+        "hash": "NOQSWY248egmqswCIKQUW26ckoquwAOS"
+    }
+] */
+
+// then, to select an item by its unique hash:
+var match = ar.filter(v=>v.hash=='NOQSWY248egmqswCIKQUW26ckoquwAOS')
+if(match.length) console.log(match[0].name)
+
+// > 'peaches'
+```
