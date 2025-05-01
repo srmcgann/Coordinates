@@ -219,10 +219,26 @@ const Renderer = async options => {
       
       // depth + alpha bugfix
       if(!sortedPass && (geometry.isSprite || (geometry.isLight && geometry.showSource))) {
-        renderer.alphaQueue = [geometry, ...renderer.alphaQueue]
+        renderer.alphaQueue = [{
+          x: geometry.x,
+          y: geometry.y,
+          z: geometry.z,
+          roll: geometry.roll,
+          pitch: geometry.pitch,
+          yaw: geometry.yaw,
+          geometry
+        }, ...renderer.alphaQueue]
       }else{
         if(!sortedPass && geometry.isParticle ) {
-          renderer.particleQueue = [geometry, ...renderer.particleQueue]
+          renderer.particleQueue = [{
+            x: geometry.x,
+            y: geometry.y,
+            z: geometry.z,
+            roll: geometry.roll,
+            pitch: geometry.pitch,
+            yaw: geometry.yaw,
+            geometry
+          }, ...renderer.particleQueue]
         }else{
 
           ctx.useProgram( sProg )
@@ -2583,12 +2599,11 @@ const BasicShader = async (renderer, options=[]) => {
             geo = R(geoPos, camOri, 0);
             pos = R(vec3(cx, cy, cz),
                      vec3(0.0, -camOri.y + M_PI, 0.0), 0);
-            pos = R(vec3(pos.x, pos.y, pos.z),
+            pos = R(pos,
                      vec3(-camOri.x, 0.0, -camOri.z ), 0);
-            pos = R(pos, geoOri, 1);
-            //pos.x += cpx;
-            //pos.y += cpy;
-            //pos.z += cpz;
+            pos.x += cpx;
+            pos.y += cpy;
+            pos.z += cpz;
             pos = R(pos, camOri, 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = R(nVec, geoOri, 1);
@@ -5056,7 +5071,13 @@ const AnimationLoop = (renderer, func) => {
       forSort.sort((a, b) => b.z - a.z)
       renderer.particleQueue.map(async (alphaShape, idx) => {
 
-        var shape = renderer.particleQueue[forSort[idx].idx]
+        var shape = renderer.particleQueue[forSort[idx].idx].geometry
+        shape.x = renderer.particleQueue[forSort[idx].idx].x
+        shape.y = renderer.particleQueue[forSort[idx].idx].y
+        shape.z = renderer.particleQueue[forSort[idx].idx].z
+        shape.roll = renderer.particleQueue[forSort[idx].idx].roll
+        shape.pitch = renderer.particleQueue[forSort[idx].idx].pitch
+        shape.yaw = renderer.particleQueue[forSort[idx].idx].yaw
         
         var shouldDisableDepth = () => {
           return false //shape.isLight || shape.isSprite || shape.disableDepthTest
@@ -5098,7 +5119,13 @@ const AnimationLoop = (renderer, func) => {
       forSort.sort((a, b) => b.z - a.z)
       renderer.alphaQueue.map(async (alphaShape, idx) => {
 
-        var shape = renderer.alphaQueue[forSort[idx].idx]
+        var shape = renderer.alphaQueue[forSort[idx].idx].geometry
+        shape.x = renderer.alphaQueue[forSort[idx].idx].x
+        shape.y = renderer.alphaQueue[forSort[idx].idx].y
+        shape.z = renderer.alphaQueue[forSort[idx].idx].z
+        shape.roll = renderer.alphaQueue[forSort[idx].idx].roll
+        shape.pitch = renderer.alphaQueue[forSort[idx].idx].pitch
+        shape.yaw = renderer.alphaQueue[forSort[idx].idx].yaw
         
         var shouldDisableDepth = () => {
           return false //shape.isLight || shape.isSprite ||shape.disableDepthTest
