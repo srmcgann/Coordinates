@@ -1317,8 +1317,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
 
   //sphereize
   if(shapeType != 'particles' && !isParticle &&
-     shapeType != 'custom shape' && shapeType != 'obj' &&
-     (sphereize || scaleX || scaleY || scaleZ)){
+     shapeType != 'custom shape' && shapeType != 'obj' ||
+     (sphereize || scaleX != 1 || scaleY != 1 || scaleZ != 1)){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
     for(var i = 0; i< vertices.length; i+=3){
@@ -2690,7 +2690,7 @@ const BasicShader = async (renderer, options=[]) => {
           if(skip == 0.0){
             float p2 = - (acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0) * 1.05;
             gl_PointSize = 100.0 * pointSize / dist;
-            gl_Position = vec4(p1, p2, dist/100000.0, 1.0);
+            gl_Position = vec4(p1, p2, dist/300000.0, 1.0);
             vUv = uv;
           }
         } else {  // default projection
@@ -2698,7 +2698,7 @@ const BasicShader = async (renderer, options=[]) => {
           Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
           if(Z > 0.0) {
             gl_PointSize = 100.0 * pointSize / Z;
-            gl_Position = vec4(X, Y, Z/100000.0, 1.0);
+            gl_Position = vec4(X, Y, Z/300000.0, 1.0);
             skip = 0.0;
             vUv = uv;
           }else{
@@ -4608,7 +4608,7 @@ const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
   
   
   var ret = await GeometryFromRaw(e, texCoords, size / 1.5,
-       Math.max(shapeType == 'sprite' ? 1 : 2, subs),
+       Math.max(shapeType == 'sprite' ? 0 : 2, subs),
              shapeType == 'sprite' || shapeType == 'point light' ? 0 : sphereize, flipNormals, true, shapeType)
              
   return ret
@@ -5040,6 +5040,10 @@ const LoadFPSControls = async (renderer, options) => {
   }
 }
 
+const ShouldDisableDepth = () => {
+  return false //shape.isLight || shape.isSprite ||shape.disableDepthTest
+}
+
 
 const AnimationLoop = (renderer, func) => {
   console.log('entering animation loop', renderer)
@@ -5090,17 +5094,13 @@ const AnimationLoop = (renderer, func) => {
         shape.pitch = renderer.particleQueue[forSort[idx].idx].pitch
         shape.yaw = renderer.particleQueue[forSort[idx].idx].yaw
         
-        var shouldDisableDepth = () => {
-          return false //shape.isLight || shape.isSprite || shape.disableDepthTest
-        }
-        
-        if(shouldDisableDepth()) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
+        if(ShouldDisableDepth()) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
     
         var penumbra = shape.penumbra
         for(var m = 1 + (shape.isParticle && penumbra ? 1 : 0); m--;){
           await renderer.Draw(shape, true, shape.isParticle && penumbra && !m)
         }
-        if(shouldDisableDepth()) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
+        if(ShouldDisableDepth()) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
           
         shape.vertices = tempVerts
         shape.size = tempSize
@@ -5145,17 +5145,13 @@ const AnimationLoop = (renderer, func) => {
         shape.pitch = renderer.alphaQueue[forSort[idx].idx].pitch
         shape.yaw = renderer.alphaQueue[forSort[idx].idx].yaw
         
-        var shouldDisableDepth = () => {
-          return false //shape.isLight || shape.isSprite ||shape.disableDepthTest
-        }
-        
-        if(shouldDisableDepth()) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
+        if(ShouldDisableDepth()) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
     
         var penumbra = shape.penumbra
         for(var m = 1 + (shape.isParticle && penumbra ? 1 : 0); m--;){
           await renderer.Draw(shape, true, shape.isParticle && penumbra && !m)
         }
-        if(shouldDisableDepth()) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
+        if(ShouldDisableDepth()) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
 
         shape.vertices = tempVerts
         shape.size = tempSize
