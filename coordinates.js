@@ -1124,7 +1124,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
             normalVecs  = geometryData.normalVecs
             uvs         = geometryData.uvs
             resolved    = true
-            cache.customShapes.push({data: structuredClone(geometryData), url})
+            //cache.customShapes.push({data: structuredClone(geometryData), url})
           }else{
             await fetch(fileURL).then(res=>res.json()).then(data=>{
               vertices    = data.vertices
@@ -1405,7 +1405,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  if(averageNormals) AverageNormals(vertices, normals, shapeType)
+  if(averageNormals) {
+    AverageNormals(vertices, normals, shapeType)
+  }
 
 
   if(shapeType == 'dynamic' || preComputeNormalAssocs){
@@ -1430,7 +1432,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
 
     
-  if(!isParticle &&
+  if(shapeType != 'custom shape' && !isParticle &&
      (!resolvedFromCache || !resolved || averageNormals || exportShape)){
     normalVecs    = new Float32Array()
     for(var i=0; i<normals.length; i+=6){
@@ -2953,7 +2955,6 @@ const BasicShader = async (renderer, options=[]) => {
     gl.compileShader(fragmentShader)
 
     ret.ConnectGeometry = async (geometry, fromNullShader = false) => {
-      
       if(0&&(geometry.shapeType == 'point light' || geometry.shapeType == 'sprite') &&
          typeof geometry?.shader != 'undefined') return
          
