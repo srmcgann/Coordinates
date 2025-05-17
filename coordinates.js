@@ -1105,7 +1105,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     // involve cache
     switch(shapeType){
       case 'custom shape':
-        if(involveCache && (cacheItem = cache.customShapes.filter(v=>v.url==url)).length){
+        if(typeof geometryData.vertices == 'undefined' && involveCache &&
+           (cacheItem = cache.customShapes.filter(v=>v.url==url)).length){
           console.log(`found custom shape in cache... using it`)
           var data   = cacheItem[0].data
           vertices   = data.vertices
@@ -1116,14 +1117,24 @@ const LoadGeometry = async (renderer, geoOptions) => {
           resolvedFromCache = true
         }
         if(!resolved){
-          await fetch(fileURL).then(res=>res.json()).then(data=>{
-            vertices    = data.vertices
-            normals     = data.normals
-            normalVecs  = data.normalVecs
-            uvs         = data.uvs
+          if(typeof geometryData.vertices != 'undefined' &&
+             geometryData.vertices.length){
+            vertices    = geometryData.vertices
+            normals     = geometryData.normals
+            normalVecs  = geometryData.normalVecs
+            uvs         = geometryData.uvs
             resolved    = true
-            cache.customShapes.push({data: structuredClone(data), url})
-          })
+            cache.customShapes.push({data: structuredClone(geometryData), url})
+          }else{
+            await fetch(fileURL).then(res=>res.json()).then(data=>{
+              vertices    = data.vertices
+              normals     = data.normals
+              normalVecs  = data.normalVecs
+              uvs         = data.uvs
+              resolved    = true
+              cache.customShapes.push({data: structuredClone(data), url})
+            })
+          }
         }
       break
       default: break
@@ -1315,6 +1326,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
 
+  
   //sphereize
   if(shapeType != 'particles' && !isParticle &&
      shapeType != 'custom shape' && shapeType != 'obj' ||
@@ -2360,13 +2372,14 @@ const BasicShader = async (renderer, options=[]) => {
                     //light.rgb += .05;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
-                      vec3 reflectionPos = R_ypr(nVi, geoOri);
+                      vec3 reflectionPos = R_rpy(nVi, vec3(geoOri.x,
+                                                       -geoOri.y, geoOri.z));
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
                       refP1 = -atan(px, pz) / M_PI / 4.0;
                       refP2 = acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
-                      if(refFlipRefs != 0.0) refP2 = 1.0 - refP2;
+                      if(refFlipRefs != 1.0) refP2 = 1.0 - refP2;
                     } else {
                       refP1 = vUv.x;
                       refP2 = vUv.y;
@@ -2792,6 +2805,17 @@ const BasicShader = async (renderer, options=[]) => {
         pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
         pos.y = cos(p)*d;
         pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
+        pos.z = cos(p)*d;
+        return pos;
+      }
+      
+      vec3 R_rpy(vec3 pos, vec3 rot){
+        float p, d;
+        pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
+        pos.y = cos(p)*d;
+        pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
+        pos.z = cos(p)*d;
+        pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
         pos.z = cos(p)*d;
         return pos;
       }
