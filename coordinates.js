@@ -2,12 +2,17 @@
 // Scott McGann - whitehotrobot@gmail.com
 // all rights reserved - ©2025
 
+const ModuleBase = 'https://srmcgann.github.io/Coordinates'
+
 // includes
 import * as Hash from "https://srmcgann.github.io/GenHash/hash.js"
-import * as zip from "./zip.js"
 
+const zipScript = document.createElement('script')
+await zipScript.setAttribute('src', ModuleBase + '/zip.js')
+await document.body.appendChild(zipScript)
 
 const S = Math.sin, C = Math.cos, Rn = Math.random
+
 var audioConsent = false
 //new OffscreenCanvas(256, 256); * might be superior
 const scratchCanvas = document.createElement('canvas')
@@ -21,7 +26,6 @@ const sctx = scratchCanvas.getContext('2d', {
 )
 
 const scratchImage = new Image()
-const ModuleBase = 'https://srmcgann.github.io/Coordinates'
 
 var cacheItem
 const cache = {
@@ -852,7 +856,7 @@ const R_rpy = (X,Y,Z, cam, m=false) => {
 
 // load anim frames from zip, expects any file name(s)
 // returns object w/ .geometries, .loaded [true/false], .curFrame [0],
-const LoadAnimationFromZip = (options, shader) => {
+const LoadAnimationFromZip = (renderer, options, shader) => {
   var frames = [], baseName = options.name
   var ret = {loaded: false, curFrame: 0, geometries: []}
   fetch(options.url).then(res=>res.blob()).then(data => {
@@ -5481,6 +5485,7 @@ export {
   Cylinder,
   Torus,
   DownloadCustomShape,
+  LoadAnimationFromZip,
   TorusKnot,
   Rectangle,
   Q, R, R_ypr, R_pyr, R_rpy,
