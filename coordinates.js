@@ -724,7 +724,7 @@ const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
   })
 }
 
-const OBJFinishing = ret =>{
+const OBJFinishing = (ret, tx, ty, tz, rl, pt, yw) =>{
   var a, X, Y, Z
   for(var i = 0; i<ret.uvs.length; i+=2){
     ret.uvs[i+1] = 1-ret.uvs[i+1]
@@ -772,7 +772,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
     })
     cache.objFiles = [...structuredClone(cache.objFiles), {url, ret}]
   }
-  OBJFinishing(ret)
+  OBJFinishing(ret, tx, ty, tz, rl, pt, yw)
   return ret
 }
 
