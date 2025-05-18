@@ -772,7 +772,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
     })
     cache.objFiles = [...structuredClone(cache.objFiles), {url, ret}]
   }
-  OBJFinishing(ret, tx, ty, tz, rl, pt, yw)
+  await OBJFinishing(ret, tx, ty, tz, rl, pt, yw)
   return ret
 }
 
@@ -865,19 +865,19 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
       var tct = res.length
       frames = Array(tct).fill().map(v=>({data: {}}))
       await res.forEach(async (file, i) => {
-        var ct = (''+(i+1)).padStart(4, '0')
         var data = await (await file.getData(new zip.BlobWriter())).text()
         if(options.shapeType == 'custom shape') data = JSON.parse(data)
         frames[i].data = data
         if(i==tct-1) {
           ret.loaded = true
           frames.forEach((frame, idx) => {
+            var ct = (''+(idx+1)).padStart(4, '0')
             if(!(idx%1)){
               options.geometryData = frame.data
               options.name = `${baseName}_frame${ct}.json`
               LoadGeometry(renderer, options)
                 .then(async (geometry) => {
-                resource.geometries[idx/1|0] = geometry
+                ret.geometries[idx/1|0] = geometry
                 await shader.ConnectGeometry(geometry)
               })
             }
@@ -1341,6 +1341,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
           var fInd = new Float32Array()
           ProcessOBJData(geometryData, vInd, nInd, uInd, fInd, ret)
           OBJFinishing(ret)
+          console.log('ret', ret)
           vertices    = ret.vertices
           normals     = ret.normals
           //normalVecs  = ret.normalVecs
@@ -1708,7 +1709,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     x, y, z,
     roll, pitch, yaw, color, colorMix,
     size, subs, name, url, averageNormals,
-    showNormals, exportShape,
+    showNormals, exportShape, downloadShape,
     shapeType: isParticle ? 'particles' : shapeType,
     sphereize, equirectangular, flipNormals,
     vertices, normals, normalVecs, uvs,
