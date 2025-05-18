@@ -4,6 +4,7 @@
 
 // includes
 import * as Hash from "https://srmcgann.github.io/GenHash/hash.js"
+import * as zip from "./zip.js"
 
 
 const S = Math.sin, C = Math.cos, Rn = Math.random
@@ -592,144 +593,135 @@ const DestroyShape = shape => {
   }
 }
 
-const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involveCache=true) => {
-
-  var ret = { vertices: [], normals: [], uvs: [] }
+const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
   var a, X, Y, Z
-  if(involveCache && (cacheItem = cache.objFiles.filter(v=>v.url == url)).length){
-    ret = cacheItem[0].ret
-  }else{
-    var vInd = new Float32Array()
-    var nInd = new Float32Array()
-    var uInd = new Float32Array()
-    var fInd = new Float32Array()
-    await fetch(url).then(res=>res.text()).then(data => {
-      data.split("\n").forEach(line => {
-        var lineParts = line.split(' ')
-        var lineType = lineParts[0]
-        switch(lineType){
-          case 'v':
-            lineParts.shift()
-            vInd = [...vInd, lineParts.map(v=>+v)]
-          break
-          case 'vt':
-            lineParts.shift()
-            uInd = [...uInd, lineParts.map(v=>+v)]
-          break
-          case 'vn':
-            lineParts.shift()
-            nInd = [...nInd, lineParts.map(v=>+v)]
-          break
-          case 'f':
-            lineParts.shift()
-            fInd = [...fInd, lineParts.map(v=>v)]
-          break
-        }
-      })
-      fInd.map(face => {
-        var v = new Float32Array(), u = new Float32Array(), n = new Float32Array()
-        var vidx, uidx, nidx
-        var useUVs = false, useNormals = false
-        face.map(vertex => {
-          var vertexParts = vertex.split('/')
-          switch(vertexParts.length){
-            case 1: // only verts
-              vidx = vertexParts[0]
-              v = [...v, vInd[vidx-1]]
-            break
-            case 2: // verts, uvs
-              vidx = vertexParts[0]
-              uidx = vertexParts[1]
-              v = [...v, vInd[vidx-1]]
-              u = [...u, uInd[uidx-1]]
-              useUVs = true
-            break
-            case 3: // verts, uvs, normals
-              vidx = vertexParts[0]
-              uidx = vertexParts[1]
-              nidx = vertexParts[2]
-              v = [...v, vInd[vidx-1]]
-              u = [...u, uInd[uidx-1]]
-              n = [...n, nInd[nidx-1]]
-              useNormals = true
-            break
-          }
-        })
-        var X1 = v[0][0]
-        var Y1 = v[0][1]
-        var Z1 = v[0][2]
-        var X2 = v[1][0]
-        var Y2 = v[1][1]
-        var Z2 = v[1][2]
-        var X3 = v[2][0]
-        var Y3 = v[2][1]
-        var Z3 = v[2][2]
-        if(useNormals){
-          var NX1 = n[0][0]
-          var NY1 = n[0][1]
-          var NZ1 = n[0][2]
-          var NX2 = n[1][0]
-          var NY2 = n[1][1]
-          var NZ2 = n[1][2]
-          var NX3 = n[2][0]
-          var NY3 = n[2][1]
-          var NZ3 = n[2][2]
-        }
-        if(v.length == 4){
-          var X4 = v[3][0]
-          var Y4 = v[3][1]
-          var Z4 = v[3][2]
-          if(useNormals){
-            var NX4 = n[3][0]
-            var NY4 = n[3][1]
-            var NZ4 = n[3][2]
-          }
-        }
-        
-        switch(v.length) {
-          case 3:
-            a = new Float32Array()
-            n.map((q, j) => {
-              a = [...a,
-               [X1,Y1,Z1, X1+NX1, Y1+NY1, Z1+NZ1],
-               [X2,Y2,Z2, X2+NX2, Y2+NY2, Z2+NZ2],
-               [X3,Y3,Z3, X3+NX3, Y3+NY3, Z3+NZ3]]
-            })
-            n = a
-            ret.vertices = [...ret.vertices,
-                            ...v[0], ...v[1], ...v[2]]
-            if(u.length && typeof u[0] != 'undefined')
-              ret.uvs      = [...ret.uvs,
-                            ...u[0], ...u[1], ...u[2]]
-            if(n.length && typeof n[0] != 'undefined')
-              ret.normals  = [...ret.normals,
-                            ...n[0], ...n[1], ...n[2]]
-          break
-          case 4: // split quad
-            a = new Float32Array()
-            n.map((q, j) => {
-              a = [...a,
-               [X1,Y1,Z1, X1+NX1, Y1+NY1, Z1+NZ1],
-               [X2,Y2,Z2, X2+NX2, Y2+NY2, Z2+NZ2],
-               [X3,Y3,Z3, X3+NX3, Y3+NY3, Z3+NZ3],
-               [X4,Y4,Z4, X4+NX4, Y4+NY4, Z4+NZ4]]
-            })
-            n = a
-            ret.vertices          = [...ret.vertices,
-                            ...v[0], ...v[1], ...v[2],
-                            ...v[2], ...v[3], ...v[0]]
-            if(u.length) ret.uvs  = [...ret.uvs,
-                            ...u[0], ...u[1], ...u[2],
-                            ...u[2], ...u[3], ...u[0]]
-            if(n.length) ret.normals = [...ret.normals,
-                            ...n[0], ...n[1], ...n[2],
-                            ...n[2], ...n[3], ...n[0]]
-          break
-        }
-      })
+  data.split("\n").forEach(line => {
+    var lineParts = line.split(' ')
+    var lineType = lineParts[0]
+    switch(lineType){
+      case 'v':
+        lineParts.shift()
+        vInd = [...vInd, lineParts.map(v=>+v)]
+      break
+      case 'vt':
+        lineParts.shift()
+        uInd = [...uInd, lineParts.map(v=>+v)]
+      break
+      case 'vn':
+        lineParts.shift()
+        nInd = [...nInd, lineParts.map(v=>+v)]
+      break
+      case 'f':
+        lineParts.shift()
+        fInd = [...fInd, lineParts.map(v=>v)]
+      break
+    }
+  })
+  fInd.map(face => {
+    var v = new Float32Array(), u = new Float32Array(), n = new Float32Array()
+    var vidx, uidx, nidx
+    var useUVs = false, useNormals = false
+    face.map(vertex => {
+      var vertexParts = vertex.split('/')
+      switch(vertexParts.length){
+        case 1: // only verts
+          vidx = vertexParts[0]
+          v = [...v, vInd[vidx-1]]
+        break
+        case 2: // verts, uvs
+          vidx = vertexParts[0]
+          uidx = vertexParts[1]
+          v = [...v, vInd[vidx-1]]
+          u = [...u, uInd[uidx-1]]
+          useUVs = true
+        break
+        case 3: // verts, uvs, normals
+          vidx = vertexParts[0]
+          uidx = vertexParts[1]
+          nidx = vertexParts[2]
+          v = [...v, vInd[vidx-1]]
+          u = [...u, uInd[uidx-1]]
+          n = [...n, nInd[nidx-1]]
+          useNormals = true
+        break
+      }
     })
-    cache.objFiles = [...structuredClone(cache.objFiles), {url, ret}]
-  }
+    var X1 = v[0][0]
+    var Y1 = v[0][1]
+    var Z1 = v[0][2]
+    var X2 = v[1][0]
+    var Y2 = v[1][1]
+    var Z2 = v[1][2]
+    var X3 = v[2][0]
+    var Y3 = v[2][1]
+    var Z3 = v[2][2]
+    if(useNormals){
+      var NX1 = n[0][0]
+      var NY1 = n[0][1]
+      var NZ1 = n[0][2]
+      var NX2 = n[1][0]
+      var NY2 = n[1][1]
+      var NZ2 = n[1][2]
+      var NX3 = n[2][0]
+      var NY3 = n[2][1]
+      var NZ3 = n[2][2]
+    }
+    if(v.length == 4){
+      var X4 = v[3][0]
+      var Y4 = v[3][1]
+      var Z4 = v[3][2]
+      if(useNormals){
+        var NX4 = n[3][0]
+        var NY4 = n[3][1]
+        var NZ4 = n[3][2]
+      }
+    }
+    
+    switch(v.length) {
+      case 3:
+        a = new Float32Array()
+        n.map((q, j) => {
+          a = [...a,
+           [X1,Y1,Z1, X1+NX1, Y1+NY1, Z1+NZ1],
+           [X2,Y2,Z2, X2+NX2, Y2+NY2, Z2+NZ2],
+           [X3,Y3,Z3, X3+NX3, Y3+NY3, Z3+NZ3]]
+        })
+        n = a
+        ret.vertices = [...ret.vertices,
+                        ...v[0], ...v[1], ...v[2]]
+        if(u.length && typeof u[0] != 'undefined')
+          ret.uvs      = [...ret.uvs,
+                        ...u[0], ...u[1], ...u[2]]
+        if(n.length && typeof n[0] != 'undefined')
+          ret.normals  = [...ret.normals,
+                        ...n[0], ...n[1], ...n[2]]
+      break
+      case 4: // split quad
+        a = new Float32Array()
+        n.map((q, j) => {
+          a = [...a,
+           [X1,Y1,Z1, X1+NX1, Y1+NY1, Z1+NZ1],
+           [X2,Y2,Z2, X2+NX2, Y2+NY2, Z2+NZ2],
+           [X3,Y3,Z3, X3+NX3, Y3+NY3, Z3+NZ3],
+           [X4,Y4,Z4, X4+NX4, Y4+NY4, Z4+NZ4]]
+        })
+        n = a
+        ret.vertices          = [...ret.vertices,
+                        ...v[0], ...v[1], ...v[2],
+                        ...v[2], ...v[3], ...v[0]]
+        if(u.length) ret.uvs  = [...ret.uvs,
+                        ...u[0], ...u[1], ...u[2],
+                        ...u[2], ...u[3], ...u[0]]
+        if(n.length) ret.normals = [...ret.normals,
+                        ...n[0], ...n[1], ...n[2],
+                        ...n[2], ...n[3], ...n[0]]
+      break
+    }
+  })
+}
+
+const OBJFinishing = ret =>{
+  var a, X, Y, Z
   for(var i = 0; i<ret.uvs.length; i+=2){
     ret.uvs[i+1] = 1-ret.uvs[i+1]
   }
@@ -757,8 +749,26 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
       ret.normals[l+1] = ar[1]
       ret.normals[l+2] = ar[2]
     }
-    
   }
+}
+
+const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involveCache=true) => {
+
+  var ret = { vertices: [], normals: [], uvs: [] }
+  var a, X, Y, Z
+  if(involveCache && (cacheItem = cache.objFiles.filter(v=>v.url == url)).length){
+    ret = cacheItem[0].ret
+  }else{
+    var vInd = new Float32Array()
+    var nInd = new Float32Array()
+    var uInd = new Float32Array()
+    var fInd = new Float32Array()
+    await fetch(url).then(res=>res.text()).then(data => {
+      ProcessOBJData(data, vInd, nInd, uInd, fInd, ret)
+    })
+    cache.objFiles = [...structuredClone(cache.objFiles), {url, ret}]
+  }
+  OBJFinishing(ret)
   return ret
 }
 
@@ -840,6 +850,67 @@ const R_rpy = (X,Y,Z, cam, m=false) => {
   return [X, Y, Z]
 }
 
+// load anim frames from zip, expects any file name(s)
+// returns object w/ .geometries, .loaded [true/false], .curFrame [0],
+const LoadAnimationFromZip = (options, shader) => {
+  var frames = [], baseName = options.name
+  var ret = {loaded: false, curFrame: 0, geometries: []}
+  fetch(options.url).then(res=>res.blob()).then(data => {
+    ;(new zip.ZipReader(new zip.BlobReader(data))).getEntries()
+    .then(async res => {
+      var tct = res.length
+      frames = Array(tct).fill().map(v=>({data: {}}))
+      await res.forEach(async (file, i) => {
+        var ct = (''+(i+1)).padStart(4, '0')
+        var data = await (await file.getData(new zip.BlobWriter())).text()
+        if(options.shapeType == 'custom shape') data = JSON.parse(data)
+        frames[i].data = data
+        if(i==tct-1) {
+          ret.loaded = true
+          frames.forEach((frame, idx) => {
+            if(!(idx%1)){
+              options.geometryData = frame.data
+              options.name = `${baseName}_frame${ct}.json`
+              LoadGeometry(renderer, options)
+                .then(async (geometry) => {
+                resource.geometries[idx/1|0] = geometry
+                await shader.ConnectGeometry(geometry)
+              })
+            }
+          })
+        }
+      })
+    })
+  })
+  return ret
+}
+
+const DownloadCustomShape = geo => {
+
+  var vertices = []
+  var normals = []
+  var normalVecs = []
+  var uvs = []
+  for(var i = 0; i< geo.vertices.length; i++)
+    vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
+
+  for(var i = 0; i< geo.uvs.length; i++)
+    uvs.push(Math.round(geo.uvs[i]*1e3)/1e3)
+
+  for(var i = 0; i< geo.normals.length; i++)
+    normals.push(Math.round(geo.normals[i]*1e3)/1e3)
+
+  for(var i = 0; i< geo.normalVecs.length; i++)
+    normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
+
+  var object = { vertices, uvs, normals, normalVecs}
+  var link = document.createElement('a')
+  var str = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(object))
+  link.setAttribute('href', str)
+  link.setAttribute('download', geo.name)
+  link.click()
+}
+
 const LoadGeometry = async (renderer, geoOptions) => {
 
   var objX, objY, objZ, objRoll, objPitch, objYaw
@@ -851,7 +922,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var canvasTexture, canvasTextureMix, showBounding
   var boundingColor
   const gl = renderer.gl
-  var shape, exportShape = false
+  var shape, exportShape = false, downloadShape = false
   
   // geo defaults
   var x = 0, y = 0, z = 0
@@ -956,6 +1027,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'color'              : color = geoOptions[key]; break
       case 'colormix'           : colorMix = geoOptions[key]; break
       case 'exportshape'        : exportShape = !!geoOptions[key]; break
+      case 'downloadshape'      : downloadShape = !!geoOptions[key]; break
       case 'penumbra'           : penumbra = geoOptions[key]; break
       case 'url'                : url = geoOptions[key]; break
       case 'map'                : map = geoOptions[key]; break
@@ -1257,17 +1329,32 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'obj':
-        if(typeof objX     == 'undefined') objX     = 0
-        if(typeof objY     == 'undefined') objY     = 0
-        if(typeof objZ     == 'undefined') objZ     = 0
-        if(typeof objRoll  == 'undefined') objRoll  = 0
-        if(typeof objPitch == 'undefined') objPitch = 0
-        if(typeof objYaw   == 'undefined') objYaw   = 0
-        shape = await LoadOBJ(url, size, objX, objY, objZ,
-                              objRoll, objPitch, objYaw, false)
-        vertices = shape.vertices
-        normals  = shape.normals
-        uvs      = shape.uvs
+        if(geometryData.length){
+          var ret = { vertices: [], normals: [], uvs: [] }
+          var vInd = new Float32Array()
+          var nInd = new Float32Array()
+          var uInd = new Float32Array()
+          var fInd = new Float32Array()
+          ProcessOBJData(geometryData, vInd, nInd, uInd, fInd, ret)
+          OBJFinishing(ret)
+          vertices    = ret.vertices
+          normals     = ret.normals
+          //normalVecs  = ret.normalVecs
+          uvs         = ret.uvs
+          resolved    = true
+        }else{
+          if(typeof objX     == 'undefined') objX     = 0
+          if(typeof objY     == 'undefined') objY     = 0
+          if(typeof objZ     == 'undefined') objZ     = 0
+          if(typeof objRoll  == 'undefined') objRoll  = 0
+          if(typeof objPitch == 'undefined') objPitch = 0
+          if(typeof objYaw   == 'undefined') objYaw   = 0
+          shape = await LoadOBJ(url, size, objX, objY, objZ,
+                                objRoll, objPitch, objYaw, false)
+          vertices = shape.vertices
+          normals  = shape.normals
+          uvs      = shape.uvs
+        }
       break
       case 'dodecahedron':
         if(equirectangular == -1) equirectangular = true
@@ -1655,6 +1742,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
     await renderer.nullShader.ConnectGeometry(geometry)
   }
   
+  
+  if(geometry.downloadShape) DownloadCustomShape(geometry)
+
   return geometry
 }
 
@@ -5390,6 +5480,7 @@ export {
   Dodecahedron,
   Cylinder,
   Torus,
+  DownloadCustomShape,
   TorusKnot,
   Rectangle,
   Q, R, R_ypr, R_pyr, R_rpy,
