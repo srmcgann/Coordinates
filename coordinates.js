@@ -650,37 +650,39 @@ const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
         break
       }
     })
-    var X1 = v[0][0]
-    var Y1 = v[0][1]
-    var Z1 = v[0][2]
-    var X2 = v[1][0]
-    var Y2 = v[1][1]
-    var Z2 = v[1][2]
-    var X3 = v[2][0]
-    var Y3 = v[2][1]
-    var Z3 = v[2][2]
-    if(useNormals){
-      var NX1 = n[0][0]
-      var NY1 = n[0][1]
-      var NZ1 = n[0][2]
-      var NX2 = n[1][0]
-      var NY2 = n[1][1]
-      var NZ2 = n[1][2]
-      var NX3 = n[2][0]
-      var NY3 = n[2][1]
-      var NZ3 = n[2][2]
-    }
-    if(v.length == 4){
-      var X4 = v[3][0]
-      var Y4 = v[3][1]
-      var Z4 = v[3][2]
+    if(typeof v[0] != 'undefined'){
+      var X1 = v[0][0]
+      var Y1 = v[0][1]
+      var Z1 = v[0][2]
+      var X2 = v[1][0]
+      var Y2 = v[1][1]
+      var Z2 = v[1][2]
+      var X3 = v[2][0]
+      var Y3 = v[2][1]
+      var Z3 = v[2][2]
       if(useNormals){
-        var NX4 = n[3][0]
-        var NY4 = n[3][1]
-        var NZ4 = n[3][2]
+        var NX1 = n[0][0]
+        var NY1 = n[0][1]
+        var NZ1 = n[0][2]
+        var NX2 = n[1][0]
+        var NY2 = n[1][1]
+        var NZ2 = n[1][2]
+        var NX3 = n[2][0]
+        var NY3 = n[2][1]
+        var NZ3 = n[2][2]
+      }
+      if(v.length == 4){
+        var X4 = v[3][0]
+        var Y4 = v[3][1]
+        var Z4 = v[3][2]
+        if(useNormals){
+          var NX4 = n[3][0]
+          var NY4 = n[3][1]
+          var NZ4 = n[3][2]
+        }
       }
     }
-    
+      
     switch(v.length) {
       case 3:
         a = new Float32Array()
@@ -724,7 +726,7 @@ const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
   })
 }
 
-const OBJFinishing = (ret, tx, ty, tz, rl, pt, yw) =>{
+const OBJFinishing = (ret, tx=0, ty=0, tz=0, rl=0, pt=0, yw=0) =>{
   var a, X, Y, Z
   for(var i = 0; i<ret.uvs.length; i+=2){
     ret.uvs[i+1] = 1-ret.uvs[i+1]
@@ -748,7 +750,7 @@ const OBJFinishing = (ret, tx, ty, tz, rl, pt, yw) =>{
       Y = ret.normals[l+1]
       Z = ret.normals[l+2]
       var ar = [X,Y,Z]
-      ar = R_rpy(...ar, {roll:rl, pitch:pt, yaw:yw})
+      ar = R_pyr(...ar, {roll:rl, pitch:pt, yaw:yw})
       ret.normals[l+0] = ar[0]
       ret.normals[l+1] = ar[1]
       ret.normals[l+2] = ar[2]
@@ -870,12 +872,12 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
         frames[i].data = data
         if(i==tct-1) {
           ret.loaded = true
-          frames.forEach((frame, idx) => {
+          frames.forEach(async (frame, idx) => {
             var ct = (''+(idx+1)).padStart(4, '0')
             if(!(idx%1)){
               options.geometryData = frame.data
-              options.name = `${baseName}_frame${ct}.json`
-              LoadGeometry(renderer, options)
+              options.name = `${baseName?baseName+'_':''}frame${ct}.json`
+              await LoadGeometry(renderer, options)
                 .then(async (geometry) => {
                 ret.geometries[idx/1|0] = geometry
                 await shader.ConnectGeometry(geometry)
@@ -1340,8 +1342,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
           var uInd = new Float32Array()
           var fInd = new Float32Array()
           ProcessOBJData(geometryData, vInd, nInd, uInd, fInd, ret)
-          OBJFinishing(ret)
-          console.log('ret', ret)
+          await OBJFinishing(ret)
           vertices    = ret.vertices
           normals     = ret.normals
           //normalVecs  = ret.normalVecs
@@ -2801,7 +2802,7 @@ const BasicShader = async (renderer, options=[]) => {
           if(skip == 0.0){
             float p2 = - (acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0) * 1.05;
             gl_PointSize = 100.0 * pointSize / dist;
-            gl_Position = vec4(p1, p2, dist/500000.0, 1.0);
+            gl_Position = vec4(p1, p2, dist/200000.0, 1.0);
             vUv = uv;
           }
         } else {  // default projection
@@ -2809,7 +2810,7 @@ const BasicShader = async (renderer, options=[]) => {
           Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
           if(Z > 0.0) {
             gl_PointSize = 100.0 * pointSize / Z;
-            gl_Position = vec4(X, Y, Z/500000.0, 1.0);
+            gl_Position = vec4(X, Y, Z/200000.0, 1.0);
             skip = 0.0;
             vUv = uv;
           }else{
