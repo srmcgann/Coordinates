@@ -370,6 +370,12 @@ var geoOptions = {
                        // ordinary texture ('map'), if one is also provided.
                        // note: reflections, color, textures, and canvasTextures may all be used together.
   wireframe: false,    // if true, display shape as lines
+  exportShape: false,  // exports any shape to its fast-loading, internal format,
+                       // the exported data can be saved into files and re-loaded
+                       // with as 'custom shape' type. 'exported' shapes are
+                       // displayed on-screen with copy-to-clipboard buttons.
+  downloadShape: false,// same as 'exportShape', but file(s) are downloaded instead
+                       // of displayed on screen.
   sphereize: 1,        // interpolate a polyhedron to a sphere (=1), and beyond
                          // read more below about this feature
   averageNormals: false, // generate/recompute normals for any shape @ load
@@ -566,6 +572,60 @@ var geoOptions = {
   //...
 }
 ```
+
+## Animations
+
+### LoadAnimationFromZip()
+Animations may be loaded via zip-format archives, with some options shown below:<br>
+``LoadAnimationFromZip(renderer, options, shader)``
+<br>
+
+``LoadAnimationFromZip(renderer, options, shader)``
+
+``options`` is passed in the exact same way as a geoOptions object gets passed to the LoadGeometry method (see above). properties are applied to the contents of the zip file as if they were loaded individually.<br>
+
+Notes:<br>
+1) a ``url`` is required, pointing to a zip file.
+2) ``shapeType`` is required, same as calls to ``LoadGeometry``
+3) zip-file contents must exist in the archive root as files, with a single format
+4) ``downloadShape`` will download the shape(s), converted to the ``custom shape`` format - for all files in the zip file. Alternatively, ``exportShape`` will display the same info on screen with an option to copy it.
+5) the ``name`` provided in options, will be prepended to downloaded file-names.
+6) the object returned by this method is just an array of shapes/geometries, which may be passed into the ``DrawAnimation`` method
+
+<br>
+
+### DrawAnimation()
+A companion method may be used to render the array returned by ``LoadAnimationFromZip`` :
+<br>
+
+``DrawAnimation(renderer, options, shader)``
+
+``options`` isn't required, but may include these properties which are applied to all frames
+```js
+var animationOptions = {
+  x: 0, y: 0, z: 0,
+  roll: 0, pitch: 0, yaw: 0,
+  loopMode: 'reverse',
+  animationSpeed: 1,
+}
+```
+
+Notes:<br>
+``loopMode`` may be 'reverse', 'cycle', or omitted. the former runs the animation forward and then backward, looping while the latter loops from the first frame. ``reverse`` is the default.<br>
+``animationSpeed`` is self explanatory, with an expected range of 0.0 to 1.0, from stopped to advancing +1 frame per call, with fractional values reflecting frequencies in between.
+<br><br>
+
+#### Animation Usage Example:
+```js
+var X = 1
+var Y = 0
+var Z = 0
+var ar = Coordinates.R(X, Y, Z, {0, 0, Math.PI})
+// ar -> [-1, 0, 0]
+
+```
+
+<br><br>
 
 ## Tips and tricks
 
