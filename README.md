@@ -582,8 +582,6 @@ Animations may be loaded via zip-format archives, with some options shown below:
 ``LoadAnimationFromZip(renderer, options, shader)``
 <br>
 
-``LoadAnimationFromZip(renderer, options, shader)``
-
 ``options`` is passed in the exact same way as a geoOptions object gets passed to the LoadGeometry method (see above). properties are applied to the contents of the zip file as if they were loaded individually.<br>
 
 Notes:<br>
