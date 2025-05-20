@@ -891,6 +891,74 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
   return ret
 }
 
+const DrawAnimation = (renderer, animation, options) => {
+  var t = renderer.t
+  var x = 0, y = 0, z = 0
+  var roll = 0, pitch = 0, yaw = 0
+  var speed    = 1
+  var loopMode = 'reverse'
+  var animationSpeed = (1/speed) | 0
+
+  if(typeof options != 'undefined'){
+    Object.keys(options).forEach((key, idx) =>{
+      switch(key.toLowerCase()){
+        case 'x':     x           = +options[key]; break
+        case 'y':     y           = +options[key]; break
+        case 'z':     z           = +options[key]; break
+        case 'roll':  roll        = +options[key]; break
+        case 'pitch': pitch       = +options[key]; break
+        case 'yaw':   yaw         = +options[key]; break
+        case 'loopmode': loopMode = options[key]; break
+        case 'animationspeed': animationSpeed = +options[key]; break
+      }
+    })
+  }
+
+  if(typeof animation != 'undefined' && animation.loaded &&
+     animation.geometries.length){
+    for(var m=2;m--;){
+      if(animationSpeed && !(((t*60)|0)%animationSpeed))
+      animation.curFrame += animation.dir
+      if(animation.curFrame >= animation.geometries.length-(loopMode=='cycle'?0:1)){
+        switch(loopMode){
+          case 'cycle':
+            animation.curFrame = 0
+          break
+          case 'reverse':
+            animation.dir = -1
+          break
+          default:
+            animation.dir = -1
+          break
+        }
+      }
+      if(animation.curFrame < (loopMode=='cycle'?0:1)){
+        switch(loopMode){
+          case 'cycle':
+            animation.curFrame = animation.geometries.length - 1
+          break
+          case 'reverse':
+            animation.dir = 1
+          break
+          default:
+            animation.dir = 1
+          break
+        }
+      }
+    }
+    var shape = animation.geometries[animation.curFrame]
+    if(typeof shape != 'undefined' && shape.vertices.length){
+      shape.x = x
+      shape.y = y
+      shape.z = z
+      shape.roll  = roll
+      shape.pitch = pitch
+      shape.yaw   = yaw
+      renderer.Draw(shape)
+    }
+  }
+}
+  
 const DownloadCustomShape = geo => {
 
   var vertices = []
@@ -2477,7 +2545,7 @@ const BasicShader = async (renderer, options=[]) => {
                       float pz = reflectionPos.z;
                       refP1 = -atan(px, pz) / M_PI / 4.0;
                       refP2 = acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
-                      if(refFlipRefs != 1.0) refP2 = 1.0 - refP2;
+                      if(refFlipRefs == 1.0) refP2 = 1.0 - refP2;
                     } else {
                       refP1 = vUv.x;
                       refP2 = vUv.y;
@@ -5488,6 +5556,7 @@ export {
   Torus,
   DownloadCustomShape,
   LoadAnimationFromZip,
+  DrawAnimation,
   TorusKnot,
   Rectangle,
   Q, R, R_ypr, R_pyr, R_rpy,
