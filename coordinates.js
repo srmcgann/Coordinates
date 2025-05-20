@@ -860,14 +860,14 @@ const R_rpy = (X,Y,Z, cam, m=false) => {
 // returns object w/ .geometries, .loaded [true/false], .curFrame [0],
 const LoadAnimationFromZip = (renderer, options, shader) => {
   var frames = [], baseName = options.name
-  var ret = {loaded: false, curFrame: 0, geometries: []}
+  var ret = {loaded: false, curFrame: 0, geometries: [], dir: 1}
   fetch(options.url).then(res=>res.blob()).then(data => {
     ;(new zip.ZipReader(new zip.BlobReader(data))).getEntries()
     .then(async res => {
       var tct = res.length
       frames = Array(tct).fill().map(v=>({data: {}}))
       await res.forEach(async (file, i) => {
-        var data = await (await file.getData(new zip.BlobWriter())).text()
+        var data = (await (await file.getData(new zip.BlobWriter())).text())
         if(options.shapeType == 'custom shape') data = JSON.parse(data)
         frames[i].data = data
         if(i==tct-1) {
@@ -2802,7 +2802,7 @@ const BasicShader = async (renderer, options=[]) => {
           if(skip == 0.0){
             float p2 = - (acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0) * 1.05;
             gl_PointSize = 100.0 * pointSize / dist;
-            gl_Position = vec4(p1, p2, dist/200000.0, 1.0);
+            gl_Position = vec4(p1, p2, dist/50000.0, 1.0);
             vUv = uv;
           }
         } else {  // default projection
@@ -2810,7 +2810,7 @@ const BasicShader = async (renderer, options=[]) => {
           Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
           if(Z > 0.0) {
             gl_PointSize = 100.0 * pointSize / Z;
-            gl_Position = vec4(X, Y, Z/200000.0, 1.0);
+            gl_Position = vec4(X, Y, Z/50000.0, 1.0);
             skip = 0.0;
             vUv = uv;
           }else{
