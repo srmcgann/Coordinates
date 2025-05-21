@@ -874,12 +874,12 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
           ret.loaded = true
           frames.forEach(async (frame, idx) => {
             var ct = (''+(idx+1)).padStart(4, '0')
-            if(!(idx%1)){
+            if(!(idx%1)){  // %1 may become a 'frame skipping' option
               options.geometryData = frame.data
               options.name = `${baseName?baseName+'_':''}frame${ct}.json`
               await LoadGeometry(renderer, options)
                 .then(async (geometry) => {
-                ret.geometries[idx/1|0] = geometry
+                ret.geometries[idx/1|0] = geometry  // see note above, re: idx/1
                 await shader.ConnectGeometry(geometry)
               })
             }
@@ -909,14 +909,14 @@ const DrawAnimation = (renderer, animation, options) => {
         case 'pitch': pitch       = +options[key]; break
         case 'yaw':   yaw         = +options[key]; break
         case 'loopmode': loopMode = options[key]; break
-        case 'animationspeed': animationSpeed = +options[key]; break
+        case 'animationspeed': animationSpeed = (1/(+options[key]))|0; break
       }
     })
   }
 
   if(typeof animation != 'undefined' && animation.loaded &&
      animation.geometries.length){
-    for(var m=2;m--;){
+    for(var m=1;m--;){
       if(animationSpeed && !(((t*60)|0)%animationSpeed))
       animation.curFrame += animation.dir
       if(animation.curFrame >= animation.geometries.length-(loopMode=='cycle'?0:1)){
