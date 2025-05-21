@@ -898,7 +898,7 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
                 var textReader = new zip.TextReader(JSON.stringify(object))
                 var ct = (''+(idx+1)).padStart(4, '0')
                 await zipWriter.add(`frame_${ct}.json`, textReader)
-                if(idx == tct-1){
+                if(idx == tct-1 && !!options.downloadShape){
                   DownloadFile(await zipWriter.close(), 'animation.zip')
                 }
               })
