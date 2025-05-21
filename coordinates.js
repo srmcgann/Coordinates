@@ -872,15 +872,35 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
         frames[i].data = data
         if(i==tct-1) {
           ret.loaded = true
+          var zipWriter = new zip.ZipWriter(new zip.BlobWriter())
           frames.forEach(async (frame, idx) => {
             var ct = (''+(idx+1)).padStart(4, '0')
-            if(!(idx%1)){  // %1 may become a 'frame skipping' option
+            if(!(idx%1)){
               options.geometryData = frame.data
               options.name = `${baseName?baseName+'_':''}frame${ct}.json`
               await LoadGeometry(renderer, options)
-                .then(async (geometry) => {
-                ret.geometries[idx/1|0] = geometry  // see note above, re: idx/1
-                await shader.ConnectGeometry(geometry)
+                .then(async (geo) => {
+                ret.geometries[idx/1|0] = geo
+                await shader.ConnectGeometry(geo)
+                var vertices   = []
+                var normals    = []
+                var normalVecs = []
+                var uvs        = []
+                for(var i = 0; i < geo.vertices.length; i++)
+                  vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
+                for(var i = 0; i < geo.uvs.length; i++)
+                  uvs.push(Math.round(geo.uvs[i]*1e3)/1e3)
+                for(var i = 0; i < geo.normals.length; i++)
+                  normals.push(Math.round(geo.normals[i]*1e3)/1e3)
+                for(var i = 0; i < geo.normalVecs.length; i++)
+                  normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
+                var object = { vertices, uvs, normals, normalVecs }
+                var textReader = new zip.TextReader(JSON.stringify(object))
+                var ct = (''+(idx+1)).padStart(4, '0')
+                await zipWriter.add(`frame_${ct}.json`, textReader)
+                if(idx == tct-1){
+                  DownloadFile(await zipWriter.close(), 'animation.zip')
+                }
               })
             }
           })
@@ -983,6 +1003,15 @@ const DownloadCustomShape = geo => {
   link.setAttribute('href', str)
   link.setAttribute('download', geo.name)
   link.click()
+}
+
+const DownloadFile = (blob, name='downloaded_file') => {
+
+  var link      = document.createElement('a')
+  link.href     = window.URL.createObjectURL(blob)
+  link.download = name
+  link.click()
+  window.URL.revokeObjectURL(blob)
 }
 
 const LoadGeometry = async (renderer, geoOptions) => {
@@ -1817,7 +1846,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
   
   
-  if(geometry.downloadShape) DownloadCustomShape(geometry)
+  //if(geometry.downloadShape) DownloadCustomShape(geometry)
 
   return geometry
 }
