@@ -617,12 +617,45 @@ Notes:<br>
 
 #### Animation Usage Example:
 ```js
-var X = 1
-var Y = 0
-var Z = 0
-var ar = Coordinates.R(X, Y, Z, {0, 0, Math.PI})
-// ar -> [-1, 0, 0]
+var rendererOptions = {
+  ambientLight: .5,
+  fov: 1500
+}
+var renderer = await Coordinates.Renderer(rendererOptions)
 
+renderer.z = 10
+
+Coordinates.AnimationLoop(renderer, 'Draw')
+
+var shaderOptions = [
+  { uniform: {
+    type: 'phong',
+    value: .75
+  } }
+]
+var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+var geoOptions = {
+  shapeType: 'custom shape',
+  name: 'demo',
+  flipNormals: true,
+  url: 'https://srmcgann.github.io/Coordinates/zip animations/demoAnimation.zip',
+  map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+  colorMix: 0,
+}
+var animation = await Coordinates.LoadAnimationFromZip(renderer,
+                                 geoOptions, shader)
+
+window.Draw = () => {
+  var t = renderer.t
+  var options = {
+    x: 0, y: 0, z: 0,
+    animationSpeed: .5,
+    roll: 0, pitch: 0, yaw: t/2
+  }
+  Coordinates.DrawAnimation(renderer, animation, options)
+}
 ```
 
 <br><br>
