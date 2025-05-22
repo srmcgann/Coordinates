@@ -586,9 +586,9 @@ Animations may be loaded via zip-format archives, with some options shown below:
 
 Notes:<br>
 1) a ``url`` is required, pointing to a zip file.
-2) ``shapeType`` is required, same as calls to ``LoadGeometry``
-3) zip-file contents must exist in the archive root as files, with a single format
-4) ``downloadShape`` will download a zip archive of the shape(s), after being converted to the ``custom shape`` format, for all files in the zip file. Alternatively, ``exportShape`` will display these on screen with an option to copy it.
+2) ``shapeType`` is required, same as with calls to ``LoadGeometry``
+3) zip-file contents must exist in the archive root as files, with a single format/shapeType
+4) ``downloadShape`` will optionally download a zip archive of the shape(s), after being converted to the ``custom shape`` format, for all files in the zip file. Alternatively, ``exportShape`` will display these on screen with an option to copy it.
 5) the ``name`` provided in options, will be prepended to downloaded file-names.
 6) the object returned by this method is just an array of shapes/geometries, which may be passed into the ``DrawAnimation`` method
 
@@ -602,7 +602,7 @@ A companion method may be used to render the array returned by ``LoadAnimationFr
 
 ``options`` isn't required, but may include these properties which are applied to all frames
 ```js
-var animationOptions = {
+var options = {
   x: 0, y: 0, z: 0,
   roll: 0, pitch: 0, yaw: 0,
   loopMode: 'reverse',
@@ -644,7 +644,7 @@ var geoOptions = {
   equirectangular: true,
   colorMix: 0,
 }
-var animation = await Coordinates.LoadAnimationFromZip(renderer,geoOptions, shader)
+var animation = await Coordinates.LoadAnimationFromZip(renderer, geoOptions, shader)
 
 var background
 var geoOptions = {
@@ -654,7 +654,7 @@ var geoOptions = {
   colorMix: 0,
   map: refTexture
 }
-await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+await Coordinates.LoadGeometry(renderer, geoOptions).then( geometry => {
   background = geometry
 })
 
