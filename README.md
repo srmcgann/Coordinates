@@ -602,7 +602,7 @@ A companion method may be used to render the array returned by ``LoadAnimationFr
 
 ``options`` isn't required, but may include these properties which are applied to all frames
 ```js
-var animationOptions = {
+var options = {
   x: 0, y: 0, z: 0,
   roll: 0, pitch: 0, yaw: 0,
   loopMode: 'reverse',
