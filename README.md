@@ -336,6 +336,9 @@ var geoOptions = {
   scaleX: 1,           // resize (at creation)
   scaleY: 1,
   scaleZ: 1,
+  flipX:  false,       // flip vertices along this axis (at creation)
+  flipY:  false,       
+  flipZ:  false,       
   scaleUVX: 1,         // resize uvs (at creation), useful for tiling,
                        // or un-tiling textures.
   scaleUVY: 1,         // e.g. scaleUVX:3, scaleUVY:3, -> tiles map x 3.
