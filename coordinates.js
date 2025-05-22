@@ -871,7 +871,8 @@ const LoadAnimationFromZip = async (renderer, options, shader) => {
     var ct = 0
     do{ ct++ }while(data.substr(0,2)=='PK');
     if(options.shapeType.toLowerCase() == 'custom shape')
-        data = JSON.parse(data)
+        data = await JSON.parse(data)
+      console.log(data)
     frames[i].data = data
     if(i==tct-1) {
       ret.loaded = true
@@ -882,11 +883,11 @@ const LoadAnimationFromZip = async (renderer, options, shader) => {
                         typeof frame.data.vertices != 'undefined' &&
                               frame.data.vertices.length)){
           // flip y-verts (bugfix for blender default export mode)
-          if(options.shapeType.toLowerCase() == 'custom shape'){
-            for(var i=0; i< frame.data.vertices.length; i+=3){
-              frame.data.vertices[i+1] *= -1
-            }
-          }
+          //if(options.shapeType.toLowerCase() == 'custom shape'){
+          //  for(var i=0; i< frame.data.vertices.length; i+=3){
+          //    frame.data.vertices[i+1] *= -1
+          //  }
+          //}
           options.geometryData = frame.data
           options.name = `${baseName?baseName+'_':''}frame${ct}.json`
           await LoadGeometry(renderer, options).then(async (geo) => {
@@ -5055,7 +5056,7 @@ const LoadFPSControls = async (renderer, options) => {
   renderer.crosshairSel          = 0
   renderer.crosshairAlpha        = .6
   renderer.useFPSControls        = true
-  var crosshairs = Array(3).fill().map((v, i) => `${ModuleBase}/resources/crosshairs/crosshair${i+1}.png`)
+  var crosshairs = Array(4).fill().map((v, i) => `${ModuleBase}/resources/crosshairs/crosshair${i+1}.png`)
   if(typeof options != 'undefined'){
     Object.keys(options).forEach((key, idx) =>{
       switch(key.toLowerCase()){
