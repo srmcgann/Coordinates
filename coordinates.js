@@ -858,62 +858,64 @@ const R_rpy = (X,Y,Z, cam, m=false) => {
 
 // load anim frames from zip, expects any file name(s)
 // returns object w/ .geometries, .loaded [true/false], .curFrame [0],
-const LoadAnimationFromZip = (renderer, options, shader) => {
+const LoadAnimationFromZip = async (renderer, options, shader) => {
   var frames = [], baseName = options.name
   var ret = {loaded: false, curFrame: 0, geometries: [], dir: 1}
-  fetch(options.url).then(res=>res.blob()).then(data => {
-    ;(new zip.ZipReader(new zip.BlobReader(data))).getEntries()
-    .then(res => {
-      var tct = res.length
-      frames = Array(tct).fill().map(v=>({data: {}}))
-      res.forEach(async (file, i) => {
-        (await file.getData(await (new zip.BlobWriter()))).text().then(data=>{
-          var ct = 0
-          do{ ct++ }while(data.substr(0,2)=='PK');
-          if(options.shapeType == 'custom shape') data = JSON.parse(data)
-          frames[i].data = data
-          if(i==tct-1) {
-            ret.loaded = true
-            var zipWriter = new zip.ZipWriter(new zip.BlobWriter())
-            frames.forEach((frame, idx) => {
-              var ct = (''+(idx+1)).padStart(4, '0')
-              if(!(idx%1) && typeof frame.data.vertices != 'undefined' &&
-                                    frame.data.vertices.length){
-                // flip y-verts (bugfix for blender default export mode)
-                for(var i=0; i< frame.data.vertices.length; i+=3){
-                  frame.data.vertices[i+1] *= -1
-                }
-                options.geometryData = frame.data
-                options.name = `${baseName?baseName+'_':''}frame${ct}.json`
-                LoadGeometry(renderer, options).then((geo) => {
-                  ret.geometries[idx/1|0] = geo
-                  shader.ConnectGeometry(geo)
-                  var vertices   = []
-                  var normals    = []
-                  var normalVecs = []
-                  var uvs        = []
-                  for(var i = 0; i < geo.vertices.length; i++)
-                    vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
-                  for(var i = 0; i < geo.uvs.length; i++)
-                    uvs.push(Math.round(geo.uvs[i]*1e3)/1e3)
-                  for(var i = 0; i < geo.normals.length; i++)
-                    normals.push(Math.round(geo.normals[i]*1e3)/1e3)
-                  for(var i = 0; i < geo.normalVecs.length; i++)
-                    normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
-                  var object = { vertices, uvs, normals, normalVecs }
-                  var textReader = new zip.TextReader(JSON.stringify(object))
-                  var ct = (''+(idx+1)).padStart(4, '0')
-                  zipWriter.add(`frame_${ct}.json`, textReader)
-                  if(idx == tct-1 && !!options.downloadShape){
-                    DownloadFile(zipWriter.close(), 'animation.zip')
-                  }
-                })
-              }
-            })
+  var data = await fetch(options.url).then(res=>res.blob())
+  var res = await (new zip.ZipReader(new zip.BlobReader(data))).getEntries()
+  var tct = res.length
+  ret.geometries = Array(tct).fill({})
+  frames = Array(tct).fill().map(v=>({data: {}}))
+  res.forEach(async (file, i) => {
+    var data = await (await file.getData(await (new zip.BlobWriter()))).text()
+    var ct = 0
+    do{ ct++ }while(data.substr(0,2)=='PK');
+    if(options.shapeType.toLowerCase() == 'custom shape')
+        data = JSON.parse(data)
+    frames[i].data = data
+    if(i==tct-1) {
+      ret.loaded = true
+      var zipWriter = new zip.ZipWriter(new zip.BlobWriter())
+      frames.forEach(async (frame, idx) => {
+        var ct = (''+(idx+1)).padStart(4, '0')
+        if(!(idx%1) && (options.shapeType != 'custom shape' || 
+                        typeof frame.data.vertices != 'undefined' &&
+                              frame.data.vertices.length)){
+          // flip y-verts (bugfix for blender default export mode)
+          if(options.shapeType.toLowerCase() == 'custom shape'){
+            for(var i=0; i< frame.data.vertices.length; i+=3){
+              frame.data.vertices[i+1] *= -1
+            }
           }
-        })
+          options.geometryData = frame.data
+          options.name = `${baseName?baseName+'_':''}frame${ct}.json`
+          await LoadGeometry(renderer, options).then(async (geo) => {
+            ret.geometries[idx/1|0] = geo
+            await shader.ConnectGeometry(geo)
+            var vertices   = []
+            var normals    = []
+            var normalVecs = []
+            var uvs        = []
+            for(var i = 0; i < geo.vertices.length; i++)
+              vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
+            for(var i = 0; i < geo.uvs.length; i++)
+              uvs.push(Math.round(geo.uvs[i]*1e3)/1e3)
+            for(var i = 0; i < geo.normals.length; i++)
+              normals.push(Math.round(geo.normals[i]*1e3)/1e3)
+            for(var i = 0; i < geo.normalVecs.length; i++)
+              normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
+            var object = { vertices, uvs, normals, normalVecs }
+            var textReader = new zip.TextReader(JSON.stringify(object))
+            var ct = (''+(idx+1)).padStart(4, '0')
+            zipWriter.add(`frame_${ct}.json`, textReader)
+            if(idx == tct-1 && !!options.downloadShape){
+              var blob = await zipWriter.close()
+              await DownloadFile(blob, 'animation.zip')
+            }
+          })
+        }
       })
-    })
+    }
   })
   return ret
 }
@@ -974,7 +976,9 @@ const DrawAnimation = (renderer, animation, options) => {
       }
     }
     var shape = animation.geometries[animation.curFrame]
-    if(typeof shape != 'undefined' && shape.vertices.length){
+    if(typeof shape != 'undefined' &&
+       typeof shape.vertices != 'undefined' &&
+       shape.vertices.length){
       shape.x = x
       shape.y = y
       shape.z = z
@@ -986,7 +990,7 @@ const DrawAnimation = (renderer, animation, options) => {
   }
 }
   
-const DownloadCustomShape = geo => {
+const DownloadCustomShape = async geo => {
 
   var vertices = []
   var normals = []
@@ -5049,6 +5053,7 @@ const LoadFPSControls = async (renderer, options) => {
   renderer.flyMode               = false
   renderer.useKeys               = true
   renderer.crosshairSel          = 0
+  renderer.crosshairAlpha        = .6
   renderer.useFPSControls        = true
   var crosshairs = Array(3).fill().map((v, i) => `${ModuleBase}/resources/crosshairs/crosshair${i+1}.png`)
   if(typeof options != 'undefined'){
@@ -5062,6 +5067,7 @@ const LoadFPSControls = async (renderer, options) => {
         case 'flymode': renderer.flyMode = !!options[key]; break
         case 'usekeys': renderer.useKeys = !!options[key]; break
         case 'crosshairmap': renderer.crosshairMap = options[key]; break
+        case 'crosshairalpha': renderer.crosshairAlpha = +options[key]; break
         case 'showcrosshair': renderer.showCrosshair = !!options[key]; break
         case 'focusrequiredformouse': renderer.focusRequiredForMouse = !!options[key]; break
       }
@@ -5158,7 +5164,7 @@ const LoadFPSControls = async (renderer, options) => {
 
       if(renderer.showCrosshair && crosshairImages[renderer.crosshairSel].loaded) {
         var s = 200 * renderer.crosshairSize
-        Overlay.ctx.globalAlpha = .6
+        Overlay.ctx.globalAlpha = renderer.crosshairAlpha
         Overlay.ctx.drawImage(crosshairImages[renderer.crosshairSel].img,
           Overlay.width / 2 - s/2, Overlay.height / 2 - s/2, s, s)
         Overlay.ctx.globalAlpha = 1
