@@ -644,7 +644,7 @@ var geoOptions = {
   equirectangular: true,
   colorMix: 0,
 }
-var animation = await Coordinates.LoadAnimationFromZip(renderer,geoOptions, shader)
+var animation = await Coordinates.LoadAnimationFromZip(renderer, geoOptions, shader)
 
 var background
 var geoOptions = {
@@ -654,7 +654,7 @@ var geoOptions = {
   colorMix: 0,
   map: refTexture
 }
-await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+await Coordinates.LoadGeometry(renderer, geoOptions).then( geometry => {
   background = geometry
 })
 
