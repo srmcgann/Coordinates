@@ -863,48 +863,55 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
   var ret = {loaded: false, curFrame: 0, geometries: [], dir: 1}
   fetch(options.url).then(res=>res.blob()).then(data => {
     ;(new zip.ZipReader(new zip.BlobReader(data))).getEntries()
-    .then(async res => {
+    .then(res => {
       var tct = res.length
       frames = Array(tct).fill().map(v=>({data: {}}))
-      await res.forEach(async (file, i) => {
-        var data = (await (await file.getData(new zip.BlobWriter())).text())
-        if(options.shapeType == 'custom shape') data = JSON.parse(data)
-        frames[i].data = data
-        if(i==tct-1) {
-          ret.loaded = true
-          var zipWriter = new zip.ZipWriter(new zip.BlobWriter())
-          frames.forEach(async (frame, idx) => {
-            var ct = (''+(idx+1)).padStart(4, '0')
-            if(!(idx%1)){
-              options.geometryData = frame.data
-              options.name = `${baseName?baseName+'_':''}frame${ct}.json`
-              await LoadGeometry(renderer, options)
-                .then(async (geo) => {
-                ret.geometries[idx/1|0] = geo
-                await shader.ConnectGeometry(geo)
-                var vertices   = []
-                var normals    = []
-                var normalVecs = []
-                var uvs        = []
-                for(var i = 0; i < geo.vertices.length; i++)
-                  vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
-                for(var i = 0; i < geo.uvs.length; i++)
-                  uvs.push(Math.round(geo.uvs[i]*1e3)/1e3)
-                for(var i = 0; i < geo.normals.length; i++)
-                  normals.push(Math.round(geo.normals[i]*1e3)/1e3)
-                for(var i = 0; i < geo.normalVecs.length; i++)
-                  normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
-                var object = { vertices, uvs, normals, normalVecs }
-                var textReader = new zip.TextReader(JSON.stringify(object))
-                var ct = (''+(idx+1)).padStart(4, '0')
-                await zipWriter.add(`frame_${ct}.json`, textReader)
-                if(idx == tct-1 && !!options.downloadShape){
-                  DownloadFile(await zipWriter.close(), 'animation.zip')
+      res.forEach(async (file, i) => {
+        (await file.getData(await (new zip.BlobWriter()))).text().then(data=>{
+          var ct = 0
+          do{ ct++ }while(data.substr(0,2)=='PK');
+          if(options.shapeType == 'custom shape') data = JSON.parse(data)
+          frames[i].data = data
+          if(i==tct-1) {
+            ret.loaded = true
+            var zipWriter = new zip.ZipWriter(new zip.BlobWriter())
+            frames.forEach((frame, idx) => {
+              var ct = (''+(idx+1)).padStart(4, '0')
+              if(!(idx%1) && typeof frame.data.vertices != 'undefined' &&
+                                    frame.data.vertices.length){
+                // flip y-verts (bugfix for blender default export mode)
+                for(var i=0; i< frame.data.vertices.length; i+=3){
+                  frame.data.vertices[i+1] *= -1
                 }
-              })
-            }
-          })
-        }
+                options.geometryData = frame.data
+                options.name = `${baseName?baseName+'_':''}frame${ct}.json`
+                LoadGeometry(renderer, options).then((geo) => {
+                  ret.geometries[idx/1|0] = geo
+                  shader.ConnectGeometry(geo)
+                  var vertices   = []
+                  var normals    = []
+                  var normalVecs = []
+                  var uvs        = []
+                  for(var i = 0; i < geo.vertices.length; i++)
+                    vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
+                  for(var i = 0; i < geo.uvs.length; i++)
+                    uvs.push(Math.round(geo.uvs[i]*1e3)/1e3)
+                  for(var i = 0; i < geo.normals.length; i++)
+                    normals.push(Math.round(geo.normals[i]*1e3)/1e3)
+                  for(var i = 0; i < geo.normalVecs.length; i++)
+                    normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
+                  var object = { vertices, uvs, normals, normalVecs }
+                  var textReader = new zip.TextReader(JSON.stringify(object))
+                  var ct = (''+(idx+1)).padStart(4, '0')
+                  zipWriter.add(`frame_${ct}.json`, textReader)
+                  if(idx == tct-1 && !!options.downloadShape){
+                    DownloadFile(zipWriter.close(), 'animation.zip')
+                  }
+                })
+              }
+            })
+          }
+        })
       })
     })
   })
@@ -2548,7 +2555,7 @@ const BasicShader = async (renderer, options=[]) => {
                   flatShading:         typeof option[key].flatShading == 'undefined' ?
                                          false : option[key].flatShading,
                   flipReflections:     typeof option[key].flipReflections == 'undefined' ?
-                                         false : option[key].flipReflections,
+                                         0 : option[key].flipReflections,
                   flatShadingUniform:  'refFlatShading',
                   dataType:            'uniform1f',
                   vertDeclaration:     `
@@ -2567,8 +2574,8 @@ const BasicShader = async (renderer, options=[]) => {
                     //light.rgb += .05;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
-                      vec3 reflectionPos = R_rpy(nVi, vec3(geoOri.x,
-                                                       -geoOri.y, geoOri.z));
+                      vec3 reflectionPos = R_rpy(nV, vec3(0.0,
+                                                      -camOri.y, -camOri.z));
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
@@ -2625,15 +2632,18 @@ const BasicShader = async (renderer, options=[]) => {
                         py = 0.0;
                         pz = 0.0;
                       }else{
-                        px = nV.x;
-                        py = nV.y;
-                        pz = nV.z;
+                        vec3 phongPos = R_rpy(nV, vec3(camOri.x, 0.0, 0.0));
+                        px = phongPos.x;
+                        py = phongPos.y;
+                        pz = phongPos.z;
                       }
+
                       phongP1 = atan(px, pz) + phongTheta;
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
+                      
 
                       float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.2)), 3.0), 3.0) / 5e5 * phong ;
-                      light = vec4(light.rgb + fact, 1.0) * 25.0;
+                      light = vec4(light.rgb + fact, 1.0) * 15.0;
                     }
                   `,
                 }
@@ -2664,7 +2674,7 @@ const BasicShader = async (renderer, options=[]) => {
     }else{
       //gl.cullFace(gl.BACK)
     }
-  
+
     let uVertDeclaration = ''
     dataset.optionalUniforms.map(v=>{ uVertDeclaration += ("\n" + v.vertDeclaration + "\n") })
     let uVertCode= ''
@@ -3266,7 +3276,7 @@ const BasicShader = async (renderer, options=[]) => {
                           ret.datasets = [...ret.datasets, {
                             texture: uniform.refTexture, iURL: url }]
                           gl.activeTexture(gl.TEXTURE1)
-                          gl.uniform1f(uniform.locRefFlipRefs , uniform.refTexture)
+                          gl.uniform1f(uniform.locRefFlipRefs , uniform.flipReflections)
                           gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
                           image.onload = () =>{
                             BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
@@ -5269,7 +5279,6 @@ const ShouldDisableDepth = () => {
 
 
 const AnimationLoop = (renderer, func) => {
-  console.log('entering animation loop', renderer)
   const loop = async () => {
     Overlay.margin = renderer.margin
     Overlay.rsz()

@@ -588,7 +588,7 @@ Notes:<br>
 1) a ``url`` is required, pointing to a zip file.
 2) ``shapeType`` is required, same as calls to ``LoadGeometry``
 3) zip-file contents must exist in the archive root as files, with a single format
-4) ``downloadShape`` will download the shape(s), converted to the ``custom shape`` format - for all files in the zip file. Alternatively, ``exportShape`` will display the same info on screen with an option to copy it.
+4) ``downloadShape`` will download a zip archive of the shape(s), after being converted to the ``custom shape`` format, for all files in the zip file. Alternatively, ``exportShape`` will display these on screen with an option to copy it.
 5) the ``name`` provided in options, will be prepended to downloaded file-names.
 6) the object returned by this method is just an array of shapes/geometries, which may be passed into the ``DrawAnimation`` method
 
@@ -617,46 +617,63 @@ Notes:<br>
 
 #### Animation Usage Example:
 ```js
-var rendererOptions = {
-  ambientLight: .5,
-  fov: 1500
-}
-var renderer = await Coordinates.Renderer(rendererOptions)
-
-renderer.z = 10
-
+var renderer = await Coordinates.Renderer({margin: 0})
 Coordinates.AnimationLoop(renderer, 'Draw')
 
+var refTexture = 'https://srmcgann.github.io/Coordinates/resources/spectrum_test_tile.jpg'
+
 var shaderOptions = [
+  { lighting: {type: 'ambientLight', value: .3 } },
   { uniform: {
     type: 'phong',
-    value: .75
+    value: .5
+  } },
+  { uniform: {
+    type: 'reflection',
+    map: refTexture,
+    value: .25,
   } }
 ]
 var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-
+const baseURL = 'https://srmcgann.github.io/Coordinates'
 var geoOptions = {
   shapeType: 'custom shape',
-  name: 'demo',
-  flipNormals: true,
-  url: 'https://srmcgann.github.io/Coordinates/zip animations/demoAnimation.zip',
-  map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+  url: baseURL + '/zip animations/demoAnimation.zip',
+  map: baseURL + '/resources/nebugrid_po2.jpg',
+  equirectangular: true,
   colorMix: 0,
 }
-var animation = await Coordinates.LoadAnimationFromZip(renderer,
-                                 geoOptions, shader)
+var animation = await Coordinates.LoadAnimationFromZip(renderer,geoOptions, shader)
+
+var background
+var geoOptions = {
+  shapeType: 'dodecahedron',
+  size: 1e3,
+  subs: 2,
+  colorMix: 0,
+  map: refTexture
+}
+await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  background = geometry
+})
+
+renderer.z = 10
 
 window.Draw = () => {
-  var t = renderer.t
-  var options = {
-    x: 0, y: 0, z: 0,
-    animationSpeed: .5,
-    roll: 0, pitch: 0, yaw: t/2
-  }
-  Coordinates.DrawAnimation(renderer, animation, options)
+  Coordinates.DrawAnimation(renderer, animation, {pitch: renderer.t})
+  renderer.yaw += .01
+  renderer.roll += .007
+  renderer.pitch += .005
+  renderer.Draw(background)
 }
 ```
+
+This creates such output<br>
+<center>
+
+![example2](README_g6.gif) </center>
+
 
 <br><br>
 
