@@ -587,7 +587,7 @@ Animations may be loaded via zip-format archives, with some options shown below:
 Notes:<br>
 1) a ``url`` is required, pointing to a zip file.
 2) ``shapeType`` is required, same as with calls to ``LoadGeometry``
-3) zip-file contents must exist in the archive root as files, with a single format
+3) zip-file contents must exist in the archive root as files, with a single format/shapeType
 4) ``downloadShape`` will download a zip archive of the shape(s), after being converted to the ``custom shape`` format, for all files in the zip file. Alternatively, ``exportShape`` will display these on screen with an option to copy it.
 5) the ``name`` provided in options, will be prepended to downloaded file-names.
 6) the object returned by this method is just an array of shapes/geometries, which may be passed into the ``DrawAnimation`` method
