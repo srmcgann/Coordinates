@@ -882,12 +882,6 @@ const LoadAnimationFromZip = async (renderer, options, shader) => {
         if(!(idx%1) && (options.shapeType != 'custom shape' || 
                         typeof frame.data.vertices != 'undefined' &&
                               frame.data.vertices.length)){
-          // flip y-verts (bugfix for blender default export mode)
-          //if(options.shapeType.toLowerCase() == 'custom shape'){
-          //  for(var i=0; i< frame.data.vertices.length; i+=3){
-          //    frame.data.vertices[i+1] *= -1
-          //  }
-          //}
           options.geometryData = frame.data
           options.name = `${baseName?baseName+'_':''}frame${ct}.json`
           await LoadGeometry(renderer, options).then(async (geo) => {
@@ -1041,6 +1035,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   // geo defaults
   var x = 0, y = 0, z = 0
+  var flipX = false, flipY = false, flipZ = false
   var roll = 0, pitch = 0, yaw = 0
   var scaleX=1, scaleY=1, scaleZ=1
   var scaleUVX  = 1, scaleUVY  = 1
@@ -1124,6 +1119,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'shownormals'        : showNormals = !!geoOptions[key]; break
       case 'sphereize'          : sphereize = geoOptions[key]; break
       case 'rotationmode'       : rotationMode = geoOptions[key]; break
+      case 'flipx'              : flipX = geoOptions[key]; break
+      case 'flipy'              : flipY = geoOptions[key]; break
+      case 'flipz'              : flipZ = geoOptions[key]; break
       case 'objx'               : objX = geoOptions[key]; break
       case 'objy'               : objY = geoOptions[key]; break
       case 'objz'               : objZ = geoOptions[key]; break
@@ -1645,6 +1643,22 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
+  if(flipX){
+    for(var i=0; i< vertices.length; i+=3){
+      vertices[i+1] *= -1
+    }
+  }
+  if(flipY){
+    for(var i=0; i< vertices.length; i+=3){
+      vertices[i+1] *= -1
+    }
+  }
+  if(flipZ){
+    for(var i=0; i< vertices.length; i+=3){
+      vertices[i+1] *= -1
+    }
+  }
+  
   if(flipNormals && !exportShape){
     for(var i=0; i<normals.length; i+=6){
       normals[i+3] = normals[i+0] - (normals[i+3]-normals[i+0])
@@ -1834,6 +1848,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     canvasTexture, canvasTextureMix, showBounding,
     boundingColor, heightMap, heightMapIntensity,
     heightMapIsCanvas, equirectangularHeightmap,
+    flipX, flipY, flipZ,
     rotationMode
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
