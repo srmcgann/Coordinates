@@ -856,61 +856,61 @@ const R_rpy = (X,Y,Z, cam, m=false) => {
   return [X, Y, Z]
 }
 
+
 // load anim frames from zip, expects any file name(s)
 // returns object w/ .geometries, .loaded [true/false], .curFrame [0],
-const LoadAnimationFromZip = async (renderer, options, shader) => {
+const LoadAnimationFromZip = (renderer, options, shader) => {
   var frames = [], baseName = options.name
   var ret = {loaded: false, curFrame: 0, geometries: [], dir: 1}
-  var data = await fetch(options.url).then(res=>res.blob())
-  var res = await (new zip.ZipReader(new zip.BlobReader(data))).getEntries()
-  var tct = res.length
-  ret.geometries = Array(tct).fill({})
-  frames = Array(tct).fill().map(v=>({data: {}}))
-  res.forEach(async (file, i) => {
-    var data = await (await file.getData(await (new zip.BlobWriter()))).text()
-    var ct = 0
-    do{ ct++ }while(data.substr(0,2)=='PK');
-    if(options.shapeType.toLowerCase() == 'custom shape')
-        data = await JSON.parse(data)
-      console.log(data)
-    frames[i].data = data
-    if(i==tct-1) {
-      ret.loaded = true
-      var zipWriter = new zip.ZipWriter(new zip.BlobWriter())
-      frames.forEach(async (frame, idx) => {
-        var ct = (''+(idx+1)).padStart(4, '0')
-        if(!(idx%1) && (options.shapeType != 'custom shape' || 
-                        typeof frame.data.vertices != 'undefined' &&
-                              frame.data.vertices.length)){
-          options.geometryData = frame.data
-          options.name = `${baseName?baseName+'_':''}frame${ct}.json`
-          await LoadGeometry(renderer, options).then(async (geo) => {
-            ret.geometries[idx/1|0] = geo
-            await shader.ConnectGeometry(geo)
-            var vertices   = []
-            var normals    = []
-            var normalVecs = []
-            var uvs        = []
-            for(var i = 0; i < geo.vertices.length; i++)
-              vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
-            for(var i = 0; i < geo.uvs.length; i++)
-              uvs.push(Math.round(geo.uvs[i]*1e3)/1e3)
-            for(var i = 0; i < geo.normals.length; i++)
-              normals.push(Math.round(geo.normals[i]*1e3)/1e3)
-            for(var i = 0; i < geo.normalVecs.length; i++)
-              normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
-            var object = { vertices, uvs, normals, normalVecs }
-            var textReader = new zip.TextReader(JSON.stringify(object))
-            var ct = (''+(idx+1)).padStart(4, '0')
-            zipWriter.add(`frame_${ct}.json`, textReader)
-            if(idx == tct-1 && !!options.downloadShape){
-              var blob = await zipWriter.close()
-              await DownloadFile(blob, 'animation.zip')
-            }
-          })
-        }
+  fetch(options.url).then(res=>res.blob()).then(data => {
+    ;(new zip.ZipReader(new zip.BlobReader(data))).getEntries()
+    .then(res => {
+      var tct = res.length
+      frames = Array(tct).fill().map(v=>({data: {}}))
+      res.forEach(async (file, i) => {
+        (await file.getData(await (new zip.BlobWriter()))).text().then(data=>{
+          var ct = 0
+          do{ ct++ }while(data.substr(0,2)=='PK');
+          if(options.shapeType == 'custom shape') data = JSON.parse(data)
+          frames[i].data = data
+          if(i==tct-1) {
+            ret.loaded = true
+            var zipWriter = new zip.ZipWriter(new zip.BlobWriter())
+            frames.forEach((frame, idx) => {
+              var ct = (''+(idx+1)).padStart(4, '0')
+              if(!(idx%1) && typeof frame.data.vertices != 'undefined' &&
+                                    frame.data.vertices.length){
+                options.geometryData = frame.data
+                options.name = `${baseName?baseName+'_':''}frame${ct}.json`
+                LoadGeometry(renderer, options).then((geo) => {
+                  ret.geometries[idx/1|0] = geo
+                  shader.ConnectGeometry(geo)
+                  var vertices   = []
+                  var normals    = []
+                  var normalVecs = []
+                  var uvs        = []
+                  for(var i = 0; i < geo.vertices.length; i++)
+                    vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
+                  for(var i = 0; i < geo.uvs.length; i++)
+                    uvs.push(Math.round(geo.uvs[i]*1e3)/1e3)
+                  for(var i = 0; i < geo.normals.length; i++)
+                    normals.push(Math.round(geo.normals[i]*1e3)/1e3)
+                  for(var i = 0; i < geo.normalVecs.length; i++)
+                    normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
+                  var object = { vertices, uvs, normals, normalVecs }
+                  var textReader = new zip.TextReader(JSON.stringify(object))
+                  var ct = (''+(idx+1)).padStart(4, '0')
+                  zipWriter.add(`frame_${ct}.json`, textReader)
+                  if(idx == tct-1 && !!options.downloadShape){
+                    DownloadFile(zipWriter.close(), 'animation.zip')
+                  }
+                })
+              }
+            })
+          }
+        })
       })
-    }
+    })
   })
   return ret
 }
