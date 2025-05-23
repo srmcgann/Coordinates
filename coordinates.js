@@ -882,6 +882,7 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
                                     frame.data.vertices.length){
                 options.geometryData = frame.data
                 options.name = `${baseName?baseName+'_':''}frame${ct}.json`
+                options.isFromZip = true
                 LoadGeometry(renderer, options).then((geo) => {
                   ret.geometries[idx/1|0] = geo
                   shader.ConnectGeometry(geo)
@@ -1004,10 +1005,11 @@ const DownloadCustomShape = async geo => {
     normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
 
   var object = { vertices, uvs, normals, normalVecs}
-  var link = document.createElement('a')
-  var str = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(object))
-  link.setAttribute('href', str)
-  link.setAttribute('download', geo.name)
+
+  var link      = document.createElement('a')
+  link.href     = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(object))
+  if(!geo.name) geo.name == 'downloadedShape'
+  link.download = geo.name + '.json'
   link.click()
 }
 
@@ -1059,6 +1061,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var flipNormals            = false
   var showNormals            = false
   var map                    = '' //`${ModuleBase}/resources/flat_grey.jpg`
+  var isFromZip              = false
   var heightMap              = ''
   var heightMapIntensity     = 1
   var heightMapIsCanvas  = false
@@ -1308,6 +1311,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
             normals     = geometryData.normals
             normalVecs  = geometryData.normalVecs
             uvs         = geometryData.uvs
+            console.log('vertices', vertices)
+            console.log('normals', normals)
+            console.log('normalVecs', normalVecs)
+            console.log('uvs', uvs)
             resolved    = true
             //cache.customShapes.push({data: structuredClone(geometryData), url})
           }else{
@@ -1848,7 +1855,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     canvasTexture, canvasTextureMix, showBounding,
     boundingColor, heightMap, heightMapIntensity,
     heightMapIsCanvas, equirectangularHeightmap,
-    flipX, flipY, flipZ,
+    flipX, flipY, flipZ, isFromZip,
     rotationMode
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
@@ -1873,7 +1880,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
   
   
-  //if(geometry.downloadShape) DownloadCustomShape(geometry)
+  if(geometry.downloadShape && !isFromZip) DownloadCustomShape(geometry)
 
   return geometry
 }
