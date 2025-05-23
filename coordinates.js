@@ -2661,8 +2661,9 @@ const BasicShader = async (renderer, options=[]) => {
                       phongP1 = atan(px, pz) + phongTheta;
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
                       
+                      //if(refFlipRefs == 1.0) phongP2 = M_PI - phongP2;
 
-                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0-.2)), 3.0), 3.0) / 5e5 * phong ;
+                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0+.2)), 3.0), 3.0) / 5e5 * phong ;
                       light = vec4(light.rgb + fact, 1.0) * 15.0;
                     }
                   `,
