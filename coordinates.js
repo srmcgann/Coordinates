@@ -878,14 +878,15 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
             var zipWriter = new zip.ZipWriter(new zip.BlobWriter())
             frames.forEach((frame, idx) => {
               var ct = (''+(idx+1)).padStart(4, '0')
-              if(!(idx%1) && typeof frame.data.vertices != 'undefined' &&
-                                    frame.data.vertices.length){
+              if(!(idx%1) && (options.shapeType != 'custom shape' ||
+                              typeof frame.data.vertices != 'undefined'
+                              && frame.data.vertices.length)){
                 options.geometryData = frame.data
                 options.name = `${baseName?baseName+'_':''}frame${ct}.json`
                 options.isFromZip = true
-                LoadGeometry(renderer, options).then((geo) => {
+                LoadGeometry(renderer, options).then(async (geo) => {
                   ret.geometries[idx/1|0] = geo
-                  shader.ConnectGeometry(geo)
+                  await shader.ConnectGeometry(geo)
                   var vertices   = []
                   var normals    = []
                   var normalVecs = []
@@ -903,7 +904,7 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
                   var ct = (''+(idx+1)).padStart(4, '0')
                   zipWriter.add(`frame_${ct}.json`, textReader)
                   if(idx == tct-1 && !!options.downloadShape){
-                    DownloadFile(zipWriter.close(), 'animation.zip')
+                    await DownloadFile(await zipWriter.close(), 'animation.zip')
                   }
                 })
               }
@@ -1880,7 +1881,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
   
   
-  if(geometry.downloadShape && !isFromZip) DownloadCustomShape(geometry)
+  //if(geometry.downloadShape && !isFromZip) DownloadCustomShape(geometry)
 
   return geometry
 }
