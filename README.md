@@ -445,7 +445,7 @@ var geoOptions = {
                                  [X,Y,Z], [X,Y,Z], [X,Y,Z], ... // vertices
                          //    ], ...
                          //  ],
-                         //  texCoorods: [    // object/shape
+                         //  texCoords: [    // object/shape
                          //    [              // face/polygon
                                  [U, V], [U, V], [U, V], ... // UVs per vertex
                          //    ], ...
