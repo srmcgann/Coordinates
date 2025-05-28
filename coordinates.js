@@ -318,7 +318,7 @@ const Renderer = async options => {
                 if(geometry.isLine){
                   tvertices = []
                   var d = Math.hypot(renderer.width, renderer.height)
-                  var s = geometry.size / d
+                  var s = geometry.size / 10 / d * (penumbraPass ? 3 : 1)
                   for(var i = 0; i<geometry.vertices.length; i+=6){
                     X1 = -geometry.vertices[i+0]
                     Y1 = -geometry.vertices[i+1]
@@ -341,34 +341,35 @@ const Renderer = async options => {
                       p1[1] /= d/3
                       p2[0] /= d/3
                       p2[1] /= d/3
+                      
                       p1[2] /= d/3
                       p2[2] /= d/3
                       
                       nz = p1[2]
                       nx = p1[0] + S(p) * s / nz
                       ny = p1[1] + C(p) * s / nz
-                      tvertices.push(nx, -ny, nz)
+                      tvertices.push(nx, -ny, nz*d/3)
                       nz = p1[2]
                       nx = p1[0] - S(p) * s / nz
                       ny = p1[1] - C(p) * s / nz
-                      tvertices.push(nx, -ny, nz)
+                      tvertices.push(nx, -ny, nz*d/3)
                       nz = p2[2]
                       nx = p2[0] - S(p) * s / nz
                       ny = p2[1] - C(p) * s / nz
-                      tvertices.push(nx, -ny, nz)
+                      tvertices.push(nx, -ny, nz*d/3)
                       
                       nz = p2[2]
                       nx = p2[0] - S(p) * s / nz
                       ny = p2[1] - C(p) * s / nz
-                      tvertices.push(nx, -ny, nz)
+                      tvertices.push(nx, -ny, nz*d/3)
                       nz = p2[2]
                       nx = p2[0] + S(p) * s / nz
                       ny = p2[1] + C(p) * s / nz
-                      tvertices.push(nx, -ny, nz)
+                      tvertices.push(nx, -ny, nz*d/3)
                       nz = p1[2]
                       nx = p1[0] + S(p) * s / nz
                       ny = p1[1] + C(p) * s / nz
-                      tvertices.push(nx, -ny, nz)
+                      tvertices.push(nx, -ny, nz*d/3)
                     }
                   }
                   
@@ -3016,8 +3017,9 @@ const BasicShader = async (renderer, options=[]) => {
         if((isLine != 0.0 || isParticle != 0.0) &&
           penumbraPass != 0.0) Z += .001;
         if(isLine != 0.0){
-          X = pos.x / resolution.x * fov;
-          Y = pos.y / resolution.y * fov;
+          X = position.x / resolution.x * fov;
+          Y = position.y / resolution.y * fov;
+          Z = position.z;
           gl_Position = vec4(X, Y, Z/50000.0, 1.0);
           skip = 0.0;
           vUv = uv;
