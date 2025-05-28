@@ -771,7 +771,7 @@ Camera/renderer objects returned by the ``Renderer()`` method, may include a plu
 
 ```js
 var rendererOptions = {
-  ambientLight: .1,
+  ambientLight: .5,
   fov: 1500,
   margin: 0,
   plugins: [
@@ -789,7 +789,7 @@ Coordinates.AnimationLoop(renderer, 'Draw')
 var shaderOptions = [
   { uniform: {
     type: 'phong',
-    value: .75
+    value: .5
   } }
 ]
 var shader = await Coordinates.BasicShader(renderer, shaderOptions)
