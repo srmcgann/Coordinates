@@ -14,154 +14,102 @@
   <body>
     <script type="module">
     
-      import * as Coordinates from
+      import * as Coordinates from //'https://srmcgann.github.io/Coordinates/coordinates.js'
       "./coordinates.js"
     
-      var S = Math.sin
-      var C = Math.cos
-      var Rn = Math.random
-      
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
-    
       var rendererOptions = {
-        ambientLight: .2,
-        fov: 800,
-        width: 960,
-        height: 540,
+        ambientLight: 1,
+        fov: 1500
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
+      renderer.z = 16
+      
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: .5
-        } },
-        { uniform: {
-          type: 'reflection',
-          map: refTexture,
-          value: .5
-        } },
-        
+          value: .75
+        } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
+      
 
       var shapes = []
-      var side, output
-      var geoOptions = {
-        shapeType: 'cube',
-        subs: -1,
-        showNormals: false,
-        //averageNormals: true,
-        scaleX: .877,
-        scaleY: .05,
-        scaleZ: 1/3,
-        //map: 'https://srmcgann.github.io/Coordinates/resources/spectrum_test_tile.jpg',
-        //sphereize: .5,
-        size: 1,
-        color: 0xffffff,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        side = geometry
-        await shader.ConnectGeometry(geometry)
-      })
       
-      var cl = 5
-      var rw = cl * 3
-      var br = 1
-      var sp = 1.1
-      var geometryData = {
-        vertices: [],
-        normals: [],
-        uvs: [],
-        normalVecs: [],
-      }
-      
-      Array(cl*rw*br).fill().map((q, j) => {
-        var tx = (((j%cl)-cl/2 + .5) * 3 + ((j/cl|0)%2 ? -.75 : .75)) * sp
-        var ty = (((j/cl|0)%rw)-rw/2 + .5) * (.75**.5) * sp
-        var tz = ((j/cl/rw|0)-br/2 + .5) * sp
-        if(Math.hypot(tx, ty) < 5){
-          for(var k = 0; k<6; k++){
-            var p = Math.PI * 2 / 6 * k + Math.PI / 6
-            var X1 = S(p)
-            var Y1 = C(p)
-            var Z1 = 0
-            p = Math.PI * 2 / 6 * (k+1) + Math.PI / 6
-            var X2 = S(p)
-            var Y2 = C(p)
-            var Z2 = 0
-            var ax = (X1 + X2) /2
-            var ay = (Y1 + Y2) /2
-            var az = (Z1 + Z2) /2
-            
-            for(var i = 0; i < side.uvs.length; i+=2){
-              var uvx = side.uvs[i+0]
-              var uvy = side.uvs[i+1]
-              geometryData.uvs = [...geometryData.uvs, uvx, uvy]
-            }
-            
-            for(var i = 0; i < side.vertices.length; i+=3){
-              var x = side.vertices[i+0]
-              var y = side.vertices[i+1]
-              var z = side.vertices[i+2]
-              var o = Math.atan2(x, y) + p - Math.PI/6
-              var d = Math.hypot(x, y)
-              var lx = x = S(o) * d + tx + ax
-              var ly = y = C(o) * d + ty + ay
-              var lz = z += tz + az
-              geometryData.vertices = [...geometryData.vertices, x, y, z]
-
-              /*
-              var x = side.normals[i+0]
-              var y = side.normals[i+1]
-              var z = side.normals[i+2]
-              var o = Math.atan2(x, y) + p - Math.PI/6
-              var d = Math.hypot(x, y)
-              x = S(o) * d //+ tx + ax
-              y = C(o) * d //+ ty + ay
-              //z += tz + az
-              geometryData.normals = [...geometryData.normals, x, y, z]
-
-              geometryData.normalVecs = [...geometryData.normalVecs, lx, ly, lz]
-              x += lx
-              y += ly
-              z += lz
-              
-              geometryData.normalVecs = [...geometryData.normalVecs, x, y, z]
-              */
-            }
-          }
-        }
+      var x, y, z, p, d, ls = 8
+      var sd = 4
+      var geometryData = []
+      var a = []
+      Array(sd).fill().map((v, i) => {
+        x = S(p=Math.PI*2/sd * i + Math.PI/sd) * ls
+        y = C(p) * ls
+        z = 0
+        a = [...a, [x, y, z]]
+        //x = S(p=Math.PI*2/sd * (1 + i) + Math.PI/sd) * ls
+        //y = C(p) * ls
+        //z = 0
+        //a = [...a, [x, y, z]]
       })
+      geometryData = [...geometryData, a]
       
       var geoOptions = {
-        shapeType: 'custom shape',
-        name: 'output',
-        averageNormals: true,
-        showNormals: true,
-        downloadShape: true,
+        shapeType: 'dynamic',
         geometryData,
+        wireframe: true,
+        //size: 2,
         color: 0xffffff,
-        //map: 'https://srmcgann.github.io/Coordinates/resources/spectrum_test_tile.jpg',
-        //colorMix: 0,
+        alpha: .75,
+        colorMix: 1,
+        //penumbra: 6,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        output = geometry
-        await shader.ConnectGeometry(geometry)
+        shapes.push(geometry)
+        //await shader.ConnectGeometry(geometry)
       })
+
+      var geometryData = []
+      Array(sd).fill().map((v, i) => {
+        x = S(p=Math.PI*2/sd * i + Math.PI/sd) * ls
+        y = C(p) * ls
+        z = 0
+        a = [...a, [x, y, z]]
+        x = S(p=Math.PI*2/sd * (1 + i) + Math.PI/sd) * ls
+        y = C(p) * ls
+        z = 0
+        a = [...a, [x, y, z]]
+        geometryData = [...geometryData, ...a]
+      })
+      
+      var geoOptions = {
+        shapeType: 'lines',
+        geometryData,
+        //size: 2,
+        color: 0xffffff,
+        alpha: .75,
+        //penumbra: 6,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        //await shader.ConnectGeometry(geometry)
+      })
+
+      
       
       
       window.Draw = () => {
-        var t = renderer.t
-        renderer.z = 16
-        renderer.pitch += .01
-        //renderer.yaw += .01
-        renderer.roll += .005
-        renderer.Draw(output)
+        renderer.yaw = renderer.t
+        renderer.y = Math.cos(renderer.t) * 8
+        shapes.forEach(shape => {
+          shape.yaw += .01
+          //shape.pitch += .005
+          renderer.Draw(shape)
+        })
       }
       
     </script>
