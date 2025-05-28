@@ -482,11 +482,11 @@ var geoOptions = {
                          // it is automatically available.
                        • 'particles',
                          // The 'particles' shape type is just like 'dynamic'
-                         // (above), except vertices are drawin as points. The
+                         // (above), except vertices are drawn as points. The
                          // number of particles drawn is the number supplied in the
                          // geometryData array passed to LoadGeometry.
                          // Relevant particle properties:
-                         size: [0 to 1...],  // max size limited by your GPU.
+                         size: [0 to ...],  // max size limited by your GPU.
                                              // check max point size.
                                              // particle sizes are influenced by
                                              // perspective / renderer.fov
@@ -496,9 +496,28 @@ var geoOptions = {
                          alpha:    [0 to 1],
                          penumbra: [0 to 1, optional 'halo' alpha value],
                          // considerations: each collection of particles is
-                         // contained as a single shape buffer. To manipulate
-                         // individual particles, either create multiple shapes
-                         // or access / modify the data via geometry.vertices etc.
+                         // contained as a single shape buffer. To manipulate individual 
+                         // particles, it is much more performant to access / modify the
+                         // data via geometry.vertices, than to have many separate 'shapes'
+                         
+                       • 'lines',
+                         // The 'lines' shape type is just like 'particles'
+                         // (above), except vertices are drawn as pairs with even numbered
+                         // vertices the beginning of line segments, ending with the following
+                         // vertex. A geometryData array is expected, as with particles.
+                         // Relevant 'lines' properties:
+                         size: [0 to ...],  // no max size, as lines are rendered as polygons.
+                                             // sizes are influenced by
+                                             // perspective / renderer.fov
+                         scaleX|Y|Z: line field is scaled @ creation.
+                         color: [standard / hex, e.g. 0xff0000 (red) ],
+                                // recall functions, e.g. HexFromHSV(0, 1, 1) (red)
+                         alpha:    [0 to 1],
+                         penumbra: [0 to 1, optional 'halo' alpha value],
+                         // considerations: each collection of lines is
+                         // contained as a single shape buffer. To manipulate individual
+                         // lines, it is much more performant to access / modify the
+                         // data via geometry.vertices, than to have many separate 'shapes'
                          
   exportShape: false, // display popup for each geometry which has this option
   objX: 0,            // for 'obj' or 'custom shape' format models, initial offset
