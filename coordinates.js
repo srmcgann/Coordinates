@@ -224,13 +224,10 @@ const Renderer = async options => {
     if(typeof geometry?.shader != 'undefined'){
       
       // depth + alpha bugfix
-      if(!sortedPass && (geometry.isLine || geometry.isParticle ||
-                         geometry.isSprite || (geometry.isLight && geometry.showSource))) {
+      if(!sortedPass && (geometry.isSprite || (geometry.isLight && geometry.showSource))) {
         var queueType
         switch(geometry.shapeType){
           case 'sprite'    : case 'point light': queueType = 'alphaQueue'; break
-          case 'particles' :               queueType= 'particleQueue'; break
-          case 'lines'     :               queueType = 'lineQueue'; break
         }
         renderer[queueType] = [{
           x: geometry.x,
@@ -246,15 +243,28 @@ const Renderer = async options => {
         }, ...renderer[queueType]]
         
       }else{
+
+        if(!sortedPass && (geometry.isLine || geometry.isParticle)) {
+          var queueType
+          switch(geometry.shapeType){
+            case 'particles' :               queueType= 'particleQueue'; break
+            case 'lines'     :               queueType = 'lineQueue'; break
+          }
+          renderer[queueType] = [{
+            x: geometry.x,
+            y: geometry.y,
+            z: geometry.z,
+            roll: geometry.roll,
+            pitch: geometry.pitch,
+            yaw: geometry.yaw,
+            size: geometry.size,
+            shapeType: geometry.shapeType,
+            vertices: structuredClone(geometry.vertices),
+            geometry
+          }, ...renderer[queueType]]
+        }
+
         ctx.useProgram( sProg )
-        
-        
-        //renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
-        //if(sortedPass && ShouldEnableDepth(geometry)) {
-        //  renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
-        //}
-          
-        
 
         for(var m = 0; m < ((equirectangularPlugin && !omitSplitCheck) ? 2 : 1); m++){
           
@@ -3751,6 +3761,85 @@ const BasicShader = async (renderer, options=[]) => {
   return ret
 }
 
+
+const ShapeToLines = async (shape, options={}) => {
+  
+  var keepDuplicates = false
+  var closePaths     = true
+  var tgd            = []
+
+  var lO = {
+    size      : 1,
+    alpha     : .8,
+    penumbra  : .5,
+    shapeType : 'lines',
+    color     : 0xffffff,
+  }
+  
+  
+  Object.keys(shape).forEach((key, idx) => {
+    switch(key.toLowerCase()){
+      case 'shapetype' : break
+      case 'x':
+      case 'y':
+      case 'z':
+      case 'roll':
+      case 'pitch':
+      case 'yaw':
+        lO[key] = shape[key]; break
+      default: break
+    }
+  })
+  
+  Object.keys(options).forEach((key, idx) => {
+    switch(key.toLowerCase()){
+      case 'shapetype' : break
+      default          : lO[key] = options[key]; break
+    }
+  })
+  
+  const unique = (a,b,c,d,e,f) => {
+    var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3
+    var ret = true
+    var v = tgd
+    for(var i = 0; ret && i<v.length; i+=6){
+      X1 = v[i+0], Y1 = v[i+1], Z1 = v[i+2]
+      X2 = v[i+3], Y2 = v[i+4], Z2 = v[i+5]
+      if((X1 == a && Y1 == b && Z1 == c &&
+          X2 == d && Y2 == e && Z2 == f) ||
+         (X1 == d && Y1 == e && Z1 == f &&
+          X2 == a && Y2 == b && Z2 == c)) ret = false
+    }
+    return ret
+  }
+
+  var v = shape.vertices, a
+  for(var i = 0; i < v.length; i += 9){
+    var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3
+    X1 = v[i+0], Y1 = v[i+1], Z1 = v[i+2]
+    X2 = v[i+3], Y2 = v[i+4], Z2 = v[i+5]
+    X3 = v[i+6], Y3 = v[i+7], Z3 = v[i+8]
+    a = []
+    if(keepDuplicates || unique(X1,Y1,Z1, X2,Y2,Z2)) a = [...a, X1,Y1,Z1, X2,Y2,Z2]
+    if(keepDuplicates || unique(X2,Y2,Z2, X3,Y3,Z3)) a = [...a, X2,Y2,Z2, X3,Y3,Z3]
+    if(closePaths) {
+      if(keepDuplicates || unique(X3,Y3,Z3, X1,Y1,Z1)) a = [...a, X3,Y3,Z3, X1,Y1,Z1]
+    }
+    tgd.push(...a)
+  }
+  var geometryData = []
+  for(var i = 0; i < tgd.length; i+=3) 
+    geometryData = [...geometryData, [tgd[i+0],tgd[i+1],tgd[i+2]]]
+  
+  lO.geometryData = geometryData
+  var ret = { shape: null }
+  await LoadGeometry(shape.renderer, lO).then( geo => {
+    ret.shape = geo
+  })
+  return ret
+}
+
+
 const IsPolyhedron = shapeType => {
   var isPolyhedron
   switch(shapeType){
@@ -5715,6 +5804,7 @@ export {
   Intersects,
   PointInPoly2D,
   PointInPoly3D,
+  ShapeToLines,
   ShowBounding,
   GetShaderCoord,
   Reflect,
