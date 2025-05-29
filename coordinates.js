@@ -57,6 +57,8 @@ const Renderer = async options => {
   }
   
   var alphaQueue = []
+  var particleQueue = []
+  var lineQueue = []
   var pointLights = []
   var pointLightCols = []
   var optionalPlugins = []
@@ -166,7 +168,7 @@ const Renderer = async options => {
     roll, pitch, yaw, fov,
     ready: false, ambientLight,
     pointLights, pointLightCols,
-    alphaQueue, active,
+    alphaQueue, particleQueue, lineQueue, active,
     cameraMode, showCrosshair, crosshairSel,
     crosshairMap, pageX, pageY, mouseX, mouseY,
     mouseButton, rsz, margin, optionalPlugins
@@ -224,7 +226,13 @@ const Renderer = async options => {
       // depth + alpha bugfix
       if(!sortedPass && (geometry.isLine || geometry.isParticle ||
                          geometry.isSprite || (geometry.isLight && geometry.showSource))) {
-        renderer.alphaQueue = [{
+        var queueType
+        switch(geometry.shapeType){
+          case 'sprite'    : case 'point light': queueType = 'alphaQueue'; break
+          case 'particles' :               queueType= 'particleQueue'; break
+          case 'lines'     :               queueType = 'lineQueue'; break
+        }
+        renderer[queueType] = [{
           x: geometry.x,
           y: geometry.y,
           z: geometry.z,
@@ -232,403 +240,392 @@ const Renderer = async options => {
           pitch: geometry.pitch,
           yaw: geometry.yaw,
           size: geometry.size,
+          shapeType: geometry.shapeType,
           vertices: structuredClone(geometry.vertices),
           geometry
-        }, ...renderer.alphaQueue]
+        }, ...renderer[queueType]]
         
       }else{
-        if(!sortedPass && (geometry.isLine || geometry.isParticle)) {
-          renderer.alphaQueue = [{
-            x: geometry.x,
-            y: geometry.y,
-            z: geometry.z,
-            roll: geometry.roll,
-            pitch: geometry.pitch,
-            yaw: geometry.yaw,
-            size: geometry.size,
-            vertices: structuredClone(geometry.vertices),
-            geometry
-          }, ...renderer.alphaQueue]
-        }else{
-
+        ctx.useProgram( sProg )
+        
+        
+        //renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
+        //if(sortedPass && ShouldEnableDepth(geometry)) {
+        //  renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
+        //}
           
-          ctx.useProgram( sProg )
+        
 
+        for(var m = 0; m < ((equirectangularPlugin && !omitSplitCheck) ? 2 : 1); m++){
           
-          for(var m = 0; m < ((equirectangularPlugin && !omitSplitCheck) ? 2 : 1); m++){
-            
-            // rotation mode
-            ctx.uniform1i(dset.locRotationMode, geometry.rotationMode)
-            
-            // plugins
-            renderer.locPlugin = ctx.getUniformLocation(dset.program, "plugin")
-            renderer.locOmitSplitCheck = ctx.getUniformLocation(dset.program, "omitSplitCheck")
-            renderer.locSplitCheckPass = ctx.getUniformLocation(dset.program, "splitCheckPass")
-            ctx.uniform1f(renderer.locPlugin, equirectangularPlugin ? 1 : 0)
-            ctx.uniform1f(renderer.locOmitSplitCheck, omitSplitCheck ? 1 : 0)
-            ctx.uniform1f(renderer.locSplitCheckPass, m)
-            
-            if(geometry.showBounding) {
-              var bounding = ShowBounding(geometry, renderer, geometry.showBounding,
-                                          equirectangularPlugin, omitSplitCheck, m)
-            }
-            
-            if(geometry.shapeType == 'particles' || geometry.isParticle ||
-               geometry.shapeType == 'lines' || geometry.isLine) {
+          // rotation mode
+          ctx.uniform1i(dset.locRotationMode, geometry.rotationMode)
+          
+          // plugins
+          renderer.locPlugin = ctx.getUniformLocation(dset.program, "plugin")
+          renderer.locOmitSplitCheck = ctx.getUniformLocation(dset.program, "omitSplitCheck")
+          renderer.locSplitCheckPass = ctx.getUniformLocation(dset.program, "splitCheckPass")
+          ctx.uniform1f(renderer.locPlugin, equirectangularPlugin ? 1 : 0)
+          ctx.uniform1f(renderer.locOmitSplitCheck, omitSplitCheck ? 1 : 0)
+          ctx.uniform1f(renderer.locSplitCheckPass, m)
+          
+          if(geometry.showBounding) {
+            var bounding = ShowBounding(geometry, renderer, geometry.showBounding,
+                                        equirectangularPlugin, omitSplitCheck, m)
+          }
+          
+          if(geometry.shapeType == 'particles' || geometry.isParticle ||
+             geometry.shapeType == 'lines' || geometry.isLine) {
 
-              renderer.ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
-              renderer.ctx.enable(ctx.BLEND)
-              
-              ctx.uniform1f(dset.locPointSize,       geometry.size * (penumbraPass ? 3.0 : 1.0))
-              if(geometry.shapeType  == 'lines') ctx.lineWidth(geometry.size * (penumbraPass ? 3.0 : 1.0))
-              ctx.uniform1f(dset.locIsParticle,      geometry.isParticle)
-              ctx.uniform1f(dset.locIsLine,          geometry.isLine)
-              ctx.uniform1f(dset.locPenumbraPass,    geometry.penumbraPass ? 1 : 0)
-              
-              ctx.uniform1f(dset.locT,               renderer.t)
-              ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
-              ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
-              ctx.uniform1f(dset.locIsLight,         geometry.isLight)
-              
-              ctx.uniform1f(dset.locCameraMode,      
-                            renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
-                            
-              ctx.uniform1f(dset.locAlpha,           Math.min(1, Math.max(0,
-                                                      penumbraPass ?
-                                                      geometry.alpha *
-                                                        geometry.penumbra :
-                                                      geometry.alpha)))
-              ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
-              ctx.uniform1f(dset.locAmbientLight,    ambLight / 8)
-              ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
-              ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
-              ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
-              ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
-              ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
-              ctx.uniform1f(dset.locFov,             renderer.fov)
-              ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
-              ctx.uniform1f(dset.locRenderNormals,   0)
+            renderer.ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
+            renderer.ctx.enable(ctx.BLEND)
+            
+            ctx.uniform1f(dset.locPointSize,       geometry.size * (penumbraPass ? 3.0 : 1.0))
+            if(geometry.shapeType  == 'lines') ctx.lineWidth(geometry.size * (penumbraPass ? 3.0 : 1.0))
+            ctx.uniform1f(dset.locIsParticle,      geometry.isParticle)
+            ctx.uniform1f(dset.locIsLine,          geometry.isLine)
+            ctx.uniform1f(dset.locPenumbraPass,    geometry.penumbraPass ? 1 : 0)
+            
+            ctx.uniform1f(dset.locT,               renderer.t)
+            ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
+            ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
+            ctx.uniform1f(dset.locIsLight,         geometry.isLight)
+            
+            ctx.uniform1f(dset.locCameraMode,      
+                          renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
+                          
+            ctx.uniform1f(dset.locAlpha,           Math.min(1, Math.max(0,
+                                                    penumbraPass ?
+                                                    geometry.alpha *
+                                                      geometry.penumbra :
+                                                    geometry.alpha)))
+            ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
+            ctx.uniform1f(dset.locAmbientLight,    ambLight / 8)
+            ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
+            ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
+            ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
+            ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
+            ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
+            ctx.uniform1f(dset.locFov,             renderer.fov)
+            ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
+            ctx.uniform1f(dset.locRenderNormals,   0)
 
 
-              // vertices
-              if(geometry?.vertices?.length){
-                var tvib, tgvb, tgvi, tvertices
-                var p, p1, p2, d, nx, ny, nz
-                var X1, Y1, Z1, X2, Y2, Z2
-                if(geometry.isLine){
-                  tvertices = []
-                  var d = Math.hypot(renderer.width, renderer.height)
-                  var s = geometry.size / 10 / d * (penumbraPass ? 3 : 1)
-                  for(var i = 0; i<geometry.vertices.length; i+=6){
-                    X1 = -geometry.vertices[i+0]
-                    Y1 = -geometry.vertices[i+1]
-                    Z1 = -geometry.vertices[i+2]
-                    X2 = -geometry.vertices[i+3]
-                    Y2 = -geometry.vertices[i+4]
-                    Z2 = -geometry.vertices[i+5]
-                    
-                    p1 = GetShaderCoord(X1, Y1, Z1, geometry, renderer)
-                    p2 = GetShaderCoord(X2, Y2, Z2, geometry, renderer)
-                    if(p1[2] > 0 && p2[0] > 0 || equirectangularPlugin){
-                      p = Math.atan2(p2[0]-p1[0], p2[1]-p1[1]) + Math.PI / 2
-
-                      p1[0] -= renderer.width / 2
-                      p1[1] -= renderer.height / 2
-                      p2[0] -= renderer.width / 2
-                      p2[1] -= renderer.height / 2
-                      
-                      p1[0] /= d/3
-                      p1[1] /= d/3
-                      p2[0] /= d/3
-                      p2[1] /= d/3
-                      
-                      p1[2] /= d/3
-                      p2[2] /= d/3
-                      
-                      nz = p1[2]
-                      nx = p1[0] + S(p) * s / nz
-                      ny = p1[1] + C(p) * s / nz
-                      tvertices.push(nx, -ny, nz*d/3)
-                      nz = p1[2]
-                      nx = p1[0] - S(p) * s / nz
-                      ny = p1[1] - C(p) * s / nz
-                      tvertices.push(nx, -ny, nz*d/3)
-                      nz = p2[2]
-                      nx = p2[0] - S(p) * s / nz
-                      ny = p2[1] - C(p) * s / nz
-                      tvertices.push(nx, -ny, nz*d/3)
-                      
-                      nz = p2[2]
-                      nx = p2[0] - S(p) * s / nz
-                      ny = p2[1] - C(p) * s / nz
-                      tvertices.push(nx, -ny, nz*d/3)
-                      nz = p2[2]
-                      nx = p2[0] + S(p) * s / nz
-                      ny = p2[1] + C(p) * s / nz
-                      tvertices.push(nx, -ny, nz*d/3)
-                      nz = p1[2]
-                      nx = p1[0] + S(p) * s / nz
-                      ny = p1[1] + C(p) * s / nz
-                      tvertices.push(nx, -ny, nz*d/3)
-                    }
-                  }
+            // vertices
+            if(geometry?.vertices?.length){
+              var tvib, tgvb, tgvi, tvertices
+              var p, p1, p2, d, nx, ny, nz
+              var X1, Y1, Z1, X2, Y2, Z2
+              if(geometry.isLine){
+                tvertices = []
+                var d = renderer.fov
+                var s = geometry.size * (penumbraPass ? 4 : 1) / 50
+                for(var i = 0; i<geometry.vertices.length; i+=6){
+                  X1 = -geometry.vertices[i+0]
+                  Y1 = -geometry.vertices[i+1]
+                  Z1 = -geometry.vertices[i+2]
+                  X2 = -geometry.vertices[i+3]
+                  Y2 = -geometry.vertices[i+4]
+                  Z2 = -geometry.vertices[i+5]
                   
-                  tvertices = new Float32Array(tvertices)
+                  p1 = GetShaderCoord(X1, Y1, Z1, geometry, renderer)
+                  p2 = GetShaderCoord(X2, Y2, Z2, geometry, renderer)
+                  if(p1[2] > 0 && p2[0] > 0 || equirectangularPlugin){
+                    p = Math.atan2(p2[0]-p1[0], p2[1]-p1[1]) + Math.PI / 2
 
-                  // vertics, indices
-                  tgvb = ctx.createBuffer()
-                  ctx.bindBuffer(ctx.ARRAY_BUFFER, tgvb)
-                  ctx.bufferData(ctx.ARRAY_BUFFER, tvertices, ctx.STATIC_DRAW)
-                  ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-                  tgvi = new Uint32Array( Array(tvertices.length/3).fill().map((v,i)=>i) )
-                  tvib = ctx.createBuffer()
-                  ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, tvib)
-                  ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, tgvi, ctx.STATIC_DRAW)
-                  ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-                } else {
-                  tvertices = geometry.vertices
-                  tvib = geometry.Vertex_Index_Buffer
-                  tgvb = geometry.vertex_buffer
-                  tgvi = geometry.vIndices
+                    p1[0] -= renderer.width / 2
+                    p1[1] -= renderer.height / 2
+                    p2[0] -= renderer.width / 2
+                    p2[1] -= renderer.height / 2
+                    
+                    p1[0] /= d / 2
+                    p1[1] /= d / 2
+                    p2[0] /= d / 2
+                    p2[1] /= d / 2
+                    
+                    nz = p1[2]
+                    nx = p1[0] + S(p) * s / nz
+                    ny = p1[1] + C(p) * s / nz
+                    tvertices.push(nx, -ny, nz)
+                    nz = p1[2]
+                    nx = p1[0] - S(p) * s / nz
+                    ny = p1[1] - C(p) * s / nz
+                    tvertices.push(nx, -ny, nz)
+                    nz = p2[2]
+                    nx = p2[0] - S(p) * s / nz
+                    ny = p2[1] - C(p) * s / nz
+                    tvertices.push(nx, -ny, nz)
+                    
+                    nz = p2[2]
+                    nx = p2[0] - S(p) * s / nz
+                    ny = p2[1] - C(p) * s / nz
+                    tvertices.push(nx, -ny, nz)
+                    nz = p2[2]
+                    nx = p2[0] + S(p) * s / nz
+                    ny = p2[1] + C(p) * s / nz
+                    tvertices.push(nx, -ny, nz)
+                    nz = p1[2]
+                    nx = p1[0] + S(p) * s / nz
+                    ny = p1[1] + C(p) * s / nz
+                    tvertices.push(nx, -ny, nz)
+                  }
                 }
                 
-                
+                tvertices = new Float32Array(tvertices)
+
+                // vertics, indices
+                tgvb = ctx.createBuffer()
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, tgvb)
                 ctx.bufferData(ctx.ARRAY_BUFFER, tvertices, ctx.STATIC_DRAW)
+                ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+                tgvi = new Uint32Array( Array(tvertices.length/3).fill().map((v,i)=>i) )
+                tvib = ctx.createBuffer()
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, tvib)
                 ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, tgvi, ctx.STATIC_DRAW)
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, tgvb)
-                ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, tvib)
-                dset.locPosition = ctx.getAttribLocation(dset.program, "position")
-                ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
-                ctx.enableVertexAttribArray(dset.locPosition)
-
-                if(geometry.isLine){
-                  ctx.drawElements(ctx.TRIANGLES, tvertices.length/3|0, ctx.UNSIGNED_INT,0)
-                }else{
-                  ctx.drawElements(ctx.POINTS, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
-                }
-
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+              } else {
+                tvertices = geometry.vertices
+                tvib = geometry.Vertex_Index_Buffer
+                tgvb = geometry.vertex_buffer
+                tgvi = geometry.vIndices
               }
               
-              renderer.ctx.blendFunc(ctx.ONE, ctx.ZERO)
-              renderer.ctx.disable(ctx.BLEND)
               
-              if(penumbraPass) return
-              
-            }else{  // not particles
-              
-              // update uniforms
-              
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, tgvb)
+              ctx.bufferData(ctx.ARRAY_BUFFER, tvertices, ctx.STATIC_DRAW)
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, tvib)
+              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, tgvi, ctx.STATIC_DRAW)
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, tgvb)
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, tvib)
+              dset.locPosition = ctx.getAttribLocation(dset.program, "position")
+              ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
+              ctx.enableVertexAttribArray(dset.locPosition)
+
+              if(geometry.isLine){
+                ctx.drawElements(ctx.TRIANGLES, tvertices.length/3|0, ctx.UNSIGNED_INT,0)
+              }else{
+                ctx.drawElements(ctx.POINTS, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
+              }
+
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+            }
+            
+            renderer.ctx.blendFunc(ctx.ONE, ctx.ZERO)
+            renderer.ctx.disable(ctx.BLEND)
+            
+            if(penumbraPass) return
+            
+          }else{  // not particles
+            
+            // update uniforms
+            
+            ctx.activeTexture(ctx.TEXTURE0)
+            switch(geometry.textureMode){
+              case 'video':
+                BindImage(ctx, dset.resource,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
+              break
+              case 'canvas':
+                ctx.activeTexture(ctx.TEXTURE2)
+                BindImage(ctx, geometry.canvasTexture,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
+              break
+              default:
+              break
+            }
+            
+            if(typeof geometry.canvasTexture != 'undefined'){
+              ctx.activeTexture(ctx.TEXTURE2)
+              BindImage(ctx, geometry.canvasTexture, dset.supplementalTexture, 'canvas', renderer.t, geometry.map)
+              ctx.uniform1i(dset.locSupplementalTexture, 2)
+              ctx.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
+            }
+            
+
+            ctx.activeTexture(ctx.TEXTURE0)
+            //ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
+            ctx.uniform1i(dset.locTexture, dset.texture)
+            ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
+            
+            if(geometry.heightMap){
+              ctx.activeTexture(ctx.TEXTURE4)
+              ctx.uniform1i(dset.locHeightMap, 4)
+              //ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
+              BindImage(ctx, dset.heightResource, dset.heightTexture, geometry.heightMapIsCanvas ? 'canvas' : geometry.heightTextureMode, renderer.t, geometry.heightMap)
+              ctx.uniform1i(dset.locHeightTexture, dset.heightTexture)
+              ctx.uniform1f(dset.locUseHeightMap, 1)
+              ctx.uniform1f(dset.locHeightMapIntensity, geometry.heightMapIntensity)
+              ctx.uniform1f(dset.locEquirectangularHeightmap, geometry.equirectangularHeightmap ? 1.0 : 0.0)
+              ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
               ctx.activeTexture(ctx.TEXTURE0)
-              switch(geometry.textureMode){
-                case 'video':
-                  BindImage(ctx, dset.resource,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
-                break
-                case 'canvas':
-                  ctx.activeTexture(ctx.TEXTURE2)
-                  BindImage(ctx, geometry.canvasTexture,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
+            }else{
+              ctx.uniform1f(dset.locUseHeightMap, 0)
+            }
+            
+            
+            // point lights
+            ctx.uniform1i(dset.locPointLightCount, renderer.pointLights.length)
+            var pldata = new Float32Array()
+            var plcols = new Float32Array()
+            renderer.pointLights.map(geometry => {
+              pldata = [...pldata, geometry.x, geometry.y, geometry.z, geometry.lum]
+              let col = HexToRGB(geometry.color)
+              plcols = [...plcols, ...HexToRGB(geometry.color), 1.0]
+            })
+            if(pldata.length){
+              ctx.uniform4fv(dset.locPointLights, pldata)
+              ctx.uniform4fv(dset.locPointLightCols, plcols)
+            }
+            
+            var ambLight = renderer.ambientLight
+
+            dset.optionalLighting.map(lighting => {
+              switch(lighting.name){
+                case 'ambientLight':
+                  ambLight = lighting.value
                 break
                 default:
                 break
               }
-              
-              if(typeof geometry.canvasTexture != 'undefined'){
-                ctx.activeTexture(ctx.TEXTURE2)
-                BindImage(ctx, geometry.canvasTexture, dset.supplementalTexture, 'canvas', renderer.t, geometry.map)
-                ctx.uniform1i(dset.locSupplementalTexture, 2)
-                ctx.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
-              }
-              
-
-              ctx.activeTexture(ctx.TEXTURE0)
-              //ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
-              ctx.uniform1i(dset.locTexture, dset.texture)
-              ctx.bindTexture(ctx.TEXTURE_2D, dset.texture)
-              
-              if(geometry.heightMap){
-                ctx.activeTexture(ctx.TEXTURE4)
-                ctx.uniform1i(dset.locHeightMap, 4)
-                //ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
-                BindImage(ctx, dset.heightResource, dset.heightTexture, geometry.heightMapIsCanvas ? 'canvas' : geometry.heightTextureMode, renderer.t, geometry.heightMap)
-                ctx.uniform1i(dset.locHeightTexture, dset.heightTexture)
-                ctx.uniform1f(dset.locUseHeightMap, 1)
-                ctx.uniform1f(dset.locHeightMapIntensity, geometry.heightMapIntensity)
-                ctx.uniform1f(dset.locEquirectangularHeightmap, geometry.equirectangularHeightmap ? 1.0 : 0.0)
-                ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
-                ctx.activeTexture(ctx.TEXTURE0)
-              }else{
-                ctx.uniform1f(dset.locUseHeightMap, 0)
-              }
-              
-              
-              // point lights
-              ctx.uniform1i(dset.locPointLightCount, renderer.pointLights.length)
-              var pldata = new Float32Array()
-              var plcols = new Float32Array()
-              renderer.pointLights.map(geometry => {
-                pldata = [...pldata, geometry.x, geometry.y, geometry.z, geometry.lum]
-                let col = HexToRGB(geometry.color)
-                plcols = [...plcols, ...HexToRGB(geometry.color), 1.0]
-              })
-              if(pldata.length){
-                ctx.uniform4fv(dset.locPointLights, pldata)
-                ctx.uniform4fv(dset.locPointLightCols, plcols)
-              }
-              
-              var ambLight = renderer.ambientLight
-
-              dset.optionalLighting.map(lighting => {
-                switch(lighting.name){
-                  case 'ambientLight':
-                    ambLight = lighting.value
+            })
+            
+            ctx.useProgram( sProg )
+            
+            dset.optionalUniforms.map((uniform) => {
+              if(typeof uniform?.loc === 'object'){
+                ctx[uniform.dataType](uniform.loc,      uniform.value)
+                ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
+                switch(uniform.name){
+                  case 'reflection':
+                    ctx.activeTexture(ctx.TEXTURE1)
+                    if(uniform.textureMode == 'video'){
+                       BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform.map)
+                    }
+                    ctx.useProgram( sProg )
+                    ctx.activeTexture(ctx.TEXTURE1)
+                    ctx.uniform1i(uniform.locRefTexture, 1)
+                    ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
+                    
+                    ctx.uniform1f(uniform.locRefOmitEquirectangular,
+                         ( geometry.shapeType == 'rectangle' ||
+                           geometry.shapeType == 'point light' ||
+                           geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
                   break
-                  default:
+                  case 'phong':
+                    uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
+                    ctx.uniform1f(uniform.locPhongTheta, uniform.theta + Math.PI)
                   break
                 }
-              })
-              
-              ctx.useProgram( sProg )
-              
-              dset.optionalUniforms.map((uniform) => {
-                if(typeof uniform?.loc === 'object'){
-                  ctx[uniform.dataType](uniform.loc,      uniform.value)
-                  ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
-                  switch(uniform.name){
-                    case 'reflection':
-                      ctx.activeTexture(ctx.TEXTURE1)
-                      if(uniform.textureMode == 'video'){
-                         BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform.map)
-                      }
-                      ctx.useProgram( sProg )
-                      ctx.activeTexture(ctx.TEXTURE1)
-                      ctx.uniform1i(uniform.locRefTexture, 1)
-                      ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
-                      
-                      ctx.uniform1f(uniform.locRefOmitEquirectangular,
-                           ( geometry.shapeType == 'rectangle' ||
-                             geometry.shapeType == 'point light' ||
-                             geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
-                    break
-                    case 'phong':
-                      uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
-                      ctx.uniform1f(uniform.locPhongTheta, uniform.theta + Math.PI)
-                    break
-                  }
-                }
-              })
+              }
+            })
 
-              
-              // other uniforms
-              ctx.uniform1f(dset.locT,               renderer.t)
-              ctx.uniform1f(dset.locIsParticle,      geometry.isParticle)
-              ctx.uniform1f(dset.locIsLine,          geometry.isLine)
-              ctx.uniform1f(dset.locPenumbraPass,    0)
-              ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
-              ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
-              ctx.uniform1f(dset.locIsLight,         geometry.isLight)
-              
-              ctx.uniform1f(dset.locCameraMode,      
-                            renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
-                            
-              ctx.uniform1f(dset.locAlpha,           geometry.alpha)
-              ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
-              ctx.uniform1f(dset.locAmbientLight,    ambLight / 8)
-              ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
-              ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
-              ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
-              ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
-              ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
-              ctx.uniform1f(dset.locFov,             renderer.fov)
-              ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
-              ctx.uniform1f(dset.locRenderNormals,   0)
+            
+            // other uniforms
+            ctx.uniform1f(dset.locT,               renderer.t)
+            ctx.uniform1f(dset.locIsParticle,      geometry.isParticle)
+            ctx.uniform1f(dset.locIsLine,          geometry.isLine)
+            ctx.uniform1f(dset.locPenumbraPass,    0)
+            ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
+            ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
+            ctx.uniform1f(dset.locIsLight,         geometry.isLight)
+            
+            ctx.uniform1f(dset.locCameraMode,      
+                          renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
+                          
+            ctx.uniform1f(dset.locAlpha,           geometry.alpha)
+            ctx.uniform3f(dset.locColor,           ...HexToRGB(geometry.color))
+            ctx.uniform1f(dset.locAmbientLight,    ambLight / 8)
+            ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
+            ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
+            ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
+            ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
+            ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
+            ctx.uniform1f(dset.locFov,             renderer.fov)
+            ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
+            ctx.uniform1f(dset.locRenderNormals,   0)
 
 
 
-              // bind buffers
-              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
-              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
-              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
-              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW)
-              ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
+            // bind buffers
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
+            ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
+            ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW)
+            ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+
+
+            //normals
+            if(geometry?.normalVecs.length){
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
+              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
+              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
+              dset.locNormalVec= ctx.getAttribLocation(dset.program, "normalVec")
+              ctx.vertexAttribPointer(dset.locNormalVec, 3, ctx.FLOAT, false, 0, 0)
+              ctx.enableVertexAttribArray(dset.locNormalVec)
+
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
               ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+            }        
+            
 
-
-              //normals
-              if(geometry?.normalVecs.length){
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
-                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
-                ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
-                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
-                ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
-                dset.locNormalVec= ctx.getAttribLocation(dset.program, "normalVec")
-                ctx.vertexAttribPointer(dset.locNormalVec, 3, ctx.FLOAT, false, 0, 0)
-                ctx.enableVertexAttribArray(dset.locNormalVec)
-
-                ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-              }        
+            // vertices
+            if(geometry?.vertices?.length){
               
-
-              // vertices
-              if(geometry?.vertices?.length){
-                
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-                if(equirectangularPlugin){
-                  var verts =  new Float32Array()
-                  for(var i=0; i<geometry.vertices; i+=9){
-                    var X1 = geometry.vertices[i+0]
-                    var Y1 = geometry.vertices[i+1]
-                    var Z1 = geometry.vertices[i+2]
-                    var X2 = geometry.vertices[i+3]
-                    var Y2 = geometry.vertices[i+4]
-                    var Z2 = geometry.vertices[i+5]
-                    var X3 = geometry.vertices[i+6]
-                    var Y3 = geometry.vertices[i+7]
-                    var Z4 = geometry.vertices[i+8]
-                    
-                  }
-                  ctx.bufferData(ctx.ARRAY_BUFFER, verts, ctx.STATIC_DRAW)
-                }else{
-                  ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+              if(equirectangularPlugin){
+                var verts =  new Float32Array()
+                for(var i=0; i<geometry.vertices; i+=9){
+                  var X1 = geometry.vertices[i+0]
+                  var Y1 = geometry.vertices[i+1]
+                  var Z1 = geometry.vertices[i+2]
+                  var X2 = geometry.vertices[i+3]
+                  var Y2 = geometry.vertices[i+4]
+                  var Z2 = geometry.vertices[i+5]
+                  var X3 = geometry.vertices[i+6]
+                  var Y3 = geometry.vertices[i+7]
+                  var Z4 = geometry.vertices[i+8]
+                  
                 }
-                
-                ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-                ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-                dset.locPosition = ctx.getAttribLocation(dset.program, "position")
-                ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
-                ctx.enableVertexAttribArray(dset.locPosition)
-                ctx.drawElements(geometry.wireframe ? ctx.LINE_STRIP :
-                                    ctx.TRIANGLES,
-                                  geometry.vertices.length/3|0,
-                                  ctx.UNSIGNED_INT,0)
-
-                ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+                ctx.bufferData(ctx.ARRAY_BUFFER, verts, ctx.STATIC_DRAW)
+              }else{
+                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
               }
+              
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
+              dset.locPosition = ctx.getAttribLocation(dset.program, "position")
+              ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
+              ctx.enableVertexAttribArray(dset.locPosition)
+              ctx.drawElements(geometry.wireframe ? ctx.LINE_STRIP :
+                                  ctx.TRIANGLES,
+                                geometry.vertices.length/3|0,
+                                ctx.UNSIGNED_INT,0)
 
-              // normals lines drawn, optionally
-              ctx.uniform1f(dset.locRenderNormals, geometry.showNormals ? 1 : 0)
-              if(geometry.showNormals && geometry?.normals?.length){
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
-                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
-                ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
-                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
-                ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, false, 0, 0)
-                dset.locNormal = ctx.getAttribLocation(dset.program, "normal")
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
-                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
-                ctx.enableVertexAttribArray(dset.locNormal)
-                ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_INT,0)
-                ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-              }
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+            }
+
+            // normals lines drawn, optionally
+            ctx.uniform1f(dset.locRenderNormals, geometry.showNormals ? 1 : 0)
+            if(geometry.showNormals && geometry?.normals?.length){
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
+              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
+              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
+              ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, false, 0, 0)
+              dset.locNormal = ctx.getAttribLocation(dset.program, "normal")
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
+              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
+              ctx.enableVertexAttribArray(dset.locNormal)
+              ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_INT,0)
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
             }
           }
         }
@@ -1407,10 +1404,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
             normals     = geometryData.normals
             normalVecs  = geometryData.normalVecs
             uvs         = geometryData.uvs
-            console.log('vertices', vertices)
-            console.log('normals', normals)
-            console.log('normalVecs', normalVecs)
-            console.log('uvs', uvs)
             resolved    = true
             //cache.customShapes.push({data: structuredClone(geometryData), url})
           }else{
@@ -2178,8 +2171,8 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', 
 
 const SyncNormals = (shape, averageNormals=false, flipNormals=false) => {
   var v = shape.vertices
-  var normals = new Float32Array()
-  var facet = new Float32Array()
+  var normals = []
+  var facet = []
   var X, Y, Z, facet, a
   for(var i = 0; i<v.length; i+=3){
     X = v[i+0]
@@ -2189,11 +2182,11 @@ const SyncNormals = (shape, averageNormals=false, flipNormals=false) => {
     if(i%9 == 6){
       var n = Normal(facet)
       normals = [...normals, n, n, n]
-      facet = new Float32Array()
+      facet = []
     }
   }
   if(averageNormals){
-    var avN = new Float32Array()
+    var avN = []
     for(var i=0; i< v.length; i+=3){
       var nx1 = v[i+0]
       var ny1 = v[i+1]
@@ -2224,6 +2217,9 @@ const SyncNormals = (shape, averageNormals=false, flipNormals=false) => {
     }
     var n = shape.normalVecs
     for(var i = 0; i<n.length; i++) n[i] = avN[i]
+    shape.normals = new Float32Array(normals)
+  } else{
+    shape.normals = new Float32Array(normals)
   }
 }
 
@@ -2365,7 +2361,7 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
     vz -= cpz
     
     var fov = renderer.fov
-    var camz = cpz / 1e3 * Math.pow(5.0, Math.log(fov) / 1.609438) +cpz
+    var camz = cpz / 1e3 * fov +cpz
     Z = vz + camz
     if(Z>0){
       X = renderer.width / 2 + vx / Z * fov / 2
@@ -2762,9 +2758,9 @@ const BasicShader = async (renderer, options=[]) => {
                       float phongP1, phongP2;
                       float px, py, pz;
                       if(phongFlatShading != 0.0){
-                        px = 0.0;
-                        py = 0.0;
-                        pz = 0.0;
+                        px = nVec.x;
+                        py = nVec.y;
+                        pz = nVec.z;
                       }else{
                         vec3 phongPos = R_rpy(nV, vec3(camOri.x, 0.0, 0.0));
                         px = phongPos.x;
@@ -3010,7 +3006,7 @@ const BasicShader = async (renderer, options=[]) => {
         
         ${uVertCode}
         
-        float camz = cpz / 1e3 * pow(5.0, log(fov) / 1.609438);
+        float camz = cpz / 1e3 * fov;
         
         float X, Y;
         float Z = pos.z + camz + geo.z;
@@ -5431,8 +5427,15 @@ const LoadFPSControls = async (renderer, options) => {
   }
 }
 
-const ShouldDisableDepth = () => {
-  return false //shape.isLight || shape.isSprite ||shape.disableDepthTest
+const ShouldDisableDepth = shape => {
+  return false
+  return shape.isParticle || shape.isLine ||
+         shape.isLight || shape.isSprite// ||shape.disableDepthTest
+}
+
+const ShouldEnableDepth = shape => {
+  return !(shape.isParticle || shape.isLine ||
+         shape.isLight || shape.isSprite ||shape.disableDepthTest)
 }
 
 
@@ -5449,63 +5452,67 @@ const AnimationLoop = (renderer, func) => {
       
     // mimic shader rotation function, for z-sorting.
     // transparent objects must be drawn in reverse depth order
-
-    if(renderer.alphaQueue.length){
-      var forSort = new Float32Array()
-      var vec
-      
-      renderer.ctx.blendFunc(renderer.ctx.SRC_ALPHA, renderer.ctx.ONE);
-      renderer.ctx.enable(renderer.ctx.BLEND)
-      
-      renderer.alphaQueue.map((v, i) => {
-        var X = v.x + renderer.x
-        var Y = v.y + renderer.y
-        var Z = v.z + renderer.z
-        vec = R(X,Y,Z, {roll: renderer.roll,
-                        pitch: renderer.pitch,
-                        yaw: renderer.yaw}, false)
-                        
-        var camz = renderer.z / 1e3 *
-                     Math.pow(5.0, (Math.log(renderer.fov) / 1.609438))
-        forSort = [...forSort, {idx: i, z: camz + vec[2]}]
-      })
-      forSort.sort((a, b) => b.z - a.z)
-      renderer.alphaQueue.map(async (alphaShape, idx) => {
-
-        var shape      = renderer.alphaQueue[forSort[idx].idx].geometry
-        var tempVerts  = shape.vertices
-        var tempSize   = shape.size
-        shape.size = renderer.alphaQueue[forSort[idx].idx].size
-        shape.vertices = renderer.alphaQueue[forSort[idx].idx].vertices
-        shape.x = renderer.alphaQueue[forSort[idx].idx].x
-        shape.y = renderer.alphaQueue[forSort[idx].idx].y
-        shape.z = renderer.alphaQueue[forSort[idx].idx].z
-        shape.roll = renderer.alphaQueue[forSort[idx].idx].roll
-        shape.pitch = renderer.alphaQueue[forSort[idx].idx].pitch
-        shape.yaw = renderer.alphaQueue[forSort[idx].idx].yaw
+    var queues = [ 'alphaQueue', 'lineQueue', 'particleQueue' ]
+    
+    queues.forEach(queueType => {
+      if(renderer[queueType].length){
+        var forSort = new Float32Array()
+        var vec
         
-        if(ShouldDisableDepth()) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
-    
-        var penumbra = shape.penumbra
-        for(var m = 1 + ((shape.isLine ||shape.isParticle)
-                          && penumbra ? 1 : 0); m--;){
-          await renderer.Draw(shape, true, (shape.isParticle || shape.isLine)
-                                             && penumbra && !m)
-        }
-        if(ShouldDisableDepth()) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
+        renderer.ctx.blendFunc(renderer.ctx.SRC_ALPHA, renderer.ctx.ONE);
+        renderer.ctx.enable(renderer.ctx.BLEND)
+        
+        renderer[queueType].map((v, i) => {
+          var X = v.x + renderer.x
+          var Y = v.y + renderer.y
+          var Z = v.z + renderer.z
+          vec = R(X,Y,Z, {roll: renderer.roll,
+                          pitch: renderer.pitch,
+                          yaw: renderer.yaw}, false)
+                          
+          var camz = renderer.z / 1e3 * renderer.fov
+          forSort = [...forSort, {idx: i, z: camz + vec[2]}]
+        })
+        forSort.sort((a, b) => b.z - a.z)
+        renderer[queueType].map(async (alphaShape, idx) => {
+
+
+          var shape      = renderer[queueType][forSort[idx].idx].geometry
+          var tempVerts  = shape.vertices
+          var tempSize   = shape.size
+          shape.size = renderer[queueType][forSort[idx].idx].size
+          shape.vertices = renderer[queueType][forSort[idx].idx].vertices
+          shape.x = renderer[queueType][forSort[idx].idx].x
+          shape.y = renderer[queueType][forSort[idx].idx].y
+          shape.z = renderer[queueType][forSort[idx].idx].z
+          shape.roll = renderer[queueType][forSort[idx].idx].roll
+          shape.pitch = renderer[queueType][forSort[idx].idx].pitch
+          shape.yaw = renderer[queueType][forSort[idx].idx].yaw
           
-        shape.vertices = tempVerts
-        shape.size = tempSize
-      })
-    
-      // disable alpha
-      renderer.ctx.blendFunc(renderer.ctx.ONE, renderer.ctx.ZERO)
-      renderer.ctx.disable(renderer.ctx.BLEND)
-    } 
+          if(ShouldDisableDepth(shape)) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
+
+          var penumbra = shape.penumbra
+          for(var m = 1 + ((shape.isLine ||shape.isParticle)
+                            && penumbra ? 1 : 0); m--;){
+            await renderer.Draw(shape, true, (shape.isParticle || shape.isLine)
+                                               && penumbra && !m)
+          }
+            
+          if(ShouldDisableDepth(shape)) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
+
+          shape.vertices = tempVerts
+          shape.size = tempSize
+        })
+        
+        // disable alpha
+        renderer.ctx.blendFunc(renderer.ctx.ONE, renderer.ctx.ZERO)
+        renderer.ctx.disable(renderer.ctx.BLEND)
+      }
+      renderer[queueType] = new Float32Array()
+    })
     
     renderer.t += 1/60 
     requestAnimationFrame(loop)
-    renderer.alphaQueue = new Float32Array()
     
     if(renderer.useKeys && renderer.doKeys){
       await renderer.doKeys()
