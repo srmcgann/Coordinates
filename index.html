@@ -14,165 +14,99 @@
   <body>
     <script type="module">
     
-      import * as Coordinates from //'https://srmcgann.github.io/Coordinates/coordinates.js'
-      "./coordinates.js"
-    
-    
-      const renderer = await Coordinates.Renderer({
-        width: 960,height:540,fov:900,ambientLight: .1,
-      })
-      Coordinates.AnimationLoop(renderer, 'Draw')
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
       
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/rd1_po2.png'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2_small.mp4'
+      //'https://srmcgann.github.io/Coordinates/resources/floorCircuitry3.jpg'
       
-
-      var S = Math.sin
-      var C = Math.cos
-      var Pi = Math.PI
-
-      const WireCube = size => {
-        var b, p, l, a, g = [], ret = []
-        for(var i=6;i--;g=[...g, b])
-          for(var j=4,b=[];j--;)
-            b=[...b,[(a=[S(p=Pi*2/4*j+Pi/4),C(p),2**.5/2])[i%3]*(l=i<3?size/1.2:-size/1.2),a[(i+1)%3]*l,a[(i+2)%3]*l]]
-        g.map(v=>{
-          v.map((q, j) => {
-            ret = [...ret, v[j]]
-            ret = [...ret, v[(j+1)%v.length]]
-          })
-        })
-        return ret
+      var heightMap = refTexture
+      //'https://srmcgann.github.io/Coordinates/resources/rd2_po2_small.mp4'
+    //https://i.imgur.com/ztYVnB6_lq.mp4
+      var rendererOptions = {
+        ambientLight: .2,
+        fov: 700,
+        width: 960,
+        height: 540,
       }
+      var renderer = await Coordinates.Renderer(rendererOptions)
       
-      var cubeSize = 12
-      var wCube = WireCube(cubeSize)
+      renderer.z = 16
       
-      
-      const Grid = (rows, cols, bars, spacing) => 
-        Array(cols*rows*bars).fill().map((v, i) =>
-          [
-            ( ( i % cols) - cols / 2 + .5) * spacing,
-            ( ( ( i / cols | 0 ) % rows) - rows / 2 + .5) * spacing,
-            ( ( i / cols / rows | 0 ) - bars / 2 + .5) * spacing
-          ]
-        )
- 
-      var  geometryData = []
-      var rws = 5, cls = 3, brs = 3, spc = cubeSize * 3
-      
-      Grid(rws, cls, brs, spc).map(v => {
-        if(Math.hypot(v[0], v[2]) < cls*spc/2.5){
-          var sd = 2
-          for(var m=sd;m--;){
-            var g = JSON.parse(JSON.stringify(wCube))
-            for(var j = 0; j < g.length; j++) {
-              var x = g[j][0]
-              var y = g[j][1]
-              var z = g[j][2]
-              var p = Math.atan2(x,z) + Pi/1/8*(sd+1-m) + Pi/4
-              var d = Math.hypot(x,z)
-              x = S(p) * d/sd*(1+m)
-              z = C(p) * d/sd*(1+m)
-              g[j][0] = x
-              g[j][1] = y / 8
-              g[j][2] = z
-            }
-            for(var j = 0; j < g.length; j++) g[j].map((q, n) => g[j][n] += v[n])
-            geometryData = [...geometryData, ...g]
-          }
-        }
-      })
- 
- 
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
       var shaderOptions = [
-        { uniform: { type: 'phong', value: .25} },
-        { uniform: { type: 'reflection', value: .4, map: refTexture} },
+        { uniform: {
+          type: 'phong',
+          value: .5
+        } },
+        { uniform: {
+          type: 'reflection',
+          value: .25,
+          map: refTexture
+        } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+
       var shaderOptions = [
-        {lighting: {type: 'ambientLight', value: .25}},
-        { uniform: { type: 'phong', value: 0} },
+        { lighting: {type: 'ambientLight', value: .5}},
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } }
       ]
       var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-      
+
       var shapes = []
 
       var geoOptions = {
-        shapeType: 'lines',
-        geometryData,
-        color: 0X4400FF,
-        size: 3,           // the line width, perspective-influenced
-        alpha: .9,         // opacity
-        penumbra: .5,     // glow / aura
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-      })
-
-      var geoOptions = {
         shapeType: 'cube',
-        sphereize: 8,
-        subs: 2,
+        subs: 3,
+        sphereize: .5,
         averageNormals: true,
-        scaleX: .33,
-        scaleZ: .33,
-        scaleY: 1,
-        color: 0x00ff88,
-        colorMix: .6,
-        size: 2.5
+        equirectangular: true,
+        size: 5,
+        heightMap,
+        heightMapIntensity: 2,
+        map: heightMap,
+        playbackSpeed: 1,
+        colorMix: 0,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
-      })
-
+      })  
       
       var geoOptions = {
         shapeType: 'dodecahedron',
-        size: 1e4,
-        scaleUVX: 4,
-        scaleUVY: 4,
         name: 'background',
-        subs: 2,
-        colorMix: 0,
+        subs: 3,
+        size: 1e4,
         map: refTexture,
+        colorMix: 0,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await backgroundShader.ConnectGeometry(geometry)
-      })
-
+      })  
       
-      
-      //Coordinates.LoadFPSControls(renderer, {flyMode: true})
       
       window.Draw = () => {
         var t = renderer.t
-        renderer.z = Math.min(100, Math.max(24, (.3+C(t/2))*100))
-        renderer.yaw = t/2
-        renderer.roll = t/16
-        renderer.pitch = C(t / 6) / 1.5
+        renderer.yaw += .001
+        renderer.pitch = Math.cos(t/4)/4
         shapes.forEach(shape => {
-          switch(shape.shapeType){
-            case 'dodecahedron':
-              renderer.Draw(shape)
-            break
-            case 'cube':
-              shape.yaw = t * 10
-              Grid(rws,cls,brs,spc).map((v, i) => {
-                if(Math.hypot(v[0], v[2]) < cls*spc/2.5){
-                  shape.x = v[0]
-                  shape.y = v[1] + ((t*4 + C(t/2) * 8) % 1) * spc
-                  shape.z = v[2]
-                  renderer.Draw(shape)
-                }
-              })
-            default:
-              renderer.Draw(shape)
-            break
-          }
+        switch(shape.name){
+          case 'background':
+          break
+          default:
+            shape.yaw += .01
+            shape.pitch += .005
+          break
+        }
+          renderer.Draw(shape)
         })
       }
       
