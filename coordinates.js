@@ -3794,6 +3794,7 @@ const ShapeToLines = async (shape, options={}) => {
   Object.keys(options).forEach((key, idx) => {
     switch(key.toLowerCase()){
       case 'shapetype' : break
+      case 'closepaths' : closePaths = options[key]; break
       default          : lO[key] = options[key]; break
     }
   })
