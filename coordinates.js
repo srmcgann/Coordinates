@@ -1645,7 +1645,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
      (sphereize || scaleX != 1 || scaleY != 1 || scaleZ != 1)){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
-    var sz = isParticle ? 1 : size
+    var sz = isParticle || isLine ? 1 : size
     for(var i = 0; i< vertices.length; i+=3){
       var d, val
     
