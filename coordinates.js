@@ -1986,7 +1986,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
   
   
-  //if(geometry.downloadShape && !isFromZip) DownloadCustomShape(geometry)
+  if(geometry.downloadShape && !isFromZip) DownloadCustomShape(geometry)
 
   return geometry
 }
