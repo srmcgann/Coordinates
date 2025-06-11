@@ -3817,9 +3817,9 @@ const ShapeToLines = async (shape, options={}) => {
   var v = shape.vertices, a
   for(var i = 0; i < v.length; i += 9){
     var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3
-    X1 = v[i+0], Y1 = v[i+1], Z1 = v[i+2]
-    X2 = v[i+3], Y2 = v[i+4], Z2 = v[i+5]
-    X3 = v[i+6], Y3 = v[i+7], Z3 = v[i+8]
+    X1 = -v[i+0], Y1 = -v[i+1], Z1 = -v[i+2]
+    X2 = -v[i+3], Y2 = -v[i+4], Z2 = -v[i+5]
+    X3 = -v[i+6], Y3 = -v[i+7], Z3 = -v[i+8]
     a = []
     if(keepDuplicates || unique(X1,Y1,Z1, X2,Y2,Z2)) a = [...a, X1,Y1,Z1, X2,Y2,Z2]
     if(keepDuplicates || unique(X2,Y2,Z2, X3,Y3,Z3)) a = [...a, X2,Y2,Z2, X3,Y3,Z3]
