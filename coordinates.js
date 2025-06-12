@@ -340,7 +340,7 @@ const Renderer = async options => {
                   
                   p1 = GetShaderCoord(X1, Y1, Z1, geometry, renderer)
                   p2 = GetShaderCoord(X2, Y2, Z2, geometry, renderer)
-                  if(p1[2] > 0 && p2[0] > 0 || equirectangularPlugin){
+                  if(p1[2] > -200 && p2[0] > -200 || equirectangularPlugin){
                     p = Math.atan2(p2[0]-p1[0], p2[1]-p1[1]) + Math.PI / 2
 
                     p1[0] -= renderer.width / 2
@@ -970,14 +970,16 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
         (await file.getData(await (new zip.BlobWriter()))).text().then(data=>{
           var ct = 0
           do{ ct++ }while(data.substr(0,2)=='PK');
-          if(options.shapeType == 'custom shape') data = JSON.parse(data)
+          if(options.shapeType == 'custom shape' ||
+             options.shapeType == 'lines') data = JSON.parse(data)
           frames[i].data = data
           if(i==tct-1) {
             ret.loaded = true
             var zipWriter = new zip.ZipWriter(new zip.BlobWriter())
             frames.forEach((frame, idx) => {
               var ct = (''+(idx+1)).padStart(4, '0')
-              if(!(idx%1) && (options.shapeType != 'custom shape' ||
+              if(!(idx%1) && ((options.shapeType != 'lines' && 
+                               options.shapeType != 'custom shape') ||
                               typeof frame.data.vertices != 'undefined'
                               && frame.data.vertices.length)){
                 options.geometryData = frame.data
@@ -1322,7 +1324,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var resolved          = false
   var resolvedFromCache = false
   
-  if(shapeType.indexOf('custom shape') != -1){
+  if(shapeType.indexOf('custom shape') != -1 || (url && shapeType == 'lines')){
     fileURL = url
     hint = `${shapeType} ${name} (${url})`
   }else{
@@ -1395,7 +1397,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
   if(!resolved){
     // involve cache
     switch(shapeType){
-      case 'custom shape':
+      case 'custom shape': case 'lines':
+        if(shapeType == 'lines'){
+          if(!url) break
+          isLine = true
+        }
         if(typeof geometryData.vertices == 'undefined' && involveCache &&
            (cacheItem = cache.customShapes.filter(v=>v.url==url)).length){
           console.log(`found custom shape in cache... using it`)
@@ -2270,7 +2276,7 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   vy *= -1
   
   ar = R_ypr(vx, vy, vz, {
-    roll:  -geometry.roll + .01,
+    roll:  -geometry.roll + .0001,
     pitch: -geometry.pitch,
     yaw:   geometry.yaw,
   }, false)
@@ -3787,6 +3793,7 @@ const ShapeToLines = async (shape, options={}) => {
       case 'pitch':
       case 'yaw':
         lO[key] = shape[key]; break
+      break
       default: break
     }
   })
