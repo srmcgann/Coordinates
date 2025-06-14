@@ -16,65 +16,73 @@
     
       import * as Coordinates from
       "https://srmcgann.github.io/Coordinates/coordinates.min.js"
-      
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2_small.mp4'
-      //'https://srmcgann.github.io/Coordinates/resources/floorCircuitry3.jpg'
-      
-      var heightMap = refTexture
-      //'https://srmcgann.github.io/Coordinates/resources/rd2_po2_small.mp4'
-    //https://i.imgur.com/ztYVnB6_lq.mp4
+    
       var rendererOptions = {
-        ambientLight: .2,
-        fov: 700,
-        width: 960,
-        height: 540,
+        fov: 1500,
+        //width: 1e3, height: 1e3
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      renderer.z = 16
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+      
+      var heightMap = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
+        { lighting:
+          { type: 'ambientLight', value: .5 }
+        },
         { uniform: {
           type: 'phong',
-          value: .5
+          value: 0,
+          theta: .5
         } },
         { uniform: {
           type: 'reflection',
-          value: .25,
-          map: refTexture
-        } }
+          value: .2,
+          map: refTexture,
+          playbackSpeed: 1,
+        } },
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-
       var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: .5}},
+        { lighting:
+          { type: 'ambientLight', value: .6 }
+        },
         { uniform: {
           type: 'phong',
           value: 0
-        } }
+        } },
       ]
       var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
       var shapes = []
-
       var geoOptions = {
-        shapeType: 'cube',
-        subs: 3,
-        sphereize: .5,
-        averageNormals: true,
-        equirectangular: true,
-        size: 5,
-        heightMap,
-        heightMapIntensity: 2,
+        //shapeType: 'custom shape',
+        shapeType: 'torus knot',
+        name: 'rectangle_ultrahighpoly_xz',
+        //url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_ultrahighpoly_xz.json?2',
         map: heightMap,
+        heightMap,
         playbackSpeed: 1,
-        colorMix: 0,
+        pitch: Math.PI,
+        heightMapIntensity: 20,
+        flipNormals: false,
+        size: 50,
+        scaleY: 1.5,
+        scaleUVX: 1,
+        scaleUVY: .1,
+        color: 0x4400ff,
+        colorMix: .5,
+        //downloadShape: true,
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(0)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
       })  
@@ -85,6 +93,7 @@
         subs: 3,
         size: 1e4,
         map: refTexture,
+        playbackSpeed: 1,
         colorMix: 0,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -92,20 +101,152 @@
         await backgroundShader.ConnectGeometry(geometry)
       })  
       
+      var G = 1e4
+      var geometryData = Array(2e3).fill().map(v=>[(Rn()-.5)*G,(Rn()-.5)*G,(Rn()-.5)*G])
+      var geoOptions = {
+        shapeType: 'particles',
+        name: 'particles',
+        geometryData,
+        color: 0xffffff,
+        size: 50,
+        alpha: .5,
+        penumbra: .4,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+      })  
       
+      const floor = (x, z) =>{
+        var t = 0 // renderer.t
+        return Math.min(10, Math.max(-10, C(x/50 + t/2) * C(z/50 + t) * 30))
+      }
+      
+      var geometryData = []
+      var p=0, ls = 5, trackLen = 300
+      var variation = .5, x, y, z
+      var track = []
+      var X1 = 0
+      var Y1 = 0
+      var Z1 = 0
+      var X2 = 0
+      var Y2 = 0
+      var Z2 = 0
+      for(var j = 0; j<trackLen; j++){
+      
+        var X1 = X2// + S(p) * ls
+        var Z1 = Z2// + C(p) * ls
+        var q = p + Math.PI/2
+        p += (Rn()-.5) * variation
+        var X2 = X1+S(p) * ls
+        var Z2 = Z1+C(p) * ls
+        track = [...track, [X1,floor(X1,Z1),Z1,X2,floor(X2,Z2),Z2]]
+        
+        var a = []
+        x = X1 + S(q) * ls/2
+        z = Z1 + C(q) * ls/2
+        y = floor(x,z)
+        a = [...a, [x, y, z]]
+        x = X1 - S(q) * ls/2
+        z = Z1 - C(q) * ls/2
+        y = floor(x,z)
+        a = [...a, [x, y, z]]
+        p+=Math.PI/2
+        x = X2 - S(p) * ls/2
+        z = Z2 - C(p) * ls/2
+        y = floor(x,z)
+        a = [...a, [x, y, z]]
+        x = X2 + S(p) * ls/2
+        z = Z2 + C(p) * ls/2
+        y = floor(x,z)
+        a = [...a, [x, y, z]]
+        p-=Math.PI/2
+        
+        geometryData = [...geometryData, a]
+      }
+      
+      var geoOptions = {
+        shapeType: 'sprite',
+        name: 'sprite',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+        size: 5,
+        
+      }
+      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+      })
+      
+      var geoOptions = {
+        shapeType: 'dynamic',
+        name: 'track',
+        geometryData,
+        color: 0xff0000,
+        colorMix: .5,
+        //subs: 0,
+      }
+      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        if(0)Coordinates.ShapeToLines(geometry, {
+          closePaths: false,
+          y: .02, size: 3,
+          color: 0xffffff,
+        }).then(shp => {
+          shp.shape.name = 'track'
+          shapes.push(shp.shape)
+        })
+        await shader.ConnectGeometry(geometry)
+      })  
+      
+      Coordinates.LoadFPSControls(renderer, {flyMode: true, mSpeed: 1})
+      
+      renderer.pitch = .25
+      renderer.z = 16
+      renderer.y = -5
+      //renderer.yaw = t
+      var sx = 0, sy = 0, sz = 0
       window.Draw = () => {
         var t = renderer.t
-        renderer.yaw += .001
-        renderer.pitch = Math.cos(t/4)/4
-        shapes.forEach(shape => {
-        switch(shape.name){
-          case 'background':
-          break
-          default:
-            shape.yaw += .01
-            shape.pitch += .005
-          break
-        }
+        shapes.forEach((shape, idx) => {
+          switch(shape.name){
+            case 'background':
+              shape.x = -renderer.x
+              shape.y = -renderer.y
+              shape.z = -renderer.z
+            break
+            case 'sprite':
+              var midx = ((t*10) |0) % track.length
+              var tx = (track[midx][0] + track[midx][3]) /2
+              var ty = (track[midx][1] + track[midx][4]) /2
+              var tz = (track[midx][2] + track[midx][5]) /2
+              sx += (tx - shape.x) / 5
+              sy += (ty - shape.y) / 5
+              sz += (tz - shape.z) / 5
+              shape.x = sx
+              shape.z = sz
+              shape.y = floor(shape.x, shape.z) + 15
+              renderer.x = -shape.x
+              renderer.y = -floor(shape.x, shape.z) - 5
+              renderer.z = -shape.z
+            break
+            case 'track':
+              for(var i = 0; i< shape.vertices.length; i+=3){
+                var x = shape.vertices[i+0]
+                var z = shape.vertices[i+2]
+                var y = floor(x*(idx%2?1:-1), z*(idx%2?1:-1))*(idx%2?1:-1)
+                shape.vertices[i+0] = x
+                shape.vertices[i+1] = y
+                shape.vertices[i+2] = z
+              }
+              /*
+              for(var i=0; i<shape.uvs.length; i+=2){
+                shape.uvs[i+1] += .0025
+              }
+              shape.yaw   = t / 4
+              shape.pitch = t / 12
+              */
+            break
+            default:
+            break
+          }
           renderer.Draw(shape)
         })
       }
