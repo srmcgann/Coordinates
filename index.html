@@ -29,7 +29,7 @@
       var Rn = Math.random
       
       var heightMap = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
-      var refTexture = 'https://srmcgann.github.io/skyboxes5/videos/critical.mp4'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/equisky3.jpg'
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
@@ -77,7 +77,7 @@
         heightMapIntensity: 20,
         flipNormals: false,
         size: 50,
-        scaleY: 1.5,
+        //scaleY: 1.5,
         scaleUVX: 1,
         scaleUVY: .1,
         color: 0xffffff,
@@ -120,23 +120,64 @@
       
       const floor = (x, z) =>{
         var t = renderer.t
-        return Math.min(100, Math.max(-100, C(x/200 + t/2) * C(z/500 + t/4) * 200))
+        var d = Math.hypot(x, z) / 200
+        var p = Math.atan2(x, z) + d
+        return Math.min(500, Math.max(-500, (C(x/400+p) **16 * C(z/400+p) **16) * 1e3))
+        //return Math.min(50, Math.max(-50, C(x/200 + t/2) * C(z/100 + t/4) * 200))
       }
       
-      var geometryData = []
-      var p=0, ls = 5, trackLen = 2e3
-      var variation = .01, variationv = 0, x, y, z
-      var track = []
-      var X1 = 0
-      var Y1 = 0
-      var Z1 = 0
-      var X2 = 0
-      var Y2 = 0
-      var Z2 = 0
+      var cl = 200
+      var rw = 1
+      var br = 200
+      var sp = 20
+      var geometryData = Array(cl*rw*br).fill().map((v, i) => {
+        var x = ((i%cl)-cl/2 + .5) * sp
+        //var y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+        var z = ((i/cl/rw|0)-br/2 + .5) * sp
+        var y = floor(x, z)
+        return [x,y,z]
+      })
+      var geoOptions = {
+        shapeType: 'particles',
+        name: 'floor particles',
+        geometryData,
+        color: 0x22ff88,
+        size: 10,
+        alpha: .75,
+        penumbra: .5,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+      })  
       
+      
+      var geoOptions = {
+        shapeType: 'sprite',
+        name: 'sprite',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+        size: 2,
+      }
+      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        /*var tgtIdx1 = trackLen / 2 | 0, tgtIdx2 = tgtIdx1 + 1
+        var tx = track.path[tgtIdx2][0]
+        var ty = track.path[tgtIdx2][1]
+        var tz = track.path[tgtIdx2][2]
+        geometry.x = tx
+        geometry.y = ty
+        geometry.z = tz
+        renderer.x = -tx
+        renderer.y = -floor(tx, tz) - 10
+        renderer.z = -tz
+        */
+        shapes.push(geometry)
+      })
+      
+
+      var tracks = []
+    
       const genTrackSeg = (p, reverse=false) => {
         var a = []
-        variationv /= 1.001
+        variationv /= 1.0005
         variationv += variation * (Rn() - .5)
         p = Math.atan2(X2-X1, Z2-Z1)
         if(reverse){
@@ -190,61 +231,19 @@
         }
         return a
       }
-      p=0
-      for(var j = 0; j<trackLen; j++) {
-        geometryData.push(genTrackSeg(p))
-        track = [...track, [X1,floor(X1,Z1),Z1,X2,floor(X2,Z2),Z2]]
-      }
-      
-      var geoOptions = {
-        shapeType: 'sprite',
-        name: 'sprite',
-        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
-        size: 2,
-      }
-      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-      })
-      
-      var trackShape
-      var geoOptions = {
-        shapeType: 'dynamic',
-        wireframe: false,
-        name: 'track',
-        geometryData,
-        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
-        color: 0xffffff,
-        scaleX: 3,
-        colorMix: 1,
-        subs: -1,
-      }
-      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        if(0)Coordinates.ShapeToLines(geometry, {
-          closePaths: false,
-          y: .02, size: 3,
-          color: 0xffffff,
-        }).then(shp => {
-          shp.shape.name = 'track'
-          shapes.push(shp.shape)
-        })
-        trackShape = geometry
-        await shader.ConnectGeometry(geometry)
-      })
-      
-      Coordinates.LoadFPSControls(renderer, {flyMode: true, mSpeed: 1})
-      
-      const BuildTrack = dir => {
+
+      const BuildTrack = (dir, track) => {
+        var trackShape = track.shape
         switch(dir){
           case 1:
-            X1 = track[track.length-1][0]
-            Y1 = track[track.length-1][1]
-            Z1 = track[track.length-1][2]
-            X2 = track[track.length-1][3]
-            Y2 = track[track.length-1][4]
-            Z2 = track[track.length-1][5]
+            X1 = track.path[track.path.length-1][0]
+            Y1 = track.path[track.path.length-1][1]
+            Z1 = track.path[track.path.length-1][2]
+            X2 = track.path[track.path.length-1][3]
+            Y2 = track.path[track.path.length-1][4]
+            Z2 = track.path[track.path.length-1][5]
             p = Math.atan2(X2-X1, Z2-Z1)
-            track.shift()
+            track.path.shift()
             var a = genTrackSeg(p, false)
             var rep = [...a[0],...a[1],...a[2],...a[2],...a[3],...a[0]]
             for(var i = 0; i< trackShape.vertices.length; i+=18 * 1){
@@ -256,17 +255,17 @@
                 }
               }
             }
-            track = [...track, [X1,floor(X1,Z1),Z1,X2,floor(X2,Z2),Z2]]
+            track.path = [...track.path, [X1,floor(X1,Z1),Z1,X2,floor(X2,Z2),Z2]]
           break
           case -1:
-            X1 = track[0][0]
-            Y1 = track[0][1]
-            Z1 = track[0][2]
-            X2 = track[0][3]
-            Y2 = track[0][4]
-            Z2 = track[0][5]
+            X1 = track.path[0][0]
+            Y1 = track.path[0][1]
+            Z1 = track.path[0][2]
+            X2 = track.path[0][3]
+            Y2 = track.path[0][4]
+            Z2 = track.path[0][5]
             p = Math.atan2(X1-X2, Z1-Z2)
-            track.pop()
+            track.path.pop()
             var a = genTrackSeg(p, true)
             var rep = [...a[0],...a[1],...a[2],...a[2],...a[3],...a[0]]
             for(var i = trackShape.vertices.length; i>=0; i-=18 * 1){
@@ -279,7 +278,7 @@
               }
             }
             
-            track = [[X1,floor(X1,Z1),Z1,X2,floor(X2,Z2),Z2], ...track]
+            track.path = [[X1,floor(X1,Z1),Z1,X2,floor(X2,Z2),Z2], ...track.path]
           break
         }
         for(var i = 0; i< trackShape.vertices.length; i+=18 * 1){
@@ -295,6 +294,58 @@
             trackShape.vertices[i+14] = trackShape.vertices[i+18 * 1+2]
           }
         }
+      }
+
+      for(var o = 0; o < 4; o++){
+        var geometryData = []
+        var p=0, ls = 5, trackLen = 20
+        var variation = .1, variationv = 0, x, y, z
+        var track = {}
+        track.path = []
+        var X1 = 0
+        var Y1 = 0
+        var Z1 = 0
+        var X2 = 0
+        var Y2 = 0
+        var Z2 = 0
+        
+        p=0
+        for(var j = 0; j<trackLen; j++) {
+          geometryData.push(genTrackSeg(p))
+          track.path = [...track.path, [X1,floor(X1,Z1),Z1,X2,floor(X2,Z2),Z2]]
+        }
+        
+        
+        var geoOptions = {
+          shapeType: 'dynamic',
+          wireframe: false,
+          name: 'track',
+          geometryData,
+          map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+          color: 0xffffff,
+          colorMix: 1,
+          subs: -1,
+        }
+        if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          if(0)Coordinates.ShapeToLines(geometry, {
+            closePaths: false,
+            y: .02, size: 3,
+            color: 0xffffff,
+          }).then(shp => {
+            shp.shape.name = 'track'
+            shapes.push(shp.shape)
+          })
+          tracks = [...tracks, {
+              path: structuredClone(track.path),
+              shape: geometry
+            }]
+          await shader.ConnectGeometry(geometry)
+        })
+        
+        Coordinates.LoadFPSControls(renderer, {flyMode: true, mSpeed: 8})
+        
+
       }
       
       var keys = Array(256).fill().map(v=>false)
@@ -328,8 +379,8 @@
       }
       
       renderer.pitch = .25
-      renderer.z = 16
-      renderer.y = -5
+      //renderer.z = 16
+      //renderer.y = -5
       var tx, ty, tz
       //renderer.yaw = t
       var sx = 0, sy = 0, sz = 0
@@ -346,64 +397,90 @@
               shape.z = -renderer.z
             break
             case 'sprite':
-              spd = .02
+              spd = .05
+              spdv += spd
               ip += spdv
               spdv /= 1.02
-              if(ip>=1){
-                ip -= Math.ceil(Math.abs(spd))
-                BuildTrack(1)
-                if(tgtIdx1 > track.length-2){
-                  tgtIdx1 = 0
-                  tgtIdx2 = 1
+              tracks.map(track => {
+                if(ip>=1){
+                  ip -= Math.ceil(Math.abs(spd))
+                  if(typeof track.shape != 'undefined'){
+                    BuildTrack(1, track)
+                  }
+                  if(tgtIdx1 > track.path.length-2){
+                    tgtIdx1 = 0
+                    tgtIdx2 = 1
+                  }
                 }
-              }
-              if(ip<0){
-                ip += Math.ceil(Math.abs(spd))
-                BuildTrack(-1)
-                if(tgtIdx1 < 0){
-                  tgtIdx1 = track.length-2
-                  tgtIdx2 = track.length-1
+                if(ip<0){
+                  ip += Math.ceil(Math.abs(spd))
+                  if(typeof track.shape != 'undefined') {
+                    BuildTrack(-1, track)
+                  }
+                  if(tgtIdx1 < 0){
+                    tgtIdx1 = track.path.length-2
+                    tgtIdx2 = track.path.length-1
+                  }
                 }
-              }
-              tx = track[tgtIdx1][0] + (track[tgtIdx2][0] - track[tgtIdx1][0]) * ip
-              ty = track[tgtIdx1][1] + (track[tgtIdx2][1] - track[tgtIdx1][1]) * ip
-              tz = track[tgtIdx1][2] + (track[tgtIdx2][2] - track[tgtIdx1][2]) * ip
-              sx += (tx - shape.x) / 5
-              //sy += (ty - shape.y) / 1
-              sz += (tz - shape.z) / 5
-              shape.x = sx
-              shape.z = sz
-              shape.y = floor(shape.x, shape.z) + 12
-              renderer.x = -shape.x
-              renderer.y = -floor(shape.x, shape.z) - 10
-              renderer.z = -shape.z
-              var theta = -Math.atan2(track[tgtIdx2][0] - track[tgtIdx1][0],
-                                     track[tgtIdx2][2] - track[tgtIdx1][2]) + (movement == 'forward' ? 0 : Math.PI)
-              if(movement == 'forward'){
-                var fl2 = -floor(track[tgtIdx1][0], track[tgtIdx1][2])
-                var fl1 = -floor(track[tgtIdx2][0], track[tgtIdx2][2])
-              }else{
-                var fl1 = -floor(track[tgtIdx1][0], track[tgtIdx1][2])
-                var fl2 = -floor(track[tgtIdx2][0], track[tgtIdx2][2])
-              }
-              var elevation = Math.acos((fl2-fl1)/ Math.hypot(track[tgtIdx2][0] - track[tgtIdx1][0],(fl2-fl1),track[tgtIdx2][2] - track[tgtIdx1][2])) - Math.PI / 2 - .2 * (movement == 'forward' ? 1 : -1)
-              if(Math.abs(theta - renderer.yaw) > Math.PI){
-                if(renderer.yaw < theta){
-                  renderer.yaw += Math.PI * 2
-                }else{
-                  renderer.yaw -= Math.PI * 2
+                tx = track.path[tgtIdx1][0] + (track.path[tgtIdx2][0] - track.path[tgtIdx1][0]) * ip
+                ty = track.path[tgtIdx1][1] + (track.path[tgtIdx2][1] - track.path[tgtIdx1][1]) * ip
+                tz = track.path[tgtIdx1][2] + (track.path[tgtIdx2][2] - track.path[tgtIdx1][2]) * ip
+                if(typeof track.shape != 'undefined'){
+                  //sx += (tx - track.shape.x) / 5
+                  //sy += (ty - track.shape.y) / 1
+                  //sz += (tz - track.shape.z) / 5
+                  //track.shape.x = sx
+                  //track.shape.z = sz
+                  //track.shape.y = floor(track.shape.x, track.shape.z) + 12
+                  //renderer.x = -track.shape.x
+                  //renderer.z = -track.shape.z
+                  //renderer.y = -floor(-track.shape.x, -track.shape.z) - 10
+                  var theta = -Math.atan2(track.path[tgtIdx2][0] - track.path[tgtIdx1][0],
+                                         track.path[tgtIdx2][2] - track.path[tgtIdx1][2]) + (movement == 'forward' ? 0 : Math.PI)
+                  if(movement == 'forward'){
+                    var fl2 = -floor(track.path[tgtIdx1][0], track.path[tgtIdx1][2])
+                    var fl1 = -floor(track.path[tgtIdx2][0], track.path[tgtIdx2][2])
+                  }else{
+                    var fl1 = -floor(track.path[tgtIdx1][0], track.path[tgtIdx1][2])
+                    var fl2 = -floor(track.path[tgtIdx2][0], track.path[tgtIdx2][2])
+                  }
+                  var elevation = Math.acos((fl2-fl1)/ Math.hypot(track.path[tgtIdx2][0] - track.path[tgtIdx1][0],(fl2-fl1),track.path[tgtIdx2][2] - track.path[tgtIdx1][2])) - Math.PI / 2 - .2 * (movement == 'forward' ? 1 : -1)
+                  if(Math.abs(theta - renderer.yaw) > Math.PI){
+                    if(renderer.yaw < theta){
+                      renderer.yaw += Math.PI * 2
+                    }else{
+                      renderer.yaw -= Math.PI * 2
+                    }
+                  }
+                  //renderer.yaw += ( theta - renderer.yaw) / 20
+                  //renderer.pitch += ( elevation - renderer.pitch) / 20
+                  renderer.Draw(track.shape)
+                  renderer.Draw(shape)
                 }
+              })
+            break
+            case 'floor particles':
+              for(var i = 0; i<shape.vertices.length; i+=3){
+                var v = shape.vertices
+                var x = v[i+0]
+                var y = v[i+1]
+                var z = v[i+2]
+                while(x + renderer.x > sp * cl / 2) x -= sp * cl
+                while(z + renderer.z > sp * br / 2) z -= sp * br
+                while(x + renderer.x < -sp * cl / 2) x += sp * cl
+                while(z + renderer.z < -sp * br / 2) z += sp * br
+                v[i+0] = x
+                v[i+2] = z
+                v[i+1] = floor(-x, -z) - 5
               }
-              renderer.yaw += ( theta - renderer.yaw) / 20
-              renderer.pitch += ( elevation - renderer.pitch) / 20
             break
             case 'track':
-              for(var i = 0; i< shape.vertices.length; i+=3){
+              if(0)for(var i = 0; i< shape.vertices.length; i+=3){
                 var x = shape.vertices[i+0]
                 var z = shape.vertices[i+2]
                 var y = floor(x*(idx%2?1:-1), z*(idx%2?1:-1))*(idx%2?1:-1)
                 shape.vertices[i+0] = x
-                shape.vertices[i+1] = y
+                shape.vertices[i+1] = -y
                 shape.vertices[i+2] = z
               }
               /*
@@ -417,7 +494,7 @@
             default:
             break
           }
-          renderer.Draw(shape)
+          if(shape.name != 'sprite' && shape.name != 'track') renderer.Draw(shape)
         })
       }
       
