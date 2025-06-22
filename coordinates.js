@@ -391,7 +391,7 @@ const Renderer = async options => {
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, tgvb)
                 ctx.bufferData(ctx.ARRAY_BUFFER, tvertices, ctx.STATIC_DRAW)
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-                tgvi = new z( Array(tvertices.length/3).fill().map((v,i)=>i) )
+                tgvi = new Uint32Array( Array(tvertices.length/3).fill().map((v,i)=>i) )
                 tvib = ctx.createBuffer()
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, tvib)
                 ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, tgvi, ctx.STATIC_DRAW)
