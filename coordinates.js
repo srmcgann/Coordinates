@@ -124,7 +124,10 @@ const Renderer = async options => {
   c.style.outline = 'none'
   const contextType = context.mode
 
-  if(context.mode != '2d') console.log(`GLSL version: ${ctx.getParameter(ctx.SHADING_LANGUAGE_VERSION)}`)
+  if(context.mode != '2d'){
+    console.log(`GLSL version: ${ctx.getParameter(ctx.SHADING_LANGUAGE_VERSION)}`)
+    ctx.pixelStorei(ctx.UNPACK_ALIGNMENT, 1)
+  }
   if(exportGPUSpecs) getParams(ctx)
   
   switch(context.mode){
@@ -388,7 +391,7 @@ const Renderer = async options => {
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, tgvb)
                 ctx.bufferData(ctx.ARRAY_BUFFER, tvertices, ctx.STATIC_DRAW)
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-                tgvi = new Uint32Array( Array(tvertices.length/3).fill().map((v,i)=>i) )
+                tgvi = new z( Array(tvertices.length/3).fill().map((v,i)=>i) )
                 tvib = ctx.createBuffer()
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, tvib)
                 ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, tgvi, ctx.STATIC_DRAW)
@@ -432,12 +435,12 @@ const Renderer = async options => {
             
             ctx.activeTexture(ctx.TEXTURE0)
             switch(geometry.textureMode){
-              case 'video':
-                BindImage(ctx, dset.resource,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
+              case 'video': case 'dataArray':
+                BindImage(ctx, dset.resource,  dset.texture, geometry.textureMode, renderer.t, geometry)
               break
               case 'canvas':
                 ctx.activeTexture(ctx.TEXTURE2)
-                BindImage(ctx, geometry.canvasTexture,  dset.texture, geometry.textureMode, renderer.t, geometry.map)
+                BindImage(ctx, geometry.canvasTexture,  dset.texture, geometry.textureMode, renderer.t, geometry)
               break
               default:
               break
@@ -445,7 +448,7 @@ const Renderer = async options => {
             
             if(typeof geometry.canvasTexture != 'undefined'){
               ctx.activeTexture(ctx.TEXTURE2)
-              BindImage(ctx, geometry.canvasTexture, dset.supplementalTexture, 'canvas', renderer.t, geometry.map)
+              BindImage(ctx, geometry.canvasTexture, dset.supplementalTexture, 'canvas', renderer.t, geometry)
               ctx.uniform1i(dset.locSupplementalTexture, 2)
               ctx.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
             }
@@ -460,7 +463,7 @@ const Renderer = async options => {
               ctx.activeTexture(ctx.TEXTURE4)
               ctx.uniform1i(dset.locHeightMap, 4)
               //ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
-              BindImage(ctx, dset.heightResource, dset.heightTexture, geometry.heightMapIsCanvas ? 'canvas' : geometry.heightTextureMode, renderer.t, geometry.heightMap)
+              BindImage(ctx, dset.heightResource, dset.heightTexture, geometry.heightMapIsCanvas ? 'canvas' : geometry.heightTextureMode, renderer.t, geometry)
               ctx.uniform1i(dset.locHeightTexture, dset.heightTexture)
               ctx.uniform1f(dset.locUseHeightMap, 1)
               ctx.uniform1f(dset.locHeightMapIntensity, geometry.heightMapIntensity)
@@ -502,13 +505,13 @@ const Renderer = async options => {
             
             dset.optionalUniforms.map((uniform) => {
               if(typeof uniform?.loc === 'object'){
-                ctx[uniform.dataType](uniform.loc,      uniform.value)
+                //ctx[uniform.dataType](uniform.loc,      uniform.value)
                 ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
                 switch(uniform.name){
                   case 'reflection':
                     ctx.activeTexture(ctx.TEXTURE1)
                     if(uniform.textureMode == 'video'){
-                       BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform.map)
+                       BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, {uniform})
                     }
                     ctx.useProgram( sProg )
                     ctx.activeTexture(ctx.TEXTURE1)
@@ -523,6 +526,18 @@ const Renderer = async options => {
                   case 'phong':
                     uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
                     ctx.uniform1f(uniform.locPhongTheta, uniform.theta + Math.PI)
+                  break
+                  case 'custom':
+                    if(uniform.uniformName){
+                      uniform.locCustomUniform =
+                         ctx.getUniformLocation(dset.program, uniform.uniformName)
+                      var ar = uniform.value
+                      if(IsArray(ar)){
+                        ctx[uniform.dataType](uniform.locCustomUniform, ...uniform.value)
+                      }else{
+                        ctx[uniform.dataType](uniform.locCustomUniform, uniform.value)
+                      }
+                    }
                   break
                 }
               }
@@ -1182,6 +1197,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var textureMode            = 'image'
   var showSource             = false
   var disableDepthTest       = false
+  var mapIsDataArray         = false
+  var dataArrayWidth         = 512
+  var dataArrayHeight        = 512
+  var dataArrayFormat        = gl.RGBA
   var lum                    = 1
   var alpha                  = 1
   var geometryData           = new Float32Array()  // for dynamic shape
@@ -1245,6 +1264,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'name'               : name = geoOptions[key]; break
       case 'color'              : color = geoOptions[key]; break
       case 'colormix'           : colorMix = geoOptions[key]; break
+      case 'mapisdataarray'     : mapIsDataArray = !!geoOptions[key]; break
+      case 'dataarraywidth'     : dataArrayWidth = +geoOptions[key]; break
+      case 'dataarrayheight'    : dataArrayHeight = +geoOptions[key]; break
+      case 'dataarrayformat'    : dataArrayFormat = geoOptions[key]; break
       case 'exportshape'        : exportShape = !!geoOptions[key]; break
       case 'downloadshape'      : downloadShape = !!geoOptions[key]; break
       case 'penumbra'           : penumbra = geoOptions[key]; break
@@ -1968,7 +1991,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     boundingColor, heightMap, heightMapIntensity,
     heightMapIsCanvas, equirectangularHeightmap,
     flipX, flipY, flipZ, isFromZip,
-    rotationMode
+    rotationMode, mapIsDataArray, dataArrayFormat,
+    dataArrayWidth, dataArrayHeight
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -2129,21 +2153,28 @@ const VideoToImage = video => {
 
  
  
-const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', involveCache = true) => {
+const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry={}, involveCache = true) => {
   let texImage
   switch(textureMode){
     case 'canvas': case 'heightImage':
       texImage = resource
     break
+    case 'dataArray':
+      texImage = geometry.map
+      //gl.activeTexture(gl.TEXTURE0)
+      //gl.uniform1i(dset.locTexture, 0)
+      //gl.bindTexture(gl.TEXTURE_2D, binding)
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    break
     case 'video':
-      if(involveCache && (cacheItem=cache.texImages.filter(v=>v.url==url && tval != -1 && v.tVal == tval)).length){
+      if(involveCache && (cacheItem=cache.texImages.filter(v=>v.url==geometry.map && tval != -1 && v.tVal == tval)).length){
         console.log('found video texture in cache... using it')
         texImage = cacheItem[0].texImage
       }else{
         texImage = VideoToImage(resource)
         if(tval == -1){
           cache.texImages.push({
-            url,
+            url: geometry.map,
             tval,
             texImage
           })
@@ -2151,14 +2182,14 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', 
       }
     break
     case 'image':
-      if(involveCache && (cacheItem = cache.texImages.filter(v=>v.url==url)).length){
+      if(involveCache && (cacheItem = cache.texImages.filter(v=>v.url==geometry.map)).length){
         console.log('found image texture in cache... using it')
         texImage = cacheItem[0].texImage
       }else{
         texImage = ImageToPo2(resource)
         if(tval == -1){
           cache.texImages.push({
-            url,
+            url: geometry.map,
             tval,
             texImage
           })
@@ -2170,11 +2201,24 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, url='', 
   }
   //gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, binding)
-  if(typeof texImage != 'undefined' && 
-     texImage.width && texImage.height){
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage)
+  if(textureMode == 'dataArray'){
+    gl.texImage2D(gl.TEXTURE_2D,
+      0,                        //level
+      geometry.dataArrayFormat, // internalFormat
+      geometry.dataArrayWidth,  // width
+      geometry.dataArrayHeight, // height
+      0,                        // border
+      geometry.dataArrayFormat, // format
+      gl.UNSIGNED_BYTE,         // type
+      new Uint8Array(texImage)  // data
+    )
+  }else{
+    if(typeof texImage != 'undefined' && texImage.width && texImage.height){
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, texImage)
+    }
   }
   //gl.generateMipmap(gl.TEXTURE_2D)
+  
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -2681,6 +2725,40 @@ const BasicShader = async (renderer, options=[]) => {
         break
         case 'uniform':
           switch(option[key].type.toLowerCase()){
+            case 'custom':
+              if(typeof option[key]?.enabled == 'undefined' || !!option[key].enabled){
+                var uniformOption = {
+                  name:                option[key].type,
+                  playbackSpeed:       typeof option[key].playbackSpeed == 'undefined' ?
+                                         1 : option[key].playbackSpeed,
+                  uniformName:         typeof option[key].name == 'undefined' ?
+                                         '' : option[key].name,
+                  involveCache:        typeof option[key].involveCache == 'undefined' ?
+                                         true : option[key].involveCache,
+                  muted:               typeof option[key].muted == 'undefined' ?
+                                         true : option[key].muted,
+                  map:                 option[key].map,
+                  loc:                 '',
+                  value:               typeof option[key].value == 'undefined' ?
+                                         0 : option[key].value,
+                  flatShading:         typeof option[key].flatShading == 'undefined' ?
+                                         false : option[key].flatShading,
+                  flipReflections:     typeof option[key].flipReflections == 'undefined' ?
+                                         0 : option[key].flipReflections,
+                  dataType:            typeof option[key].dataType == 'undefined' ?
+                                         'uniform1f' : option[key].dataType,
+                  vertDeclaration:     typeof option[key].vertDeclaration == 'undefined' ?
+                                         `` : option[key].vertDeclaration,
+                  vertCode:            typeof option[key].vertCode == 'undefined' ?
+                                         `` : option[key].vertCode,
+                  fragDeclaration:     typeof option[key].fragDeclaration == 'undefined' ?
+                                         `` : option[key].fragDeclaration,
+                  fragCode:            typeof option[key].fragCode == 'undefined' ?
+                                         `` : option[key].fragCode,
+                }
+                dataset.optionalUniforms.push( uniformOption )
+              }
+            break
             case 'reflection':
               if(typeof option[key]?.enabled == 'undefined' ||
                  !!option[key].enabled){
@@ -2693,7 +2771,7 @@ const BasicShader = async (renderer, options=[]) => {
                   muted:               typeof option[key].muted == 'undefined' ?
                                          true : option[key].muted,
                   map:                 option[key].map,
-                  loc:                 'locReflection',
+                  loc:                 '',
                   value:               typeof option[key].value == 'undefined' ?
                                          .5 : option[key].value,
                   flatShading:         typeof option[key].flatShading == 'undefined' ?
@@ -2746,7 +2824,7 @@ const BasicShader = async (renderer, options=[]) => {
                  !!option[key].enabled){
                 var uniformOption = {
                   name:                option[key].type,
-                  loc:                 'locPhong',
+                  loc:                 '',
                   value:               typeof option[key].value == 'undefined' ?
                                          .3 : option[key].value,
                   flatShading:         typeof option[key].flatShading == 'undefined' ?
@@ -3392,7 +3470,7 @@ const BasicShader = async (renderer, options=[]) => {
                           //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
                           ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
                           //gl.activeTexture(gl.TEXTURE1)
-                          //BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
+                          //BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, {url})
                         }else{
                           uniform.video = document.createElement('video')
                           uniform.video.muted = true
@@ -3415,7 +3493,7 @@ const BasicShader = async (renderer, options=[]) => {
                             uniform.video.play()
                           }
                           gl.activeTexture(gl.TEXTURE1)
-                          BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, url)
+                          BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, {url})
                           cache.textures.push({
                             url,
                             resource: uniform.video,
@@ -3433,7 +3511,7 @@ const BasicShader = async (renderer, options=[]) => {
                           var image = cacheItem[0].resource
                           ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
                           gl.activeTexture(gl.TEXTURE1)
-                          BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
+                          BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, {url})
                         }else{
                           var image = new Image()
                           ret.datasets = [...ret.datasets, {
@@ -3442,7 +3520,7 @@ const BasicShader = async (renderer, options=[]) => {
                           gl.uniform1f(uniform.locRefFlipRefs , uniform.flipReflections)
                           gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
                           image.onload = () =>{
-                            BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, url)
+                            BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, {url})
                           }
                           cache.textures.push({
                             url,
@@ -3572,76 +3650,82 @@ const BasicShader = async (renderer, options=[]) => {
           dset.locSupplementalTexture= gl.getUniformLocation(dset.program, "supplementalTexture")
           
           if(textureURL){
-            dset.iURL = textureURL
-            let l
-            let suffix = (l=textureURL.split('.'))[l.length-1].toLowerCase()
-            switch(suffix){
-              case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
-                geometry.textureMode = 'video'
-                if(involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
-                  console.log('found video in cache... using it')
-                  dset.resource = cacheItem[0].resource
-                  //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
-                  dset.texture = cacheItem[0].texture
-                  //gl.activeTexture(gl.TEXTURE0)
-                  //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, textureURL)
-                }else{
-                  dset.resource = document.createElement('video')
-                  dset.resource.muted = true
-                  dset.resource.addEventListener('canplay', () =>{
+            if(IsArray(textureURL)){
+              geometry.textureMode = 'dataArray'
+              geometry.mapIsDataArray = true
+              BindImage(gl, '',  dset.texture, geometry.textureMode, 0, geometry)
+            }else{
+              dset.iURL = textureURL
+              let l
+              let suffix = (l=textureURL.split('.'))[l.length-1].toLowerCase()
+              switch(suffix){
+                case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
+                  geometry.textureMode = 'video'
+                  if(involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
+                    console.log('found video in cache... using it')
+                    dset.resource = cacheItem[0].resource
+                    //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
+                    dset.texture = cacheItem[0].texture
+                    //gl.activeTexture(gl.TEXTURE0)
+                    //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, {textureURL})
+                  }else{
+                    dset.resource = document.createElement('video')
+                    dset.resource.muted = true
+                    dset.resource.addEventListener('canplay', () =>{
+                      dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
+                    })
+                    dset.resource.loop = true
+                    if(!geometry.muted && !audioConsent) {
+                      audioConsent = true
+                      GenericPopup('play audio OK?', true, ()=>{
+                        dset.resource.muted = false
+                        dset.resource.currentTime = 0
+                        //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = dset.resource.playbackSpeed
+                        dset.resource.play()
+                      })
+                    }
                     dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
-                  })
-                  dset.resource.loop = true
-                  if(!geometry.muted && !audioConsent) {
-                    audioConsent = true
-                    GenericPopup('play audio OK?', true, ()=>{
-                      dset.resource.muted = false
-                      dset.resource.currentTime = 0
-                      //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = dset.resource.playbackSpeed
+                    dset.resource.oncanplay = async () => {
                       dset.resource.play()
+                    }
+                    //gl.activeTexture(gl.TEXTURE0)
+                    //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, {textureURL})
+                    cache.textures.push({
+                      url: textureURL,
+                      resource: dset.resource,
+                      texture: dset.texture
+                    })
+                    await fetch(textureURL).then(res=>res.blob()).then(data => {
+                      dset.resource.src = URL.createObjectURL(data)
                     })
                   }
-                  dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
-                  dset.resource.oncanplay = async () => {
-                    dset.resource.play()
-                  }
-                  //gl.activeTexture(gl.TEXTURE0)
-                  //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, textureURL)
-                  cache.textures.push({
-                    url: textureURL,
-                    resource: dset.resource,
-                    texture: dset.texture
-                  })
-                  await fetch(textureURL).then(res=>res.blob()).then(data => {
-                    dset.resource.src = URL.createObjectURL(data)
-                  })
-                }
-              break
-              default:
-                geometry.textureMode = 'image'
-                if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==textureURL)).length){
-                  dset.texture = cacheItem[0].texture
-                  var image = cacheItem[0].resource
-                  dset.resource = image
-                  gl.activeTexture(gl.TEXTURE0)
-                  BindImage(gl, image, dset.texture, geometry.textureMode, -1, textureURL)
-                }else{
-                  var image = new Image()
-                  cache.textures.push({
-                    url: textureURL,
-                    resource: image,
-                    texture: dset.texture
-                  })
-                  image.onload = async () => {
+                break
+                default:
+                  geometry.textureMode = 'image'
+                  if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==textureURL)).length){
+                    dset.texture = cacheItem[0].texture
+                    var image = cacheItem[0].resource
+                    dset.resource = image
                     gl.activeTexture(gl.TEXTURE0)
-                    await BindImage(gl, image,
-                      dset.texture, geometry.textureMode, -1, textureURL)
+                    BindImage(gl, image, dset.texture, geometry.textureMode, -1, {textureURL})
+                  }else{
+                    var image = new Image()
+                    cache.textures.push({
+                      url: textureURL,
+                      resource: image,
+                      texture: dset.texture
+                    })
+                    image.onload = async () => {
+                      gl.activeTexture(gl.TEXTURE0)
+                      await BindImage(gl, image,
+                        dset.texture, geometry.textureMode, -1, {textureURL})
+                    }
+                    await fetch(textureURL).then(res=>res.blob()).then(data => {
+                      image.src = URL.createObjectURL(data)
+                    })
                   }
-                  await fetch(textureURL).then(res=>res.blob()).then(data => {
-                    image.src = URL.createObjectURL(data)
-                  })
-                }
-              break
+                break
+              }
             }
           }
           gl.useProgram(dset.program)
@@ -3665,7 +3749,7 @@ const BasicShader = async (renderer, options=[]) => {
                   //dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = geometry.playbackSpeed
                   dset.heightTexture = cacheItem[0].texture
                   //gl.activeTexture(gl.TEXTURE4)
-                  //BindImage(gl, dset.heightResource, dset.heightTexture, geometry.heightTextureMode, -1, heightMapURL)
+                  //BindImage(gl, dset.heightResource, dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
                 }else{
                   dset.heightResource = document.createElement('video')
                   dset.heightResource.muted = true
@@ -3687,7 +3771,7 @@ const BasicShader = async (renderer, options=[]) => {
                     dset.heightResource.play()
                   }
                   //gl.activeTexture(gl.TEXTURE4)
-                  //BindImage(gl, dset.heightResource, dset.heightTexture, geometry.heightTextureMode, -1, heightMapURL)
+                  //BindImage(gl, dset.heightResource, dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
                   cache.textures.push({
                     url: heightMapURL,
                     resource: dset.heightResource,
@@ -3705,7 +3789,7 @@ const BasicShader = async (renderer, options=[]) => {
                   var heightImage = cacheItem[0].resource
                   dset.heightResource = heightImage
                   gl.activeTexture(gl.TEXTURE4)
-                  BindImage(gl, heightImage, dset.heightTexture, geometry.heightTextureMode, -1, heightMapURL)
+                  BindImage(gl, heightImage, dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
                 }else{
                   var heightImage = new Image()
                   dset.heightResource = heightImage
@@ -3720,7 +3804,7 @@ const BasicShader = async (renderer, options=[]) => {
                     gl.activeTexture(gl.TEXTURE4)
                     gl.uniform1i(dset.locHeightMap, 4)
                     await BindImage(gl, heightImage,
-                       dset.heightTexture, geometry.heightTextureMode, -1, heightMapURL)
+                       dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
                     gl.activeTexture(gl.TEXTURE0)
                   }
                   
@@ -5646,6 +5730,8 @@ const HSVFromRGB = (R, G, B) => {
   return [hue, sat, val]
 }
 
+const IsArray = ar => typeof ar.length != 'undefined' && typeof ar.forEach != 'undefined'
+
 const HSVToHex = (H, S, V) => HexFromHSV(H, S, V)
 
 const HexFromHSV = (H, S, V) => {
@@ -5834,4 +5920,5 @@ export {
   LoadFPSControls,
   Overlay,
   GenHash,
+  IsArray,
 }
