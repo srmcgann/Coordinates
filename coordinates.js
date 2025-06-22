@@ -511,7 +511,7 @@ const Renderer = async options => {
                   case 'reflection':
                     ctx.activeTexture(ctx.TEXTURE1)
                     if(uniform.textureMode == 'video'){
-                       BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, {uniform})
+                       BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
                     }
                     ctx.useProgram( sProg )
                     ctx.activeTexture(ctx.TEXTURE1)
@@ -3667,7 +3667,7 @@ const BasicShader = async (renderer, options=[]) => {
                     //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
                     dset.texture = cacheItem[0].texture
                     //gl.activeTexture(gl.TEXTURE0)
-                    //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, {textureURL})
+                    //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, {map: textureURL})
                   }else{
                     dset.resource = document.createElement('video')
                     dset.resource.muted = true
@@ -3689,7 +3689,7 @@ const BasicShader = async (renderer, options=[]) => {
                       dset.resource.play()
                     }
                     //gl.activeTexture(gl.TEXTURE0)
-                    //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, {textureURL})
+                    //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, {map: textureURL})
                     cache.textures.push({
                       url: textureURL,
                       resource: dset.resource,
@@ -3707,7 +3707,7 @@ const BasicShader = async (renderer, options=[]) => {
                     var image = cacheItem[0].resource
                     dset.resource = image
                     gl.activeTexture(gl.TEXTURE0)
-                    BindImage(gl, image, dset.texture, geometry.textureMode, -1, {textureURL})
+                    BindImage(gl, image, dset.texture, geometry.textureMode, -1, {map: textureURL})
                   }else{
                     var image = new Image()
                     cache.textures.push({
@@ -3718,7 +3718,7 @@ const BasicShader = async (renderer, options=[]) => {
                     image.onload = async () => {
                       gl.activeTexture(gl.TEXTURE0)
                       await BindImage(gl, image,
-                        dset.texture, geometry.textureMode, -1, {textureURL})
+                        dset.texture, geometry.textureMode, -1, {map: textureURL})
                     }
                     await fetch(textureURL).then(res=>res.blob()).then(data => {
                       image.src = URL.createObjectURL(data)
