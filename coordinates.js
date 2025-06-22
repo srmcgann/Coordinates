@@ -505,7 +505,7 @@ const Renderer = async options => {
             
             dset.optionalUniforms.map((uniform) => {
               if(typeof uniform?.loc === 'object'){
-                //ctx[uniform.dataType](uniform.loc,      uniform.value)
+                ctx[uniform.dataType](uniform.loc,      uniform.value)
                 ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
                 switch(uniform.name){
                   case 'reflection':
@@ -2214,7 +2214,7 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
     )
   }else{
     if(typeof texImage != 'undefined' && texImage.width && texImage.height){
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, texImage)
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage)
     }
   }
   //gl.generateMipmap(gl.TEXTURE_2D)
