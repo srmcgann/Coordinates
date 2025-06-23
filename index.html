@@ -19,7 +19,7 @@
     
       var rendererOptions = {
         ambientLight: .5,
-        fov: 50000
+        fov: 1e3
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
@@ -38,16 +38,16 @@
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
-      var lineCt = 50
+      var lineCt = 250
       var X1, Y1, Z1, X2, Y2, Z2
       var G = 10
-      var sp = G/2, ls, p, x, y, z
+      var sp = G/4, ls, p, x, y, z
       var lineData = Array(lineCt).fill().map(v => {
         X1 = (Rn() - .5) * G
         Y1 = (Rn() - .5) * G
         Z1 = 0
         ls = .5 * sp + Rn() * sp * .5
-        switch(Rn() * 3 | 0){
+        switch(Rn() * 8 | 0){
           case 0:
             X1 -= ls / 2
             X2 = X1 + ls
@@ -58,7 +58,7 @@
             Y2 = Y1 + ls
             X2 = X1
           break
-          case 2:
+          default:
             x = S(p=Math.PI*2*Rn()) * ls
             y = C(p) * ls
             X1 -= x/2
@@ -72,6 +72,7 @@
         return [X1, Y1, Z1, X2, Y2, Z2]
       })
 
+      var sharedData = []
       var pointData = [], l, X1, Y1, X2, Y2, X3, Y3, X4, Y4
       var cullData = Array(lineData.length).fill(false)
       for(var i = 0; i < lineData.length; i++){
@@ -86,7 +87,8 @@
             X4 = -lineData[j][3]
             Y4 = -lineData[j][4]
             if(l=Coordinates.Intersects(X1,Y1,X2,Y2,X3,Y3,X4,Y4)){
-              pointData.push([l[0],l[1],0])
+              pointData.push([l[0], l[1], 0])
+              sharedData.push([i, j, pointData.length - 1])
               cullData[i] = cullData[j] = true
             }
           }
@@ -101,10 +103,10 @@
         shapeType: 'lines',
         name: 'lines',
         geometryData: lineData,
-        size: .5,
-        alpha: .3,
+        size: .25,
+        alpha: 1,
         penumbra: 0,
-        color: 0xffffff,
+        color: 0x4400ff,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -115,7 +117,7 @@
         shapeType: 'particles',
         name: 'points',
         geometryData: pointData,
-        size: 5,
+        size: .2,
         alpha: .75,
         penumbra: .3,
         z: -.05,
@@ -130,7 +132,7 @@
         shapeType: 'sprite',
         name: 'starting point',
         map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
-        size: 1,
+        size: 1.5,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -140,7 +142,7 @@
         shapeType: 'sprite',
         name: 'ending point',
         map: 'https://srmcgann.github.io/Coordinates/resources/stars/star6.png',
-        size: 1,
+        size: 1.5,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -156,44 +158,101 @@
         alpha: .6,
         penumbra: 0,
         //map: 'https://srmcgann.github.io/Coordinates/resources/lowres_star_5.png',
-        size: 50,
+        size: 1.50,
         z: -.2
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         cursorShape = geometry
       })
       
-      
-      var memo, mind, d, tidx, path
-      const recurse = (pt1, pt2, depth=0) => {
-        if(pt1 == pt2) return true
-        if(memo.filter(v=>v==pt1).length) return
-        memo.push(pt1)
-        mind = 6e6
-        var X1 = pointData[pt1][0]
-        var Y1 = pointData[pt1][1]
-        pointData.map((v, i) => {
-          if(i!=pt1 && !memo.filter(v=>v==i).length){
-            var X2 = v[0]
-            var Y2 = v[1]
-            if(d = Math.hypot(X2-X1,Y2-Y1) < mind){
-              tidx = i
-              mind = d
-            }
-          }
-        })
-        if(recurse(tidx, pt2, depth+1)) {
-          path.push(tidx)
-          return true
-        }
+      var finalPath
+      const finalRecursion = (start=0, end=path.length) => {
+        //if(start
       }
       
-      renderer.z = 5
+      var memo, path, d, found
+      const recurse = (pt1, pt2, depth=0) => {
+        if(found || depth > 1e4) return
+        if(!found && pt1 == pt2) {
+          found = true
+          return true
+        }
+        if(memo[pt1]) return
+        memo[pt1] = 1
+        //var mind = 6e6
+        //var tidx
+        var connected = false
+        if(typeof pointData[pt1] != 'undefined'){
+          var X1 = pointData[pt1][0]
+          var Y1 = pointData[pt1][1]
+          var lidx1 = sharedData[pt1][0]
+          var lidx2 = sharedData[pt1][1]
+          var opts2 = []
+          pointData.map((v, i) => {
+            if(!memo[i] && i!=pt1){
+              var lidx3 = sharedData[i][0]
+              var lidx4 = sharedData[i][1]
+              if(lidx2 == lidx3 || lidx2 == lidx4 || lidx1 == lidx3 || lidx1 == lidx4){
+                var X2 = pointData[i][0]
+                var Y2 = pointData[i][1]
+                opts2.push([i, Math.hypot(X2-X1, Y2-Y1)])
+              }
+            }
+          })
+          opts2.sort((a, b)=>a[1]-b[1]).forEach(opt=>{
+            var i = opt[0]
+            if(recurse(i, pt2, depth+1)) {
+              path.push(i)
+              connected = i
+            }
+          })
+        }
+        return connected
+      }
+      
+      const drawPath = (path, col) => {
+        var t = renderer.t
+        Coordinates.Overlay.ctx.lineWidth = 20
+        Coordinates.Overlay.ctx.strokeStyle = col
+        Coordinates.Overlay.ctx.globalAlpha = .15
+        Coordinates.Overlay.ctx.beginPath()
+        path.map((v, i) => {
+          if(i < (path.length * Math.min(1, (t*5)%2)|0) && i < path.length - 1){
+            var p = Coordinates.GetShaderCoord(...pointData[v], {
+              x:0,
+              y:0,
+              z:0,
+              roll:0,
+              pitch:0,
+              yaw:0,
+            }, renderer)
+            if(p) Coordinates.Overlay.ctx.lineTo(...p)
+            var p = Coordinates.GetShaderCoord(...pointData[path[i+1]], {
+              x:0,
+              y:0,
+              z:0,
+              roll:0,
+              pitch:0,
+              yaw:0,
+            }, renderer)
+            if(p)Coordinates.Overlay.ctx.lineTo(...p)
+          }
+        })
+        Coordinates.Overlay.ctx.stroke()
+        Coordinates.Overlay.ctx.lineWidth /=5
+        Coordinates.Overlay.ctx.globalAlpha = .75
+        Coordinates.Overlay.ctx.stroke()
+      }
+      
+      renderer.z = 6
       var cx1=0, cy1=0, cz1=0, cx2=0, cy2=0, cz2=0
       var pts = [0, 0]
+      var opts = [-1, -1]
       
       window.Draw = () => {
         var t = renderer.t
+        renderer.yaw = t / 2
+        renderer.pitch = t / 10
         shapes.forEach((shape, idx) => {
           switch(shape.name){
             case 'lines':
@@ -204,7 +263,7 @@
             break
             case 'starting point': case 'ending point':
             
-              var tx = S(p=Math.PI*2/2*idx + t/8) * G/3
+              var tx = S(p=Math.PI*2/2*idx + t*8) * G/3
               var ty = C(p) * G/3
 
               var mind = 6e6, tidx = -1
@@ -235,24 +294,22 @@
           }
           renderer.Draw(shape)
         })
-        memo = []
-        path = []
-        recurse(...pts)
-        Coordinates.Overlay.ctx.lineWidth = 4
-        Coordinates.Overlay.ctx.strokeStyle = '#0ff'
-        Coordinates.Overlay.ctx.beginPath()
-        path.map(v=>{
-          var p = Coordinates.GetShaderCoord(...pointData[v], {
-            x:0,
-            y:0,
-            z:0,
-            roll:0,
-            pitch:0,
-            yaw:0,
-          }, renderer)
-          Coordinates.Overlay.ctx.lineTo(...p)
-        })
-        Coordinates.Overlay.ctx.stroke()
+        if(pts[0] != opts[0] || pts[1] != pts[1]){
+          opts[0] = pts[0]
+          opts[1] = pts[1]
+          memo = []
+          path = []
+          found = false
+          recurse(...pts)
+          path = Array.from(new Set(path))
+        }
+        
+        finalPath = []
+        finalRecursion()
+        
+        drawPath(path, '#0f8')
+        drawPath(finalPath, '#f00')
+
       }
       
     </script>
