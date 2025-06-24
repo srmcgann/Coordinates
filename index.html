@@ -19,16 +19,15 @@
     
       var rendererOptions = {
         ambientLight: .5,
-        fov: 1500, margin: 0,
+        fov: 1e3
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      Coordinates.AnimationLoop(renderer, 'Draw')
-      
-      var x, y, z, d, p
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
         { uniform: {
@@ -39,150 +38,294 @@
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
-      var shapes = []
-      var geometryData = []
-      
-      var shape = {
-        vertices: new Float32Array(),
-        normals:  new Float32Array(),
-        uvs:      new Float32Array()
-      }
+      var lineCt = 150
+      var X1, Y1, Z1, X2, Y2, Z2
+      var G = 10
+      var sp = G/3, ls, p, x, y, z
+      var lineData = Array(lineCt).fill().map(v => {
+        X1 = (Rn() - .5) * G
+        Y1 = (Rn() - .5) * G
+        Z1 = 0
+        ls = .5 * sp + Rn() * sp * .5
+        switch(Rn() * 2 | 0){
+          case 0:
+            X1 -= ls / 2
+            X2 = X1 + ls
+            Y2 = Y1
+          break
+          case 1:
+            Y1 -= ls / 2
+            Y2 = Y1 + ls
+            X2 = X1
+          break
+          default:
+            x = S(p=Math.PI*2*Rn()) * ls
+            y = C(p) * ls
+            X1 -= x/2
+            Y1 -= y/2
+            X2 = X1 + x
+            Y2 = Y1 + y
+            
+          break
+        }
+        Z2 = 0
+        return [X1, Y1, Z1, X2, Y2, Z2]
+      })
 
-      var size = .1
-      
-      var geoOptions = {
-        shapeType: 'dodecahedron',
-        size,
-        sphereize: 3,
-        subs: 4,
-        //downloadShape: true
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shape = geometry
-      })
-      
-      var geoOptions = {
-        shapeType: 'sprite',
-        name: 'sphere',
-        map: 'https://srmcgann.github.io/Coordinates/resources/sphere.png',
-        size: 2.5 * 2,
-        z: 9,
-        subs: 1,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-      })
-      
-      
-      var tx = 0
-      var ty = 0
-      var tz = 0
-      
-      var unbounciness = 5  // 1==zero kinetic energy loss
-      var iPv = .2, grav = 0
-      var fromAvgs = true
-      var pData = {
-        pos: [],
-        vec: []
-      }
-      renderer.z = 10
-      for(var i = 0; i < shape.vertices.length; i+=9){
-        var a
-        if(fromAvgs){
-          var ax = 0, ay = 0, az = 0
-          for(var j = 0; j < 3; j++){
-            ax += shape.vertices[i+j*3+0]
-            ay += shape.vertices[i+j*3+1]
-            az += shape.vertices[i+j*3+2]
-          }
-          a = [ax/=3, ay/=3, az/=3]
-          geometryData = [...geometryData, a]
-          pData.pos.push(a[0]+tx, a[1]+ty, a[2]+tz)
-          //d = Math.hypot(...a)
-          pData.vec.push(a[0]/size*iPv, a[1]/size*iPv, a[2]/size*iPv)
-        }else{
-          for(var j = 0; j < 3; j++){
-            var unique = true
-            var x1 = shape.vertices[i+j*3+0]
-            var y1 = shape.vertices[i+j*3+1]
-            var z1 = shape.vertices[i+j*3+2]
-            for(var k = 0; k < pData.pos.length && unique; k+=3){
-              var x2 = pData.pos[k+0]
-              var y2 = pData.pos[k+1]
-              var z2 = pData.pos[k+2]
-              if(Math.hypot(x2-x1, y2-y1, z2-z1) < .0001) unique = false
-            }
-            if(unique){
-              a = [x1, y1, z1]
-              geometryData = [...geometryData, a]
-              pData.pos.push(a[0]+tx, a[1]+ty, a[2]+tz)
-              //d = Math.hypot(...a)
-              pData.vec.push(a[0]/size*iPv, a[1]/size*iPv, a[2]/size*iPv)
+      var sharedData = []
+      var pointData = [], l, X1, Y1, X2, Y2, X3, Y3, X4, Y4
+      var cullData = Array(lineData.length).fill(false)
+      for(var i = 0; i < lineData.length; i++){
+        X1 = -lineData[i][0]
+        Y1 = -lineData[i][1]
+        X2 = -lineData[i][3]
+        Y2 = -lineData[i][4]
+        for(var j = 0; j < lineData.length; j++){
+          if(i!=j){
+            X3 = -lineData[j][0]
+            Y3 = -lineData[j][1]
+            X4 = -lineData[j][3]
+            Y4 = -lineData[j][4]
+            if(l=Coordinates.Intersects(X1,Y1,X2,Y2,X3,Y3,X4,Y4)){
+              pointData.push([l[0], l[1], 0])
+              sharedData.push([i, j, pointData.length - 1])
+              cullData[i] = cullData[j] = true
             }
           }
         }
       }
       
-      console.log('pData', pData)
-      
+      lineData = lineData.filter((v, i) => cullData[i])
+
+      var shapes = []
 
       var geoOptions = {
-        shapeType: 'particles',
-        name: 'particles',
-        geometryData,
-        color: 0xff0044,
-        size: .75,
+        shapeType: 'lines',
+        name: 'lines',
+        geometryData: lineData,
+        size: .5,
         alpha: .5,
-        penumbra: .3,
+        penumbra: .5,
+        color: 0x4400ff,
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         //await shader.ConnectGeometry(geometry)
       })
       
+      var geoOptions = {
+        shapeType: 'particles',
+        name: 'points',
+        geometryData: pointData,
+        size: .2,
+        alpha: .75,
+        penumbra: .3,
+        z: -.05,
+        color: 0xffffff,
+      }
+      if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        //await shader.ConnectGeometry(geometry)
+      })  
+      
+      var geoOptions = {
+        shapeType: 'sprite',
+        name: 'starting point',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
+        size: 1,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+      })  
+      
+      var geoOptions = {
+        shapeType: 'sprite',
+        name: 'ending point',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star7.png',
+        size: 1,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+      })
+      
+      
+      var cursorShape
+      var geoOptions = {
+        shapeType: 'particles',
+        geometryData: [[0,0,0]],
+        name: 'cursor',
+        color: 0xff0000,
+        alpha: .6,
+        penumbra: .5,
+        //map: 'https://srmcgann.github.io/Coordinates/resources/lowres_star_5.png',
+        size: 3,
+        z: -.2
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        cursorShape = geometry
+      })
+      
+      var finalPath
+      const finalRecursion = (start=0, end=path.length) => {
+        //if(start
+      }
+      
+      var memo, path, d, found
+      const recurse = (pt1, pt2, depth=0) => {
+        if(found || depth > 2e4) return
+        if(!found && pt1 == pt2) {
+          found = true
+          return true
+        }
+        if(memo[pt1]) return
+        memo[pt1] = 1
+        //var mind = 6e6
+        //var tidx
+        var connected = false
+        if(typeof pointData[pt1] != 'undefined'){
+          var X1 = pointData[pt1][0]
+          var Y1 = pointData[pt1][1]
+          var lidx1 = sharedData[pt1][0]
+          var lidx2 = sharedData[pt1][1]
+          var opts2 = []
+          pointData.map((v, i) => {
+            if(!memo[i] && i!=pt1){
+              var lidx3 = sharedData[i][0]
+              var lidx4 = sharedData[i][1]
+              if(lidx2 == lidx3 || lidx2 == lidx4 || lidx1 == lidx3 || lidx1 == lidx4){
+                var X2 = pointData[i][0]
+                var Y2 = pointData[i][1]
+                opts2.push([i, Math.hypot(X2-X1, Y2-Y1)])
+              }
+            }
+          })
+          opts2.sort((a, b)=>a[1]-b[1]).forEach(opt=>{
+            var i = opt[0]
+            if(recurse(i, pt2, depth+1)) {
+              path.push(i)
+              connected = i
+            }
+          })
+        }
+        return connected
+      }
+      
+      const drawPath = (path, col) => {
+        var t = renderer.t
+        Coordinates.Overlay.ctx.lineWidth = 20
+        Coordinates.Overlay.ctx.strokeStyle = col
+        Coordinates.Overlay.ctx.globalAlpha = .15
+        Coordinates.Overlay.ctx.beginPath()
+        path.map((v, i) => {
+          if(i < (path.length * Math.min(1, 1+(t*5)%2)|0) && i < path.length - 1){
+            var p = Coordinates.GetShaderCoord(...pointData[v], {
+              x:0,
+              y:0,
+              z:0,
+              roll:0,
+              pitch:0,
+              yaw:0,
+            }, renderer)
+            if(p) Coordinates.Overlay.ctx.lineTo(...p)
+            var p = Coordinates.GetShaderCoord(...pointData[path[i+1]], {
+              x:0,
+              y:0,
+              z:0,
+              roll:0,
+              pitch:0,
+              yaw:0,
+            }, renderer)
+            if(p)Coordinates.Overlay.ctx.lineTo(...p)
+          }
+        })
+        Coordinates.Overlay.ctx.lineJoin = 'round'
+        Coordinates.Overlay.ctx.lineCap = 'round'
+        Coordinates.Overlay.ctx.stroke()
+        Coordinates.Overlay.ctx.lineWidth /=5
+        Coordinates.Overlay.ctx.globalAlpha = .75
+        Coordinates.Overlay.ctx.stroke()
+      }
+      
+      renderer.z = 6
+      var cx1=0, cy1=0, cz1=0, cx2=0, cy2=0, cz2=0
+      var pts = [0, 0]
+      var opts = [-1, -1]
       
       window.Draw = () => {
-      
-        renderer.yaw += .01
-        //renderer.pitch = .01
-        
-        shapes.forEach(shape => {
+        var t = renderer.t
+        renderer.roll = -t / 16
+        //renderer.yaw = t / 2
+        //renderer.pitch = t / 10
+        shapes.forEach((shape, idx) => {
           switch(shape.name){
-            case 'sphere':
-              x = shape.x
-              y = shape.y
-              z = shape.z
-              p = Math.atan2(x, z) - .01
-              d = Math.hypot(x, z)
-              x = S(p) * d
-              z = C(p) * d
-              shape.x = x
-              shape.y = y
-              shape.z = z
+            case 'lines':
             break
-            case 'particles':
-            for(var i = 0; i < shape.vertices.length; i+=3){
-              var vx = pData.vec[i+0]
-              var vy = pData.vec[i+1]
-              var vz = pData.vec[i+2]
-              x = pData.pos[i+0] + vx
-              y = pData.pos[i+1] + vy - grav
-              z = pData.pos[i+2] + vz
-              if(Math.hypot(x,y,z) > 8.5){
-                var r = Coordinates.Reflect([vx, vy, vz], [x,y,z])
-                for(var m = 3; m--;) pData.vec[i+m] = r[m] / unbounciness
+            case 'points':
+            break
+            case 'cursor':
+            break
+            case 'starting point': case 'ending point':
+              var tx, ty
+              if(idx%2){
+                tx = 0
+                ty = S(p=Math.PI*2/2*idx + t/2) * G/2
               }else{
-                pData.vec[i+1] -= grav
+                tx = C(p=Math.PI*2/2*idx + t/2) * G/2
+                ty = 0
+              }
+              p = Math.atan2(tx, ty) + t / 16
+              d = Math.hypot(tx, ty)
+              tx = S(p) * d
+              ty = C(p) * d
+
+              var mind = 6e6, tidx = -1
+              for(var i = 0; i < pointData.length; i++){
+                var x = pointData[i][0]
+                var y = pointData[i][1]
+                var z = pointData[i][2]
+                var d = Math.hypot(x-tx, y-ty)
+                if(d < mind) {
+                  mind = d
+                  tidx = i
+                }
               }
               
-              for(var m = 3; m--;) shape.vertices[i+m] = pData.pos[i+m] += pData.vec[i+m]
-            }
+              if(tidx != -1 && typeof cursorShape != 'undefined'){
+                cursorShape.x = pointData[tidx][0]
+                cursorShape.y = pointData[tidx][1]
+                cursorShape.z = pointData[tidx][2]
+                renderer.Draw(cursorShape)
+              }
+
+              shape.x = tx
+              shape.y = ty
+              shape.z = -.1
+              
+              pts[idx%2] = tidx
             break
           }
-          //shape.yaw += .01
-          //shape.pitch += .005
-          renderer.Draw(shape)
+          if(1||shape.shapeType != 'sprite') renderer.Draw(shape)
         })
+        if(pts[0] != opts[0] || pts[1] != pts[1]){
+          opts[0] = pts[0]
+          opts[1] = pts[1]
+          memo = []
+          path = []
+          found = false
+          recurse(...pts)
+          path = Array.from(new Set(path))
+          if(path.length > 1){
+            path = [pts[1], ...path]
+            path = [...path, pts[0]]
+          }
+        }
+        
+        finalPath = []
+        finalRecursion()
+        
+        drawPath(path, '#0f8')
+        drawPath(finalPath, '#f00')
+
       }
       
     </script>
