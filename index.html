@@ -38,16 +38,16 @@
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
-      var lineCt = 250
+      var lineCt = 150
       var X1, Y1, Z1, X2, Y2, Z2
       var G = 10
-      var sp = G/4, ls, p, x, y, z
+      var sp = G/3, ls, p, x, y, z
       var lineData = Array(lineCt).fill().map(v => {
         X1 = (Rn() - .5) * G
         Y1 = (Rn() - .5) * G
         Z1 = 0
         ls = .5 * sp + Rn() * sp * .5
-        switch(Rn() * 8 | 0){
+        switch(Rn() * 2 | 0){
           case 0:
             X1 -= ls / 2
             X2 = X1 + ls
@@ -103,12 +103,12 @@
         shapeType: 'lines',
         name: 'lines',
         geometryData: lineData,
-        size: .25,
-        alpha: 1,
-        penumbra: 0,
+        size: .5,
+        alpha: .5,
+        penumbra: .5,
         color: 0x4400ff,
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         //await shader.ConnectGeometry(geometry)
       })
@@ -123,7 +123,7 @@
         z: -.05,
         color: 0xffffff,
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         //await shader.ConnectGeometry(geometry)
       })  
@@ -131,8 +131,8 @@
       var geoOptions = {
         shapeType: 'sprite',
         name: 'starting point',
-        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
-        size: 1.5,
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
+        size: 1,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -141,8 +141,8 @@
       var geoOptions = {
         shapeType: 'sprite',
         name: 'ending point',
-        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star6.png',
-        size: 1.5,
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star7.png',
+        size: 1,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
@@ -156,9 +156,9 @@
         name: 'cursor',
         color: 0xff0000,
         alpha: .6,
-        penumbra: 0,
+        penumbra: .5,
         //map: 'https://srmcgann.github.io/Coordinates/resources/lowres_star_5.png',
-        size: 1.50,
+        size: 3,
         z: -.2
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -172,7 +172,7 @@
       
       var memo, path, d, found
       const recurse = (pt1, pt2, depth=0) => {
-        if(found || depth > 1e4) return
+        if(found || depth > 2e4) return
         if(!found && pt1 == pt2) {
           found = true
           return true
@@ -217,7 +217,7 @@
         Coordinates.Overlay.ctx.globalAlpha = .15
         Coordinates.Overlay.ctx.beginPath()
         path.map((v, i) => {
-          if(i < (path.length * Math.min(1, (t*5)%2)|0) && i < path.length - 1){
+          if(i < (path.length * Math.min(1, 1+(t*5)%2)|0) && i < path.length - 1){
             var p = Coordinates.GetShaderCoord(...pointData[v], {
               x:0,
               y:0,
@@ -238,6 +238,8 @@
             if(p)Coordinates.Overlay.ctx.lineTo(...p)
           }
         })
+        Coordinates.Overlay.ctx.lineJoin = 'round'
+        Coordinates.Overlay.ctx.lineCap = 'round'
         Coordinates.Overlay.ctx.stroke()
         Coordinates.Overlay.ctx.lineWidth /=5
         Coordinates.Overlay.ctx.globalAlpha = .75
@@ -251,8 +253,9 @@
       
       window.Draw = () => {
         var t = renderer.t
-        renderer.yaw = t / 2
-        renderer.pitch = t / 10
+        renderer.roll = -t / 16
+        //renderer.yaw = t / 2
+        //renderer.pitch = t / 10
         shapes.forEach((shape, idx) => {
           switch(shape.name){
             case 'lines':
@@ -262,9 +265,18 @@
             case 'cursor':
             break
             case 'starting point': case 'ending point':
-            
-              var tx = S(p=Math.PI*2/2*idx + t*8) * G/3
-              var ty = C(p) * G/3
+              var tx, ty
+              if(idx%2){
+                tx = 0
+                ty = S(p=Math.PI*2/2*idx + t/2) * G/2
+              }else{
+                tx = C(p=Math.PI*2/2*idx + t/2) * G/2
+                ty = 0
+              }
+              p = Math.atan2(tx, ty) + t / 16
+              d = Math.hypot(tx, ty)
+              tx = S(p) * d
+              ty = C(p) * d
 
               var mind = 6e6, tidx = -1
               for(var i = 0; i < pointData.length; i++){
@@ -292,7 +304,7 @@
               pts[idx%2] = tidx
             break
           }
-          renderer.Draw(shape)
+          if(1||shape.shapeType != 'sprite') renderer.Draw(shape)
         })
         if(pts[0] != opts[0] || pts[1] != pts[1]){
           opts[0] = pts[0]
@@ -302,6 +314,10 @@
           found = false
           recurse(...pts)
           path = Array.from(new Set(path))
+          if(path.length > 1){
+            path = [pts[1], ...path]
+            path = [...path, pts[0]]
+          }
         }
         
         finalPath = []
