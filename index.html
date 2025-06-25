@@ -12,322 +12,350 @@
     </style>
   </head>
   <body>
-    <script type="module">
+<script type="module">
+
+  import { SimplexNoise } from
+    "https://unpkg.com/three@0.177.0/examples/jsm/math/SimplexNoise.js"
+  let simplex = new SimplexNoise()
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  Coordinates.AnimationLoop(renderer, 'Draw')
+  
+  //var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/fantasy1.jpg'
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+
+  var rendererOptions = {
+    ambientLight: 1,
+    fov: 500, margin: 0
+  }
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  
+  const floor = (x, y) => {
+    x*=sp
+    y*=sp
+    var t = renderer.t
+    return simplex.noise(x-t/2, y-C(t/10) * 20) * 3 - 1.5//* 1.75 * (2 + S(x/2 + t) *2) * (1.5 + (.5+S(y*2+t*8)/2)) + 4
+  }
+  
+  var dataArray = [], heightmapDataArray = []
+  var dataArrayWidth = 256
+  var dataArrayHeight = 256
+  var sp = .01
+  var colorMode = false
+  var sns = []
+  Array(dataArrayWidth * dataArrayHeight).fill().map((v, i) => {
+    var x = ((i%dataArrayWidth) - dataArrayWidth/2 + .5)
+    var y = ((i/dataArrayHeight|0)-dataArrayHeight/2 + .5)
+    var sn = floor(x,y)
+    var color = Coordinates.HSVToRGB(130-sn*120/1,1,1)
+    dataArray.push(...color, 255)
+    var color = Math.max(.2, (.5+sn) ** 4 / 3) * 128 |0
+    //dataArray.push(color,color, color, 255)
+    heightmapDataArray.push(color, color, color, 255)
+  })
+  var heightMap = dataArray
+
+  var shaderOptions = [
+    { lighting: {type: 'ambientLight', value: .75}
+    },
+    { uniform: {
+      type: 'phong',
+      value: .25,
+      theta: 0,
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      flipReflections: true,
+      value: .4,
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: {type: 'ambientLight', value: .75}
+    },
+    { uniform: {
+      type: 'phong',
+      value: 0,
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: {type: 'ambientLight', value: .75}
+    },
+    { uniform: {
+      type: 'phong',
+      value: .25,
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      value: .75,
+    } },
+  ]
+  var chromeShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+  var shapes = []
+  var hm = 'https://i.imgur.com/TLeX8TJ.mp4'
+  var hm2 = 'https://srmcgann.github.io/Coordinates/resources/rd4_po2_small.mp4'
+  var geoOptions = {
+    shapeType: 'custom shape',
+    //averageNormals: true,
+    //subs: 3,
+    size: 2,
+    yaw: Math.PI,
+    name: 'terrain',
+    url: 'https://srmcgann.github.io/Coordinates/custom shapes/audi_r8/body.json',
+    //map: dataArray,
+    map: hm,
+    //heightMap: hm,
+    //heightMap: heightmapDataArray,
+    //averageNormals: true,
+    flipNormals: true,
+    y: -16,
+    playbackSpeed: 1,
+    equirectangular: true,
+    equirectangularHeightmap: true,
+    //rotationMode: 2,
+    dataArrayWidth,
+    dataArrayHeight,
+    scaleX: 2,
+    scaleY: 2,
+    scaleZ: 2,
+    scaleUVX: 1,
+    scaleUVY: 1,
+    heightmapIntensity: 30,
+    heightmapDataArrayWidth: dataArrayWidth,
+    heightmapDataArrayHeight: dataArrayHeight,
+    color: 0x22ffff,
+    colorMix: .5,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+
+
+  var geoOptions = {
+    shapeType: 'custom shape',
+    url: 'https://srmcgann.github.io/Coordinates/custom shapes/audi_r8/trim.json',
+    name: 'trim',
+    size: 2,
+    yaw: Math.PI,
+    y: -16,
+    scaleX: 2,
+    scaleY: 2,
+    scaleZ: 2,
+    colorMix: .5,
+    color : 0x010101,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })
+  
+  var geoOptions = {
+    shapeType: 'custom shape',
+    url: 'https://srmcgann.github.io/Coordinates/custom shapes/audi_r8/glass.json',
+    name: 'glass',
+    size: 2,
+    yaw: Math.PI,
+    y: -16,
+    flipNormals: true,
+    scaleX: 2,
+    scaleY: 2,
+    scaleZ: 2,
+    colorMix: .1,
+    color : 0x000000,
+  }
+  if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+
+  var geoOptions = {
+    shapeType: 'custom shape',
+    url: 'https://srmcgann.github.io/Coordinates/custom shapes/audi_r8/chrome.json',
+    name: 'chrome',
+    size: 2,
+    yaw: Math.PI,
+    y: -16,
+    scaleX: 2,
+    scaleY: 2,
+    scaleZ: 2,
+    colorMix: .1,
+    color : 0xffeedd,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await chromeShader.ConnectGeometry(geometry)
+  })  
+
+  var geoOptions = {
+    shapeType: 'custom shape',
+    url: 'https://srmcgann.github.io/Coordinates/custom shapes/audi_r8/taillights.json',
+    name: 'taillights',
+    size: 2,
+    yaw: Math.PI,
+    z: 0,
+    y: -16,
+    scaleX: 2,
+    scaleY: 2,
+    scaleZ: 2,
+    colorMix: 1,
+    color : 0xff0000,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    map: refTexture,
+    size: 1e4,
+    subs: 3,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+
+  var geoOptions = {
+    shapeType: 'custom shape',
+    url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_ultrahipoly.json',
+    //subs: 6,
+    name: 'base',
+    yaw: Math.PI,
+    pitch: Math.PI/2,
+    rotationMode: 2,
+    size: 4,
+    y: -19,
+    z: -3,
+    roll: Math.PI/2,
+    scaleX: 16/9,
+    scaleY: 16/9,
+    //map: 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2_lowres.jpg',
+    map: hm2,
+    heightMap: hm2,
+    scaleUVX: 2,
+    scaleUVY: 2,
+    playbackSpeed: .5, 
+    heightmapIntensity: 10,
+    color: 0xffffff,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+
+  var geoOptions = {
+    shapeType: 'sprite',
+    lum: 1,
+    showSource: true,
+    name: 'headlights',
+    map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+    size: 8,
+    //subs: 3,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+  })  
+
+  
+  //Coordinates.LoadFPSControls(renderer, {flyMode: true})
+  renderer.z = 11
+  renderer.y = 0
+  var cola, colb, icolRed, icolGreen, icolBlue
+  var ip1, ip2
+  window.Draw = () => {
+    var t = renderer.t
+    renderer.yaw = t/6 + Math.PI
+    //renderer.roll = t / 20
+    renderer.pitch = Math.min(-.5, Math.max(-1.05, (-.5-C(t/1.5)))) + 1
+    renderer.y = Math.min(20, Math.max(0, -C(t/1.5+.5)*50)) + 8
     
-      import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
-    
-      var rendererOptions = {
-        ambientLight: .5,
-        fov: 1e3
-      }
-      var renderer = await Coordinates.Renderer(rendererOptions)
+    //renderer.yaw += .001
+    //renderer.pitch = .5 + C(t/4)/4
+    renderer.z = Math.min(90, Math.max(60, (.3-C(t/3))*150))
+    if(1)for(var i = 0; i < dataArrayWidth*dataArrayHeight; i++){
+      sp = Math.min(.06, Math.max(.03, (.3-C(t/3))*.2))
+      ip1 = 1 //Math.min(.9, Math.max(.1, (-.25+C(t/2)/2) * 2))
+      ip2 = 1-ip1
+      var x = ((i%dataArrayWidth) - dataArrayWidth/2 + .5)
+      var y = ((i/dataArrayHeight|0)-dataArrayHeight/2 + .5)
+      var sn = Math.min(1.5, Math.max(-.1,floor(x, y)*3-.5))
       
-      var S = Math.sin
-      var C = Math.cos
-      var Rn = Math.random
+      var cola = Coordinates.HSVToRGB((200-sn*100 + t*20)%360,1,1)
+      //dataArray[i*4+0] = col[0]
+      //dataArray[i*4+1] = col[1]
+      //dataArray[i*4+2] = col[2]
+      //dataArray[i*4+3] = 255
+
+      colb = Math.max(.1, (.5+sn/2) ** 2 / 10) * 255 * 2
       
-      Coordinates.AnimationLoop(renderer, 'Draw')
-
-      var shaderOptions = [
-        { uniform: {
-          type: 'phong',
-          value: .75
-        } }
-      ]
-      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-
-      var lineCt = 150
-      var X1, Y1, Z1, X2, Y2, Z2
-      var G = 10
-      var sp = G/3, ls, p, x, y, z
-      var lineData = Array(lineCt).fill().map(v => {
-        X1 = (Rn() - .5) * G
-        Y1 = (Rn() - .5) * G
-        Z1 = 0
-        ls = .5 * sp + Rn() * sp * .5
-        switch(Rn() * 2 | 0){
-          case 0:
-            X1 -= ls / 2
-            X2 = X1 + ls
-            Y2 = Y1
-          break
-          case 1:
-            Y1 -= ls / 2
-            Y2 = Y1 + ls
-            X2 = X1
-          break
-          default:
-            x = S(p=Math.PI*2*Rn()) * ls
-            y = C(p) * ls
-            X1 -= x/2
-            Y1 -= y/2
-            X2 = X1 + x
-            Y2 = Y1 + y
-            
-          break
-        }
-        Z2 = 0
-        return [X1, Y1, Z1, X2, Y2, Z2]
-      })
-
-      var sharedData = []
-      var pointData = [], l, X1, Y1, X2, Y2, X3, Y3, X4, Y4
-      var cullData = Array(lineData.length).fill(false)
-      for(var i = 0; i < lineData.length; i++){
-        X1 = -lineData[i][0]
-        Y1 = -lineData[i][1]
-        X2 = -lineData[i][3]
-        Y2 = -lineData[i][4]
-        for(var j = 0; j < lineData.length; j++){
-          if(i!=j){
-            X3 = -lineData[j][0]
-            Y3 = -lineData[j][1]
-            X4 = -lineData[j][3]
-            Y4 = -lineData[j][4]
-            if(l=Coordinates.Intersects(X1,Y1,X2,Y2,X3,Y3,X4,Y4)){
-              pointData.push([l[0], l[1], 0])
-              sharedData.push([i, j, pointData.length - 1])
-              cullData[i] = cullData[j] = true
-            }
+      icolRed   = colb * ip1 *1 + cola[0] * ip2
+      icolGreen = colb * ip1 *1 + cola[1] * ip2
+      icolBlue  = colb * ip1 *1 + cola[2] * ip2
+      
+      
+      dataArray[i*4+0] = icolRed
+      dataArray[i*4+1] = icolGreen
+      dataArray[i*4+2] = icolBlue
+      dataArray[i*4+3] = 255
+      
+      
+      heightmapDataArray[i*4+0] = colb
+      heightmapDataArray[i*4+1] = colb
+      heightmapDataArray[i*4+2] = colb
+      heightmapDataArray[i*4+3] = 255
+    }
+    var sRot = Math.min(3, Math.max(-3, (-C(-t/4)) * 6))
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'headlights':
+          for(var m = 2; m--;){
+            shape.x = -24 * (m ? 1 : -1)
+            shape.y = 2
+            shape.z = -60;
+            var d = Math.hypot(shape.x, shape.z)
+            var p = Math.atan2(shape.x, shape.z)+sRot + Math.PI
+            shape.x = S(p) * d
+            shape.z = C(p) * d
+            renderer.Draw(shape)
           }
-        }
+        break
+        case 'terrain':
+          shape.heightMapIntensity = 5//10 +  C(t)*5//-(2+(.6+C(t/6+.3)/2) * 50) * 2 + 50
+          shape.color = Coordinates.HSVToHex(t*50, 1,1)
+          shape.colorMix = 0 //.25+C(t) / 8
+          //shape.pitch = t //C(t/4) / 4 + Math.PI/2
+          //shape.roll = Math.PI/4 + C(t/4) /2
+          shader.datasets[0].optionalUniforms.filter(v=>v.name == 'phong')[0].theta = 0 //3.5 //- (shape.roll - Math.PI/4)/20
+          shape.yaw = sRot
+          renderer.Draw(shape)
+        break
+        default:
+          shape.yaw = sRot
+          renderer.Draw(shape)
+        break
       }
-      
-      lineData = lineData.filter((v, i) => cullData[i])
-
-      var shapes = []
-
-      var geoOptions = {
-        shapeType: 'lines',
-        name: 'lines',
-        geometryData: lineData,
-        size: .5,
-        alpha: .5,
-        penumbra: .5,
-        color: 0x4400ff,
-      }
-      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        //await shader.ConnectGeometry(geometry)
-      })
-      
-      var geoOptions = {
-        shapeType: 'particles',
-        name: 'points',
-        geometryData: pointData,
-        size: .2,
-        alpha: .75,
-        penumbra: .3,
-        z: -.05,
-        color: 0xffffff,
-      }
-      if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        //await shader.ConnectGeometry(geometry)
-      })  
-      
-      var geoOptions = {
-        shapeType: 'sprite',
-        name: 'starting point',
-        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
-        size: 1,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-      })  
-      
-      var geoOptions = {
-        shapeType: 'sprite',
-        name: 'ending point',
-        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star7.png',
-        size: 1,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-      })
-      
-      
-      var cursorShape
-      var geoOptions = {
-        shapeType: 'particles',
-        geometryData: [[0,0,0]],
-        name: 'cursor',
-        color: 0xff0000,
-        alpha: .6,
-        penumbra: .5,
-        //map: 'https://srmcgann.github.io/Coordinates/resources/lowres_star_5.png',
-        size: 3,
-        z: -.2
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        cursorShape = geometry
-      })
-      
-      var finalPath
-      const finalRecursion = (start=0, end=path.length) => {
-        //if(start
-      }
-      
-      var memo, path, d, found
-      const recurse = (pt1, pt2, depth=0) => {
-        if(found || depth > 2e4) return
-        if(!found && pt1 == pt2) {
-          found = true
-          return true
-        }
-        if(memo[pt1]) return
-        memo[pt1] = 1
-        //var mind = 6e6
-        //var tidx
-        var connected = false
-        if(typeof pointData[pt1] != 'undefined'){
-          var X1 = pointData[pt1][0]
-          var Y1 = pointData[pt1][1]
-          var lidx1 = sharedData[pt1][0]
-          var lidx2 = sharedData[pt1][1]
-          var opts2 = []
-          pointData.map((v, i) => {
-            if(!memo[i] && i!=pt1){
-              var lidx3 = sharedData[i][0]
-              var lidx4 = sharedData[i][1]
-              if(lidx2 == lidx3 || lidx2 == lidx4 || lidx1 == lidx3 || lidx1 == lidx4){
-                var X2 = pointData[i][0]
-                var Y2 = pointData[i][1]
-                opts2.push([i, Math.hypot(X2-X1, Y2-Y1)])
-              }
-            }
-          })
-          opts2.sort((a, b)=>a[1]-b[1]).forEach(opt=>{
-            var i = opt[0]
-            if(recurse(i, pt2, depth+1)) {
-              path.push(i)
-              connected = i
-            }
-          })
-        }
-        return connected
-      }
-      
-      const drawPath = (path, col) => {
-        var t = renderer.t
-        Coordinates.Overlay.ctx.lineWidth = 20
-        Coordinates.Overlay.ctx.strokeStyle = col
-        Coordinates.Overlay.ctx.globalAlpha = .15
-        Coordinates.Overlay.ctx.beginPath()
-        path.map((v, i) => {
-          if(i < (path.length * Math.min(1, 1+(t*5)%2)|0) && i < path.length - 1){
-            var p = Coordinates.GetShaderCoord(...pointData[v], {
-              x:0,
-              y:0,
-              z:0,
-              roll:0,
-              pitch:0,
-              yaw:0,
-            }, renderer)
-            if(p) Coordinates.Overlay.ctx.lineTo(...p)
-            var p = Coordinates.GetShaderCoord(...pointData[path[i+1]], {
-              x:0,
-              y:0,
-              z:0,
-              roll:0,
-              pitch:0,
-              yaw:0,
-            }, renderer)
-            if(p)Coordinates.Overlay.ctx.lineTo(...p)
-          }
-        })
-        Coordinates.Overlay.ctx.lineJoin = 'round'
-        Coordinates.Overlay.ctx.lineCap = 'round'
-        Coordinates.Overlay.ctx.stroke()
-        Coordinates.Overlay.ctx.lineWidth /=5
-        Coordinates.Overlay.ctx.globalAlpha = .75
-        Coordinates.Overlay.ctx.stroke()
-      }
-      
-      renderer.z = 6
-      var cx1=0, cy1=0, cz1=0, cx2=0, cy2=0, cz2=0
-      var pts = [0, 0]
-      var opts = [-1, -1]
-      
-      window.Draw = () => {
-        var t = renderer.t
-        renderer.roll = -t / 16
-        //renderer.yaw = t / 2
-        //renderer.pitch = t / 10
-        shapes.forEach((shape, idx) => {
-          switch(shape.name){
-            case 'lines':
-            break
-            case 'points':
-            break
-            case 'cursor':
-            break
-            case 'starting point': case 'ending point':
-              var tx, ty
-              if(idx%2){
-                tx = 0
-                ty = S(p=Math.PI*2/2*idx + t/2) * G/2
-              }else{
-                tx = C(p=Math.PI*2/2*idx + t/2) * G/2
-                ty = 0
-              }
-              p = Math.atan2(tx, ty) + t / 16
-              d = Math.hypot(tx, ty)
-              tx = S(p) * d
-              ty = C(p) * d
-
-              var mind = 6e6, tidx = -1
-              for(var i = 0; i < pointData.length; i++){
-                var x = pointData[i][0]
-                var y = pointData[i][1]
-                var z = pointData[i][2]
-                var d = Math.hypot(x-tx, y-ty)
-                if(d < mind) {
-                  mind = d
-                  tidx = i
-                }
-              }
-              
-              if(tidx != -1 && typeof cursorShape != 'undefined'){
-                cursorShape.x = pointData[tidx][0]
-                cursorShape.y = pointData[tidx][1]
-                cursorShape.z = pointData[tidx][2]
-                renderer.Draw(cursorShape)
-              }
-
-              shape.x = tx
-              shape.y = ty
-              shape.z = -.1
-              
-              pts[idx%2] = tidx
-            break
-          }
-          if(1||shape.shapeType != 'sprite') renderer.Draw(shape)
-        })
-        if(pts[0] != opts[0] || pts[1] != pts[1]){
-          opts[0] = pts[0]
-          opts[1] = pts[1]
-          memo = []
-          path = []
-          found = false
-          recurse(...pts)
-          path = Array.from(new Set(path))
-          if(path.length > 1){
-            path = [pts[1], ...path]
-            path = [...path, pts[0]]
-          }
-        }
-        
-        finalPath = []
-        finalRecursion()
-        
-        drawPath(path, '#0f8')
-        drawPath(finalPath, '#f00')
-
-      }
-      
-    </script>
+    })
+  }
+  
+</script>
   </body>
 </html>
