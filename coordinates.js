@@ -1163,48 +1163,52 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var cols             = 40
                // must remain "16, 40" to trigger default quick torus/cylinder
   
-  var url                    = ''
-  var name                   = ''
-  var size                   = 1
-  var averageNormals         = false
-  var subs                   = 0
-  var sphereize              = 0
-  var color                  = 0x333333
-  var colorMix               = .1
-  var equirectangular        = -1
-  var rotationMode           = 0
+  var url                      = ''
+  var name                     = ''
+  var size                     = 1
+  var averageNormals           = false
+  var subs                     = 0
+  var sphereize                = 0
+  var color                    = 0x333333
+  var colorMix                 = .1
+  var equirectangular          = -1
+  var rotationMode             = 0
   var equirectangularHeightmap = -1
-  var preComputeNormalAssocs = false
-  var flipNormals            = false
-  var showNormals            = false
-  var map                    = '' //`${ModuleBase}/resources/flat_grey.jpg`
-  var isFromZip              = false
-  var heightMap              = ''
-  var heightMapIntensity     = 1
-  var heightMapIsCanvas  = false
-  var canvasTextureMix       = -1
-  var muted                  = true
-  var boundingColor          = 0x88ff22
-  var showBounding           = false
-  var isSprite               = 0.0
-  var isLight                = 0.0
-  var isParticle             = 0.0
-  var isLine                 = 0.0
-  var wireframe              = false
-  var penumbra               = 0.0
-  var playbackSpeed          = 1.0
-  var involveCache           = true
-  var textureMode            = 'image'
-  var showSource             = false
-  var disableDepthTest       = false
-  var mapIsDataArray         = false
-  var dataArrayWidth         = 512
-  var dataArrayHeight        = 512
-  var dataArrayFormat        = gl.RGBA
-  var lum                    = 1
-  var alpha                  = 1
-  var geometryData           = new Float32Array()  // for dynamic shape
-  var texCoords              = new Float32Array()  // for dynamic shape
+  var preComputeNormalAssocs   = false
+  var flipNormals              = false
+  var showNormals              = false
+  var map                      = '' //`${ModuleBase}/resources/flat_grey.jpg`
+  var isFromZip                = false
+  var heightMap                = ''
+  var heightMapIntensity       = 1
+  var heightMapIsCanvas        = false
+  var canvasTextureMix         = -1
+  var muted                    = true
+  var boundingColor            = 0x88ff22
+  var showBounding             = false
+  var isSprite                 = 0.0
+  var isLight                  = 0.0
+  var isParticle               = 0.0
+  var isLine                   = 0.0
+  var wireframe                = false
+  var penumbra                 = 0.0
+  var playbackSpeed            = 1.0
+  var involveCache             = true
+  var textureMode              = 'image'
+  var showSource               = false
+  var disableDepthTest         = false
+  var mapIsDataArray           = false
+  var dataArrayWidth           = 512
+  var dataArrayHeight          = 512
+  var dataArrayFormat          = gl.RGBA
+  var heightmapIsDataArray     = false
+  var heightmapDataArrayWidth  = 512
+  var heightmapDataArrayHeight = 512
+  var heightmapDataArrayFormat = gl.RGBA
+  var lum                      = 1
+  var alpha                    = 1
+  var geometryData             = new Float32Array()  // for dynamic shape
+  var texCoords                = new Float32Array()  // for dynamic shape
   
   var geometry = {}
   
@@ -1268,6 +1272,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'dataarraywidth'     : dataArrayWidth = +geoOptions[key]; break
       case 'dataarrayheight'    : dataArrayHeight = +geoOptions[key]; break
       case 'dataarrayformat'    : dataArrayFormat = geoOptions[key]; break
+      case 'heightmapisdataarray' : heightmapIsDataArray = !!geoOptions[key]; break
+      case 'heightmapdataarraywidth' : heightmapDataArrayWidth = +geoOptions[key]; break
+      case 'heightmapdataarrayheight' : heightmapDataArrayHeight = +geoOptions[key]; break
+      case 'heightpamdataarrayformat' : heightmapDataArrayFormat = geoOptions[key]; break
       case 'exportshape'        : exportShape = !!geoOptions[key]; break
       case 'downloadshape'      : downloadShape = !!geoOptions[key]; break
       case 'penumbra'           : penumbra = geoOptions[key]; break
@@ -1990,9 +1998,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
     canvasTexture, canvasTextureMix, showBounding,
     boundingColor, heightMap, heightMapIntensity,
     heightMapIsCanvas, equirectangularHeightmap,
-    flipX, flipY, flipZ, isFromZip,
-    rotationMode, mapIsDataArray, dataArrayFormat,
-    dataArrayWidth, dataArrayHeight
+    flipX, flipY, flipZ, isFromZip, rotationMode,
+    mapIsDataArray, dataArrayFormat,
+    dataArrayWidth, dataArrayHeight,
+    heightmapIsDataArray, heightmapDataArrayFormat,
+    heightmapDataArrayWidth, heightmapDataArrayHeight,
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -2161,9 +2171,10 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
     break
     case 'dataArray':
       texImage = geometry.map
-      //gl.activeTexture(gl.TEXTURE0)
-      //gl.uniform1i(dset.locTexture, 0)
-      //gl.bindTexture(gl.TEXTURE_2D, binding)
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    break
+    case 'heightmapDataArray':
+      texImage = geometry.heightMap
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     break
     case 'video':
@@ -2202,16 +2213,31 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
   //gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, binding)
   if(textureMode == 'dataArray'){
-    gl.texImage2D(gl.TEXTURE_2D,
-      0,                        //level
-      geometry.dataArrayFormat, // internalFormat
-      geometry.dataArrayWidth,  // width
-      geometry.dataArrayHeight, // height
-      0,                        // border
-      geometry.dataArrayFormat, // format
-      gl.UNSIGNED_BYTE,         // type
-      new Uint8Array(texImage)  // data
-    )
+    if(typeof geometry.dataArrayFormat != 'undefined'){
+      gl.texImage2D(gl.TEXTURE_2D,
+        0,                        //level
+        geometry.dataArrayFormat, // internalFormat
+        geometry.dataArrayWidth,  // width
+        geometry.dataArrayHeight, // height
+        0,                        // border
+        geometry.dataArrayFormat, // format
+        gl.UNSIGNED_BYTE,         // type
+        new Uint8Array(texImage)  // data
+      )
+    }
+  }else if(textureMode == 'heightmapDataArray'){
+    if(typeof geometry.heightmapDataArrayFormat != 'undefined'){
+      gl.texImage2D(gl.TEXTURE_2D,
+        0,                        //level
+        geometry.heightmapDataArrayFormat, // internalFormat
+        geometry.heightmapDataArrayWidth,  // width
+        geometry.heightmapDataArrayHeight, // height
+        0,                        // border
+        geometry.heightmapDataArrayFormat, // format
+        gl.UNSIGNED_BYTE,         // type
+        new Uint8Array(texImage)  // data
+      )
+    }
   }else{
     if(typeof texImage != 'undefined' && texImage.width && texImage.height){
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage)
@@ -3737,82 +3763,88 @@ const BasicShader = async (renderer, options=[]) => {
           if(geometry.heightMapIsCanvas){
             dset.heightResource = heightMapURL
           }else if(heightMapURL){
-            dset.heightMapURL = heightMapURL
-            let l
-            let suffix = (l=heightMapURL.split('.'))[l.length-1].toLowerCase()
-            switch(suffix){
-              case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
-                geometry.heightTextureMode = 'video'
-                if(involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.heightMapURL)).length){
-                  console.log('found video in cache... using it')
-                  dset.heightResource = cacheItem[0].resource
-                  //dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = geometry.playbackSpeed
-                  dset.heightTexture = cacheItem[0].texture
-                  //gl.activeTexture(gl.TEXTURE4)
-                  //BindImage(gl, dset.heightResource, dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
-                }else{
-                  dset.heightResource = document.createElement('video')
-                  dset.heightResource.muted = true
-                  dset.heightResource.addEventListener('canplay', () =>{
+            if(IsArray(heightMapURL)){
+              geometry.heightTextureMode = 'heightmapDataArray'
+              geometry.heightmapIsDataArray = true
+              BindImage(gl, '',  dset.texture, geometry.heightTextureMode, 0, {map: heightMapURL})
+            }else{
+              dset.heightMapURL = heightMapURL
+              let l
+              let suffix = (l=heightMapURL.split('.'))[l.length-1].toLowerCase()
+              switch(suffix){
+                case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
+                  geometry.heightTextureMode = 'video'
+                  if(involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.heightMapURL)).length){
+                    console.log('found video in cache... using it')
+                    dset.heightResource = cacheItem[0].resource
+                    //dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = geometry.playbackSpeed
+                    dset.heightTexture = cacheItem[0].texture
+                    //gl.activeTexture(gl.TEXTURE4)
+                    //BindImage(gl, dset.heightResource, dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
+                  }else{
+                    dset.heightResource = document.createElement('video')
+                    dset.heightResource.muted = true
+                    dset.heightResource.addEventListener('canplay', () =>{
+                      dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = geometry.playbackSpeed
+                    })
+                    dset.heightResource.loop = true
+                    if(!geometry.muted && !audioConsent) {
+                      audioConsent = true
+                      GenericPopup('play audio OK?', true, ()=>{
+                        dset.heightResource.muted = false
+                        dset.heightResource.currentTime = 0
+                        //dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = dset.heightResource.playbackSpeed
+                        dset.heightResource.play()
+                      })
+                    }
                     dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = geometry.playbackSpeed
-                  })
-                  dset.heightResource.loop = true
-                  if(!geometry.muted && !audioConsent) {
-                    audioConsent = true
-                    GenericPopup('play audio OK?', true, ()=>{
-                      dset.heightResource.muted = false
-                      dset.heightResource.currentTime = 0
-                      //dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = dset.heightResource.playbackSpeed
+                    dset.heightResource.oncanplay = async () => {
                       dset.heightResource.play()
+                    }
+                    //gl.activeTexture(gl.TEXTURE4)
+                    //BindImage(gl, dset.heightResource, dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
+                    cache.textures.push({
+                      url: heightMapURL,
+                      resource: dset.heightResource,
+                      texture: dset.heightTexture
+                    })
+                    await fetch(heightMapURL).then(res=>res.blob()).then(data => {
+                      dset.heightResource.src = URL.createObjectURL(data)
                     })
                   }
-                  dset.heightResource.playbackRate = dset.heightResource.defaultPlaybackRate = geometry.playbackSpeed
-                  dset.heightResource.oncanplay = async () => {
-                    dset.heightResource.play()
-                  }
-                  //gl.activeTexture(gl.TEXTURE4)
-                  //BindImage(gl, dset.heightResource, dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
-                  cache.textures.push({
-                    url: heightMapURL,
-                    resource: dset.heightResource,
-                    texture: dset.heightTexture
-                  })
-                  await fetch(heightMapURL).then(res=>res.blob()).then(data => {
-                    dset.heightResource.src = URL.createObjectURL(data)
-                  })
-                }
-              break
-              default:
-                geometry.heightTextureMode = 'heightImage'
-                if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==heightMapURL)).length){
-                  dset.heightTexture = cacheItem[0].texture
-                  var heightImage = cacheItem[0].resource
-                  dset.heightResource = heightImage
-                  gl.activeTexture(gl.TEXTURE4)
-                  BindImage(gl, heightImage, dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
-                }else{
-                  var heightImage = new Image()
-                  dset.heightResource = heightImage
-                  cache.textures.push({
-                    url: heightMapURL,
-                    resource: heightImage,
-                    texture: dset.heightTexture
-                  })
-                  
-                  heightImage.onload = async () => {
-                    gl.useProgram(dset.program)
+                break
+                default:
+                  geometry.heightTextureMode = 'heightImage'
+                  if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==heightMapURL)).length){
+                    dset.heightTexture = cacheItem[0].texture
+                    var heightImage = cacheItem[0].resource
+                    dset.heightResource = heightImage
                     gl.activeTexture(gl.TEXTURE4)
-                    gl.uniform1i(dset.locHeightMap, 4)
-                    await BindImage(gl, heightImage,
-                       dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
-                    gl.activeTexture(gl.TEXTURE0)
+                    BindImage(gl, heightImage, dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
+                  }else{
+                    var heightImage = new Image()
+                    dset.heightResource = heightImage
+                    cache.textures.push({
+                      url: heightMapURL,
+                      resource: heightImage,
+                      texture: dset.heightTexture
+                    })
+                    
+                    heightImage.onload = async () => {
+                      gl.useProgram(dset.program)
+                      gl.activeTexture(gl.TEXTURE4)
+                      gl.uniform1i(dset.locHeightMap, 4)
+                      await BindImage(gl, heightImage,
+                         dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
+                      gl.activeTexture(gl.TEXTURE0)
+                    }
+                    
+                    await fetch(heightMapURL).then(res=>res.blob()).then(data => {
+                      heightImage.src = URL.createObjectURL(data)
+                    })
                   }
-                  
-                  await fetch(heightMapURL).then(res=>res.blob()).then(data => {
-                    heightImage.src = URL.createObjectURL(data)
-                  })
-                }
-              break
+                break
+              }
             }
           }
           //gl.useProgram( dset.program )
