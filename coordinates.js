@@ -2987,12 +2987,12 @@ const BasicShader = async (renderer, options=[]) => {
         
         float p, d;
         if(rotationMode == 0 || isGeo == 0) {
-          pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
-          pos.y = cos(p)*d;
           pos.x = sin(p=atan(pos.x,pos.z)+rot.z)*(d=sqrt(pos.x*pos.x+pos.z*pos.z));
           pos.z = cos(p)*d;
           pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
           pos.z = cos(p)*d;
+          pos.x = sin(p=atan(pos.x,pos.y)+rot.x)*(d=sqrt(pos.x*pos.x+pos.y*pos.y));
+          pos.y = cos(p)*d;
         }
         if(rotationMode == 1 && isGeo == 1) {
           pos.y = sin(p=atan(pos.y,pos.z)+rot.y)*(d=sqrt(pos.y*pos.y+pos.z*pos.z));
