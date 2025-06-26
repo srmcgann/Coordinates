@@ -2,7 +2,7 @@
 <b>Coordinates</b> is a graphics API for JavaScript enabled web browsers. It has methods for leveraging the HTML5 canvas API to create <b>images</b>, <b>animations</b>, <b>games</b> or <b>artwork</b>. This API uses <b>WebGL2</b>. Browsers which do not support webgl2 may have issues (black viewports), although 2d contexts may be invoked using this API which have much broader support.<br><br>
 <center>
   
-![example0](README_g0.gif) </center>
+![example0](./img/README_g0.gif) </center>
 As a stand-alone module, <b>Coordinates</b> may be included in an HTML5 project, providing a framework for creating graphics <b>viewports, shaders</b>, stock and custom <b>shapes</b>, as well as <b>textures</b>, and a growing library of <b>effects</b>.
 
 
@@ -90,7 +90,7 @@ verbatim, into a file named ``index.html``, and see the result...<br>
 </html>
 ```
 the result<br>
-![example 1](README_g1.gif)
+![example 1](./img/README_g1.gif)
 <br><br>
 
 ## methods, options, and their defaults
@@ -203,7 +203,7 @@ Coordinates.UnloadFPSControls(renderer)
 
 <center>
 
-![crosshairSel](crosshairSel.jpg) </center>
+![crosshairSel](./img/crosshairSel.jpg) </center>
 
 If a custom crosshairMap is used, it becomes a 4th element (3) in the crosshairSel array [0, 1, 2, 3]. If specified, crosshairSel is set to this automatically, but can be changed, or changed back.
 
@@ -694,7 +694,7 @@ window.Draw = () => {
 This creates such output<br>
 <center>
 
-![example2](README_g6.gif) </center>
+![example2](./img/README_g6.gif) </center>
 
 
 <br><br>
@@ -780,7 +780,7 @@ window.Draw = () => {
 This creates such output<br>
 <center>
 
-![example2](README_g2.gif) </center>
+![example2](./img/README_g2.gif) </center>
 
 
 ## Plugins
@@ -849,7 +849,7 @@ window.Draw = () => {
 This creates such output<br>
 <center>
 
-![example4](README_g4.gif) </center>
+![example4](./img/README_g4.gif) </center>
 
 
 
@@ -988,7 +988,7 @@ window.Draw = () => {
 The code above produces this result:
 <center>
 
-![picker](README_g3.gif) </center>
+![picker](./img/README_g3.gif) </center>
 
 
 <br><br>
@@ -1227,7 +1227,7 @@ a complete working example:
 The code above produces this result:
 <center>
 
-![picker](README_g5.gif) </center>
+![picker](./img/README_g5.gif) </center>
 
 <br><br>
 ### GenHash()
