@@ -523,6 +523,44 @@ const Renderer = async options => {
                            geometry.shapeType == 'point light' ||
                            geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
                   break
+                  case 'refraction':
+
+                    ctx.activeTexture(ctx.TEXTURE5)
+                    if(uniform.textureMode == 'video'){
+                       BindImage(ctx, uniform.video,  uniform.refractionTexture, uniform.textureMode, renderer.t, uniform)
+                    }
+                    ctx.useProgram( sProg )
+                    ctx.activeTexture(ctx.TEXTURE5)
+                    ctx.uniform1i(uniform.locRefractionTexture, 5)
+                    ctx.bindTexture(ctx.TEXTURE_2D, uniform.refractionTexture)
+                    
+                    ctx.uniform1f(uniform.locRefractionOmitEquirectangular,
+                         ( geometry.shapeType == 'rectangle' ||
+                           geometry.shapeType == 'point light' ||
+                           geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
+
+                    uniform.locAngleOfRefraction = ctx.getUniformLocation(dset.program, "angleOfRefraction")
+
+                    ctx.uniform1f(uniform.locAngleOfRefraction, uniform.angleOfRefraction)
+
+                    // far-normals, indices
+                    //uniform.refractionVec_buffer = ctx.createBuffer()
+
+                    ctx.bindBuffer(ctx.ARRAY_BUFFER, uniform.refractionVec_buffer)
+                    ctx.bufferData(ctx.ARRAY_BUFFER, uniform.refractionVecs, ctx.STATIC_DRAW)
+                    ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, uniform.RefractionVec_Index_Buffer)
+                    ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, uniform.refractionVecIndices, ctx.STATIC_DRAW)
+                    ctx.bindBuffer(ctx.ARRAY_BUFFER, uniform.refractionVec_buffer)
+                    ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, uniform.RefractionVec_Index_Buffer)
+                    //uniform.locRefractionVec= ctx.getAttribLocation(dset.program, "nVecRefraction")
+                    console.log(dset.locRefractionlVec)
+                    ctx.vertexAttribPointer(dset.locRefractionlVec, 3, ctx.FLOAT, false, 0, 0)
+                    ctx.enableVertexAttribArray(dset.locRefractionlVec)
+
+                    ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+                    ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+
+                  break
                   case 'phong':
                     uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
                     ctx.uniform1f(uniform.locPhongTheta, uniform.theta + Math.PI)
@@ -2769,8 +2807,8 @@ const BasicShader = async (renderer, options=[]) => {
                                          0 : option[key].value,
                   flatShading:         typeof option[key].flatShading == 'undefined' ?
                                          false : option[key].flatShading,
-                  flipReflections:     typeof option[key].flipReflections == 'undefined' ?
-                                         0 : option[key].flipReflections,
+                  flipReflections:     typeof option[key].flipReflections == 'undefined' ? 0 : option[key].flipReflections,
+                  flipRefractions:     typeof option[key].flipRefractions == 'undefined' ? 0 : option[key].flipRefractions,
                   dataType:            typeof option[key].dataType == 'undefined' ?
                                          'uniform1f' : option[key].dataType,
                   vertDeclaration:     typeof option[key].vertDeclaration == 'undefined' ?
@@ -2840,6 +2878,92 @@ const BasicShader = async (renderer, options=[]) => {
                     mixColor = merge(mixColor, refCol);
                     baseColorIp = 1.0 - reflection;
                     //light += reflection / 4.0;
+                  `,
+                }
+                dataset.optionalUniforms.push( uniformOption )
+              }
+            break
+            case 'refraction':
+              if(typeof option[key]?.enabled == 'undefined' ||
+                 !!option[key].enabled){
+                   
+                var uniformOption = {
+                  name:                option[key].type,
+                  playbackSpeed:       typeof option[key].playbackSpeed == 'undefined' ?
+                                         1 : option[key].playbackSpeed,
+                  involveCache:        typeof option[key].involveCache == 'undefined' ?
+                                         true : option[key].involveCache,
+                  angleOfRefraction:   typeof option[key].angleOfRefraction == 'undefined' ?
+                                         1 : option[key].angleOfRefraction,
+                  muted:               typeof option[key].muted == 'undefined' ?
+                                         true : option[key].muted,
+                  map:                 option[key].map,
+                  loc:                 '',
+                  value:               typeof option[key].value == 'undefined' ?
+                                         .5 : option[key].value,
+                  flatShading:         typeof option[key].flatShading == 'undefined' ?
+                                         false : option[key].flatShading,
+                  flipRefractions:     typeof option[key].flipRefractions == 'undefined' ?
+                                         0 : option[key].flipRefractions,
+                  flatShadingUniform:  'refractionFlatShading',
+                  dataType:            'uniform1f',
+                  vertDeclaration:     `
+                    attribute vec3 nVecRefraction;
+                    varying vec3 nVrefraction;
+                  `,
+                  vertCode:            `
+                    vec3 nVrefraction = nVecRefraction;
+                  `,
+                  fragDeclaration:     `
+                    uniform float refraction;
+                    uniform float refractionFlatShading;
+                    uniform float refractionOmitEquirectangular;
+                    uniform float refractionFlipRefs;
+                    uniform float angleOfRefraction;
+                    uniform sampler2D refractionMap;
+                    varying vec3 nVrefraction;
+                  `,
+                  fragCode:            `
+                    float refractionP1, refractionP2;
+                    float refractionP1a, refractionP2a;
+                    float refractionP1b, refractionP2b;
+                    if(refractionOmitEquirectangular != 1.0){
+
+                      vec3 refractionPos = R_rpy(nV, vec3(0.0,-camOri.y, -camOri.z));
+
+                      float px = refractionPos.x;
+                      float py = refractionPos.y;
+                      float pz = refractionPos.z;
+                      refractionP1a = -atan(px, pz) / M_PI / 4.0;
+                      refractionP2a = acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
+                      if(refractionFlipRefs == 1.0) refractionP2a = 1.0 - refractionP2a;
+
+                      refractionPos = R_rpy(nVrefraction, vec3(0.0,-camOri.y, -camOri.z));
+                      px = refractionPos.x;
+                      py = refractionPos.y;
+                      pz = refractionPos.z;
+                      refractionP1b = -atan(px, pz) / M_PI / 4.0;
+                      refractionP2b = acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
+                      if(refractionFlipRefs == 1.0) refractionP2b = 1.0 - refractionP2b;
+
+                      //refractionP1a *= 0.0; //angleOfRefraction;
+                      //refractionP2a *= 1.0; //angleOfRefraction;
+                      //refractionP1 = (refractionP1a + refractionP1b) / 2.0;
+                      //refractionP2 = (refractionP2a + refractionP2b) / 2.0;
+
+                      refractionP1 = refractionP1b;
+                      refractionP2 = refractionP2b;
+
+                    } else {
+                      refractionP1a = vUv.x;
+                      refractionP2a = vUv.y;
+                    }
+                    
+                    vec2 refractionCoords = vec2(1.0 - refractionP1 * 2.0, refractionP2);
+                    vec4 refractionCol = vec4(texture2D(refractionMap, vec2(refractionCoords.x, refractionCoords.y)).rgb * 1.25, refraction / 1.0);
+                    mixColor2 = merge(mixColor2, refractionCol);
+                    baseColorIp2 = 1.0 - refraction;
+                    //light += refraction / 4.0;
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -3321,8 +3445,11 @@ const BasicShader = async (renderer, options=[]) => {
           gl_FragColor = merge(gl_FragColor, vec4(color.rgb, alpha));
         }else{
           float mixColorIp = colorMix;
+          float mixColorIp2 = colorMix;
           float baseColorIp = 1.0 - mixColorIp;
+          float baseColorIp2 = 1.0 - mixColorIp2;
           vec4 mixColor = vec4(color.rgb, mixColorIp);
+          vec4 mixColor2 = vec4(color.rgb, mixColorIp2);
           vec4 light = hasPhong == 1.0 ? GetPointLight() :
                 vec4(ambientLight, ambientLight, ambientLight, 1.0);
           float colorMag = 1.0;
@@ -3405,8 +3532,12 @@ const BasicShader = async (renderer, options=[]) => {
               if(isSprite != 0.0 || isLight != 0.0){
                 gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
               }else{
+                
                 texel.a = baseColorIp;
                 vec4 col = merge(mixColor, texel);
+                col.a = baseColorIp;
+                mixColor2.a = baseColorIp2;
+                col = merge(mixColor2, col); // refractions
                 col.rgb *= light.rgb;
                 gl_FragColor = vec4(col.rgb * colorMag, 1.0);
               }
@@ -3542,10 +3673,10 @@ const BasicShader = async (renderer, options=[]) => {
                           var image = new Image()
                           ret.datasets = [...ret.datasets, {
                             texture: uniform.refTexture, iURL: url }]
-                          gl.activeTexture(gl.TEXTURE1)
                           gl.uniform1f(uniform.locRefFlipRefs , uniform.flipReflections)
                           gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
                           image.onload = () =>{
+                            gl.activeTexture(gl.TEXTURE1)
                             BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, {url})
                           }
                           cache.textures.push({
@@ -3578,6 +3709,174 @@ const BasicShader = async (renderer, options=[]) => {
                   gl.uniform1i(uniform.locRefTexture, 1)
                   gl.activeTexture(gl.TEXTURE1)
                   gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
+                break
+                case 'refraction':
+                  var url = uniform.map
+                  if(url){
+                    
+                    uniform.refractionVecs = []
+                    var x, y, z, x1, y1, x2, y2, z2, x3, y3, z3, x4, y4, z4
+                    var l2
+                    for(var i = 0; i < geometry.normalVecs.length; i+=3){
+                      var vx = geometry.vertices[i+0]
+                      var vy = geometry.vertices[i+1]
+                      var vz = geometry.vertices[i+2]
+                      var x1 = geometry.normalVecs[i+0]
+                      var y1 = geometry.normalVecs[i+1]
+                      var z1 = geometry.normalVecs[i+2]
+                      var mind = 6e6
+                      var tidx = i
+                      for(var j = 0; mind == 6e6 && j < geometry.vertices.length; j+=9){
+                        if(mind == 6e6){ // && (i<j || i>=j+9)){
+                          var a = []
+                          x = geometry.vertices[j+0]
+                          y = geometry.vertices[j+1]
+                          z = geometry.vertices[j+2]
+                          a.push(x,y,z)
+                          x = geometry.vertices[j+3]
+                          y = geometry.vertices[j+4]
+                          z = geometry.vertices[j+5]
+                          a.push(x,y,z)
+                          x = geometry.vertices[j+6]
+                          y = geometry.vertices[j+7]
+                          z = geometry.vertices[j+8]
+                          a.push(x,y,z)
+                          if(l2=PointInPoly3D(vx-x1*.01,vy-y1*.01,vz-z1*.01,vx-x1*1e4,vy-y1*1e4,vz-z1*1e4,a,true)){
+                            //tidx = mind = j
+                            if((d = Math.hypot(l2[0][0]-vx, l2[0][1]-vy, l2[0][2]-vz)) < mind){
+                              tidx = j
+                              mind = d
+                            }
+                          }
+                        }
+                      }
+                      //if(tidx != -1){
+                        tidx += ((i%9)/3|0)*3
+                        uniform.refractionVecs.push(geometry.normalVecs[i+0])
+                        uniform.refractionVecs.push(geometry.normalVecs[i+1])
+                        uniform.refractionVecs.push(geometry.normalVecs[i+2])
+                        //uniform.refractionVecs.push(geometry.normalVecs[tidx+0],
+                        //                            geometry.normalVecs[tidx+1],
+                        //                            geometry.normalVecs[tidx+2])
+                    }
+                    
+                    // far-normals, indices
+                    uniform.refractionVecs = new Float32Array(uniform.refractionVecs)
+                    uniform.refractionVec_buffer = gl.createBuffer()
+                    gl.bindBuffer(gl.ARRAY_BUFFER, uniform.refractionVec_buffer)
+                    gl.bufferData(gl.ARRAY_BUFFER, uniform.refractionVecs, gl.STATIC_DRAW)
+                    gl.bindBuffer(gl.ARRAY_BUFFER, null)
+                    uniform.refractionVecIndices = new Uint32Array( Array(uniform.refractionVecs.length/3).fill().map((v,i)=>i) )
+                    uniform.RefractionVec_Index_Buffer = gl.createBuffer()
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, uniform.RefractionVec_Index_Buffer)
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, uniform.refractionVecIndices, gl.STATIC_DRAW)
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+                    
+                    gl.bindBuffer(gl.ARRAY_BUFFER, uniform.refractionVec_buffer)
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, uniform.RefractionVec_Index_Buffer)
+                    
+                    let l
+                    let suffix = (l=url.split('.'))[l.length-1].toLowerCase()
+                    uniform.refractionTexture = gl.createTexture()
+                    switch(suffix){
+                      case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
+                        uniform.textureMode = 'video'
+                        if(involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
+                          console.log('found video in cache... using it')
+                          uniform.video = cacheItem[0].resource
+                          //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                          ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                          //gl.activeTexture(gl.TEXTURE5)
+                          //BindImage(gl, uniform.video, uniform.refractionTexture, uniform.textureMode, -1, {url})
+                        }else{
+                          uniform.video = document.createElement('video')
+                          uniform.video.muted = true
+                          uniform.video.playbackRate = uniform.playbackSpeed
+                          uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                          ret.datasets = [...ret.datasets, {
+                            texture: uniform.refractionTexture, iURL: url }]
+                          uniform.video.loop = true
+                          if(!uniform.muted && !audioConsent) {
+                            audioConsent = true
+                            GenericPopup('play audio OK?', true, ()=>{
+                              cache.textures.filter(v=>v.url == url)[0].resource.muted = false
+                              cache.textures.filter(v=>v.url == url)[0].resource.currentTime = 0
+                              //cache.textures.filter(v=>v.url == url)[0].resource.playbackRate = cache.textures.filter(v=>v.url == url)[0].resource.defaultPlaybackRate = uniform.playbackSpeed
+                              cache.textures.filter(v=>v.url == url)[0].resource.play()
+                            })
+                          }
+                          uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                          uniform.video.oncanplay = async () => {
+                            uniform.video.play()
+                          }
+                          gl.activeTexture(gl.TEXTURE5)
+                          BindImage(gl, uniform.video, uniform.refractionTexture, uniform.textureMode, -1, uniform)
+                          cache.textures.push({
+                            url,
+                            resource: uniform.video,
+                            texture: uniform.refractionTexture
+                          })
+                          await fetch(url).then(res=>res.blob()).then(data => {
+                            uniform.video.src = URL.createObjectURL(data)
+                          })
+                        }
+                      break
+                      default:
+                        uniform.textureMode = 'image'
+                        if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
+                          console.log('found image in cache... using it')
+                          var image = cacheItem[0].resource
+                          ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                          gl.activeTexture(gl.TEXTURE5)
+                          BindImage(gl, image, uniform.refractionTexture, uniform.textureMode, -1, uniform)
+                        }else{
+                          var image = new Image()
+                          ret.datasets = [...ret.datasets, {
+                            texture: uniform.refractionTexture, iURL: url }]
+                          gl.activeTexture(gl.TEXTURE5)
+                          gl.uniform1f(uniform.locRefractionFlipRefs , uniform.flipRefractionlections)
+                          gl.bindTexture(gl.TEXTURE_2D, uniform.refractionTexture)
+                          image.onload = () =>{
+                            BindImage(gl, image, uniform.refractionTexture, uniform.textureMode, -1, uniform)
+                          }
+                          cache.textures.push({
+                            url,
+                            resource: image,
+                            texture: uniform.refractionTexture
+                          })
+                          await fetch(url).then(res=>res.blob()).then(data => {
+                            image.src = URL.createObjectURL(data)
+                          })
+                        }                        
+                      break
+                    }
+                  }
+                  gl.useProgram(dset.program)
+                  gl.activeTexture(gl.TEXTURE5)
+                  gl.uniform1i(uniform.locRefractionTexture, 5)
+
+
+                  dset.locRefractionlVec = gl.getAttribLocation(dset.program, "nVecRefraction")
+                  gl.vertexAttribPointer(dset.locRefractionVec, 3, gl.FLOAT, true, 0, 0)
+                  gl.enableVertexAttribArray(dset.locRefractionVec)
+
+
+                  uniform.locRefractionOmitEquirectangular = gl.getUniformLocation(dset.program, "refractionOmitEquirectangular")
+                  gl.uniform1f(uniform.locRefractionOmitEquirectangular,
+                     ( geometry.shapeType == 'rectangle' ||
+                       geometry.shapeType == 'point light' ||
+                       geometry.shapeType == 'sprite' ||
+                       geometry.shapeType == 'particles' ||
+                       geometry.shapeType == 'lines') ? 1.0 : 0.0)
+                    //gl.uniform1f(uniform.locRefractionFlipRefs , uniform.refractionTexture)
+                    //gl.bindTexture(gl.TEXTURE_2D, uniform.refractionTexture)
+                  uniform.locRefractionFlipRefs = gl.getUniformLocation(dset.program, "refractionFlipRefs")
+                  gl.uniform1f(uniform.locRefractionFlipRefs , uniform.flipRefractions)
+                  uniform.locRefractionTexture = gl.getUniformLocation(dset.program, "refractionMap")
+                  gl.bindTexture(gl.TEXTURE_2D, uniform.refractionTexture)
+                  gl.uniform1i(uniform.locRefractionTexture, 5)
+                  gl.activeTexture(gl.TEXTURE5)
+                  gl.bindTexture(gl.TEXTURE_2D, uniform.refractionTexture)
                 break
                 case 'phong':
                   uniform.locPhongTheta = gl.getUniformLocation(dset.program, uniform.theta)
