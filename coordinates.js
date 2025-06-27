@@ -3228,11 +3228,14 @@ const BasicShader = async (renderer, options=[]) => {
           fPos = pos;
         }else{
           if(isSprite != 0.0 || isLight != 0.0){
+
             geo = R(geoPos, camOri, 0);
             pos = R(vec3(cx, cy, cz),
-                     vec3(-camOri.x, -camOri.y + M_PI, -camOri.z), 0);
-            //pos = R(pos,
-            //         vec3(0.0, 0.0, 0.0 ), 0);
+                     vec3(0.0, -camOri.y + M_PI, 0.0), 0);
+            pos = R(pos,
+                     vec3(-camOri.x, 0.0, -camOri.z ), 0);
+                     
+            
             pos = R(pos, camOri, 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = R(nVec, geoOri, 1);
@@ -3445,7 +3448,7 @@ const BasicShader = async (renderer, options=[]) => {
           gl_FragColor = merge(gl_FragColor, vec4(color.rgb, alpha));
         }else{
           float mixColorIp = colorMix;
-          float mixColorIp2 = colorMix;
+          float mixColorIp2 = 1.0;
           float baseColorIp = 1.0 - mixColorIp;
           float baseColorIp2 = 1.0 - mixColorIp2;
           vec4 mixColor = vec4(color.rgb, mixColorIp);
