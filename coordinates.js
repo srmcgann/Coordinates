@@ -1139,7 +1139,10 @@ const DrawAnimation = (renderer, animation, options) => {
 }
   
 const DownloadCustomShape = async geo => {
-
+  if(geo.normalAssocs){
+    console.log('downloading custom shape, detected preComputeNormalAssocs')
+    var normalAssocs = []
+  }
   var vertices = []
   var normals = []
   var normalVecs = []
@@ -1156,7 +1159,16 @@ const DownloadCustomShape = async geo => {
   for(var i = 0; i< geo.normalVecs.length; i++)
     normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
 
-  var object = { vertices, uvs, normals, normalVecs}
+  if(geo.normalAssocs){
+    for(var i = 0; i< geo.normalAssocs.length; i++)
+      normalAssocs.push(geo.normalAssocs[i])
+  }
+  
+  if(geo.normalAssocs){
+    var object = { vertices, uvs, normals, normalVecs, normalAssocs}
+  }else{
+    var object = { vertices, uvs, normals, normalVecs}
+  }
 
   var link      = document.createElement('a')
   link.href     = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(object))
@@ -1348,7 +1360,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         playbackSpeed = geoOptions[key]; break
       case 'averagenormals'     :
         averageNormals = !!geoOptions[key];
-        preComputeNormalAssocs = averageNormals
+        //preComputeNormalAssocs = averageNormals
       break
       default:
         geometry[key] = geoOptions[key]
@@ -1437,6 +1449,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
             if(involveCache && (cacheItem = cache.geometry.filter(v=>v.url==fileURL)).length){
               console.log(`found geometry (${hint}) in cache... using it`)
               var data          = cacheItem[0].data
+              if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
               vertices          = new Float32Array(data.vertices)
               normals           = new Float32Array(data.normals)
               normalVecs        = new Float32Array(data.normalVecs)
@@ -1445,6 +1458,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
               resolved = true
             }else{
               await fetch(fileURL).then(res=>res.json()).then(data => {
+                if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
                 vertices    = data.vertices
                 normals     = data.normals
                 normalVecs  = data.normalVecs
@@ -1472,6 +1486,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
            (cacheItem = cache.customShapes.filter(v=>v.url==url)).length){
           console.log(`found custom shape in cache... using it`)
           var data   = cacheItem[0].data
+          if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
           vertices   = data.vertices
           normals    = data.normals
           normalVecs = data.normalVecs
@@ -1482,6 +1497,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(!resolved){
           if(typeof geometryData.vertices != 'undefined' &&
              geometryData.vertices.length){
+            if(typeof geometryData.normalAssocs != 'undefined') normalAssocs = geometryData.normalAssocs
             vertices    = geometryData.vertices
             normals     = geometryData.normals
             normalVecs  = geometryData.normalVecs
@@ -1490,11 +1506,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
             //cache.customShapes.push({data: structuredClone(geometryData), url})
           }else{
             await fetch(fileURL).then(res=>res.json()).then(data=>{
-              vertices    = data.vertices
-              normals     = data.normals
-              normalVecs  = data.normalVecs
-              uvs         = data.uvs
-              resolved    = true
+              if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
+              vertices     = data.vertices
+              normals      = data.normals
+              normalVecs   = data.normalVecs
+              uvs          = data.uvs
+              resolved     = true
               cache.customShapes.push({data: structuredClone(data), url})
             })
           }
@@ -1936,6 +1953,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
       uvs: [],
     }
     vertices.map(v => processedOutput.vertices.push(Math.round(v*1e3) / 1e3))
+    if(geometry.preComputeNormalAssocs){
+      processedOutput.normalAssocs = []
+      geometry.normalAssocs.map(v => processedOutput.vertices.push(v))
+    }
     for(var i = 0; i < normals.length; i+=6){
       
       var X1 = normals[i+0]
@@ -2039,7 +2060,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     heightMapIsCanvas, equirectangularHeightmap,
     flipX, flipY, flipZ, isFromZip, rotationMode,
     mapIsDataArray, dataArrayFormat,
-    dataArrayWidth, dataArrayHeight,
+    dataArrayWidth, dataArrayHeight, preComputeNormalAssocs,
     heightmapIsDataArray, heightmapDataArrayFormat,
     heightmapDataArrayWidth, heightmapDataArrayHeight,
   }
