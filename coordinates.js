@@ -477,12 +477,12 @@ const Renderer = async options => {
             
             // point lights
             ctx.uniform1i(dset.locPointLightCount, renderer.pointLights.length)
-            var pldata = new Float32Array()
-            var plcols = new Float32Array()
+            var pldata = []
+            var plcols = []
             renderer.pointLights.map(geometry => {
-              pldata = [...pldata, geometry.x, geometry.y, geometry.z, geometry.lum]
+              pldata.push(geometry.x, geometry.y, geometry.z, geometry.lum)
               let col = HexToRGB(geometry.color)
-              plcols = [...plcols, ...HexToRGB(geometry.color), 1.0]
+              plcols.push(...HexToRGB(geometry.color), 1.0)
             })
             if(pldata.length){
               ctx.uniform4fv(dset.locPointLights, pldata)
@@ -553,7 +553,6 @@ const Renderer = async options => {
                     ctx.bindBuffer(ctx.ARRAY_BUFFER, uniform.refractionVec_buffer)
                     ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, uniform.RefractionVec_Index_Buffer)
                     //uniform.locRefractionVec= ctx.getAttribLocation(dset.program, "nVecRefraction")
-                    console.log(dset.locRefractionlVec)
                     ctx.vertexAttribPointer(dset.locRefractionlVec, 3, ctx.FLOAT, false, 0, 0)
                     ctx.enableVertexAttribArray(dset.locRefractionlVec)
 
@@ -640,7 +639,7 @@ const Renderer = async options => {
               
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
               if(equirectangularPlugin){
-                var verts =  new Float32Array()
+                var verts =  []
                 for(var i=0; i<geometry.vertices; i+=9){
                   var X1 = geometry.vertices[i+0]
                   var Y1 = geometry.vertices[i+1]
@@ -757,24 +756,24 @@ const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
     switch(lineType){
       case 'v':
         lineParts.shift()
-        vInd = [...vInd, lineParts.map(v=>+v)]
+        vInd.push(lineParts.map(v=>+v))
       break
       case 'vt':
         lineParts.shift()
-        uInd = [...uInd, lineParts.map(v=>+v)]
+        uInd.push(lineParts.map(v=>+v))
       break
       case 'vn':
         lineParts.shift()
-        nInd = [...nInd, lineParts.map(v=>+v)]
+        nInd.push(lineParts.map(v=>+v))
       break
       case 'f':
         lineParts.shift()
-        fInd = [...fInd, lineParts.map(v=>v)]
+        fInd.push(lineParts.map(v=>v))
       break
     }
   })
   fInd.map(face => {
-    var v = new Float32Array(), u = new Float32Array(), n = new Float32Array()
+    var v = [], u = [], n = []
     var vidx, uidx, nidx
     var useUVs = false, useNormals = false
     face.map(vertex => {
@@ -782,22 +781,22 @@ const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
       switch(vertexParts.length){
         case 1: // only verts
           vidx = vertexParts[0]
-          v = [...v, vInd[vidx-1]]
+          v.push(vInd[vidx-1])
         break
         case 2: // verts, uvs
           vidx = vertexParts[0]
           uidx = vertexParts[1]
-          v = [...v, vInd[vidx-1]]
-          u = [...u, uInd[uidx-1]]
+          v.push(vInd[vidx-1])
+          u.push(uInd[uidx-1])
           useUVs = true
         break
         case 3: // verts, uvs, normals
           vidx = vertexParts[0]
           uidx = vertexParts[1]
           nidx = vertexParts[2]
-          v = [...v, vInd[vidx-1]]
-          u = [...u, uInd[uidx-1]]
-          n = [...n, nInd[nidx-1]]
+          v.push(vInd[vidx-1])
+          u.push(uInd[uidx-1])
+          n.push(nInd[nidx-1])
           useNormals = true
         break
       }
@@ -837,42 +836,39 @@ const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
       
     switch(v.length) {
       case 3:
-        a = new Float32Array()
+        a = []
         n.map((q, j) => {
-          a = [...a,
+          a.push(
            [X1,Y1,Z1, X1+NX1, Y1+NY1, Z1+NZ1],
            [X2,Y2,Z2, X2+NX2, Y2+NY2, Z2+NZ2],
-           [X3,Y3,Z3, X3+NX3, Y3+NY3, Z3+NZ3]]
+           [X3,Y3,Z3, X3+NX3, Y3+NY3, Z3+NZ3])
         })
         n = a
-        ret.vertices = [...ret.vertices,
-                        ...v[0], ...v[1], ...v[2]]
+        ret.vertices.push(...v[0], ...v[1], ...v[2])
         if(u.length && typeof u[0] != 'undefined')
-          ret.uvs      = [...ret.uvs,
-                        ...u[0], ...u[1], ...u[2]]
+          ret.uvs.push( ...u[0], ...u[1], ...u[2])
         if(n.length && typeof n[0] != 'undefined')
-          ret.normals  = [...ret.normals,
-                        ...n[0], ...n[1], ...n[2]]
+          ret.normals.push(...n[0], ...n[1], ...n[2])
       break
       case 4: // split quad
-        a = new Float32Array()
+        a = []
         n.map((q, j) => {
-          a = [...a,
+          a.push(
            [X1,Y1,Z1, X1+NX1, Y1+NY1, Z1+NZ1],
            [X2,Y2,Z2, X2+NX2, Y2+NY2, Z2+NZ2],
            [X3,Y3,Z3, X3+NX3, Y3+NY3, Z3+NZ3],
-           [X4,Y4,Z4, X4+NX4, Y4+NY4, Z4+NZ4]]
+           [X4,Y4,Z4, X4+NX4, Y4+NY4, Z4+NZ4])
         })
         n = a
-        ret.vertices          = [...ret.vertices,
+        ret.vertices.push(
                         ...v[0], ...v[1], ...v[2],
-                        ...v[2], ...v[3], ...v[0]]
-        if(u.length) ret.uvs  = [...ret.uvs,
+                        ...v[2], ...v[3], ...v[0])
+        if(u.length) ret.uvs.push(
                         ...u[0], ...u[1], ...u[2],
-                        ...u[2], ...u[3], ...u[0]]
-        if(n.length) ret.normals = [...ret.normals,
+                        ...u[2], ...u[3], ...u[0])
+        if(n.length) ret.normals.push(
                         ...n[0], ...n[1], ...n[2],
-                        ...n[2], ...n[3], ...n[0]]
+                        ...n[2], ...n[3], ...n[0])
       break
     }
   })
@@ -917,10 +913,10 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
   if(involveCache && (cacheItem = cache.objFiles.filter(v=>v.url == url)).length){
     ret = cacheItem[0].ret
   }else{
-    var vInd = new Float32Array()
-    var nInd = new Float32Array()
-    var uInd = new Float32Array()
-    var fInd = new Float32Array()
+    var vInd = []
+    var nInd = []
+    var uInd = []
+    var fInd = []
     await fetch(url).then(res=>res.text()).then(data => {
       ProcessOBJData(data, vInd, nInd, uInd, fInd, ret)
     })
@@ -1142,7 +1138,10 @@ const DrawAnimation = (renderer, animation, options) => {
 }
   
 const DownloadCustomShape = async geo => {
-
+  if(geo.preComputeNormalAssocs){
+    console.log('downloading custom shape, detected preComputeNormalAssocs')
+    var normalAssocs = []
+  }
   var vertices = []
   var normals = []
   var normalVecs = []
@@ -1159,7 +1158,16 @@ const DownloadCustomShape = async geo => {
   for(var i = 0; i< geo.normalVecs.length; i++)
     normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
 
-  var object = { vertices, uvs, normals, normalVecs}
+  if(geo.preComputeNormalAssocs){
+    for(var i = 0; i< geo.normalAssocs.length; i++)
+      normalAssocs.push(geo.normalAssocs[i])
+  }
+  
+  if(geo.preComputeNormalAssocs){
+    var object = { vertices, uvs, normals, normalVecs, normalAssocs}
+  }else{
+    var object = { vertices, uvs, normals, normalVecs}
+  }
 
   var link      = document.createElement('a')
   link.href     = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(object))
@@ -1245,8 +1253,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var heightmapDataArrayFormat = gl.RGBA
   var lum                      = 1
   var alpha                    = 1
-  var geometryData             = new Float32Array()  // for dynamic shape
-  var texCoords                = new Float32Array()  // for dynamic shape
+  var geometryData             = []  // for dynamic shape
+  var texCoords                = []  // for dynamic shape
   
   var geometry = {}
   
@@ -1335,7 +1343,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'lum'                : lum = geoOptions[key]; break
       case 'alpha'              : alpha = geoOptions[key]; break
       case 'geometrydata'       : geometryData = geoOptions[key]; break
-      case 'precomputenormalassocs' : preComputeNormalAssocs = geoOptions[key]; break
+      case 'precomputenormalassocs' : preComputeNormalAssocs = !!geoOptions[key]; break
       case 'texcoords'          : texCoords = geoOptions[key]; break
       case 'boundingcolor'      : boundingColor = geoOptions[key]; break
       case 'showbounding'       : showBounding = !!geoOptions[key]; break
@@ -1350,8 +1358,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'playbackspeed'      :
         playbackSpeed = geoOptions[key]; break
       case 'averagenormals'     :
-        averageNormals = geoOptions[key];
-        preComputeNormalAssocs = averageNormals
+        averageNormals = !!geoOptions[key];
+        //preComputeNormalAssocs = averageNormals
       break
       default:
         geometry[key] = geoOptions[key]
@@ -1384,10 +1392,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   //if(sphereize) averageNormals = true
 
-  var vertices          = new Float32Array()
-  var normals           = new Float32Array()
-  var normalVecs        = new Float32Array()
-  var uvs               = new Float32Array()
+  var uvs               = []
+  var normals           = []
+  var vertices          = []
+  var normalVecs        = []
 
   var fileURL, hint
   var resolved          = false
@@ -1440,6 +1448,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
             if(involveCache && (cacheItem = cache.geometry.filter(v=>v.url==fileURL)).length){
               console.log(`found geometry (${hint}) in cache... using it`)
               var data          = cacheItem[0].data
+              if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
               vertices          = new Float32Array(data.vertices)
               normals           = new Float32Array(data.normals)
               normalVecs        = new Float32Array(data.normalVecs)
@@ -1448,6 +1457,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
               resolved = true
             }else{
               await fetch(fileURL).then(res=>res.json()).then(data => {
+                if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
                 vertices    = data.vertices
                 normals     = data.normals
                 normalVecs  = data.normalVecs
@@ -1475,6 +1485,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
            (cacheItem = cache.customShapes.filter(v=>v.url==url)).length){
           console.log(`found custom shape in cache... using it`)
           var data   = cacheItem[0].data
+          if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
           vertices   = data.vertices
           normals    = data.normals
           normalVecs = data.normalVecs
@@ -1485,6 +1496,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(!resolved){
           if(typeof geometryData.vertices != 'undefined' &&
              geometryData.vertices.length){
+            if(typeof geometryData.normalAssocs != 'undefined') geometry.normalAssocs = geometryData.normalAssocs
             vertices    = geometryData.vertices
             normals     = geometryData.normals
             normalVecs  = geometryData.normalVecs
@@ -1493,11 +1505,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
             //cache.customShapes.push({data: structuredClone(geometryData), url})
           }else{
             await fetch(fileURL).then(res=>res.json()).then(data=>{
-              vertices    = data.vertices
-              normals     = data.normals
-              normalVecs  = data.normalVecs
-              uvs         = data.uvs
-              resolved    = true
+              if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
+              vertices     = data.vertices
+              normals      = data.normals
+              normalVecs   = data.normalVecs
+              uvs          = data.uvs
+              resolved     = true
               cache.customShapes.push({data: structuredClone(data), url})
             })
           }
@@ -1514,9 +1527,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
         shape = await Tetrahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
-          uvs      = [...uvs,      ...v.texCoord]
+          vertices.push(...v.position)
+          normals.push(...v.normal)
+          uvs.push(...v.texCoord)
         })
       break
       case 'octahedron':
@@ -1524,9 +1537,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
         shape = await Octahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
-          uvs      = [...uvs,      ...v.texCoord]
+          vertices.push(...v.position)
+          normals.push(...v.normal)
+          uvs.push(...v.texCoord)
         })
       break
       case 'icosahedron':
@@ -1534,36 +1547,36 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
         shape = await Icosahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
-          uvs      = [...uvs,      ...v.texCoord]
+          vertices.push(...v.position)
+          normals.push(...v.normal)
+          uvs.push(...v.texCoord)
         })
       break
       case 'torus':
         shape = await Torus(size, subs, sphereize,
                       flipNormals, shapeType, rows, cols)
         shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
-          uvs      = [...uvs,      ...v.texCoord]
+          vertices.push(...v.position)
+          normals.push(...v.normal)
+          uvs.push(...v.texCoord)
         })
       break
       case 'torus knot':
         shape = await TorusKnot(size, subs, rows, cols, sphereize,
                       flipNormals, shapeType)
         shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
-          uvs      = [...uvs,      ...v.texCoord]
+          vertices.push(...v.position)
+          normals.push(...v.normal)
+          uvs.push(...v.texCoord)
         })
       break
       case 'cylinder':
         shape = await Cylinder(size, subs, rows, cols, sphereize,
                       flipNormals, shapeType)
         shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
-          uvs      = [...uvs,      ...v.texCoord]
+          vertices.push(...v.position)
+          normals.push(...v.normal)
+          uvs.push(...v.texCoord)
         })
       break
       case 'dynamic':
@@ -1572,47 +1585,51 @@ const LoadGeometry = async (renderer, geoOptions) => {
             !!geometryData.filter(v=>v.length==4).length,
             shapeType)
         shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
+          vertices.push(...v.position)
+          if(flipNormals){
+            normals.push(...v.normal.map(v=>v*=-1))
+          }else{
+            normals.push(...v.normal)
+          }
           if(typeof v.texCoord != 'undefined' && v.texCoord.length)
-            uvs      = [...uvs,      ...v.texCoord]
+            uvs.push(...v.texCoord)
         })
       break
       case 'lines':
         isLine = 1.0
         geometryData.map(v => {
-          vertices = [...vertices, ...v]
+          vertices.push(...v.position)
         })
       break
       case 'cube':
         shape = await Cube(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
-          uvs      = [...uvs,      ...v.texCoord]
+          vertices.push(...v.position)
+          normals.push(...v.normal)
+          uvs.push(...v.texCoord)
         })
       break
       case 'rectangle':
         shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
-          uvs      = [...uvs,      ...v.texCoord]
+          vertices.push(...v.position)
+          normals.push(...v.normal)
+          uvs.push(...v.texCoord)
         })
       break
       case 'sprite':
         isSprite = true
         shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
-          uvs      = [...uvs,      ...v.texCoord]
+          vertices.push(...v.position)
+          normals.push(...v.normal)
+          uvs.push(...v.texCoord)
         })
       break
       case 'particles':
         isParticle = 1.0
         geometryData.map(v => {
-          vertices = [...vertices, ...v]
+          vertices.push(...v.position)
         })
       break
       case 'point light':
@@ -1623,18 +1640,18 @@ const LoadGeometry = async (renderer, geoOptions) => {
           shape = await Rectangle(Math.max(size, .5) , subs+1, sphereize, flipNormals, shapeType)
         }
         shape.geometry.map(v => {
-          vertices = [...vertices, ...v.position]
-          normals  = [...normals,  ...v.normal]
-          uvs      = [...uvs,      ...v.texCoord]
+          vertices.push(...v.position)
+          normals.push(...v.normal)
+          uvs.push(...v.texCoord)
         })
       break
       case 'obj':
         if(geometryData.length){
           var ret = { vertices: [], normals: [], uvs: [] }
-          var vInd = new Float32Array()
-          var nInd = new Float32Array()
-          var uInd = new Float32Array()
-          var fInd = new Float32Array()
+          var vInd = []
+          var nInd = []
+          var uInd = []
+          var fInd = []
           ProcessOBJData(geometryData, vInd, nInd, uInd, fInd, ret)
           await OBJFinishing(ret)
           vertices    = ret.vertices
@@ -1661,9 +1678,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
         shape = await Dodecahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
-          vertices    = [...vertices, ...v.position]
-          normals     = [...normals,  ...v.normal]
-          uvs         = [...uvs,      ...v.texCoord]
+          vertices.push(...v.position)
+          normals.push(...v.normal)
+          uvs.push(...v.texCoord)
         })
       break
     }
@@ -1796,37 +1813,36 @@ const LoadGeometry = async (renderer, geoOptions) => {
     AverageNormals(vertices, normals, shapeType)
   }
 
-
   if(shapeType == 'dynamic' || preComputeNormalAssocs){
     // pre-compute coincidental normals for averaging
-    geometry.normalAssocs = new Float32Array()
-      for(var i = 0; i < vertices.length; i+=3){
+    geometry.normalAssocs = []
+    for(var i = 0; i < vertices.length; i+=3){
       var X1 = vertices[i+0]
       var Y1 = vertices[i+1]
       var Z1 = vertices[i+2]
-      var a = new Float32Array()
+      var a = []
       for(var j = 0; j < vertices.length; j+=3){
         var X2 = vertices[j+0]
         var Y2 = vertices[j+1]
         var Z2 = vertices[j+2]
         
         if(Math.hypot(X1-X2, Y1-Y2, Z1-Z2) < .001){
-          a = [...a, j]
+          a.push(j)
         }
       }
-      geometry.normalAssocs= [...geometry.normalAssocs, a]
+      geometry.normalAssocs.push(a)
     }
   }
 
     
   if(shapeType != 'custom shape' && !isParticle && !isLine &&
      (!resolvedFromCache || !resolved || averageNormals || exportShape)){
-    normalVecs    = new Float32Array()
+    normalVecs    = []
     for(var i=0; i<normals.length; i+=6){
       let X = normals[i+3] - normals[i+0]
       let Y = normals[i+4] - normals[i+1]
       let Z = normals[i+5] - normals[i+2]
-      normalVecs = [...normalVecs, X,Y,Z]
+      normalVecs.push(X,Y,Z)
     }
   }
   
@@ -1935,6 +1951,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
       uvs: [],
     }
     vertices.map(v => processedOutput.vertices.push(Math.round(v*1e3) / 1e3))
+    if(geometry.preComputeNormalAssocs){
+      processedOutput.normalAssocs = []
+      geometry.normalAssocs.map(v => processedOutput.vertices.push(v))
+    }
     for(var i = 0; i < normals.length; i+=6){
       
       var X1 = normals[i+0]
@@ -2038,7 +2058,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     heightMapIsCanvas, equirectangularHeightmap,
     flipX, flipY, flipZ, isFromZip, rotationMode,
     mapIsDataArray, dataArrayFormat,
-    dataArrayWidth, dataArrayHeight,
+    dataArrayWidth, dataArrayHeight, preComputeNormalAssocs,
     heightmapIsDataArray, heightmapDataArrayFormat,
     heightmapDataArrayWidth, heightmapDataArrayHeight,
   }
@@ -2292,58 +2312,55 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
   //gl.activeTexture(gl.TEXTURE0)
 }
 
-
 const SyncNormals = (shape, averageNormals=false, flipNormals=false) => {
-  var v = shape.vertices
-  var normals = []
-  var facet = []
-  var X, Y, Z, facet, a
-  for(var i = 0; i<v.length; i+=3){
-    X = v[i+0]
-    Y = v[i+1]
-    Z = v[i+2]
-    facet = [...facet, [X, Y, Z]]
-    if(i%9 == 6){
-      var n = Normal(facet)
-      normals = [...normals, n, n, n]
-      facet = []
-    }
+  var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, n
+  var nrms = []
+  for(var i = 0; i < shape.vertices.length; i+=9){
+    X1 = shape.vertices[i+0]
+    Y1 = shape.vertices[i+1]
+    Z1 = shape.vertices[i+2]
+    X2 = shape.vertices[i+3]
+    Y2 = shape.vertices[i+4]
+    Z2 = shape.vertices[i+5]
+    X3 = shape.vertices[i+6]
+    Y3 = shape.vertices[i+7]
+    Z3 = shape.vertices[i+8]
+    n = Normal([[X1, Y1, Z1],
+                [X2, Y2, Z2],
+                [X3, Y3, Z3]], true)
+    nrms.push(n)
   }
-  if(averageNormals){
-    var avN = []
-    for(var i=0; i< v.length; i+=3){
-      var nx1 = v[i+0]
-      var ny1 = v[i+1]
-      var nz1 = v[i+2]
-      var nidx1 = i/3|0
-      var nx2 = normals[nidx1][3] - normals[nidx1][0]
-      var ny2 = normals[nidx1][4] - normals[nidx1][1]
-      var nz2 = normals[nidx1][5] - normals[nidx1][2]
-      var ct = 0
-      a = [0,0,0]
-      shape.normalAssocs[nidx1].map(idx =>{
-        var nidx = idx / 3 | 0
-        a[0] += normals[nidx][3] - normals[nidx][0]
-        a[1] += normals[nidx][4] - normals[nidx][1]
-        a[2] += normals[nidx][5] - normals[nidx][2]
-        ct ++
-      })
-      a[0] /= ct
-      a[1] /= ct
-      a[2] /= ct
-      avN = [...avN, ...a]
-      shape.normals[i*2+0] = nx1
-      shape.normals[i*2+1] = ny1
-      shape.normals[i*2+2] = nz1
-      shape.normals[i*2+3] = nx1 + a[0] * (flipNormals ? -1 : 1)
-      shape.normals[i*2+4] = ny1 + a[1] * (flipNormals ? -1 : 1)
-      shape.normals[i*2+5] = nz1 + a[2] * (flipNormals ? -1 : 1)
+  var fn = shape.flipNormals ? 1 : -1
+  nrms.map((nrm, idx) => {
+    for(var m = 0; m<3; m++){
+      shape.normals[idx*18+m*6+0] = shape.vertices[idx*9+m*3+0]
+      shape.normals[idx*18+m*6+1] = shape.vertices[idx*9+m*3+1]
+      shape.normals[idx*18+m*6+2] = shape.vertices[idx*9+m*3+2]
+      shape.normals[idx*18+m*6+3] = shape.vertices[idx*9+m*3+0] + (nrm[3] - nrm[0]) * fn
+      shape.normals[idx*18+m*6+4] = shape.vertices[idx*9+m*3+1] + (nrm[4] - nrm[1]) * fn
+      shape.normals[idx*18+m*6+5] = shape.vertices[idx*9+m*3+2] + (nrm[5] - nrm[2]) * fn
+      shape.normalVecs[idx*9+m*3+0] = shape.normals[idx*18+m*6+3] - shape.normals[idx*18+m*6+0]
+      shape.normalVecs[idx*9+m*3+1] = shape.normals[idx*18+m*6+4] - shape.normals[idx*18+m*6+1]
+      shape.normalVecs[idx*9+m*3+2] = shape.normals[idx*18+m*6+5] - shape.normals[idx*18+m*6+2]
     }
-    var n = shape.normalVecs
-    for(var i = 0; i<n.length; i++) n[i] = avN[i]
-    shape.normals = new Float32Array(normals)
-  } else{
-    shape.normals = new Float32Array(normals)
+  })
+  if(averageNormals &&
+     typeof shape.normalAssocs != 'undefined' &&
+     shape.normalAssocs.length) {
+    var tNormalVecs = structuredClone(shape.normalVecs)
+    for(var i = 0; i < shape.normalVecs.length; i += 3){
+      var idx = i/3, ct=0
+      var a = [0,0,0]
+      shape.normalAssocs[idx].forEach(id =>{
+        ct++
+        for(var m = 0; m < 3; m++) a[m] += tNormalVecs[id+m]
+      })
+      for(var m = 0; m < 3; m++) {
+        shape.normalVecs[i+m] = a[m] /= 3
+        shape.normals[i*2+m] = shape.vertices[i+m]
+        shape.normals[i*2+m+3] = shape.vertices[i+m] + a[m]
+      }
+    }
   }
 }
 
@@ -2515,7 +2532,7 @@ const ShowBounding = (shape, renderer, draw=true,
   const recurse = (ar, idx, oidx=-1, op=9) => {
     if(oidx == idx) return
     oidx = idx
-    memo=[...memo, idx]
+    memo.push(idx)
     
     X1 = ar[idx][0]
     Y1 = ar[idx][1]
@@ -2533,7 +2550,7 @@ const ShowBounding = (shape, renderer, draw=true,
     })
     
     if(tidx == -9) return
-    if(draw) pts = [...pts, [...ar[tidx]]]
+    if(draw) pts.push(...ar[tidx])
     recurse(ar, tidx, oidx, maxp)
   }
 
@@ -2574,7 +2591,7 @@ const ShowBounding = (shape, renderer, draw=true,
                             equirectangularPlugin,
                             omitSplitCheck, splitCheckPass)
     if(ar){
-      b = [...b, [ar[0], ar[1]]]
+      b.push( [ar[0], ar[1]])
       ax += ar[0]
       ay += ar[1]
       
@@ -2585,7 +2602,7 @@ const ShowBounding = (shape, renderer, draw=true,
         if(Math.hypot(ax-ox, ay-oy) > 10){
           ox = ax
           oy = ay
-          a = [...a, b]
+          a.push( b )
         }
       }
       //if(ar.length){
@@ -2610,7 +2627,7 @@ const ShowBounding = (shape, renderer, draw=true,
       X1 = triangle[0][0]
       Y1 = triangle[0][1]
       if(!b.filter(v=>v[0]==X1&&v[1]==Y1).length) {
-        b = [...b, [X1,Y1]]
+        b.push( [X1,Y1] )
       }
     })
   }else{
@@ -2625,13 +2642,13 @@ const ShowBounding = (shape, renderer, draw=true,
         X3 = triangle[2][0]
         Y3 = triangle[2][1]
         if(!b.filter(v=>v[0]==X1&&v[1]==Y1).length) {
-          b = [...b, [X1,Y1]]
+          b.push( [X1,Y1] )
         }
         if(!b.filter(v=>v[0]==X2&&v[1]==Y2).length) {
-          b = [...b, [X2,Y2]]
+          b.push( [X2,Y2] )
         }
         if(!b.filter(v=>v[0]==X3&&v[1]==Y3).length) {
-          b = [...b, [X3,Y3]]
+          b.push( [X3,Y3] )
         }
       }
     })
@@ -2692,7 +2709,7 @@ const ShowBounding = (shape, renderer, draw=true,
 }
 
 const AverageNormals = (verts, normals, shapeType) => {
-  normals.length = 0
+  var nrmls = []
   var isPolyhedron = IsPolyhedron(shapeType)
   // expects triangles
   var n
@@ -2704,38 +2721,38 @@ const AverageNormals = (verts, normals, shapeType) => {
         [verts[i+6],verts[i+7],verts[i+8]]
       ], isPolyhedron)
     }
-    normals[i*2+0] = verts[i+0]
-    normals[i*2+1] = verts[i+1]
-    normals[i*2+2] = verts[i+2]
-    normals[i*2+3] = verts[i+0] + (n[0] - n[3])
-    normals[i*2+4] = verts[i+1] + (n[1] - n[4])
-    normals[i*2+5] = verts[i+2] + (n[2] - n[5])
+    nrmls[i*2+0] = verts[i+0]
+    nrmls[i*2+1] = verts[i+1]
+    nrmls[i*2+2] = verts[i+2]
+    nrmls[i*2+3] = verts[i+0] + (n[0] - n[3])
+    nrmls[i*2+4] = verts[i+1] + (n[1] - n[4])
+    nrmls[i*2+5] = verts[i+2] + (n[2] - n[5])
   }
   
-  var ret = new Float32Array()
-  var modSrc = structuredClone(normals)
+  var ret = []
+  var modSrc = structuredClone(nrmls)
   var a, ct, ax, ay, az
   var X1a, Y1a, Z1a, X2a, Y2a, Z2a
   var X1b, Y1b, Z1b, X2b, Y2b, Z2b
-  for(var i=0; i<normals.length; i+=6){
-    X1a = normals[i+0]
-    Y1a = normals[i+1]
-    Z1a = normals[i+2]
-    X2a = normals[i+3]
-    Y2a = normals[i+4]
-    Z2a = normals[i+5]
+  for(var i=0; i<nrmls.length; i+=6){
+    X1a = nrmls[i+0]
+    Y1a = nrmls[i+1]
+    Z1a = nrmls[i+2]
+    X2a = nrmls[i+3]
+    Y2a = nrmls[i+4]
+    Z2a = nrmls[i+5]
     ax = X2a
     ay = Y2a
     az = Z2a
     ct = 1
-    for(var j=0; j<normals.length; j+=6){
+    for(var j=0; j<nrmls.length; j+=6){
       if(j!=i){
-        X1b = normals[j+0]
-        Y1b = normals[j+1]
-        Z1b = normals[j+2]
-        X2b = normals[j+3]
-        Y2b = normals[j+4]
-        Z2b = normals[j+5]
+        X1b = nrmls[j+0]
+        Y1b = nrmls[j+1]
+        Z1b = nrmls[j+2]
+        X2b = nrmls[j+3]
+        Y2b = nrmls[j+4]
+        Z2b = nrmls[j+5]
         if(Math.hypot(X1a - X1b, Y1a - Y1b, Z1a - Z1b) < .01){
           ax += X2b
           ay += Y2b
@@ -2748,7 +2765,8 @@ const AverageNormals = (verts, normals, shapeType) => {
     modSrc[i+4] = ay /= ct
     modSrc[i+5] = az /= ct
   }
-  modSrc.map((v,i)=>normals[i]=v)
+  modSrc.map((v,i)=>nrmls[i]=v)
+  nrmls.forEach((v, i) => normals[i] = v)
 }
 
 const BasicShader = async (renderer, options=[]) => {
@@ -3565,7 +3583,7 @@ const BasicShader = async (renderer, options=[]) => {
       var involveCache = geometry.involveCache
 
       var dset = structuredClone(dataset)
-      ret.datasets = [...ret.datasets, dset]
+      ret.datasets.push(dset)
       
       dset.program = gl.createProgram()
       
@@ -3628,7 +3646,7 @@ const BasicShader = async (renderer, options=[]) => {
                           console.log('found video in cache... using it')
                           uniform.video = cacheItem[0].resource
                           //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
-                          ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                          ret.datasets.push({texture: cacheItem[0].texture, iURL: url })
                           //gl.activeTexture(gl.TEXTURE1)
                           //BindImage(gl, uniform.video, uniform.refTexture, uniform.textureMode, -1, {url})
                         }else{
@@ -3636,8 +3654,8 @@ const BasicShader = async (renderer, options=[]) => {
                           uniform.video.muted = true
                           uniform.video.playbackRate = uniform.playbackSpeed
                           uniform.video.defaultPlaybackRate = uniform.playbackSpeed
-                          ret.datasets = [...ret.datasets, {
-                            texture: uniform.refTexture, iURL: url }]
+                          ret.datasets.push({
+                            texture: uniform.refTexture, iURL: url })
                           uniform.video.loop = true
                           if(!uniform.muted && !audioConsent) {
                             audioConsent = true
@@ -3669,13 +3687,13 @@ const BasicShader = async (renderer, options=[]) => {
                         if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
                           console.log('found image in cache... using it')
                           var image = cacheItem[0].resource
-                          ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                          ret.datasets.push({texture: cacheItem[0].texture, iURL: url })
                           gl.activeTexture(gl.TEXTURE1)
                           BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, {url})
                         }else{
                           var image = new Image()
-                          ret.datasets = [...ret.datasets, {
-                            texture: uniform.refTexture, iURL: url }]
+                          ret.datasets.push({
+                            texture: uniform.refTexture, iURL: url })
                           gl.uniform1f(uniform.locRefFlipRefs , uniform.flipReflections)
                           gl.bindTexture(gl.TEXTURE_2D, uniform.refTexture)
                           image.onload = () =>{
@@ -3788,7 +3806,7 @@ const BasicShader = async (renderer, options=[]) => {
                           console.log('found video in cache... using it')
                           uniform.video = cacheItem[0].resource
                           //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
-                          ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                          ret.datasets.push({texture: cacheItem[0].texture, iURL: url })
                           //gl.activeTexture(gl.TEXTURE5)
                           //BindImage(gl, uniform.video, uniform.refractionTexture, uniform.textureMode, -1, {url})
                         }else{
@@ -3796,8 +3814,8 @@ const BasicShader = async (renderer, options=[]) => {
                           uniform.video.muted = true
                           uniform.video.playbackRate = uniform.playbackSpeed
                           uniform.video.defaultPlaybackRate = uniform.playbackSpeed
-                          ret.datasets = [...ret.datasets, {
-                            texture: uniform.refractionTexture, iURL: url }]
+                          ret.datasets.push( {
+                            texture: uniform.refractionTexture, iURL: url })
                           uniform.video.loop = true
                           if(!uniform.muted && !audioConsent) {
                             audioConsent = true
@@ -3829,13 +3847,13 @@ const BasicShader = async (renderer, options=[]) => {
                         if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
                           console.log('found image in cache... using it')
                           var image = cacheItem[0].resource
-                          ret.datasets = [...ret.datasets, {texture: cacheItem[0].texture, iURL: url }]
+                          ret.datasets.push({texture: cacheItem[0].texture, iURL: url })
                           gl.activeTexture(gl.TEXTURE5)
                           BindImage(gl, image, uniform.refractionTexture, uniform.textureMode, -1, uniform)
                         }else{
                           var image = new Image()
-                          ret.datasets = [...ret.datasets, {
-                            texture: uniform.refractionTexture, iURL: url }]
+                          ret.datasets.push({
+                            texture: uniform.refractionTexture, iURL: url })
                           gl.activeTexture(gl.TEXTURE5)
                           gl.uniform1f(uniform.locRefractionFlipRefs , uniform.flipRefractionlections)
                           gl.bindTexture(gl.TEXTURE_2D, uniform.refractionTexture)
@@ -4246,16 +4264,16 @@ const ShapeToLines = async (shape, options={}) => {
     X2 = -v[i+3], Y2 = -v[i+4], Z2 = -v[i+5]
     X3 = -v[i+6], Y3 = -v[i+7], Z3 = -v[i+8]
     a = []
-    if(keepDuplicates || unique(X1,Y1,Z1, X2,Y2,Z2)) a = [...a, X1,Y1,Z1, X2,Y2,Z2]
-    if(keepDuplicates || unique(X2,Y2,Z2, X3,Y3,Z3)) a = [...a, X2,Y2,Z2, X3,Y3,Z3]
+    if(keepDuplicates || unique(X1,Y1,Z1, X2,Y2,Z2)) a.push(X1,Y1,Z1, X2,Y2,Z2)
+    if(keepDuplicates || unique(X2,Y2,Z2, X3,Y3,Z3)) a.push(X2,Y2,Z2, X3,Y3,Z3)
     if(closePaths) {
-      if(keepDuplicates || unique(X3,Y3,Z3, X1,Y1,Z1)) a = [...a, X3,Y3,Z3, X1,Y1,Z1]
+      if(keepDuplicates || unique(X3,Y3,Z3, X1,Y1,Z1)) a.push(X3,Y3,Z3, X1,Y1,Z1)
     }
     tgd.push(...a)
   }
   var geometryData = []
   for(var i = 0; i < tgd.length; i+=3) 
-    geometryData = [...geometryData, [tgd[i+0],tgd[i+1],tgd[i+2]]]
+    geometryData.push([tgd[i+0],tgd[i+1],tgd[i+2]])
   
   lO.geometryData = geometryData
   var ret = { shape: null }
@@ -4285,8 +4303,8 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
                          sphereize, flipNormals,
                          quads=false, shapeType='') => {
   var j, i, X, Y, Z, b, l
-  var a = new Float32Array()
-  var f = new Float32Array()
+  var a = []
+  var f = []
   var e = raw
   var geometry = []
   
@@ -4305,15 +4323,15 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
       Z = q[2] *= size
     })
     if(quads){
-      a = [...a, v.verts[0],v.verts[1],v.verts[2],
-                 v.verts[2],v.verts[3],v.verts[0]]
+      a.push(v.verts[0],v.verts[1],v.verts[2],
+                 v.verts[2],v.verts[3],v.verts[0])
       if(typeof v.uvs != 'undefined' && v.uvs.length)
-          f = [...f, v.uvs[0],v.uvs[1],v.uvs[2],
-                     v.uvs[2],v.uvs[3],v.uvs[0]]
+          f.push(v.uvs[0],v.uvs[1],v.uvs[2],
+                     v.uvs[2],v.uvs[3],v.uvs[0])
     }else{
-      a = [...a, ...v.verts]
+      a.push(...v.verts)
       if(typeof v.uvs != 'undefined' && v.uvs.length)
-        f = [...f, ...v.uvs]
+        f.push(...v.uvs)
     }
   })
   
@@ -4330,14 +4348,14 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
       }
     }
     l = flipNormals ? a.length - i - 1 : i
-    geometry = [...geometry, {
+    geometry.push({
       position: a[l],
       normal: [...a[l],
                a[l][0] + (normal[3]-normal[0]),
                a[l][1] + (normal[4]-normal[1]),
                a[l][2] + (normal[5]-normal[2])],
       texCoord: f[l],
-    }]
+    })
   }
   
   return {
@@ -4401,8 +4419,8 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     for(var m=subs; m--;){
       base = shape
       baseTexCoords = texCoords
-      shape = new Float32Array()
-      texCoords = new Float32Array()
+      shape = []
+      texCoords = []
       base.map((v, i) => {
         l = 0
         X1 = v[l][0]
@@ -4472,8 +4490,8 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
           tmx2 = (tX2+tX3)/2
           tmy2 = (tY2+tY3)/2
         }
-        a = new Float32Array()
-        ta = new Float32Array()
+        a = []
+        ta = []
         switch(v.length){
           case 3:
             mx3 = (X3+X1)/2
@@ -4482,49 +4500,49 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             if(typeof tX1 != 'undefined'){
               tmx3 = (tX3+tX1)/2
               tmy3 = (tY3+tY1)/2
-              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
-              X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
-              X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
-              texCoords= [...texCoords, ta]
-              ta = new Float32Array()
-              X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
-              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
-              X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
-              X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
-              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
-              X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
-              X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
+              X = tX1, Y = tY1, ta.push([X,Y])
+              X = tmx1, Y = tmy1, ta.push([X,Y])
+              X = tmx3, Y = tmy3, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tmx1, Y = tmy1, ta.push([X,Y])
+              X = tX2, Y = tY2, ta.push([X,Y])
+              X = tmx2, Y = tmy2, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tmx3, Y = tmy3, ta.push([X,Y])
+              X = tmx2, Y = tmy2, ta.push([X,Y])
+              X = tX3, Y = tY3, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tmx1, Y = tmy1, ta.push([X,Y])
+              X = tmx2, Y = tmy2, ta.push([X,Y])
+              X = tmx3, Y = tmy3, ta.push([X,Y])
+              texCoords.push(ta)
             }
             
-            X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
-            X = mx1, Y = my1, Z = mz1, a = [...a, [X,Y,Z]]
-            X = mx3, Y = my3, Z = mz3, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X1, Y = Y1, Z = Z1, a.push([X,Y,Z])
+            X = mx1, Y = my1, Z = mz1, a.push([X,Y,Z])
+            X = mx3, Y = my3, Z = mz3, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
             
-            X = mx1, Y = my1, Z = mz1, a = [...a, [X,Y,Z]]
-            X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
-            X = mx2, Y = my2, Z = mz2, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = mx1, Y = my1, Z = mz1, a.push([X,Y,Z])
+            X = X2, Y = Y2, Z = Z2, a.push([X,Y,Z])
+            X = mx2, Y = my2, Z = mz2, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
             
-            X = mx3, Y = my3, Z = mz3, a = [...a, [X,Y,Z]]
-            X = mx2, Y = my2, Z = mz2, a = [...a, [X,Y,Z]]
-            X = X3, Y = Y3, Z = Z3, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = mx3, Y = my3, Z = mz3, a.push([X,Y,Z])
+            X = mx2, Y = my2, Z = mz2, a.push([X,Y,Z])
+            X = X3, Y = Y3, Z = Z3, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
             
-            X = mx1, Y = my1, Z = mz1, a = [...a, [X,Y,Z]]
-            X = mx2, Y = my2, Z = mz2, a = [...a, [X,Y,Z]]
-            X = mx3, Y = my3, Z = mz3, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
+            X = mx1, Y = my1, Z = mz1, a.push([X,Y,Z])
+            X = mx2, Y = my2, Z = mz2, a.push([X,Y,Z])
+            X = mx3, Y = my3, Z = mz3, a.push([X,Y,Z])
+            shape.push(a)
 
             break
           case 4:
@@ -4541,61 +4559,61 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
               tmy4 = (tY4+tY1)/2
               tcx = (tX1+tX2+tX3+tX4)/4
               tcy = (tY1+tY2+tY3+tY4)/4
-              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
-              X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              X = tmx4, Y = tmy4, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tmx1, Y = tmy1, ta = [...ta, [X,Y]]
-              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
-              X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              X = tmx2, Y = tmy2, ta = [...ta, [X,Y]]
-              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
-              X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tmx4, Y = tmy4, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              X = tmx3, Y = tmy3, ta = [...ta, [X,Y]]
-              X = tX4, Y = tY4, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
+              X = tX1, Y = tY1, ta.push([X,Y])
+              X = tmx1, Y = tmy1, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              X = tmx4, Y = tmy4, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tmx1, Y = tmy1, ta.push([X,Y])
+              X = tX2, Y = tY2, ta.push([X,Y])
+              X = tmx2, Y = tmy2, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tcx, Y = tcy, ta.push([X,Y])
+              X = tmx2, Y = tmy2, ta.push([X,Y])
+              X = tX3, Y = tY3, ta.push([X,Y])
+              X = tmx3, Y = tmy3, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tmx4, Y = tmy4, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              X = tmx3, Y = tmy3, ta.push([X,Y])
+              X = tX4, Y = tY4, ta.push([X,Y])
+              texCoords.push(ta)
             }
 
             cx = (X1+X2+X3+X4)/4
             cy = (Y1+Y2+Y3+Y4)/4
             cz = (Z1+Z2+Z3+Z4)/4
 
-            X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
-            X = mx1, Y = my1, Z = mz1, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            X = mx4, Y = my4, Z = mz4, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X1, Y = Y1, Z = Z1, a.push([X,Y,Z])
+            X = mx1, Y = my1, Z = mz1, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            X = mx4, Y = my4, Z = mz4, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
 
-            X = mx1, Y = my1, Z = mz1, a = [...a, [X,Y,Z]]
-            X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
-            X = mx2, Y = my2, Z = mz2, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = mx1, Y = my1, Z = mz1, a.push([X,Y,Z])
+            X = X2, Y = Y2, Z = Z2, a.push([X,Y,Z])
+            X = mx2, Y = my2, Z = mz2, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
 
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            X = mx2, Y = my2, Z = mz2, a = [...a, [X,Y,Z]]
-            X = X3, Y = Y3, Z = Z3, a = [...a, [X,Y,Z]]
-            X = mx3, Y = my3, Z = mz3, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            X = mx2, Y = my2, Z = mz2, a.push([X,Y,Z])
+            X = X3, Y = Y3, Z = Z3, a.push([X,Y,Z])
+            X = mx3, Y = my3, Z = mz3, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
 
-            X = mx4, Y = my4, Z = mz4, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            X = mx3, Y = my3, Z = mz3, a = [...a, [X,Y,Z]]
-            X = X4, Y = Y4, Z = Z4, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
+            X = mx4, Y = my4, Z = mz4, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            X = mx3, Y = my3, Z = mz3, a.push([X,Y,Z])
+            X = X4, Y = Y4, Z = Z4, a.push([X,Y,Z])
+            shape.push(a)
 
             break
           case 5:
@@ -4612,31 +4630,31 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
               tmy4 = (tY4+tY5)/2
               tmx5 = (tX5+tX1)/2
               tmy5 = (tY5+tY1)/2
-              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
-              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
-              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
-              X = tX4, Y = tY4, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tX4, Y = tY4, ta = [...ta, [X,Y]]
-              X = tX5, Y = tY5, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tX5, Y = tY5, ta = [...ta, [X,Y]]
-              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
+              X = tX1, Y = tY1, ta.push([X,Y])
+              X = tX2, Y = tY2, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tX2, Y = tY2, ta.push([X,Y])
+              X = tX3, Y = tY3, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tX3, Y = tY3, ta.push([X,Y])
+              X = tX4, Y = tY4, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tX4, Y = tY4, ta.push([X,Y])
+              X = tX5, Y = tY5, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tX5, Y = tY5, ta.push([X,Y])
+              X = tX1, Y = tY1, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
             }
 
             mx3 = (X3+X4)/2
@@ -4649,35 +4667,35 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             my5 = (Y5+Y1)/2
             mz5 = (Z5+Z1)/2
 
-            X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
-            X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X1, Y = Y1, Z = Z1, a.push([X,Y,Z])
+            X = X2, Y = Y2, Z = Z2, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
             
-            X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
-            X = X3, Y = Y3, Z = Z3, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X2, Y = Y2, Z = Z2, a.push([X,Y,Z])
+            X = X3, Y = Y3, Z = Z3, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
             
-            X = X3, Y = Y3, Z = Z3, a = [...a, [X,Y,Z]]
-            X = X4, Y = Y4, Z = Z4, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X3, Y = Y3, Z = Z3, a.push([X,Y,Z])
+            X = X4, Y = Y4, Z = Z4, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
 
-            X = X4, Y = Y4, Z = Z4, a = [...a, [X,Y,Z]]
-            X = X5, Y = Y5, Z = Z5, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X4, Y = Y4, Z = Z4, a.push([X,Y,Z])
+            X = X5, Y = Y5, Z = Z5, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
 
-            X = X5, Y = Y5, Z = Z5, a = [...a, [X,Y,Z]]
-            X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X5, Y = Y5, Z = Z5, a.push([X,Y,Z])
+            X = X1, Y = Y1, Z = Z1, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
 
           break
           case 6:
@@ -4696,36 +4714,36 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
               tmy5 = (tY5+tY6)/2
               tmx6 = (tX6+tX1)/2
               tmy6 = (tY6+tY1)/2
-              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
-              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tX2, Y = tY2, ta = [...ta, [X,Y]]
-              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tX3, Y = tY3, ta = [...ta, [X,Y]]
-              X = tX4, Y = tY4, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tX4, Y = tY4, ta = [...ta, [X,Y]]
-              X = tX5, Y = tY5, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tX5, Y = tY5, ta = [...ta, [X,Y]]
-              X = tX6, Y = tY6, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
-              X = tX6, Y = tY6, ta = [...ta, [X,Y]]
-              X = tX1, Y = tY1, ta = [...ta, [X,Y]]
-              X = tcx, Y = tcy, ta = [...ta, [X,Y]]
-              texCoords = [...texCoords, ta]
-              ta = new Float32Array()
+              X = tX1, Y = tY1, ta.push([X,Y])
+              X = tX2, Y = tY2, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tX2, Y = tY2, ta.push([X,Y])
+              X = tX3, Y = tY3, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tX3, Y = tY3, ta.push([X,Y])
+              X = tX4, Y = tY4, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tX4, Y = tY4, ta.push([X,Y])
+              X = tX5, Y = tY5, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tX5, Y = tY5, ta.push([X,Y])
+              X = tX6, Y = tY6, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
+              X = tX6, Y = tY6, ta.push([X,Y])
+              X = tX1, Y = tY1, ta.push([X,Y])
+              X = tcx, Y = tcy, ta.push([X,Y])
+              texCoords.push(ta)
+              ta = []
             }
 
             mx3 = (X3+X4)/2
@@ -4741,41 +4759,42 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
             my6 = (Y6+Y1)/2
             mz6 = (Z6+Z1)/2
 
-            X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
-            X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            a = []
+            X = X1, Y = Y1, Z = Z1, a.push([X,Y,Z])
+            X = X2, Y = Y2, Z = Z2, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
             
-            X = X2, Y = Y2, Z = Z2, a = [...a, [X,Y,Z]]
-            X = X3, Y = Y3, Z = Z3, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X2, Y = Y2, Z = Z2, a.push([X,Y,Z])
+            X = X3, Y = Y3, Z = Z3, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
             
-            X = X3, Y = Y3, Z = Z3, a = [...a, [X,Y,Z]]
-            X = X4, Y = Y4, Z = Z4, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X3, Y = Y3, Z = Z3, a.push([X,Y,Z])
+            X = X4, Y = Y4, Z = Z4, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
 
-            X = X4, Y = Y4, Z = Z4, a = [...a, [X,Y,Z]]
-            X = X5, Y = Y5, Z = Z5, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X4, Y = Y4, Z = Z4, a.push([X,Y,Z])
+            X = X5, Y = Y5, Z = Z5, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
 
-            X = X5, Y = Y5, Z = Z5, a = [...a, [X,Y,Z]]
-            X = X6, Y = Y6, Z = Z6, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X5, Y = Y5, Z = Z5, a.push([X,Y,Z])
+            X = X6, Y = Y6, Z = Z6, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
 
-            X = X6, Y = Y6, Z = Z6, a = [...a, [X,Y,Z]]
-            X = X1, Y = Y1, Z = Z1, a = [...a, [X,Y,Z]]
-            X = cx, Y = cy, Z = cz, a = [...a, [X,Y,Z]]
-            shape = [...shape, a]
-            a = new Float32Array()
+            X = X6, Y = Y6, Z = Z6, a.push([X,Y,Z])
+            X = X1, Y = Y1, Z = Z1, a.push([X,Y,Z])
+            X = cx, Y = cy, Z = cz, a.push([X,Y,Z])
+            shape.push(a)
+            a = []
 
           break
         }
@@ -4868,7 +4887,7 @@ const GeoSphere = (mx, my, mz, iBc, size) => {
       }
     })
   })
-  a = new Float32Array()
+  a = []
   B.map((v,i)=>{
     X1 = v[0]
     Y1 = v[1]
@@ -4880,7 +4899,7 @@ const GeoSphere = (mx, my, mz, iBc, size) => {
       if(i!=j){
         d = Math.hypot(X1-X2, Y1-Y2, Z1-Z2)
         if(d<mind*2){
-          if(!a.filter(q=>q[0]==X2&&q[1]==Y2&&q[2]==Z2&&q[3]==X1&&q[4]==Y1&&q[5]==Z1).length) a = [...a, [X1*size,Y1*size,Z1*size,X2*size,Y2*size,Z2*size]]
+          if(!a.filter(q=>q[0]==X2&&q[1]==Y2&&q[2]==Z2&&q[3]==X1&&q[4]==Y1&&q[5]==Z1).length) a.push([X1*size,Y1*size,Z1*size,X2*size,Y2*size,Z2*size])
         }
       }
     })
@@ -4897,11 +4916,11 @@ const GeoSphere = (mx, my, mz, iBc, size) => {
 }
 
 const Cylinder = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, shapeType='cylinder') => {
-  var ret = new Float32Array()
+  var ret = []
   var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
   var TX1,TY1, TX2,TY2, TX3,TY3, TX4,TY4
   var p
-  var texCoords = new Float32Array()
+  var texCoords = []
   for(var j = 0; j < rw; j++){
     var j2 = j-.5
     for(var i = 0; i < cl; i++){
@@ -4937,15 +4956,8 @@ const Cylinder = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=f
       TX4 = (p4+Math.PI) / Math.PI / 2
       TY4 = Y4 + .5
       
-      ret = [...ret, [[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]]]
-      texCoords = [...texCoords, [[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]]]
-      
-      /* //triangulate
-      ret = [...ret, [[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3]]]
-      texCoords = [...texCoords, [[TX1,TY1], [TX2,TY2], [TX3,TY3]]]
-      ret = [...ret, [[X3,Y3,Z3], [X4,Y4,Z4], [X1,Y1,Z1]]]
-      texCoords = [...texCoords, [[TX3,TY3], [TX4,TY4], [TX1,TY1]]]
-      */
+      ret.push([[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]])
+      texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
     }
   }
   return await GeometryFromRaw(ret, texCoords, size / 1.2, subs,
@@ -4953,12 +4965,12 @@ const Cylinder = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=f
 }
 
 const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='torus', rw, cl) => {
-  var ret = new Float32Array()
+  var ret = []
   var X, Y, Z
   var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
   var TX1,TY1, TX2,TY2, TX3,TY3, TX4,TY4
   var p, d
-  var texCoords = new Float32Array()
+  var texCoords = []
   var rw_ = rw * 4
   var rad1 = .5
   var rad2 = 1.25
@@ -5018,28 +5030,21 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
       TX4 = (p4+Math.PI) / Math.PI / 2
       TY4 = Y4 + .5
       
-      ret = [...ret, [[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]]]
-      texCoords = [...texCoords, [[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]]]
-      
-      /* //triangulate
-      ret = [...ret, [[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3]]]
-      texCoords = [...texCoords, [[TX1,TY1], [TX2,TY2], [TX3,TY3]]]
-      ret = [...ret, [[X3,Y3,Z3], [X4,Y4,Z4], [X1,Y1,Z1]]]
-      texCoords = [...texCoords, [[TX3,TY3], [TX4,TY4], [TX1,TY1]]]
-      */
-    }
+      ret.push([[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]])
+      texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
+          }
   }
   return await GeometryFromRaw(ret, texCoords, size / 1.2, subs,
                          sphereize, flipNormals, true, shapeType)
 }
 
 const TorusKnot = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, shapeType='torus knot') => {
-  var ret = new Float32Array()
+  var ret = []
   var X, Y, Z
   var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
   var TX1,TY1, TX2,TY2, TX3,TY3, TX4,TY4
   var p, d
-  var texCoords = new Float32Array()
+  var texCoords = []
   var rw_ = rw * 8
   cl /= 1
   var rad1 = .75, p1, p2, p1a, p1b, p1c, p2a, p2b
@@ -5136,15 +5141,9 @@ const TorusKnot = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=
       TX4 = (p4+Math.PI) / Math.PI / 2
       TY4 = Y4 + .5
       
-      ret = [...ret, [[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]]]
-      texCoords = [...texCoords, [[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]]]
+      ret.push([[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]])
+      texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
       
-      /* //triangulate
-      ret = [...ret, [[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3]]]
-      texCoords = [...texCoords, [[TX1,TY1], [TX2,TY2], [TX3,TY3]]]
-      ret = [...ret, [[X3,Y3,Z3], [X4,Y4,Z4], [X1,Y1,Z1]]]
-      texCoords = [...texCoords, [[TX3,TY3], [TX4,TY4], [TX1,TY1]]]
-      */
     }
   }
   return await GeometryFromRaw(ret, texCoords, size / 1.2, subs,
@@ -5156,32 +5155,32 @@ const TorusKnot = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=
 const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='tetrahedron') => {
   var X, Y, Z, p, tx, ty, ax, ay, az
   var f, i, j, l, a, b, ct, sz = 1
-  var geometry = new Float32Array()
-  var ret = new Float32Array()
-  a = new Float32Array()
+  var geometry = []
+  var ret = []
+  a = []
   let h = sz/1.4142/1.25
   for(i=3;i--;){
     X = S(p=Math.PI*2/3*i) * sz/1.25
     Y = C(p) * sz/1.25
     Z = h
-    a = [...a, [X,Y,Z]]
+    a.push([X,Y,Z])
   }
-  ret = [...ret, a]
+  ret.push(a)
   for(j=3;j--;){
-    a = new Float32Array()
+    a = []
     X = 0
     Y = 0
     Z = -h
-    a = [...a, [X,Y,Z]]
+    a.push([X,Y,Z])
     X = S(p=Math.PI*2/3*j) * sz/1.25
     Y = C(p) * sz/1.25
     Z = h
-    a = [...a, [X,Y,Z]]
+    a.push([X,Y,Z])
     X = S(p=Math.PI*2/3*(j+1)) * sz/1.25
     Y = C(p) * sz/1.25
     Z = h
-    a = [...a, [X,Y,Z]]
-    ret = [...ret, a]
+    a.push([X,Y,Z])
+    ret.push(a)
   }
   ax=ay=az=ct=0
   ret.map(v=>{
@@ -5204,9 +5203,9 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   })
 
   var e = ret
-  var texCoords = new Float32Array()
+  var texCoords = []
   for(i = 0; i < e.length; i++){
-    a = new Float32Array()
+    a = []
     for(var k = e[i].length; k--;){
       switch(k) {
         case 0: tx=0, ty=0; break
@@ -5215,9 +5214,9 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
         case 3: tx=0, ty=.5; break
         case 4: tx=0, ty=1; break
       }
-      a = [...a, [tx, ty]]
+      a.push([tx, ty])
     }
-    texCoords = [...texCoords, a]
+    texCoords.push(a)
   }
   
   return await GeometryFromRaw(e, texCoords, size, subs,
@@ -5227,30 +5226,30 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
 const Octahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='octahedron') => {
   var X, Y, Z, p, tx, ty
   var f, i, j, l, a, b, sz = 1
-  var geometry = new Float32Array()
-  var ret = new Float32Array()
+  var geometry = []
+  var ret = []
   let h = sz/1.25
   for(j=8;j--;){
-    a = new Float32Array()
+    a = []
     X = 0
     Y = 0
     Z = h * (j<4?-1:1)
-    a = [...a, [X,Y,Z]]
+    a.push([X,Y,Z])
     X = S(p=Math.PI*2/4*j) * sz/1.25
     Y = C(p) * sz/1.25
     Z = 0
-    a = [...a, [X,Y,Z]]
+    a.push([X,Y,Z])
     X = S(p=Math.PI*2/4*(j+1)) * sz/1.25
     Y = C(p) * sz/1.25
     Z = 0
-    a = [...a, [X,Y,Z]]
-    ret = [...ret, a]
+    a.push([X,Y,Z])
+    ret.push(a)
   }
   
   var e = ret
-  var texCoords = new Float32Array()
+  var texCoords = []
   for(i = 0; i < e.length; i++){
-    a = new Float32Array()
+    a = []
     for(var k = e[i].length; k--;){
       switch(k) {
         case 0: tx=0, ty=0; break
@@ -5259,9 +5258,9 @@ const Octahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, 
         case 3: tx=0, ty=.5; break
         case 4: tx=0, ty=1; break
       }
-      a = [...a, [tx, ty]]
+      a.push([tx, ty])
     }
-    texCoords = [...texCoords, a]
+    texCoords.push(a)
   }
   
   return await GeometryFromRaw(e, texCoords, size, subs,
@@ -5274,8 +5273,8 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   var out, f, j, l, phi, a, cp
   var idx1a, idx2a, idx3a
   var idx1b, idx2b, idx3b
-  var geometry = new Float32Array()
-  var ret = new Float32Array()
+  var geometry = []
+  var ret = []
 
   let B = [
     [[0,3],[1,0],[2,2]],
@@ -5306,7 +5305,7 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     [phi,1,0],
     [-phi,1,0],
   ]
-  for(j=3;j--;ret=[...ret, b])for(b=[],i=4;i--;) b = [...b, [a[i][j],a[i][(j+1)%3],a[i][(j+2)%3]]]
+  for(j=3;j--;ret.push(b))for(b=[],i=4;i--;) b.push([a[i][j],a[i][(j+1)%3],a[i][(j+2)%3]])
   ret.map(v=>{
     v.map(q=>{
       q[0]*=1/2.25
@@ -5316,7 +5315,7 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   })
   cp = JSON.parse(JSON.stringify(ret))
   out=[]
-  a = new Float32Array()
+  a = []
   B.map(v=>{
     idx1a = v[0][0]
     idx2a = v[1][0]
@@ -5324,14 +5323,14 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     idx1b = v[0][1]
     idx2b = v[1][1]
     idx3b = v[2][1]
-    a = [...a, [cp[idx1a][idx1b],cp[idx2a][idx2b],cp[idx3a][idx3b]]]
+    a.push([cp[idx1a][idx1b],cp[idx2a][idx2b],cp[idx3a][idx3b]])
   })
-  out = [...out, ...a]
+  out.push( ...a)
 
   var e = out
-  var texCoords = new Float32Array()
+  var texCoords = []
   for(i = 0; i < e.length; i++){
-    a = new Float32Array()
+    a = []
     for(var k = e[i].length; k--;){
       switch(k) {
         case 0: tx=0, ty=0; break
@@ -5340,9 +5339,9 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
         case 3: tx=0, ty=.5; break
         case 4: tx=0, ty=1; break
       }
-      a = [...a, [tx, ty]]
+      a.push([tx, ty])
     }
-    texCoords = [...texCoords, a]
+    texCoords.push(a)
   }
   
   return await GeometryFromRaw(e, texCoords, size, subs,
@@ -5351,15 +5350,15 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
 
 const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='dodecahedron') => {
   var i, X, Y, Z, d1, b, p, r, tx, ty, f, i, j, l
-  var ret = new Float32Array()
-  var a = new Float32Array()
+  var ret = []
+  var a = []
   let mind = -6e6
   for(i=5;i--;){
     X=S(p=Math.PI*2/5*i + Math.PI/5)
     Y=C(p)
     Z=0
     if(Y>mind) mind=Y
-    a = [...a, [X,Y,Z]]
+    a.push([X,Y,Z])
   }
   a=a.map(v=>{
     X = v[0]
@@ -5374,7 +5373,7 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
   b.map(v=>{
     v[1] *= -1
   })
-  ret = [...ret, a, b]
+  ret.push(a, b)
   mind = -6e6
   ret.map(v=>{
     v.map(q=>{
@@ -5396,7 +5395,7 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
       q[2]*=-1
     })
   })
-  ret = [...ret, ...b]
+  ret.push(...b)
   b = structuredClone(ret)
   b.map(v=>{
     v.map(q=>{
@@ -5429,12 +5428,12 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
       q[2] = r[2]
     })
   })
-  ret = [...ret, ...b, ...e]
+  ret.push(...b, ...e)
   
   var e = ret
-  var texCoords = new Float32Array()
+  var texCoords = []
   for(i = 0; i < e.length; i++){
-    a = new Float32Array()
+    a = []
     for(var k = e[i].length; k--;){
       switch(k) {
         case 0: tx=0, ty=0; break
@@ -5443,9 +5442,9 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
         case 3: tx=0, ty=.5; break
         case 4: tx=0, ty=1; break
       }
-      a = [...a, [tx, ty]]
+      a.push([tx, ty])
     }
-    texCoords = [...texCoords, a]
+    texCoords.push(a)
   }
   
   return await GeometryFromRaw(e, texCoords, size / Math.max(1, (2 - sphereize)), subs,
@@ -5458,13 +5457,13 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
 const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='cube') => {
   var p, pi=Math.PI, a, b, l, i, j, k, tx, ty, X, Y, Z
   var position, texCoord
-  var geometry = new Float32Array()
-  var e = new Float32Array(), f
-  for(i=6; i--; e=[...e, b])for(b=[], j=4;j--;) b=[...b, [(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[i%3]*(l=i<3?1:-1),a[(i+1)%3]*l,a[(i+2)%3]*l]]
+  var geometry = []
+  var e = [], f
+  for(i=6; i--; e.push(b))for(b=[], j=4;j--;) b.push([(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[i%3]*(l=i<3?1:-1),a[(i+1)%3]*l,a[(i+2)%3]*l])
   
-  var texCoords = new Float32Array()
+  var texCoords = []
   for(i = 0; i < e.length; i++){
-    a = new Float32Array()
+    a = []
     for(var k = e[i].length; k--;){
       switch(k) {
         case 0: tx=0, ty=0; break
@@ -5472,9 +5471,9 @@ const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeT
         case 2: tx=1, ty=1; break
         case 3: tx=0, ty=1; break
       }
-      a = [...a, [tx, ty]]
+      a.push([tx, ty])
     }
-    texCoords = [...texCoords, a]
+    texCoords.push(a)
   }
   
   let ret = await GeometryFromRaw(e, texCoords, size / 1.2, subs,
@@ -5486,8 +5485,8 @@ const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeT
 const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='rectangle') => {
   var p, pi=Math.PI, a, b, l, i, j, k, tx, ty, X, Y, Z
   var position, texCoord
-  var geometry = new Float32Array()
-  var e = new Float32Array()
+  var geometry = []
+  var e = []
 
   e = [[
         [-1, -1, 0],
@@ -5971,7 +5970,7 @@ const AnimationLoop = (renderer, func) => {
     
     queues.forEach(queueType => {
       if(renderer[queueType].length){
-        var forSort = new Float32Array()
+        var forSort = []
         var vec
         
         renderer.ctx.blendFunc(renderer.ctx.SRC_ALPHA, renderer.ctx.ONE);
@@ -5986,7 +5985,7 @@ const AnimationLoop = (renderer, func) => {
                           yaw: renderer.yaw}, false)
                           
           var camz = renderer.z / 1e3 * renderer.fov
-          forSort = [...forSort, {idx: i, z: camz + vec[2]}]
+          forSort.push({idx: i, z: camz + vec[2]})
         })
         forSort.sort((a, b) => b.z - a.z)
         renderer[queueType].map(async (alphaShape, idx) => {
@@ -6023,7 +6022,7 @@ const AnimationLoop = (renderer, func) => {
         renderer.ctx.blendFunc(renderer.ctx.ONE, renderer.ctx.ZERO)
         renderer.ctx.disable(renderer.ctx.BLEND)
       }
-      renderer[queueType] = new Float32Array()
+      renderer[queueType] = []
     })
     
     renderer.t += 1/60 
