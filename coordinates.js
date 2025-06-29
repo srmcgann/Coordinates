@@ -553,7 +553,6 @@ const Renderer = async options => {
                     ctx.bindBuffer(ctx.ARRAY_BUFFER, uniform.refractionVec_buffer)
                     ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, uniform.RefractionVec_Index_Buffer)
                     //uniform.locRefractionVec= ctx.getAttribLocation(dset.program, "nVecRefraction")
-                    console.log(dset.locRefractionlVec)
                     ctx.vertexAttribPointer(dset.locRefractionlVec, 3, ctx.FLOAT, false, 0, 0)
                     ctx.enableVertexAttribArray(dset.locRefractionlVec)
 
@@ -1139,7 +1138,10 @@ const DrawAnimation = (renderer, animation, options) => {
 }
   
 const DownloadCustomShape = async geo => {
-
+  if(geo.preComputeNormalAssocs){
+    console.log('downloading custom shape, detected preComputeNormalAssocs')
+    var normalAssocs = []
+  }
   var vertices = []
   var normals = []
   var normalVecs = []
@@ -1156,7 +1158,16 @@ const DownloadCustomShape = async geo => {
   for(var i = 0; i< geo.normalVecs.length; i++)
     normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
 
-  var object = { vertices, uvs, normals, normalVecs}
+  if(geo.preComputeNormalAssocs){
+    for(var i = 0; i< geo.normalAssocs.length; i++)
+      normalAssocs.push(geo.normalAssocs[i])
+  }
+  
+  if(geo.preComputeNormalAssocs){
+    var object = { vertices, uvs, normals, normalVecs, normalAssocs}
+  }else{
+    var object = { vertices, uvs, normals, normalVecs}
+  }
 
   var link      = document.createElement('a')
   link.href     = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(object))
@@ -1348,7 +1359,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         playbackSpeed = geoOptions[key]; break
       case 'averagenormals'     :
         averageNormals = !!geoOptions[key];
-        preComputeNormalAssocs = averageNormals
+        //preComputeNormalAssocs = averageNormals
       break
       default:
         geometry[key] = geoOptions[key]
@@ -1381,10 +1392,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   //if(sphereize) averageNormals = true
 
-  var vertices          = []
-  var normals           = []
-  var normalVecs        = []
   var uvs               = []
+  var normals           = []
+  var vertices          = []
+  var normalVecs        = []
 
   var fileURL, hint
   var resolved          = false
@@ -1437,6 +1448,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
             if(involveCache && (cacheItem = cache.geometry.filter(v=>v.url==fileURL)).length){
               console.log(`found geometry (${hint}) in cache... using it`)
               var data          = cacheItem[0].data
+              if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
               vertices          = new Float32Array(data.vertices)
               normals           = new Float32Array(data.normals)
               normalVecs        = new Float32Array(data.normalVecs)
@@ -1445,6 +1457,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
               resolved = true
             }else{
               await fetch(fileURL).then(res=>res.json()).then(data => {
+                if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
                 vertices    = data.vertices
                 normals     = data.normals
                 normalVecs  = data.normalVecs
@@ -1472,6 +1485,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
            (cacheItem = cache.customShapes.filter(v=>v.url==url)).length){
           console.log(`found custom shape in cache... using it`)
           var data   = cacheItem[0].data
+          if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
           vertices   = data.vertices
           normals    = data.normals
           normalVecs = data.normalVecs
@@ -1482,6 +1496,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(!resolved){
           if(typeof geometryData.vertices != 'undefined' &&
              geometryData.vertices.length){
+            if(typeof geometryData.normalAssocs != 'undefined') geometry.normalAssocs = geometryData.normalAssocs
             vertices    = geometryData.vertices
             normals     = geometryData.normals
             normalVecs  = geometryData.normalVecs
@@ -1490,11 +1505,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
             //cache.customShapes.push({data: structuredClone(geometryData), url})
           }else{
             await fetch(fileURL).then(res=>res.json()).then(data=>{
-              vertices    = data.vertices
-              normals     = data.normals
-              normalVecs  = data.normalVecs
-              uvs         = data.uvs
-              resolved    = true
+              if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
+              vertices     = data.vertices
+              normals      = data.normals
+              normalVecs   = data.normalVecs
+              uvs          = data.uvs
+              resolved     = true
               cache.customShapes.push({data: structuredClone(data), url})
             })
           }
@@ -1798,7 +1814,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
 
   if(shapeType == 'dynamic' || preComputeNormalAssocs){
-    console.log('precomputing normal assocs')
     // pre-compute coincidental normals for averaging
     geometry.normalAssocs = []
     for(var i = 0; i < vertices.length; i+=3){
@@ -1936,6 +1951,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
       uvs: [],
     }
     vertices.map(v => processedOutput.vertices.push(Math.round(v*1e3) / 1e3))
+    if(geometry.preComputeNormalAssocs){
+      processedOutput.normalAssocs = []
+      geometry.normalAssocs.map(v => processedOutput.vertices.push(v))
+    }
     for(var i = 0; i < normals.length; i+=6){
       
       var X1 = normals[i+0]
@@ -2039,7 +2058,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     heightMapIsCanvas, equirectangularHeightmap,
     flipX, flipY, flipZ, isFromZip, rotationMode,
     mapIsDataArray, dataArrayFormat,
-    dataArrayWidth, dataArrayHeight,
+    dataArrayWidth, dataArrayHeight, preComputeNormalAssocs,
     heightmapIsDataArray, heightmapDataArrayFormat,
     heightmapDataArrayWidth, heightmapDataArrayHeight,
   }
@@ -2325,7 +2344,9 @@ const SyncNormals = (shape, averageNormals=false, flipNormals=false) => {
       shape.normalVecs[idx*9+m*3+2] = shape.normals[idx*18+m*6+5] - shape.normals[idx*18+m*6+2]
     }
   })
-  if(averageNormals) {
+  if(averageNormals &&
+     typeof shape.normalAssocs != 'undefined' &&
+     shape.normalAssocs.length) {
     var tNormalVecs = structuredClone(shape.normalVecs)
     for(var i = 0; i < shape.normalVecs.length; i += 3){
       var idx = i/3, ct=0
