@@ -334,12 +334,12 @@ const Renderer = async options => {
                 var d = renderer.fov
                 var s = geometry.size * (penumbraPass ? 4 : 1) / 50
                 for(var i = 0; i<geometry.vertices.length; i+=6){
-                  X1 = -geometry.vertices[i+0]
-                  Y1 = -geometry.vertices[i+1]
-                  Z1 = -geometry.vertices[i+2]
-                  X2 = -geometry.vertices[i+3]
-                  Y2 = -geometry.vertices[i+4]
-                  Z2 = -geometry.vertices[i+5]
+                  X1 = geometry.vertices[i+0]
+                  Y1 = geometry.vertices[i+1]
+                  Z1 = geometry.vertices[i+2]
+                  X2 = geometry.vertices[i+3]
+                  Y2 = geometry.vertices[i+4]
+                  Z2 = geometry.vertices[i+5]
                   
                   p1 = GetShaderCoord(X1, Y1, Z1, geometry, renderer)
                   p2 = GetShaderCoord(X2, Y2, Z2, geometry, renderer)
@@ -358,28 +358,28 @@ const Renderer = async options => {
                     
                     nz = p1[2]
                     nx = p1[0] + S(p) * s / nz
-                    ny = p1[1] + C(p) * s / nz
+                    ny = (p1[1] + C(p) * s / nz)
                     tvertices.push(nx, -ny, nz)
                     nz = p1[2]
                     nx = p1[0] - S(p) * s / nz
-                    ny = p1[1] - C(p) * s / nz
+                    ny = (p1[1] - C(p) * s / nz)
                     tvertices.push(nx, -ny, nz)
                     nz = p2[2]
                     nx = p2[0] - S(p) * s / nz
-                    ny = p2[1] - C(p) * s / nz
+                    ny = (p2[1] - C(p) * s / nz)
                     tvertices.push(nx, -ny, nz)
                     
                     nz = p2[2]
                     nx = p2[0] - S(p) * s / nz
-                    ny = p2[1] - C(p) * s / nz
+                    ny = (p2[1] - C(p) * s / nz)
                     tvertices.push(nx, -ny, nz)
                     nz = p2[2]
                     nx = p2[0] + S(p) * s / nz
-                    ny = p2[1] + C(p) * s / nz
+                    ny = (p2[1] + C(p) * s / nz)
                     tvertices.push(nx, -ny, nz)
                     nz = p1[2]
                     nx = p1[0] + S(p) * s / nz
-                    ny = p1[1] + C(p) * s / nz
+                    ny = (p1[1] + C(p) * s / nz)
                     tvertices.push(nx, -ny, nz)
                   }
                 }
@@ -1598,7 +1598,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'lines':
         isLine = 1.0
         geometryData.map(v => {
-          vertices.push(...v.position)
+          vertices.push(...v)
         })
       break
       case 'cube':
@@ -5618,6 +5618,136 @@ const PointInPoly3D = (X1, Y1, Z1, X2, Y2, Z2, facet, autoFlipNormals=false) => 
   return isc
 }
 
+const BSpline = async (renderer, geoOptions) => {
+  var mpts = []
+  
+  // defaults
+  var steps = 10
+  
+  if(typeof geoOptions != 'undefined'){
+    Object.keys(geoOptions).forEach((key, idx) =>{
+      switch(key.toLowerCase()){
+        case 'steps': steps       = Math.floor(geoOptions[key]); break
+      }
+    })
+  }
+  var cpts = geoOptions.geometryData
+  cpts.map((v, i) => {
+    var x1 = v[0]
+    var y1 = v[1]
+    var z1 = v[2]
+    if(i < cpts.length - 2){
+      var j = (i + 1)
+      var k = (i + 2)
+      var x2 = cpts[j][0]
+      var y2 = cpts[j][1]
+      var z2 = cpts[j][2]
+      var x3 = cpts[k][0]
+      var y3 = cpts[k][1]
+      var z3 = cpts[k][2]
+      var mx1 = (x1 + x2) / 2
+      var my1 = (y1 + y2) / 2
+      var mz1 = (z1 + z2) / 2
+      var mx2 = (x2 + x3) / 2
+      var my2 = (y2 + y3) / 2
+      var mz2 = (z2 + z3) / 2
+      mpts.push([mx1, my1, mz1])
+      if(i == cpts.length - 3) mpts.push([mx2, my2, mz2])
+      for(var o = 0; o < steps+1; o++){
+        var xa = x1 + (x2-x1) / steps * o
+        var ya = y1 + (y2-y1) / steps * o
+        var za = z1 + (z2-z1) / steps * o
+        var xb = x2 + (x3-x2) / steps * o
+        var yb = y2 + (y3-y2) / steps * o
+        var zb = z2 + (z3-z2) / steps * o
+      }
+    }
+  })
+  var curve = []
+  cpts.map((v, i) => {
+    var x1 = v[0]
+    var y1 = v[1]
+    var z1 = v[2]
+    if(i < cpts.length - 2){
+      var j = (i + 1)
+      var k = (i + 2)
+      var x2 = cpts[j][0]
+      var y2 = cpts[j][1]
+      var z2 = cpts[j][2]
+      var x3 = cpts[k][0]
+      var y3 = cpts[k][1]
+      var z3 = cpts[k][2]
+      var mx1 = (x1 + x2) / 2
+      var my1 = (y1 + y2) / 2
+      var mz1 = (z1 + z2) / 2
+      var mx2 = (x2 + x3) / 2
+      var my2 = (y2 + y3) / 2
+      var mz2 = (z2 + z3) / 2
+      mpts.push([mx1, my1, mz1])
+      if(!i){
+        for(var o = 0; o < steps; o++){
+          var xa = x1 + (mx1-x1) / steps * o
+          var ya = y1 + (my1-y1) / steps * o
+          var za = z1 + (mz1-z1) / steps * o
+          var xb = x1 + (mx1-x1) / steps * (o+1)
+          var yb = y1 + (my1-y1) / steps * (o+1)
+          var zb = z1 + (mz1-z1) / steps * (o+1)
+          curve.push(
+            [xa, ya, za],
+            [xb, yb, zb]
+          )
+        }
+      }
+      var ox = mx1, oy = my1, oz = mz1
+      for(var o = 0; o < steps+1; o++){
+        var xa1 = mx1 + (x2-mx1) / steps * o
+        var ya1 = my1 + (y2-my1) / steps * o
+        var za1 = mz1 + (z2-mz1) / steps * o
+        var xb1 = x2 + (mx2-x2) / steps * o
+        var yb1 = y2 + (my2-y2) / steps * o
+        var zb1 = z2 + (mz2-z2) / steps * o
+        if(o){
+          var xa2 = mx1 + (x2-mx1) / steps * (o+1)
+          var ya2 = my1 + (y2-my1) / steps * (o+1)
+          var za2 = mz1 + (z2-mz1) / steps * (o+1)
+          var xb2 = x2 + (mx2-x2) / steps * (o+1)
+          var yb2 = y2 + (my2-y2) / steps * (o+1)
+          var zb2 = z2 + (mz2-z2) / steps * (o+1)
+          var l = Intersects(xa1,ya1,xb1,yb1,xa2,ya2,xb2,yb2)
+          if(l && o < steps){
+            curve.push([ox, oy, oz],[...l, 0])
+            ox = l[0], oy = l[1], oz = 0
+          }
+          if(o>=steps){
+            curve.push([ox, oy, oz],[mx2, my2, 0])
+          }
+        }
+      }
+      if(i == cpts.length - 3){
+        mpts.push([mx2, my2, mz2])
+        for(var o = 0; o < steps; o++){
+          var xa = mx2 + (x3-mx2) / steps * o
+          var ya = my2 + (y3-my2) / steps * o
+          var za = mz2 + (z3-mz2) / steps * o
+          var xb = mx2 + (x3-mx2) / steps * (o+1)
+          var yb = my2 + (y3-my2) / steps * (o+1)
+          var zb = mz2 + (z3-mz2) / steps * (o+1)
+          curve.push(
+            [xa, ya, za],
+            [xb, yb, zb]
+          )
+        }
+      }
+    }
+  })
+  var ret
+  geoOptions.shapeType = 'lines'
+  geoOptions.geometryData = curve
+  await LoadGeometry(renderer, geoOptions).then(async (geometry) => ret = geometry )
+  return ret
+}
+
+
 const Reflect = (a, n) => {
   let d1 = Math.hypot(...a)+.00001
   let d2 = Math.hypot(...n)+.00001
@@ -6236,6 +6366,7 @@ export {
   GetShaderCoord,
   Reflect,
   Normal,
+  BSpline,
   ImageToPo2,
   LoadOBJ,
   IsPowerOf2,
