@@ -45,9 +45,10 @@
       // using the same two points
       var geoOptions = {
         shapeType: 'curveto',
-        geometryData,
+        geometryData: [geometryData],
         size: 3,
         alpha: 1,
+        alignment: 'vertical',
         penumbra: .3,
         steps: 200,
         color: 0xff0000,
