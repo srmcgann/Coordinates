@@ -17,125 +17,34 @@
       import * as Coordinates from
       "https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
-      var rendererOptions = {
-        ambientLight: .5,
-        fov: 500, width: 960, height: 540
-      }
-      var renderer = await Coordinates.Renderer(rendererOptions)
-      var Rn = Math.random
+      var renderer = await Coordinates.Renderer()
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
-      var shaderOptions = [
-        { uniform: {
-          type: 'phong',
-          value: .75
-        } }
-      ]
-      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var shapes = []
-
-      var greenDot
-      var geoOptions = {
-        shapeType: 'sprite',
-        involveCache: false,
-        size: 1,
-        map: 'https://srmcgann.github.io/Coordinates/resources/dots/green_dot_black_border.png',
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        greenDot = geometry
-      })        
+      var Rn = Math.random
+      var rndCoord = () => [(Rn()-.5)*32, (Rn()-.5)*18, 0]
       
-      var redDot
-      var geoOptions = {
-        shapeType: 'sprite',
-        involveCache: false,
-        size: 1,
-        map: 'https://srmcgann.github.io/Coordinates/resources/dots/red_dot_black_border.png',
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        redDot = geometry
-      })        
-      
-      var iPc = 6
-      var iPv = .5
-      var steps = 30
-      
-      var pts = {
-        positions: Array(iPc).fill().map((v, i) =>
-          [(Rn()-.5)*16, (Rn()-.5)*9, 0],
-        ),
-        velocities: Array(iPc).fill().map((v, i) =>
-          [(Rn()-.5)*iPv, (Rn()-.5)*iPv, 0],
-        ),
-      }
-      await Coordinates.BSpline(renderer, {
-        geometryData: pts.positions,
-        omitShape: true,
-        steps
-      }).then(res => {
+      var splineCurve
+      const loadCurve = () => {
         var geoOptions = {
-          shapeType: 'lines',
-          name: 'curve',
-          alpha: .75,
+          shapeType: 'bspline',
+          geometryData: Array(5).fill().map(v=>rndCoord()),
+          size: 3,
+          alpha: 1,
+          steps: 100,
           penumbra: .25,
-          geometryData: res.curve,
-          size: 5,
-          color: 0xff0000,
+          color: 0x00ff44,
         }
         Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-          shapes.push(geometry)
-          await shader.ConnectGeometry(geometry)
+          splineCurve = geometry
         })  
-      })
-      
+      }
       
       window.Draw = () => {
         var t = renderer.t
-        renderer.z = 25
-        shapes.forEach(shape => {
-          switch(shape.name){
-            case 'curve':
-              pts.positions.map((v, i) =>{
-                var vx = pts.velocities[i][0]
-                var vy = pts.velocities[i][1]
-                if(v[0] + vx > 16 || v[0] + vx < -16) vx = pts.velocities[i][0] *= -1
-                if(v[1] + vy > 9 || v[1] + vy < -9)  vy = pts.velocities[i][1] *= -1
-                v[0] += vx
-                v[1] += vy
-              })
-              Coordinates.BSpline(renderer, {
-                geometryData: pts.positions,
-                omitShape: true,
-                steps
-              }).then(res => {
-                for(var i = 0; i < shape.vertices.length; i+=3){
-                  var j = i/3
-                  shape.vertices[i+0] = res.curve[j][0]
-                  shape.vertices[i+1] = res.curve[j][1]
-                  shape.vertices[i+2] = res.curve[j][2]
-                }
-                res.controlPoints.forEach((pt, idx) => {
-                  greenDot.x = pt[0]
-                  greenDot.y = pt[1]
-                  greenDot.z = pt[2] + idx/100
-                  renderer.Draw(greenDot)
-                })
-                res.midPoints.forEach((pt, idx) => {
-                  redDot.x = pt[0]
-                  redDot.y = pt[1]
-                  redDot.z = pt[2] - idx/100
-                  renderer.Draw(redDot)
-                })
-                renderer.Draw(shape)
-              })
-            break
-            default:
-              renderer.Draw(shape)
-            break
-          }
-        })
+        renderer.z = 10
+        if(!((t*60|0)%20)) loadCurve()
+        renderer.Draw(splineCurve)
       }
       
     </script>
