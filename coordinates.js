@@ -1614,7 +1614,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         isLine = 1.0
         geoOptions.omitShape = true
         await CurveTo (renderer, geoOptions).then(res => {
-          res.curve.map(v => {
+          res.map(v => {
             vertices.push(...v)
           })
         })
@@ -5637,38 +5637,51 @@ const PointInPoly3D = (X1, Y1, Z1, X2, Y2, Z2, facet, autoFlipNormals=false) => 
 }
 
 const CurveTo = async (renderer, geoOptions) => {
-  var v = geoOptions.geometryData
-  var X1, Y1, Z1, X2, Y2, Z2
-  var X3, Y3, Z3, X4, Y4, Z4
-  var X1 = v[0][0]
-  var Y1 = v[0][1]
-  var Z1 = v[0][2]
-  var X2 = v[1][0]
-  var Y2 = v[1][1]
-  var Z2 = v[1][2]
-  if(Math.abs(X2-X1) > Math.abs(Y2-Y1)){
-    X3 = X1
-    Y3 = (Y1 + Y2) / 2
-    Z3 = (Z1 + Z2) / 2
-    X4 = X2
-    Y4 = (Y1 + Y2) / 2
-    Z4 = (Z1 + Z2) / 2
-  }else{
-    X3 = (X1 + X2) / 2
-    Y3 = Y1
-    Z3 = (Z1 + Z2) / 2
-    X4 = (X1 + X2) / 2
-    Y4 = Y2
-    Z4 = (Z1 + Z2) / 2
-  }
-  geoOptions.geometryData = [
-    [X1,Y1,Z1],[X3,Y3,Z3],
-    [X4,Y4,Z4],[X2,Y2,Z2],
-  ]
-  var ret
-  await BSpline(renderer, geoOptions).then(res => {
-    ret = res
+  var ret = []
+  var oOmitShape = geoOptions.omitShape
+  geoOptions.omitShape = true
+  await geoOptions.geometryData.map(async v => {
+    var X1, Y1, Z1, X2, Y2, Z2
+    var X3, Y3, Z3, X4, Y4, Z4
+    var X1 = v[0][0]
+    var Y1 = v[0][1]
+    var Z1 = v[0][2]
+    var X2 = v[1][0]
+    var Y2 = v[1][1]
+    var Z2 = v[1][2]
+    if(geoOptions.alignment != 'horizontal' &&
+        (Math.abs(X2-X1) > Math.abs(Y2-Y1) || geoOptions.alignment == 'vertical')){
+      X3 = X1
+      Y3 = (Y1 + Y2) / 2
+      Z3 = (Z1 + Z2) / 2
+      X4 = X2
+      Y4 = (Y1 + Y2) / 2
+      Z4 = (Z1 + Z2) / 2
+    }else{
+      X3 = (X1 + X2) / 2
+      Y3 = Y1
+      Z3 = (Z1 + Z2) / 2
+      X4 = (X1 + X2) / 2
+      Y4 = Y2
+      Z4 = (Z1 + Z2) / 2
+    }
+    geoOptions.geometryData = [
+      [X1,Y1,Z1],[X3,Y3,Z3],
+      [X4,Y4,Z4],[X2,Y2,Z2],
+    ]
+    BSpline(renderer, geoOptions).then(res => {
+      ret.push(...res.curve)
+    })
   })
+  if(!oOmitShape){
+    var retShape
+    geoOptions.shapeType = 'lines'
+    geoOptions.geometryData = ret
+    await LoadGeometry(renderer, geoOptions).then(geometry => {
+      retShape = geometry
+    })
+    ret = retShape
+  }
   return ret
 }
 
