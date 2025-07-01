@@ -5714,9 +5714,14 @@ const BSpline = async (renderer, geoOptions) => {
           var yb2 = y2 + (my2-y2) / steps * (o+1)
           var zb2 = z2 + (mz2-z2) / steps * (o+1)
           var l = Intersects(xa1,ya1,xb1,yb1,xa2,ya2,xb2,yb2)
-          if(l && o < steps){
-            curve.push([ox, oy, oz],[...l, 0])
-            ox = l[0], oy = l[1], oz = 0
+          if(o < steps){
+            if(l){
+              curve.push([ox, oy, oz],[...l, 0])
+              ox = l[0], oy = l[1], oz = 0
+            }else{
+              curve.push([ox, oy, oz],[mx2, my2, mz2])
+              ox = mx2, oy = my2, oz = mz2
+            }
           }
           if(o>=steps){
             curve.push([ox, oy, oz],[mx2, my2, 0])
@@ -5740,11 +5745,24 @@ const BSpline = async (renderer, geoOptions) => {
       }
     }
   })
-  var ret
-  geoOptions.shapeType = 'lines'
-  geoOptions.geometryData = curve
-  await LoadGeometry(renderer, geoOptions).then(async (geometry) => ret = geometry )
-  return ret
+  if(geoOptions.omitShape){
+    return {
+      curve,
+      midPoints: mpts,
+      controlPoints: cpts
+    }
+  }else{
+    var ret
+    geoOptions.shapeType = 'lines'
+    geoOptions.geometryData = curve
+    await LoadGeometry(renderer, geoOptions).then(async (geometry) => ret = geometry )
+    return {
+      curve,
+      shape: ret,
+      midPoints: mpts,
+      controlPoints: cpts,
+    }
+  }
 }
 
 
