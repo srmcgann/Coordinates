@@ -1610,6 +1610,15 @@ const LoadGeometry = async (renderer, geoOptions) => {
           })
         })
       break
+      case 'curveto':
+        isLine = 1.0
+        geoOptions.omitShape = true
+        await CurveTo (renderer, geoOptions).then(res => {
+          res.curve.map(v => {
+            vertices.push(...v)
+          })
+        })
+      break
       case 'cube':
         shape = await Cube(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
@@ -1638,7 +1647,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'particles':
         isParticle = 1.0
         geometryData.map(v => {
-          vertices.push(...v.position)
+          vertices.push(...v)
         })
       break
       case 'point light':
@@ -5627,6 +5636,43 @@ const PointInPoly3D = (X1, Y1, Z1, X2, Y2, Z2, facet, autoFlipNormals=false) => 
   return isc
 }
 
+const CurveTo = async (renderer, geoOptions) => {
+  var v = geoOptions.geometryData
+  var X1, Y1, Z1, X2, Y2, Z2
+  var X3, Y3, Z3, X4, Y4, Z4
+  var X1 = v[0][0]
+  var Y1 = v[0][1]
+  var Z1 = v[0][2]
+  var X2 = v[1][0]
+  var Y2 = v[1][1]
+  var Z2 = v[1][2]
+  if(Math.abs(X2-X1) > Math.abs(Y2-Y1)){
+    X3 = X1
+    Y3 = (Y1 + Y2) / 2
+    Z3 = (Z1 + Z2) / 2
+    X4 = X2
+    Y4 = (Y1 + Y2) / 2
+    Z4 = (Z1 + Z2) / 2
+  }else{
+    X3 = (X1 + X2) / 2
+    Y3 = Y1
+    Z3 = (Z1 + Z2) / 2
+    X4 = (X1 + X2) / 2
+    Y4 = Y2
+    Z4 = (Z1 + Z2) / 2
+  }
+  geoOptions.geometryData = [
+    [X1,Y1,Z1],[X3,Y3,Z3],
+    [X4,Y4,Z4],[X2,Y2,Z2],
+  ]
+  var ret
+  await BSpline(renderer, geoOptions).then(res => {
+    ret = res
+  })
+  return ret
+}
+
+      
 const BSpline = async (renderer, geoOptions) => {
   var mpts = []
   
@@ -5640,7 +5686,21 @@ const BSpline = async (renderer, geoOptions) => {
       }
     })
   }
-  var cpts = geoOptions.geometryData
+  var cpts = structuredClone(geoOptions.geometryData)
+  var tx, ty, tz
+  tx = cpts[0][0] - (cpts[1][0] - cpts[0][0])
+  ty = cpts[0][1] - (cpts[1][1] - cpts[0][1])
+  tz = cpts[0][2] - (cpts[1][2] - cpts[0][2])
+  cpts[0][0] = tx
+  cpts[0][1] = ty
+  cpts[0][2] = tz
+  var l = cpts.length - 1
+  tx = cpts[l][0] + (cpts[l][0] - cpts[l-1][0])
+  ty = cpts[l][1] + (cpts[l][1] - cpts[l-1][1])
+  tz = cpts[l][2] + (cpts[l][2] - cpts[l-1][2])
+  cpts[l][0] = tx
+  cpts[l][1] = ty
+  cpts[l][2] = tz
   cpts.map((v, i) => {
     var x1 = v[0]
     var y1 = v[1]
@@ -5693,20 +5753,6 @@ const BSpline = async (renderer, geoOptions) => {
       var my2 = (y2 + y3) / 2
       var mz2 = (z2 + z3) / 2
       mpts.push([mx1, my1, mz1])
-      if(!i){
-        for(var o = 0; o < steps; o++){
-          var xa = x1 + (mx1-x1) / steps * o
-          var ya = y1 + (my1-y1) / steps * o
-          var za = z1 + (mz1-z1) / steps * o
-          var xb = x1 + (mx1-x1) / steps * (o+1)
-          var yb = y1 + (my1-y1) / steps * (o+1)
-          var zb = z1 + (mz1-z1) / steps * (o+1)
-          curve.push(
-            [xa, ya, za],
-            [xb, yb, zb]
-          )
-        }
-      }
       var ox = mx1, oy = my1, oz = mz1
       for(var o = 0; o < steps+1; o++){
         var xa1 = mx1 + (x2-mx1) / steps * o
@@ -5735,21 +5781,6 @@ const BSpline = async (renderer, geoOptions) => {
           if(o>=steps){
             curve.push([ox, oy, oz],[mx2, my2, 0])
           }
-        }
-      }
-      if(i == cpts.length - 3){
-        mpts.push([mx2, my2, mz2])
-        for(var o = 0; o < steps; o++){
-          var xa = mx2 + (x3-mx2) / steps * o
-          var ya = my2 + (y3-my2) / steps * o
-          var za = mz2 + (z3-mz2) / steps * o
-          var xb = mx2 + (x3-mx2) / steps * (o+1)
-          var yb = my2 + (y3-my2) / steps * (o+1)
-          var zb = mz2 + (z3-mz2) / steps * (o+1)
-          curve.push(
-            [xa, ya, za],
-            [xb, yb, zb]
-          )
         }
       }
     }
@@ -6394,6 +6425,7 @@ export {
   Reflect,
   Normal,
   BSpline,
+  CurveTo,
   ImageToPo2,
   LoadOBJ,
   IsPowerOf2,
