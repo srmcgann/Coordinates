@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #333;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var renderer = await Coordinates.Renderer()
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var Rn = Math.random
+      var rndCoord = () => [(Rn()-.5)*32, (Rn()-.5)*18, 0]
+      
+      var splineCurve
+      const loadCurve = () => {
+        var geoOptions = {
+          shapeType: 'bspline',
+          geometryData: Array(5).fill().map(v=>rndCoord()),
+          size: 3,
+          alpha: 1,
+          steps: 100,
+          penumbra: .25,
+          color: 0x00ff44,
+        }
+        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          splineCurve = geometry
+        })  
+      }
+      
+      window.Draw = () => {
+        var t = renderer.t
+        renderer.z = 10
+        if(!((t*60|0)%20)) loadCurve()
+        renderer.Draw(splineCurve)
+      }
+      
+    </script>
+  </body>
+</html>
