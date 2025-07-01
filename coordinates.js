@@ -1601,6 +1601,15 @@ const LoadGeometry = async (renderer, geoOptions) => {
           vertices.push(...v)
         })
       break
+      case 'bspline':
+        isLine = 1.0
+        geoOptions.omitShape = true
+        await BSpline (renderer, geoOptions).then(res => {
+          res.curve.map(v => {
+            vertices.push(...v)
+          })
+        })
+      break
       case 'cube':
         shape = await Cube(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
