@@ -50,7 +50,7 @@
       var geoOptions = {
         shapeType: 'curveto',
         name: 'curve',
-        geometryData,
+        geometryData: [geometryData],
         size: 3,
         alpha: 1,
         penumbra: .3,
@@ -68,10 +68,12 @@
         renderer.z = 10
         geometryData.map((v, i) => v[0] = C(t) * 10 * (i ? -1 : 1))
         Coordinates.CurveTo(renderer, {
-          geometryData,
+          geometryData: [geometryData],
           steps: 200,
+          alignment: 'vertical',
           omitShape: true
         }).then(res => {
+          console.log(res)
           for(var i = 0; i < particles.vertices.length; i+=3){
             var j = i/3
             for(var m = 0; m < 3; m++)
@@ -80,7 +82,7 @@
           for(var i = 0; i < curve.vertices.length; i+=3){
             var j = i/3
             for(var m = 0; m < 3; m++)
-              curve.vertices[i+m] = res.curve[j][m]
+              curve.vertices[i+m] = res[j][m]
           }
           renderer.Draw(curve)
           renderer.Draw(particles)
