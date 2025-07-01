@@ -15,13 +15,13 @@
     <script type="module">
     
       import * as Coordinates from
-      "https://boss.veriler.com/coordinates.js"
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
       var renderer = await Coordinates.Renderer()
-      var Rn = Math.random
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
+      var Rn = Math.random
       var rndCoord = () => [(Rn()-.5)*32, (Rn()-.5)*18, 0]
       
       var splineCurve
