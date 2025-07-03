@@ -875,20 +875,20 @@ const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
   })
 }
 
-const OBJFinishing = (ret, tx=0, ty=0, tz=0, rl=0, pt=0, yw=0) =>{
+const OBJFinishing = async (ret, tx=0, ty=0, tz=0, rl=0, pt=0, yw=0) => {
   var a, X, Y, Z
   for(var i = 0; i<ret.uvs.length; i+=2){
     ret.uvs[i+1] = 1-ret.uvs[i+1]
   }
   for(var i = 0; i<ret.normals.length; i+=3){
-    ret.normals[i+1] = -ret.normals[i+1]
+    ret.normals[i+1] = ret.normals[i+1]
   }
   for(var i = 0; i<ret.vertices.length; i+=3){
     X = ret.vertices[i+0]
     Y = ret.vertices[i+1]
     Z = ret.vertices[i+2]
     var ar = [X,Y,Z]
-    R_pyr(...ar, {roll:rl, pitch:pt, yaw:yw})
+    ar = R_pyr(...ar, {roll:rl, pitch:pt, yaw:yw})
     ret.vertices[i+0] = ar[0]
     ret.vertices[i+1] = ar[1]
     ret.vertices[i+2] = ar[2]
@@ -908,8 +908,8 @@ const OBJFinishing = (ret, tx=0, ty=0, tz=0, rl=0, pt=0, yw=0) =>{
 }
 
 const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involveCache=true) => {
-
   var ret = { vertices: [], normals: [], uvs: [] }
+  
   var a, X, Y, Z
   if(involveCache && (cacheItem = cache.objFiles.filter(v=>v.url == url)).length){
     ret = cacheItem[0].ret
@@ -1046,8 +1046,11 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
                     vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
                   for(var i = 0; i < geo.uvs.length; i++)
                     uvs.push(Math.round(geo.uvs[i]*1e3)/1e3)
-                  for(var i = 0; i < geo.normals.length; i++)
-                    normals.push(Math.round(geo.normals[i]*1e3)/1e3)
+                  for(var i = 0; i < geo.normals.length; i+=3){
+                    normals.push(Math.round(geo.normals[i+0]*1e3)/1e3)
+                    normals.push(Math.round(geo.normals[i+1]*1e3)/1e3)
+                    normals.push(Math.round(geo.normals[i+2]*1e3)/1e3)
+                  }
                   for(var i = 0; i < geo.normalVecs.length; i++)
                     normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
                   var object = { vertices, uvs, normals, normalVecs }
@@ -1793,40 +1796,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
       //normals[i*2+3] *= scaleX
       //normals[i*2+4] *= scaleY
       //normals[i*2+5] *= scaleZ
-    }
-  }
-  if(objX || objY || objZ || objRoll || objPitch || objYaw){
-    if(typeof objX     == 'undefined') objX     = 0
-    if(typeof objY     == 'undefined') objY     = 0
-    if(typeof objZ     == 'undefined') objZ     = 0
-    if(typeof objRoll  == 'undefined') objRoll  = 0
-    if(typeof objPitch == 'undefined') objPitch = 0
-    if(typeof objYaw   == 'undefined') objYaw   = 0
-    var ar
-    for(var i = 0; i< normals.length; i+=6){
-      x = normals[i+0]
-      Y = normals[i+1]
-      Z = normals[i+2]
-      ar = R(X, Y, Z, {roll: objRoll, pitch: objPitch, yaw: objYaw}, false)
-      normals[i+0] = ar[0] + objX
-      normals[i+1] = ar[1] + objY
-      normals[i+2] = ar[2] + objZ
-      x = normals[i+3]
-      Y = normals[i+4]
-      Z = normals[i+5]
-      ar = R(X, Y, Z, {roll: objRoll, pitch: objPitch, yaw: objYaw}, false)
-      normals[i+3] = ar[0] + objX
-      normals[i+4] = ar[1] + objY
-      normals[i+5] = ar[2] + objZ
-    }
-    for(var i = 0; i< vertices.length; i+=3){
-      x = vertices[i+0]
-      Y = vertices[i+1]
-      Z = vertices[i+2]
-      ar = R(X, Y, Z, {roll: objRoll, pitch: objPitch, yaw: objYaw}, false)
-      vertices[i+0] = ar[0] + objX
-      vertices[i+1] = ar[1] + objY
-      vertices[i+2] = ar[2] + objZ
     }
   }
   
