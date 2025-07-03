@@ -47,7 +47,7 @@
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var shaderOptions = [
-        {lighting: {type: 'ambientLight', value: .1}},
+        {lighting: {type: 'ambientLight', value: .6}},
         { uniform: {
           type: 'phong',
           value: 0
@@ -94,7 +94,7 @@
         shapeType: 'cylinder',
         rows: 24,
         cols: 12,
-        showNormals: true,
+        showNormals: false,
         equirectangular: false,
         map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
         size: .8,
@@ -134,7 +134,58 @@
           geometry.vertices[i+1] = y
           geometry.vertices[i+2] = z
         }
+        
         Coordinates.SyncNormals(geometry, true, false, true, ox, oy, oz)
+        
+        var vertices   = geometry.vertices
+        var uvs        = geometry.uvs
+        var normals    = geometry.normals
+        var normalVecs = geometry.normalVecs
+
+        var nVerts       = new Float32Array(Array(vertices.length*2).fill().map((v, i)=>{
+          var l = i%vertices.length, m
+          m = i < vertices.length ? 1 : (i%3==0 ? -1 : 1)
+          return vertices[l] * m
+        }))
+        
+        var nUvs         = new Float32Array(Array(uvs.length*2).fill().map((v, i)=>{
+          var l = i%uvs.length, m
+          //m = i < uvs.length ? 1 : (i%3==1 ? -1 : 1)
+          return uvs[l] //* m
+        }))
+        
+        var nNormals     = new Float32Array(Array(normals.length*2).fill().map((v, i)=>{
+          var l = i%normals.length, m
+          m = i < normals.length ? 1 : (i%3==0 ? -1 : 1)
+          return normals[l] * m
+        }))
+        
+        var nNormalVecs       = new Float32Array(Array(normalVecs.length*2).fill().map((v, i)=>{
+          var l = i%normalVecs.length, m
+          //m = i < normalVecs.length ? 1 : (i%3==1 ? -1 : 1)
+          return normalVecs[l] //* m
+        }))
+        
+        geometry.vertices   = nVerts
+        geometry.uvs        = nUvs
+        geometry.normals    = nNormals
+        geometry.normalVecs = nNormalVecs
+        
+        var vIndices    = geometry.vIndices
+        var uvIndices   = geometry.uvIndices
+        var nIndices    = geometry.nIndices
+        var nVecIndices = geometry.nVecIndices
+
+        var nVIndices    = new Uint32Array(Array(vIndices.length*2).fill().map((v,i)=>i))
+        var nUvIndices   = new Uint32Array(Array(uvIndices.length*2).fill().map((v,i)=>i))
+        var nNIndices    = new Uint32Array(Array(nIndices.length*2).fill().map((v,i)=>i))
+        var nNVecIndices = new Uint32Array(Array(nVecIndices.length*2).fill().map((v,i)=>i))
+        
+        geometry.vIndices    = nVIndices
+        geometry.uvIndices   = nUvIndices
+        geometry.nIndices    = nNIndices
+        geometry.nVecIndices = nNVecIndices
+        
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
       })  
@@ -146,18 +197,17 @@
         crosshairSel: 3,
       })
       
-      if(1){
+      if(0){
         renderer.z = 20
         renderer.x = -20
         renderer.yaw = Math.PI/2
       } else {
         renderer.x = 0
-        renderer.y = -5
+        renderer.y = 0
         renderer.z = 40
         renderer.yaw = 0
-        renderer.pitch = .25
+        renderer.pitch = 0
       }
-
 
       //renderer.z = 20
       //renderer.x = -6
@@ -173,6 +223,7 @@
               renderer.Draw(shape)
             break
             case 'background':
+              console.log(shape)
               renderer.Draw(shape)
             break
             default:

@@ -1443,7 +1443,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         case 'cylinder_0':
         case 'torus_0':
         case 'torus knot_0':
-          if(hint != 'cylinder_0' && hint != 'torus_0' &&
+          if((hint != 'cylinder_0' && hint != 'torus_0') ||
              (hint == 'cylinder_0' && rows == 16 && cols == 40) ||
              (hint == 'torus_0' && rows == 16 && cols == 40) ||
              (hint == 'torus knot_0' && rows == 16 && cols == 40) 
