@@ -1337,8 +1337,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'maxheightmap'       : maxHeightmap = +geoOptions[key]; break
       case 'heightmapiscanvas'  : heightMapIsCanvas= !!geoOptions[key]; break
       case 'rows'               : rows = geoOptions[key]; break
-      case 'disabledepthtest'   : disableDepthTest = geoOptions[key]; break
       case 'cols'               : cols = geoOptions[key]; break
+      case 'disabledepthtest'   : disableDepthTest = geoOptions[key]; break
       case 'canvastexturemix'   : canvasTextureMix = geoOptions[key]; break
       case 'canvastexture'      :
         canvasTexture = geoOptions[key]
@@ -1443,7 +1443,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         case 'cylinder_0':
         case 'torus_0':
         case 'torus knot_0':
-          if(hint != 'cylinder_0' || hint != 'torus_0' ||
+          if(hint != 'cylinder_0' && hint != 'torus_0' &&
              (hint == 'cylinder_0' && rows == 16 && cols == 40) ||
              (hint == 'torus_0' && rows == 16 && cols == 40) ||
              (hint == 'torus knot_0' && rows == 16 && cols == 40) 
@@ -2027,7 +2027,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   if(equirectangularHeightmap == -1) equirectangularHeightmap = false
 
   var updateGeometry = {
-    x, y, z,
+    x, y, z, rows, cols,
     roll, pitch, yaw, color, colorMix,
     size, subs, name, url, averageNormals,
     showNormals, exportShape, downloadShape,
@@ -2302,7 +2302,8 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
   //gl.activeTexture(gl.TEXTURE0)
 }
 
-const SyncNormals = (shape, averageNormals=false, flipNormals=false) => {
+const SyncNormals = (shape, averageNormals=false, flipNormals=false,
+                       autoFlip=true, cx = 0, cy = 0, cz = 0) => {
   var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, n
   var nrms = []
   for(var i = 0; i < shape.vertices.length; i+=9){
@@ -2317,7 +2318,7 @@ const SyncNormals = (shape, averageNormals=false, flipNormals=false) => {
     Z3 = shape.vertices[i+8]
     n = Normal([[X1, Y1, Z1],
                 [X2, Y2, Z2],
-                [X3, Y3, Z3]], true)
+                [X3, Y3, Z3]], autoFlip, cx, cy, cz)
     nrms.push(n)
   }
   var fn = shape.flipNormals ? 1 : -1
