@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Coordinates boilerplate example</title>
+    <title>Coordinates data array texture example</title>
     <style>
       body, html{
         background: #333;
@@ -12,41 +12,266 @@
     </style>
   </head>
   <body>
-    <script type="module">
-    
-      import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
-    
-      var renderer = await Coordinates.Renderer()
-      
-      Coordinates.AnimationLoop(renderer, 'Draw')
+<script type="module">
 
-      var Rn = Math.random
-      var rndCoord = () => [(Rn()-.5)*32, (Rn()-.5)*18, 0]
+  import * as Coordinates from
+    //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    "https://boss.veriler.com/coordinates.js"
+
+  //var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/pano3.jpg'
+  var refTexture = 'https://srmcgann.github.io/skyboxes3/videos/deepdive.mp4'
+  const playbackSpeed = 1
+
+  var renderer = await Coordinates.Renderer({
+    margin: 0,
+    fov: 600, //width: 960, height: 540,
+  })
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .6}},
+    { uniform: {
+      type: 'phong',
+      value: 1
+    } },
+    { uniform: {
+      type: 'reflection',
+      value: .5,
+      map: refTexture,
+      playbackSpeed,
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .7}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } },
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shapes = []
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  var idx, x, y, z, l, u, r, d, ul, ur, dl, dr, n
+  var red, green, blue, alpha, idxs, vx, vy
+  var cl = 300 * .75 | 0
+  var rw = 150 * .75| 0
+  var tgtRad = cl / 100, idx, sd
+  var fade = 1.333
+  var iPc = 32
+  var iPv = 1
+  var variation = .5
+  var dataArray = []
+  Array(cl*rw).fill().map((v, i) => {
+    x     = i%cl
+    y     = i/cl|0
+    //var rgb   = Coordinates.HSVToRGB(360/cl*x, Math.min(1,Math.max(0, 1.95-y/rw*2)), Math.min(1, y/rw*2))
+    
+    red   = 0
+    green = 0
+    blue  = 0
+    alpha = 255
+    dataArray.push(red, green, blue, alpha)
+  })
+  
+  const getAdjacent = () => {
+    l  = (x ? x - 1 : cl - 1) + y * cl
+    u  = x + (y ? y - 1 : rw - 1) * cl
+    r  = (x < cl - 1 ? x + 1 : 0) + y * cl
+    d  = x + (y < rw - 1 ? y + 1 : 0) * cl
+    ul = (x ? x - 1 : cl - 1) + (y ? y - 1 : rw - 1) * cl
+    ur = (x < cl - 1 ? x + 1 : 0) + (y ? y - 1 : rw - 1) * cl
+    dl = (x ? x - 1 : cl - 1) + (y < rw - 1 ? y + 1 : 0) * cl
+    dr = (x < cl - 1 ? x + 1 : 0) + (y < rw - 1 ? y + 1 : 0) * cl
+  }
+  
+  var weights = [
+    1/6/2, 1/6, 1/6/2,
+    1/6,   -1,  1/6,
+    1/6/2, 1/6, 1/6/2,
+  ]
+  const process = () => {
+    var tAr = structuredClone(dataArray)
+    for(var i = 0; i < tAr.length; i+=4){
+      red   = tAr[i+0] /= fade
+      green = tAr[i+1] /= fade
+      blue  = tAr[i+2] /= fade
+      //alpha = tAr[i+3]
       
-      var splineCurve
-      const loadCurve = () => {
-        var geoOptions = {
-          shapeType: 'bspline',
-          geometryData: Array(5).fill().map(v=>rndCoord()),
-          size: 3,
-          alpha: 1,
-          steps: 100,
-          penumbra: .25,
-          color: 0x00ff44,
-        }
-        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-          splineCurve = geometry
-        })  
+      idx = i/4
+      x   = idx%cl
+      y   = idx/cl|0
+      getAdjacent()
+      
+      idxs = [ul, u, ur, l, idx, r, dl, d, dr]
+      
+      // laplacian convolution
+      if(1) weights.forEach((w, j) => {
+        n = idxs[j] * 4
+        red   += tAr[n + 0] * w
+        green += tAr[n + 1] * w
+        blue  += tAr[n + 2] * w
+      })
+      
+      dataArray[i+0] = red
+      dataArray[i+1] = green
+      dataArray[i+2] = blue
+      dataArray[i+3] = 255
+    }
+  }
+  
+  var geoOptions = {
+    shapeType: 'custom shape',
+    url: 'https://srmcgann.github.io/Coordinates/custom shapes/icosahedron_hipoly_spherized_6.json',
+    name: 'main',
+    flipNormals: false,
+    showNormals: true,
+    size: 1,
+    yaw: Math.PI,
+    //averageNormals: true,
+    //sphereize: 6,
+    //subs: 4,
+    equirectangular: true,
+    equirectangularHeightmap: true,
+    //scaleX: 16/9,
+    dataArrayWidth: cl,
+    dataArrayHeight: rw,
+    dataArrayFormat: renderer.gl.RGBA,  // optional, default
+    map: dataArray,
+    heightMap: dataArray,
+    heightMapIntensity: 16,
+    heightmapDataArrayWidth: cl,
+    heightmapDataArrayHeight: rw,
+    maxHeightmap: 3,
+    //downloadShape: true,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    shader.ConnectGeometry(geometry)
+  })
+  
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    size: 1e4,
+    subs: 3,
+    map: refTexture,
+    playbackSpeed,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    backgroundShader.ConnectGeometry(geometry)
+  })
+
+  var geometryData = []
+  var pcl = 250
+  var prw = 1
+  var pbr = 250
+  var psp = 10
+  Array(pcl*prw*pbr).fill().map((v, i) => {
+    //x = ((i%pcl) - pcl/2 + .5) * psp
+    //y = (((i/pcl|0)%prw) - prw/2 + .5) * psp
+    //z = ((i/pcl/prw|0) - pbr/2 + .5) * psp
+    d = pcl*psp/2 * Rn() ** .5
+    x = S(p=Math.PI*2*Rn()) * d
+    y = 0
+    z = C(p) * d
+    if((d = Math.hypot(x,y,z)) < pcl*psp/2){
+      geometryData.push([x,y,z])
+    }
+  })
+  var geoOptions = {
+    shapeType: 'particles',
+    geometryData,
+    color: 0x4400ff,
+    size: 5,
+    alpha: .8,
+    penumbra: .3,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+  })
+  
+  var tx, ty, p, v
+  var cpts = Array(iPc).fill().map((v, i) => {
+    x  = cl/2
+    y  = rw/2
+    vx = S(p=Math.PI*2*Rn()) * iPv
+    vy = C(p) * iPv
+    return {x, y, vx, vy}
+  })
+  
+  const pushColor = pos => {
+    var tidx = Math.round(pos.x) + Math.round(pos.y) * cl //(Rn() * cl*rw) | 0
+    var theta = renderer.t*200 * (pos.idx%2 ? -1 : 1)
+    for(var j = tgtRad * 2 | 0; j--; ){
+      sd = (j+1) * Math.PI * 4 | 0
+      for(var i = sd; i--; ){
+        tx = tidx%cl
+        ty = tidx/cl|0
+        p = Math.PI*2/sd * i
+        v = ((1 + C(p*3 + theta)) * (j / 2)) ** 2 / 4
+        x  = Math.round(tx + S(p) * v)
+        y  = Math.round(ty + C(p) * v)
+        while(x < 0)    x+=cl
+        while(x > cl-1) x-=cl
+        while(y < 0)    y+=rw
+        while(y > rw-1) y-=rw
+        idx = (x + y * cl) * 4
+        dataArray[idx+0] += 6/4 * 20
+        dataArray[idx+1] += 10
+        dataArray[idx+2] += 80
+        //dataArray[idx+3] = 255
       }
-      
-      window.Draw = () => {
-        var t = renderer.t
-        renderer.z = 10
-        if(!((t*60|0)%20)) loadCurve()
-        renderer.Draw(splineCurve)
+    }
+  }
+  
+  //Coordinates.LoadFPSControls(renderer, {flyMode: true})
+  renderer.yaw = Math.PI
+  window.Draw = () => {
+    var t = renderer.t
+    renderer.z = Math.min(120*10, Math.max(55, (.6-C(t/2))*120*10))
+    renderer.yaw -= .003
+    renderer.pitch = Math.min(.5, Math.max(.1, -C(t/3)*2))
+    //for(var m = 1; m--;) if(!((t*60|0)%60)) pushColor()
+    cpts.map((v, idx) => {
+    
+      p = Math.atan2(v.vx, v.vy) + (Rn() - .5) * variation
+      v.vx = S(p) * iPv
+      v.vy = C(p) * iPv
+    
+      //if(v.x + v.vx >= cl || v.x + v.vx < 0) v.vx *= -1
+      //if(v.y + v.vy >= rw || v.y + v.vy < 0) v.vy *= -1
+      if(v.x + v.vx >= cl) v.x -= cl
+      if(v.x + v.vx < 0)   v.x += cl
+      if(v.y + v.vy >= rw) v.y -= rw
+      if(v.y + v.vy < 0)   v.y += rw
+      v.x += v.vx
+      v.y += v.vy
+      v.idx = idx
+      pushColor(v)
+    })
+    for(var m = 1; m--;) process()
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+        break
+        case 'main':
+          shape.yaw -= .01
+          shape.pitch += .005
+        break
+        default:
+        break
       }
-      
-    </script>
+      renderer.Draw(shape)
+    })
+  }
+  
+</script>
   </body>
 </html>

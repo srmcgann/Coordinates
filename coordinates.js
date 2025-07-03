@@ -467,6 +467,7 @@ const Renderer = async options => {
               ctx.uniform1i(dset.locHeightTexture, dset.heightTexture)
               ctx.uniform1f(dset.locUseHeightMap, 1)
               ctx.uniform1f(dset.locHeightMapIntensity, geometry.heightMapIntensity)
+              ctx.uniform1f(dset.locMaxHeightmap, geometry.maxHeightmap)
               ctx.uniform1f(dset.locEquirectangularHeightmap, geometry.equirectangularHeightmap ? 1.0 : 0.0)
               ctx.bindTexture(ctx.TEXTURE_2D, dset.heightTexture)
               ctx.activeTexture(ctx.TEXTURE0)
@@ -1227,6 +1228,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var isFromZip                = false
   var heightMap                = ''
   var heightMapIntensity       = 1
+  var maxHeightmap             = 6e6
   var heightMapIsCanvas        = false
   var canvasTextureMix         = -1
   var muted                    = true
@@ -1329,6 +1331,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'map'                : map = geoOptions[key]; break
       case 'heightmap'          : heightMap = geoOptions[key]; break
       case 'heightmapintensity' : heightMapIntensity = geoOptions[key]; break
+      case 'maxheightmap'       : maxHeightmap = +geoOptions[key]; break
       case 'heightmapiscanvas'  : heightMapIsCanvas= !!geoOptions[key]; break
       case 'rows'               : rows = geoOptions[key]; break
       case 'disabledepthtest'   : disableDepthTest = geoOptions[key]; break
@@ -2075,7 +2078,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     boundingColor, heightMap, heightMapIntensity,
     heightMapIsCanvas, equirectangularHeightmap,
     flipX, flipY, flipZ, isFromZip, rotationMode,
-    mapIsDataArray, dataArrayFormat,
+    mapIsDataArray, dataArrayFormat, maxHeightmap,
     dataArrayWidth, dataArrayHeight, preComputeNormalAssocs,
     heightmapIsDataArray, heightmapDataArrayFormat,
     heightmapDataArrayWidth, heightmapDataArrayHeight,
@@ -2410,7 +2413,7 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
     //var alpha = SHMdata[idx+3] / 256
     
     
-    var lum = ((red + green + blue) / 3) * (geometry.heightMapIntensity) / 2
+    var lum = Math.min(geometry.maxHeightmap, ((red + green + blue) / 3) * (geometry.heightMapIntensity) / 2)
     vx += nx * lum
     vy += ny * lum
     vz += nz * lum
@@ -3128,6 +3131,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec2 resolution;
       uniform float useHeightMap;
       uniform float heightMapIntensity;
+      uniform float maxHeightmap;
       uniform sampler2D heightMap;
       attribute vec3 position;
       attribute vec3 normal;
@@ -3212,7 +3216,7 @@ const BasicShader = async (renderer, options=[]) => {
 
             
           h = texture2D( heightMap, uvi);
-          lum = ((h.r + h.g + h.b) / 3.0) * (heightMapIntensity) / 2.0;
+          lum = min(maxHeightmap, ((h.r + h.g + h.b) / 3.0) * (heightMapIntensity) / 2.0);
           cx += normalVec.x * lum;
           cy += normalVec.y * lum;
           cz += normalVec.z * lum;
@@ -3378,6 +3382,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 color;
       uniform float useHeightMap;
       uniform float heightMapIntensity;
+      uniform float maxHeightmap;
       uniform sampler2D heightMap;
       uniform sampler2D baseTexture;
       uniform sampler2D supplementalTexture;
@@ -3555,7 +3560,7 @@ const BasicShader = async (renderer, options=[]) => {
                 float c1 = cr3.x - cr2.x;
                 float c2 = cr3.y - cr2.y;
                 float c3 = (lum3 - 0.5) * rad2 - (lum2 - 0.5) * rad2;
-                vec3 anorm =  vec3(b2*c3-b3*c2, b3*c1-b1*c3, b1*c2-b2*c1) * (1.0 + heightMapIntensity) / 2.0;
+                vec3 anorm =  vec3(b2*c3-b3*c2, b3*c1-b1*c3, b1*c2-b2*c1) * min(maxHeightmap / 5.0, (1.0 + heightMapIntensity) / 2.0);
                 nV = normalize( nVec + anorm);
                 nVi = normalize( nVeci + anorm);
               }else{
@@ -4006,6 +4011,7 @@ const BasicShader = async (renderer, options=[]) => {
             dset.locEquirectangularHeightmap = gl.getUniformLocation(dset.program, "equirectangularHeightmap")
             dset.locUseHeightMap = gl.getUniformLocation(dset.program, "useHeightMap")
             dset.locHeightMapIntensity = gl.getUniformLocation(dset.program, "heightMapIntensity")
+            dset.locMaxHeightmap = gl.getUniformLocation(dset.program, "maxHeightmap")
             gl.activeTexture(gl.TEXTURE0)
           }
           
