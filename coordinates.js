@@ -1198,7 +1198,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var uv_buffer, UV_Index_Buffer, name, shapeType
   var vIndices, nIndices, nVecIndices, uvIndices
   var canvasTexture, canvasTextureMix, showBounding
-  var boundingColor
+  var boundingColor, normalAssocs
   const gl = renderer.gl
   var shape, exportShape = false, downloadShape = false
   
@@ -1803,9 +1803,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
     AverageNormals(vertices, normals, shapeType)
   }
 
-  if(shapeType == 'dynamic' || preComputeNormalAssocs){
+  if(shapeType == 'dynamic' || preComputeNormalAssocs) {
     // pre-compute coincidental normals for averaging
-    geometry.normalAssocs = []
+//    var vertices = geometry.vertices
+    //geometry.preComputeNormalAssocs = true
+    normalAssocs = []
     for(var i = 0; i < vertices.length; i+=3){
       var X1 = vertices[i+0]
       var Y1 = vertices[i+1]
@@ -1820,10 +1822,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
           a.push(j)
         }
       }
-      geometry.normalAssocs.push(a)
+      normalAssocs.push(a)
     }
+    //ComputeNormalAssocs(ret)
   }
-
     
   if(shapeType != 'custom shape' && !isParticle && !isLine &&
      (!resolvedFromCache || !resolved || averageNormals || exportShape)){
@@ -2032,7 +2034,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     size, subs, name, url, averageNormals,
     showNormals, exportShape, downloadShape,
     shapeType: isParticle ? 'particles' :
-      (isLine ? 'lines' : shapeType),
+      (isLine ? 'lines' : shapeType), normalAssocs,
     sphereize, equirectangular, flipNormals,
     vertices, normals, normalVecs, uvs,
     vertex_buffer, Vertex_Index_Buffer,
@@ -2302,6 +2304,29 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
   //gl.activeTexture(gl.TEXTURE0)
 }
 
+const ComputeNormalAssocs = geometry => {
+  // pre-compute coincidental normals for averaging
+  var vertices = geometry.vertices
+  geometry.preComputeNormalAssocs = true
+  geometry.normalAssocs = []
+  for(var i = 0; i < vertices.length; i+=3){
+    var X1 = vertices[i+0]
+    var Y1 = vertices[i+1]
+    var Z1 = vertices[i+2]
+    var a = []
+    for(var j = 0; j < vertices.length; j+=3){
+      var X2 = vertices[j+0]
+      var Y2 = vertices[j+1]
+      var Z2 = vertices[j+2]
+      
+      if(Math.hypot(X1-X2, Y1-Y2, Z1-Z2) < .001){
+        a.push(j)
+      }
+    }
+    geometry.normalAssocs.push(a)
+  }
+}
+
 const SyncNormals = (shape, averageNormals=false, flipNormals=false,
                        autoFlip=true, cx = 0, cy = 0, cz = 0) => {
   var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, n
@@ -2335,9 +2360,12 @@ const SyncNormals = (shape, averageNormals=false, flipNormals=false,
       shape.normalVecs[idx*9+m*3+2] = shape.normals[idx*18+m*6+5] - shape.normals[idx*18+m*6+2]
     }
   })
-  if(averageNormals &&
-     typeof shape.normalAssocs != 'undefined' &&
-     shape.normalAssocs.length) {
+  if(averageNormals){
+    if(typeof shape.normalAssocs == 'undefined' ||
+     shape.normalAssocs.length != shape.vertices.length/3|0) {
+       console.log('generating normal assocs')
+      ComputeNormalAssocs(shape)
+    }
     var tNormalVecs = structuredClone(shape.normalVecs)
     for(var i = 0; i < shape.normalVecs.length; i += 3){
       var idx = i/3, ct=0
@@ -6404,6 +6432,7 @@ export {
   TorusKnot,
   Rectangle,
   Q, R, R_ypr, R_pyr, R_rpy,
+  ComputeNormalAssocs,
   SyncNormals,
   Intersects,
   PointInPoly2D,
