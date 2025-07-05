@@ -16,7 +16,7 @@
     
       import * as Coordinates from
       //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
-      "https://boss.veriler.com/coordinates.js"
+      "https://boss.veriler.com/coordinates.js?2"
     
       var rendererOptions = {
         fov: 1500, margin: 0,
@@ -91,13 +91,15 @@
       })  
       
       var notRun = true, update
-      var baseVerts
+      var baseVerts, baseUVs
+      var x, y, z, p, d, ox, oy, oz, dx, dy, dz
       var geoOptions = {
         shapeType: 'cylinder',
         name: 'thrusters',
-        rows: 24,
-        cols: 16,
-        showNormals: true,
+        rows: 32,
+        cols: 32,
+        //preComputeNormalAssocs: true,
+        showNormals: false,
         equirectangular: false,
         map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
         size: .8,
@@ -107,114 +109,80 @@
         colorMix: 0,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        baseVerts = structuredClone(geometry.vertices)
-        update = async () => {
-          //geometry.vertices = new Float32Array(Array(baseVerts.length).fill())
-          //geometry.normals = new Float32Array(Array(baseVerts.length * 2).fill())
-          //geometry.normalVecs = new Float32Array(Array(baseVerts.length).fill())
-          //geometry.uvs = new Float32Array(Array(baseVerts.length/3*2).fill())
-          var x, y, z, p, d, ox, oy, oz, dx, dy, dz
-          ox = 1.36
-          oy = -.35
-          oz = -31.85
-          const rotFunc = () => {
-            p = Math.atan2(y, z) + Math.PI/2
-            d = Math.hypot(y, z)
-            y = S(p) * d
-            z = C(p) * d
-            if(z < 8){
-              p = Math.atan2(x, y)
-              d = Math.hypot(x, y)
-              dx = d + (-z+8) / 24 - ((-z+4) ** 2 / 15.425 - 1) / 6.02
-              dy = d + (-z+8) / 2 - ((-z+4) ** 2 / 15.425 - 1)
-              dy += (-z+6) / 4 * C(z*2 + y*2)
-              x = S(p) * dx
-              y = C(p) * dy
-            }
-            z *= 2
-          }
-          for(var i = 0; i < geometry.vertices.length; i+=3) {
-            x = baseVerts[i+0]
-            y = baseVerts[i+1]
-            z = baseVerts[i+2]
-            rotFunc()
-            geometry.vertices[i+0] = x
-            geometry.vertices[i+1] = y
-            geometry.vertices[i+2] = z
-          }
-          
-          
-          if(notRun){
-            shapes.push(geometry)
-            await shader.ConnectGeometry(geometry)
-            notRun = false
-          }
-          var vertices   = geometry.vertices
-          var uvs        = geometry.uvs
-          var normals    = geometry.normals
-          var normalVecs = geometry.normalVecs
+        baseVerts = await structuredClone(geometry.vertices)
+        baseUVs   = await structuredClone(geometry.uvs)
 
-          var nVerts       = new Float32Array(Array(vertices.length*2).fill().map((v, i)=>{
-            var l = i%vertices.length, m, m2
-            m = i < vertices.length ? 1 : (i%3==0 ? -1 : 1)
-            m2 = i%3 == 1 && i < vertices.length ? -1 : 1
-            var o 
-            switch(i%3){
-              case 0: o=ox;break
-              case 1: o=oy;break
-              case 2: o=oz;break
-            }
-            return vertices[l] * m * m2 + o * m
-          }))
-          
-          var nUvs         = new Float32Array(Array(uvs.length*2).fill().map((v, i)=>{
-            var l = i%uvs.length, m
-            //m = i < uvs.length ? 1 : (i%3==1 ? -1 : 1)
-            return uvs[l] //* m
-          }))
-          
-          var nNormals     = new Float32Array(Array(normals.length*2).fill().map((v, i)=>{
-            var l = i%normals.length, m, m2
-            m = i < normals.length ? 1 : (i%3==0 ? -1 : 1)
-            m2 = i%3 == 1 && i < normals.length ? -1 : 1
-            var o 
-            switch(i%3){
-              case 0: o=ox;break
-              case 1: o=oy;break
-              case 2: o=oz;break
-            }
-            return normals[l] * m * m2 + o * m
-          }))
-          
-          var nNormalVecs       = new Float32Array(Array(normalVecs.length*2).fill().map((v, i)=>{
-            var l = i%normalVecs.length, m
-            //m = i < normalVecs.length ? 1 : (i%3==1 ? -1 : 1)
-            return normalVecs[l] //* m
-          }))
-          
-          geometry.vertices   = nVerts
-          geometry.uvs        = nUvs
-          geometry.normals    = nNormals
-          geometry.normalVecs = nNormalVecs
-          
-          var vIndices    = geometry.vIndices
-          var uvIndices   = geometry.uvIndices
-          var nIndices    = geometry.nIndices
-          var nVecIndices = geometry.nVecIndices
+        geometry.vertices = new Float32Array(Array(baseVerts.length*2).fill())
+        geometry.normals = new Float32Array(Array(baseVerts.length * 4).fill())
+        geometry.normalVecs = new Float32Array(Array(baseVerts.length*2).fill())
+        geometry.uvs = new Float32Array(Array(baseVerts.length/3*4).fill().map((v, i)=>{
+          return baseUVs[i%baseUVs.length]
+        }))
 
-          var nVIndices    = new Uint32Array(Array(vIndices.length*2).fill().map((v,i)=>i))
-          var nUvIndices   = new Uint32Array(Array(uvIndices.length*2).fill().map((v,i)=>i))
-          var nNIndices    = new Uint32Array(Array(nIndices.length*2).fill().map((v,i)=>i))
-          var nNVecIndices = new Uint32Array(Array(nVecIndices.length*2).fill().map((v,i)=>i))
-          
-          geometry.vIndices    = nVIndices
-          geometry.uvIndices   = nUvIndices
-          geometry.nIndices    = nNIndices
-          geometry.nVecIndices = nNVecIndices
+        var nVIndices    = new Uint32Array(Array(geometry.vIndices.length*2).fill().map((v,i)=>i))
+        var nUvIndices   = new Uint32Array(Array(geometry.uvIndices.length*2).fill().map((v,i)=>i))
+        var nNIndices    = new Uint32Array(Array(geometry.nIndices.length*2).fill().map((v,i)=>i))
+        var nNVecIndices = new Uint32Array(Array(geometry.nVecIndices.length*2).fill().map((v,i)=>i))
+        geometry.vIndices    = nVIndices
+        geometry.uvIndices   = nUvIndices
+        geometry.nIndices    = nNIndices
+        geometry.nVecIndices = nNVecIndices
 
-          Coordinates.SyncNormals(geometry, true, false, true, ox, oy, oz)
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+        
+        ox = 1.36
+        oy = -.35
+        oz = -31.85
+        const rotFunc = () => {
+          p = Math.atan2(y, z) + Math.PI/2
+          d = Math.hypot(y, z)
+          y = S(p) * d
+          z = C(p) * d
+          if(z < 8){
+            p = Math.atan2(x, y)
+            d = Math.hypot(x, y)
+            dx = d + (-z+10) / 24 - ((-z+4) ** 2 / 15.425 - 1) / 6.02
+            dy = (d + (-z+10) / 2 - ((-z+4.66) ** 2 / 15.425 - 1)) / 3
+            dy += (-z+8) / 200 * ((1+C(z/1.5 + y*2 + renderer.t*2))*5)**2 / Math.max(1,(-z+5)**3/300)
+            x = S(p) * dx
+            y = C(p) * dy
+          }
+          z *= 2
         }
-        await update()
+        
+        update = async geometry => {
+          //if(typeof geometry.normalAssocs == 'undefined')
+          //  Coordinates.ComputeNormalAssocs(geometry)
+          //  console.log(geometry.normalAssocs)
+          var nVerts = new Float32Array(baseVerts.length*2)
+          for(var i = 0; i < baseVerts.length; i+=3) {
+            var l = i%baseVerts.length
+            x = baseVerts[l+0]
+            y = baseVerts[l+1]
+            z = baseVerts[l+2]
+            rotFunc()
+            nVerts[i+0] = x
+            nVerts[i+1] = y
+            nVerts[i+2] = z
+          }
+          var tNverts = structuredClone(nVerts)
+          for(var i = 0; i < geometry.vertices.length; i++){
+            var l = i%baseVerts.length, m, m2
+            m = i < baseVerts.length ? 1 : (i%3==0 ? -1 : 1)
+            m2 = i%3 == 1 && i < baseVerts.length ? -1 : 1
+            var o 
+            switch(i%3){
+              case 0: o=ox;break
+              case 1: o=oy;break
+              case 2: o=oz;break
+            }
+            nVerts[i]  = tNverts[l%baseVerts.length] * m * m2 + o * m
+          }
+          geometry.vertices = nVerts
+          Coordinates.SyncNormals(geometry, true, false)
+        }
+        await update(geometry)
       })  
       
       Coordinates.LoadFPSControls(renderer, {
@@ -251,7 +219,7 @@
             break
             case 'thrusters':
               renderer.Draw(shape)
-              //await update()
+              update(shape)
             break
             case 'background':
               renderer.Draw(shape)
