@@ -15,8 +15,8 @@
 <script type="module">
 
   import * as Coordinates from
-  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
-  //"https://boss.veriler.com/coordinates.js?2"
+  //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  "https://boss.veriler.com/coordinates.js?2"
 
   var rendererOptions = {
     fov: 1e3, margin: 0,
@@ -89,7 +89,7 @@
     }
     await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
       jetShapes[jetType] = geometry
-      await shader.ConnectGeometry(geometry)
+      shader.ConnectGeometry(geometry)
     })  
   }
   
@@ -121,7 +121,7 @@
     name: 'background',
     subs: 2,
     map: refTexture,
-    size: 1e3,
+    size: 1e4,
     colorMix: 0,
   }
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -131,6 +131,7 @@
   
   var arrowShape
   var geoOptions = {
+    //shapeType: 'custom shape',
     shapeType: 'custom shape',
     url: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.json',
     map: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.jpg',
@@ -271,7 +272,7 @@
 
   if(1) Coordinates.LoadFPSControls(renderer, {
     flyMode: true,
-    useKeys: true,
+    useKeys: false,
     mSpeed: 2,
     rSpeed: 2,
     crosshairSel: 2,
@@ -295,17 +296,24 @@
       roll: 0,
       pitch: -.5,
       yaw: -1,
+      rollv: 0,
+      pitchv: 0,
+      yawv: 0,
       vx: 0,
       vy: 0,
       vz: 1,
-      speed: 1,
+      speedv: 0,
+      speed: 0,
     }
   })
   
+  var jetRv = .01
+  var jetMv = .1
   var keys = Array(256).fill(false)
   var accel = false
   
   window.onkeydown = e => {
+    console.log(e.keyCode)
     keys[e.keyCode] = true
   }
   
@@ -318,6 +326,28 @@
     keys.map((v, idx) => {
       if(v){
         switch(idx){
+          case 87:    // w
+            jets[camSel].speedv += jetMv
+          break
+          case 65:    // a
+          break
+          case 83:    // s
+            jets[camSel].speedv -= jetMv
+          break
+          case 68:    // d
+          break
+          case 37:    // left arrow
+            jets[camSel].yawv -= jetRv
+          break
+          case 38:    // up arrow
+            jets[camSel].pitchv -= jetRv
+          break
+          case 39:    // right arrow
+            jets[camSel].yawv += jetRv
+          break
+          case 40:    // down arrow
+            jets[camSel].pitchv += jetRv
+          break
           case 32: accel = true; break
         }
       }
@@ -332,31 +362,38 @@
     
     doKeys()
     
+    jets[camSel].yaw    += jets[camSel].yawv
+    jets[camSel].pitch  += jets[camSel].pitchv
+    jets[camSel].yawv   /= 1.1
+    jets[camSel].pitchv /= 1.1
+    
+    jets[camSel].speed += jets[camSel].speedv
+    jets[camSel].speedv /= 1.1
     
     var tailX = 0
     var tailY = 0
     var tailZ = -30
-
+    
     p = Math.atan2(tailX, tailZ) + jets[camSel].yaw
     var p2 = jets[camSel].pitch
     d = Math.hypot(tailX, tailY, tailZ)
     tailX = vx = S(p) * d * S(q = -p2 + Math.PI/2)
-    tailY = vy = -C(q) * d - 10
+    tailY = vy = -C(q) * d - 0
     tailZ = vz = C(p) * S(q) * d
     
-    renderer.x += (-renderer.x - jets[camSel].x + tailX) / 10
-    renderer.y += (-renderer.y - jets[camSel].y + tailY) / 10
-    renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 10
+    renderer.x += (-renderer.x - jets[camSel].x + tailX) / 3
+    renderer.y += (-renderer.y - jets[camSel].y + tailY) / 3
+    renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 3
     
     //renderer.roll += (-renderer.roll - jets[camSel].x) / 60
     //renderer.pitch += (-renderer.pitch - jets[camSel].y - 10) / 60
-    renderer.pitch += (-renderer.pitch + jets[camSel].pitch + .5) / 20
+    renderer.pitch += (-renderer.pitch + jets[camSel].pitch) / 20
     renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 20
     
     backgroundShape.x = jets[camSel].x
     backgroundShape.y = jets[camSel].y
     backgroundShape.z = jets[camSel].z
-    if(0)renderer.Draw(backgroundShape)
+    if(1)renderer.Draw(backgroundShape)
     
     if(1) for(var i = 0; i < particlesShape.vertices.length; i+=3){
       var x = particlesShape.vertices[i + 0]
@@ -397,9 +434,8 @@
     })
     if(accel) update(thrusterShape, false)
    
-   
-    jets[camSel].yaw   += C(t/2) / 100
-    jets[camSel].pitch += C(t/4) / 200
+    //jets[camSel].yaw   += C(t/2) / 100
+    //jets[camSel].pitch += C(t/4) / 200
    
     var vx = jets[camSel].vx = 0
     var vy = jets[camSel].vy = 0
@@ -419,7 +455,8 @@
     arrowShape.pitch = p2
     renderer.Draw(arrowShape)
    
-   
+    if(Rn() < .01) console.log(Math.hypot(renderer.x,renderer.y,renderer.z))
+    renderer.factor = 1.1+C(t)
   }
   
 </script>

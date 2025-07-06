@@ -36,7 +36,7 @@ const cache = {
   texImages    : []
 }
 
-const Renderer = async options => {
+const Renderer = options => {
 
   var x=0, y=0, z=0
   var width = 1920, height = 1080
@@ -46,11 +46,12 @@ const Renderer = async options => {
   var cameraMode = 'default', showCrosshair = false
   var crosshairSel = 0, crosshairMap = '', active = true
   var pageX, pageY, mouseX, mouseY, mouseButton
+  var factor = 1
   var context = {
     mode: 'webgl2',
     options: {
       alpha                   : true,
-      antialias               : true,
+      antialias               : false,
       desynchronized          : true,
       premultipliedAlpha      : false
      }
@@ -98,6 +99,7 @@ const Renderer = async options => {
         case 'yaw': yaw = options[key]; break
         case 'fov': fov = options[key]; break
         case 'clearcolor': clearColor = options[key]; break
+        case 'factor': factor = options[key]; break
         case 'attachtobody': attachToBody = !!options[key]; break
         case 'exportgpuspecs': exportGPUSpecs = !!options[key]; break
         case 'margin': margin = options[key]; break
@@ -168,7 +170,7 @@ const Renderer = async options => {
     // vars & objects
     c, ctx, contextType, t:0, alpha,
     width, height, x, y, z,
-    roll, pitch, yaw, fov,
+    roll, pitch, yaw, fov, factor,
     ready: false, ambientLight,
     pointLights, pointLightCols,
     alphaQueue, particleQueue, lineQueue, active,
@@ -198,7 +200,7 @@ const Renderer = async options => {
   }
   renderer['Clear'] = Clear
     
-  const Draw = async (geometry, sortedPass = false, penumbraPass = false) => {
+  const Draw = (geometry, sortedPass = false, penumbraPass = false) => {
     var shader = geometry.shader
     var dset   = shader.datasets[geometry.datasetIdx]
     var sProg  = dset.program
@@ -590,6 +592,7 @@ const Renderer = async options => {
             ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
             ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
             ctx.uniform1f(dset.locIsLight,         geometry.isLight)
+            ctx.uniform1f(dset.locFactor,          renderer.factor)
             
             ctx.uniform1f(dset.locCameraMode,      
                           renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
@@ -697,11 +700,11 @@ const Renderer = async options => {
   }
   renderer['Draw'] = Draw
 
-  renderer.nullShader = await BasicShader(renderer, [
+  renderer.nullShader = BasicShader(renderer, [
     {uniform: {type: 'phong', value: 0} }
   ] )
         
-  renderer.alphaShader = await BasicShader(renderer, [] )
+  renderer.alphaShader = BasicShader(renderer, [] )
   
   window.addEventListener('mousemove', e => {
     var rect = renderer.c.getBoundingClientRect()
@@ -718,7 +721,7 @@ const Renderer = async options => {
   return renderer
 }
 
-const ResizeRenderer = async (renderer, width, height) => {
+const ResizeRenderer = (renderer, width, height) => {
   renderer.width = width
   renderer.height = height
   renderer.c.width = width
@@ -733,7 +736,7 @@ const ResizeRenderer = async (renderer, width, height) => {
   }
 }
 
-const DestroyRenderer = async (renderer) => {
+const DestroyRenderer = (renderer) => {
   renderer.c.remove()
   renderer.active = false
 }
@@ -875,7 +878,7 @@ const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
   })
 }
 
-const OBJFinishing = async (ret, tx=0, ty=0, tz=0, rl=0, pt=0, yw=0) => {
+const OBJFinishing = (ret, tx=0, ty=0, tz=0, rl=0, pt=0, yw=0) => {
   var a, X, Y, Z
   for(var i = 0; i<ret.uvs.length; i+=2){
     ret.uvs[i+1] = 1-ret.uvs[i+1]
@@ -923,7 +926,7 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involv
     })
     cache.objFiles = [...structuredClone(cache.objFiles), {url, ret}]
   }
-  await OBJFinishing(ret, tx, ty, tz, rl, pt, yw)
+  OBJFinishing(ret, tx, ty, tz, rl, pt, yw)
   return ret
 }
 
@@ -1141,7 +1144,7 @@ const DrawAnimation = (renderer, animation, options) => {
   }
 }
   
-const DownloadCustomShape = async geo => {
+const DownloadCustomShape = geo => {
   if(geo.preComputeNormalAssocs){
     console.log('downloading custom shape, detected preComputeNormalAssocs')
     var normalAssocs = []
@@ -1531,7 +1534,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'tetrahedron':
         if(equirectangular == -1) equirectangular = true
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
-        shape = await Tetrahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape = Tetrahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1541,7 +1544,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'octahedron':
         if(equirectangular == -1) equirectangular = true
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
-        shape = await Octahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape = Octahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1551,7 +1554,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'icosahedron':
         if(equirectangular == -1) equirectangular = true
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
-        shape = await Icosahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape = Icosahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1559,7 +1562,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'torus':
-        shape = await Torus(size, subs, sphereize,
+        shape = Torus(size, subs, sphereize,
                       flipNormals, shapeType, rows, cols)
         shape.geometry.map(v => {
           vertices.push(...v.position)
@@ -1568,7 +1571,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'torus knot':
-        shape = await TorusKnot(size, subs, rows, cols, sphereize,
+        shape = TorusKnot(size, subs, rows, cols, sphereize,
                       flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
@@ -1577,7 +1580,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'cylinder':
-        shape = await Cylinder(size, subs, rows, cols, sphereize,
+        shape = Cylinder(size, subs, rows, cols, sphereize,
                       flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
@@ -1586,7 +1589,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'dynamic':
-        shape = await GeometryFromRaw(geometryData, texCoords,
+        shape = GeometryFromRaw(geometryData, texCoords,
             size, subs, sphereize, flipNormals,
             !!geometryData.filter(v=>v.length==4).length,
             shapeType)
@@ -1610,7 +1613,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'bspline':
         isLine = 1.0
         geoOptions.omitShape = true
-        await BSpline (renderer, geoOptions).then(res => {
+        BSpline (renderer, geoOptions).then(res => {
           res.curve.map(v => {
             vertices.push(...v)
           })
@@ -1619,14 +1622,14 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'curveto':
         isLine = 1.0
         geoOptions.omitShape = true
-        await CurveTo (renderer, geoOptions).then(res => {
+        CurveTo (renderer, geoOptions).then(res => {
           res.map(v => {
             vertices.push(...v)
           })
         })
       break
       case 'cube':
-        shape = await Cube(size, subs, sphereize, flipNormals, shapeType)
+        shape = Cube(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1634,7 +1637,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'rectangle':
-        shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
+        shape = Rectangle(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1643,7 +1646,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'sprite':
         isSprite = true
-        shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
+        shape = Rectangle(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1661,7 +1664,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(!showSource){
           shape = { geometry: [] }
         }else{
-          shape = await Rectangle(Math.max(size, .5) , subs+1, sphereize, flipNormals, shapeType)
+          shape = Rectangle(Math.max(size, .5) , subs+1, sphereize, flipNormals, shapeType)
         }
         shape.geometry.map(v => {
           vertices.push(...v.position)
@@ -1677,7 +1680,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
           var uInd = []
           var fInd = []
           ProcessOBJData(geometryData, vInd, nInd, uInd, fInd, ret)
-          await OBJFinishing(ret)
+          OBJFinishing(ret)
           vertices    = ret.vertices
           normals     = ret.normals
           //normalVecs  = ret.normalVecs
@@ -1700,7 +1703,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'dodecahedron':
         if(equirectangular == -1) equirectangular = true
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
-        shape = await Dodecahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape = Dodecahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -2061,7 +2064,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   if(geometry.shapeType == 'particles' || isParticle ||
      geometry.shapeType == 'lines' || isLine) {
-    await renderer.alphaShader.ConnectGeometry(geometry)
+    renderer.alphaShader.ConnectGeometry(geometry)
   }else{
     if(shapeType == 'point light' || shapeType == 'sprite'){
       if(typeof geoOptions.color == 'undefined'){
@@ -2072,7 +2075,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         renderer.pointLights.push(geometry)
       }
     }
-    await renderer.nullShader.ConnectGeometry(geometry)
+    renderer.nullShader.ConnectGeometry(geometry)
   }
   
   
@@ -2788,7 +2791,7 @@ const AverageNormals = (verts, normals, shapeType) => {
   nrmls.forEach((v, i) => normals[i] = v)
 }
 
-const BasicShader = async (renderer, options=[]) => {
+const BasicShader = (renderer, options=[]) => {
   
   const gl = renderer.gl
   var program
@@ -3098,12 +3101,17 @@ const BasicShader = async (renderer, options=[]) => {
     dataset.optionalUniforms.map(v=>{ uFragCode += ("\n" + v.fragCode + "\n") })
 
     ret.vert = `
-      precision highp float;
+      #ifdef GL_FRAGMENT_PRECISION_HIGH
+        precision highp float;
+      #else
+        precision mediump float;
+      #endif
       #define M_PI 3.14159265358979323
       attribute vec2 uv;
       ${uVertDeclaration}
       
       uniform float t;
+      uniform float factor;
       uniform vec3 color;
       uniform float flatShading;
       uniform float ambientLight;
@@ -3177,18 +3185,26 @@ const BasicShader = async (renderer, options=[]) => {
       
       void main(){
         
+        vec3 rposition = position / factor;
+        vec3 rnormal = normal / factor;
+        vec3 rcamPos = camPos / factor;
+        vec3 rgeoPos = geoPos / factor;
+        float rpointSize = pointSize / factor;
+        float rheightMapIntensity = heightMapIntensity / factor;
+        float rmaxHeightmap = maxHeightmap / factor;
+        
         hasPhong = 0.0;
         
         float cx, cy, cz;
         
         if(renderNormals == 1.0){
-          cx = normal.x;
-          cy = normal.y;
-          cz = normal.z;
+          cx = rnormal.x;
+          cy = rnormal.y;
+          cz = rnormal.z;
         }else{
-          cx = position.x;
-          cy = position.y;
-          cz = position.z;
+          cx = rposition.x;
+          cy = rposition.y;
+          cz = rposition.z;
         }
         
         
@@ -3198,6 +3214,7 @@ const BasicShader = async (renderer, options=[]) => {
           float lum;
 
           if(equirectangularHeightmap != 0.0){
+            
             float p;
             float p2;
             vec3 cpos = vec3(cx, cy, cz);
@@ -3214,12 +3231,10 @@ const BasicShader = async (renderer, options=[]) => {
 
             
           h = texture2D( heightMap, uvi);
-          lum = min(maxHeightmap, ((h.r + h.g + h.b) / 3.0) * (heightMapIntensity) / 2.0);
+          lum = min(rmaxHeightmap, ((h.r + h.g + h.b) / 3.0) * (rheightMapIntensity) / 2.0);
           cx += normalVec.x * lum;
           cy += normalVec.y * lum;
           cz += normalVec.z * lum;
-
-          
         }else{
           uvi = uv / 2.0;
           uvi = vec2(uvi.x, .5 - uvi.y);
@@ -3231,13 +3246,13 @@ const BasicShader = async (renderer, options=[]) => {
         // camera rotation
         
         vec3 geo, pos;
-        float cpx = camPos.x;
-        float cpy = camPos.y;
-        float cpz = camPos.z;
+        float cpx = rcamPos.x;
+        float cpy = rcamPos.y;
+        float cpz = rcamPos.z;
         
         if(cameraMode == 1.0){  // 'FPS' mode
           if(isSprite != 0.0 || isLight != 0.0){
-            geo = R(geoPos, camOri, 0);
+            geo = R(rgeoPos, camOri, 0);
             pos = R(vec3(cx, cy, cz),
                      vec3(0.0, -camOri.y + M_PI, 0.0), 0);
             pos = R(pos,
@@ -3250,8 +3265,8 @@ const BasicShader = async (renderer, options=[]) => {
             nVec = R(nVec, geoOri, 1);
             nVec = R(nVec, vec3(0.0, camOri.y, camOri.z), 0);
           }else{
-            geo = R(geoPos, camOri, 0);
-            pos = R(vec3(cx, cy, cz), geoOri, 1);
+            geo = R(rgeoPos, camOri, 0);
+            pos = R(fPosi, geoOri, 1);
             pos.x += cpx;
             pos.y += cpy;
             pos.z += cpz;
@@ -3266,8 +3281,7 @@ const BasicShader = async (renderer, options=[]) => {
           fPos = pos;
         }else{
           if(isSprite != 0.0 || isLight != 0.0){
-
-            geo = R(geoPos, camOri, 0);
+            geo = R(rgeoPos, camOri, 0);
             pos = R(vec3(cx, cy, cz),
                      vec3(0.0, -camOri.y + M_PI, 0.0), 0);
             pos = R(pos,
@@ -3279,7 +3293,7 @@ const BasicShader = async (renderer, options=[]) => {
             nVec = R(nVec, geoOri, 1);
             nVec = R(nVec, vec3(0.0, camOri.y, camOri.z), 0);
           }else{
-            geo = R(geoPos, camOri, 0);
+            geo = R(rgeoPos, camOri, 0);
             pos = R(vec3(cx, cy, cz), geoOri, 1);
             pos = R(pos, camOri, 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
@@ -3291,16 +3305,16 @@ const BasicShader = async (renderer, options=[]) => {
         
         ${uVertCode}
         
-        float camz = cpz / 1e3 * fov;
+        float camz = cpz * fov / 1e3;
         
         float X, Y;
         float Z = pos.z + camz + geo.z;
         if((isLine != 0.0 || isParticle != 0.0) &&
           penumbraPass != 0.0) Z += .001;
         if(isLine != 0.0){
-          X = position.x / resolution.x * fov;
-          Y = position.y / resolution.y * fov;
-          Z = position.z;
+          X = rposition.x * fov / resolution.x;
+          Y = rposition.y * fov / resolution.y;
+          Z = rposition.z;
           gl_Position = vec4(X, Y, Z/50000.0, 1.0);
           skip = 0.0;
           vUv = uv;
@@ -3335,15 +3349,15 @@ const BasicShader = async (renderer, options=[]) => {
             }
             if(skip == 0.0){
               float p2 = - (acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0) * 1.05;
-              gl_PointSize = 100.0 * pointSize / dist;
+              gl_PointSize = 100.0 * rpointSize / dist;
               gl_Position = vec4(p1, p2, dist/50000.0, 1.0);
               vUv = uv;
             }
           } else {  // default projection
-            X = (pos.x + cpx + geo.x) / Z / resolution.x * fov;
-            Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
+            X = (pos.x + cpx + geo.x) * fov / Z / resolution.x;
+            Y = (pos.y + cpy + geo.y) * fov / Z / resolution.y;
             if(Z > 0.0) {
-              gl_PointSize = 100.0 * pointSize / Z;
+              gl_PointSize = 100.0 * rpointSize / Z;
               gl_Position = vec4(X, Y, Z/50000.0, 1.0);
               skip = 0.0;
               vUv = uv;
@@ -3356,10 +3370,15 @@ const BasicShader = async (renderer, options=[]) => {
     `
     
     ret.frag = `
-      precision highp float;
+      #ifdef GL_FRAGMENT_PRECISION_HIGH
+        precision highp float;
+      #else
+        precision mediump float;
+      #endif
       #define M_PI 3.14159265358979323
       ${uFragDeclaration}
       uniform float t;
+      uniform float factor;
       uniform vec2 resolution;
       uniform float plugin;
       uniform float flatShading;
@@ -3398,6 +3417,9 @@ const BasicShader = async (renderer, options=[]) => {
       varying vec3 fPosi;
       varying float skip;
       varying float hasPhong;
+      vec3 rgeoPos;
+      float rheightMapIntensity;
+      float rmaxHeightmap;
 
       vec4 merge (vec4 col1, vec4 col2){
         return vec4((col1.rgb * col1.a) + (col2.rgb * col2.a), 1.0);
@@ -3465,9 +3487,9 @@ const BasicShader = async (renderer, options=[]) => {
         for(int i=0; i < 16; i++){
           //if(i >= pointLightCount) break;
           vec3 lpos = pointLightPos[i].xyz;
-          lpos.x -= geoPos.x; //- camPos.x;
-          lpos.y -= geoPos.y; //- camPos.y;
-          lpos.z -= geoPos.z; //- camPos.z;
+          lpos.x -= rgeoPos.x; //- camPos.x;
+          lpos.y -= rgeoPos.y; //- camPos.y;
+          lpos.z -= rgeoPos.z; //- camPos.z;
           lpos = R_yrp(lpos, vec3(camOri.x, camOri.y, camOri.z ));
 
           float mag = pointLightPos[i].w;
@@ -3483,6 +3505,12 @@ const BasicShader = async (renderer, options=[]) => {
       }
 
       void main() {
+
+        rgeoPos = geoPos / factor;
+        rheightMapIntensity = heightMapIntensity / factor;
+        rmaxHeightmap = maxHeightmap / factor;
+
+
         if(isParticle != 0.0 || isLine != 0.0){
           gl_FragColor = merge(gl_FragColor, vec4(color.rgb, alpha));
         }else{
@@ -3558,7 +3586,7 @@ const BasicShader = async (renderer, options=[]) => {
                 float c1 = cr3.x - cr2.x;
                 float c2 = cr3.y - cr2.y;
                 float c3 = (lum3 - 0.5) * rad2 - (lum2 - 0.5) * rad2;
-                vec3 anorm =  vec3(b2*c3-b3*c2, b3*c1-b1*c3, b1*c2-b2*c1) * min(maxHeightmap / 5.0, (1.0 + heightMapIntensity) / 2.0);
+                vec3 anorm =  vec3(b2*c3-b3*c2, b3*c1-b1*c3, b1*c2-b2*c1) * min(rmaxHeightmap / 5.0, (1.0 + rheightMapIntensity) / 2.0);
                 nV = normalize( nVec + anorm);
                 nVi = normalize( nVeci + anorm);
               }else{
@@ -3597,7 +3625,7 @@ const BasicShader = async (renderer, options=[]) => {
     gl.shaderSource(fragmentShader, ret.frag)
     gl.compileShader(fragmentShader)
 
-    ret.ConnectGeometry = async (geometry, fromNullShader = false) => {
+    ret.ConnectGeometry = (geometry, fromNullShader = false) => {
       if(0&&(geometry.shapeType == 'point light' || geometry.shapeType == 'sprite') &&
          typeof geometry?.shader != 'undefined') return
          
@@ -3953,6 +3981,9 @@ const BasicShader = async (renderer, options=[]) => {
           dset.locSupplementalTextureMix = gl.getUniformLocation(dset.program, "supplementalTextureMix")
           gl.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
 
+          dset.locFactor = gl.getUniformLocation(dset.program, "factor")
+          gl.uniform1f(dset.locFactor, renderer.factor)
+
           dset.locIsLight = gl.getUniformLocation(dset.program, "isLight")
           gl.uniform1f(dset.locIsLight, geometry.isLight ? 1.0 : 0.0)
 
@@ -4063,7 +4094,7 @@ const BasicShader = async (renderer, options=[]) => {
                       resource: dset.resource,
                       texture: dset.texture
                     })
-                    await fetch(textureURL).then(res=>res.blob()).then(data => {
+                    fetch(textureURL).then(res=>res.blob()).then(data => {
                       dset.resource.src = URL.createObjectURL(data)
                     })
                   }
@@ -4085,10 +4116,10 @@ const BasicShader = async (renderer, options=[]) => {
                     })
                     image.onload = async () => {
                       gl.activeTexture(gl.TEXTURE0)
-                      await BindImage(gl, image,
+                      BindImage(gl, image,
                         dset.texture, geometry.textureMode, -1, {map: textureURL})
                     }
-                    await fetch(textureURL).then(res=>res.blob()).then(data => {
+                    fetch(textureURL).then(res=>res.blob()).then(data => {
                       image.src = URL.createObjectURL(data)
                     })
                   }
@@ -4150,7 +4181,7 @@ const BasicShader = async (renderer, options=[]) => {
                       resource: dset.heightResource,
                       texture: dset.heightTexture
                     })
-                    await fetch(heightMapURL).then(res=>res.blob()).then(data => {
+                    fetch(heightMapURL).then(res=>res.blob()).then(data => {
                       dset.heightResource.src = URL.createObjectURL(data)
                     })
                   }
@@ -4176,12 +4207,12 @@ const BasicShader = async (renderer, options=[]) => {
                       gl.useProgram(dset.program)
                       gl.activeTexture(gl.TEXTURE4)
                       gl.uniform1i(dset.locHeightMap, 4)
-                      await BindImage(gl, heightImage,
+                      BindImage(gl, heightImage,
                          dset.heightTexture, geometry.heightTextureMode, -1, {heightMapURL})
                       gl.activeTexture(gl.TEXTURE0)
                     }
                     
-                    await fetch(heightMapURL).then(res=>res.blob()).then(data => {
+                    fetch(heightMapURL).then(res=>res.blob()).then(data => {
                       heightImage.src = URL.createObjectURL(data)
                     })
                   }
@@ -4299,7 +4330,7 @@ const ShapeToLines = async (shape, options={}) => {
   
   lO.geometryData = geometryData
   var ret = { shape: null }
-  await LoadGeometry(shape.renderer, lO).then( geo => {
+  LoadGeometry(shape.renderer, lO).then( geo => {
     ret.shape = geo
   })
   return ret
@@ -4321,7 +4352,7 @@ const IsPolyhedron = shapeType => {
   return isPolyhedron
 }
 
-const GeometryFromRaw = async (raw, texCoords, size, subs,
+const GeometryFromRaw = (raw, texCoords, size, subs,
                          sphereize, flipNormals,
                          quads=false, shapeType='') => {
   var j, i, X, Y, Z, b, l
@@ -4334,8 +4365,8 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
   var shape
   var isPolyhedron = IsPolyhedron(shapeType)
   switch(shapeType){
-    case 'obj': shape = await subbed(0, 1, sphereize, e, texCoords, hint); break
-    default: shape = await subbed(subs + (isPolyhedron?1:0), 1, sphereize, e, texCoords, hint); break
+    case 'obj': shape = subbed(0, 1, sphereize, e, texCoords, hint); break
+    default: shape = subbed(subs + (isPolyhedron?1:0), 1, sphereize, e, texCoords, hint); break
   }
   
   shape.map(v => {
@@ -4385,8 +4416,8 @@ const GeometryFromRaw = async (raw, texCoords, size, subs,
   }
 }
 
-const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
-  
+const subbed = (subs, size, sphereize, shape, texCoords, hint='') => {
+
   var base, baseTexCoords, l, X, Y, Z
   var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3
   var X4, Y4, Z4, X5, Y5, Z5, X6, Y6, Z6
@@ -4431,7 +4462,7 @@ const subbed = async (subs, size, sphereize, shape, texCoords, hint='') => {
     
     if(resolved){
       var url = `${ModuleBase}/prebuilt%20shapes/`
-      await fetch(`${url}${fileBase}_full.json`).then(res=>res.json()).then(data=>{
+      fetch(`${url}${fileBase}_full.json`).then(res=>res.json()).then(data=>{
         shape     = data.shape
         texCoords = data.texCoords
       })
@@ -4937,7 +4968,7 @@ const GeoSphere = (mx, my, mz, iBc, size) => {
   return [mx, my, mz, size, B, a]
 }
 
-const Cylinder = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, shapeType='cylinder') => {
+const Cylinder = (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, shapeType='cylinder') => {
   var ret = []
   var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
   var TX1,TY1, TX2,TY2, TX3,TY3, TX4,TY4
@@ -4982,7 +5013,7 @@ const Cylinder = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=f
       texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
     }
   }
-  return await GeometryFromRaw(ret, texCoords, size / 1.2, subs,
+  return GeometryFromRaw(ret, texCoords, size / 1.2, subs,
                          sphereize, flipNormals, true, shapeType)
 }
 
@@ -5056,7 +5087,7 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
       texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
           }
   }
-  return await GeometryFromRaw(ret, texCoords, size / 1.2, subs,
+  return GeometryFromRaw(ret, texCoords, size / 1.2, subs,
                          sphereize, flipNormals, true, shapeType)
 }
 
@@ -5168,7 +5199,7 @@ const TorusKnot = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=
       
     }
   }
-  return await GeometryFromRaw(ret, texCoords, size / 1.2, subs,
+  return GeometryFromRaw(ret, texCoords, size / 1.2, subs,
                          sphereize, flipNormals, true, shapeType)
 }
 
@@ -5241,7 +5272,7 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     texCoords.push(a)
   }
   
-  return await GeometryFromRaw(e, texCoords, size, subs,
+  return GeometryFromRaw(e, texCoords, size, subs,
                          sphereize, flipNormals, false, shapeType)
 }
 
@@ -5285,7 +5316,7 @@ const Octahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, 
     texCoords.push(a)
   }
   
-  return await GeometryFromRaw(e, texCoords, size, subs,
+  return GeometryFromRaw(e, texCoords, size, subs,
                          sphereize, flipNormals, false, shapeType)
 }
 
@@ -5366,7 +5397,7 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     texCoords.push(a)
   }
   
-  return await GeometryFromRaw(e, texCoords, size, subs,
+  return GeometryFromRaw(e, texCoords, size, subs,
                          sphereize, flipNormals, false, shapeType)
 }
 
@@ -5469,14 +5500,14 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
     texCoords.push(a)
   }
   
-  return await GeometryFromRaw(e, texCoords, size / Math.max(1, (2 - sphereize)), subs,
+  return GeometryFromRaw(e, texCoords, size / Math.max(1, (2 - sphereize)), subs,
                          sphereize, flipNormals, false, shapeType)
 }
 
 
 
 
-const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='cube') => {
+const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='cube') => {
   var p, pi=Math.PI, a, b, l, i, j, k, tx, ty, X, Y, Z
   var position, texCoord
   var geometry = []
@@ -5498,7 +5529,7 @@ const Cube = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeT
     texCoords.push(a)
   }
   
-  let ret = await GeometryFromRaw(e, texCoords, size / 1.2, subs,
+  let ret = GeometryFromRaw(e, texCoords, size / 1.2, subs,
                          sphereize, flipNormals, true, shapeType)
                          
   return ret
@@ -5524,7 +5555,7 @@ const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
   ]]
   
   
-  var ret = await GeometryFromRaw(e, texCoords, size / 1.5,
+  var ret = GeometryFromRaw(e, texCoords, size / 1.5,
        Math.max(shapeType == 'sprite' ? 0 : 2, subs),
              shapeType == 'sprite' || shapeType == 'point light' ? 0 : sphereize, flipNormals, true, shapeType)
              
@@ -5640,11 +5671,11 @@ const PointInPoly3D = (X1, Y1, Z1, X2, Y2, Z2, facet, autoFlipNormals=false) => 
   return isc
 }
 
-const CurveTo = async (renderer, geoOptions) => {
+const CurveTo = (renderer, geoOptions) => {
   var ret = []
   var oOmitShape = geoOptions.omitShape
   geoOptions.omitShape = true
-  await geoOptions.geometryData.map(async v => {
+  geoOptions.geometryData.map(async v => {
     var X1, Y1, Z1, X2, Y2, Z2
     var X3, Y3, Z3, X4, Y4, Z4
     var X1 = v[0][0]
@@ -5681,7 +5712,7 @@ const CurveTo = async (renderer, geoOptions) => {
     var retShape
     geoOptions.shapeType = 'lines'
     geoOptions.geometryData = ret
-    await LoadGeometry(renderer, geoOptions).then(geometry => {
+    LoadGeometry(renderer, geoOptions).then(geometry => {
       retShape = geometry
     })
     ret = retShape
@@ -5690,7 +5721,7 @@ const CurveTo = async (renderer, geoOptions) => {
 }
 
       
-const BSpline = async (renderer, geoOptions) => {
+const BSpline = (renderer, geoOptions) => {
   var mpts = []
   
   // defaults
@@ -5812,7 +5843,7 @@ const BSpline = async (renderer, geoOptions) => {
     var ret
     geoOptions.shapeType = 'lines'
     geoOptions.geometryData = curve
-    await LoadGeometry(renderer, geoOptions).then(async (geometry) => ret = geometry )
+    LoadGeometry(renderer, geoOptions).then(async (geometry) => ret = geometry )
     return {
       curve,
       shape: ret,
@@ -6213,7 +6244,7 @@ const AnimationLoop = (renderer, func) => {
           var penumbra = shape.penumbra
           for(var m = 1 + ((shape.isLine ||shape.isParticle)
                             && penumbra ? 1 : 0); m--;){
-            await renderer.Draw(shape, true, (shape.isParticle || shape.isLine)
+            renderer.Draw(shape, true, (shape.isParticle || shape.isLine)
                                                && penumbra && !m)
           }
             
