@@ -3150,7 +3150,95 @@ const BasicShader = (renderer, options=[]) => {
       varying vec3 fPosi;
       varying float skip;
       varying float hasPhong;
-      
+
+      vec3 pFunc(vec3 pt, float cosa, float sina,
+                          float cosb, float sinb,
+                          float cosc, float sinc){
+        float xx, xy, xz, yx, yy, yz, zx, zy, zz, nx, ny, nz;
+        xx = cosa*cosb;
+        xy = cosa*sinb*sinc - sina*cosc;
+        xz = cosa*sinb*cosc + sina*sinc;
+        yx = sina*cosb;
+        yy = sina*sinb*sinc + cosa*cosc;
+        yz = sina*sinb*cosc - cosa*sinc;
+        zx = -sinb;
+        zy = cosb*sinc;
+        zz = cosb*cosc;
+        nx = xx*pt.x + xy*pt.y + xz*pt.z;
+        ny = yx*pt.x + yy*pt.y + yz*pt.z;
+        nz = zx*pt.x + zy*pt.y + zz*pt.z;
+        nx = xx*pt.x + xy*pt.y + xz*pt.z;
+        ny = yx*pt.x + yy*pt.y + yz*pt.z;
+        nz = zx*pt.x + zy*pt.y + zz*pt.z;
+        return vec3(nx, ny, nz);
+      }
+      vec3 Quat(vec3 pos, vec3 rot, int isGeo){
+        float nx, ny, nz;
+        vec3 ret;
+        if(isLine != 0.0) return pos;
+        float x = pos.x;
+        float y = pos.y;
+        float z = pos.z;
+        float Rl = rot.x;
+        float Pt = rot.y;
+        float Yw = rot.z;
+        float cosa, sina, cosb, sinb, cosc, sinc;
+        if(rotationMode == 0 || isGeo == 0){
+          cosa = cos(-Rl+M_PI/2.0);
+          sina = sin(-Rl+M_PI/2.0);
+          cosb = cos(Pt);
+          sinb = sin(Pt);
+          cosc = cos(Yw);
+          sinc = sin(Yw);
+          ret = pFunc(vec3(x, y, z),
+            cosa, sina, cosb, sinb, cosc, sinc
+          );
+          nx = ret.x;
+          ny = ret.y;
+          nz = ret.z;
+        }
+        if(rotationMode == 1 && isGeo == 1) {
+          cosa = cos(-Rl);
+          sina = sin(-Rl);
+          cosb = cos(Yw);
+          sinb = sin(Yw);
+          cosc = cos(-Pt);
+          sinc = sin(-Pt);
+          ret = pFunc(vec3(x, y, z),
+            cosa, sina, cosb, sinb, cosc, sinc
+          );
+          nx = ret.x;
+          ny = ret.y;
+          nz = ret.z;
+        }
+        if(rotationMode == 2 && isGeo == 1) {
+          cosa = cos(-Rl);
+          sina = sin(-Rl);
+          cosb = cos(0.0);
+          sinb = sin(0.0);
+          cosc = cos(0.0);
+          sinc = sin(0.0);
+          ret = pFunc(vec3(x, y, z),
+            cosa, sina, cosb, sinb, cosc, sinc
+          );
+          x = ret.x;
+          y = ret.y;
+          z = ret.z;
+          cosa = cos(0.0);
+          sina = sin(0.0);
+          cosb = cos(Yw);
+          sinb = sin(Yw);
+          cosc = cos(-Pt);
+          sinc = sin(-Pt);
+          ret = pFunc(vec3(x, y, z),
+            cosa, sina, cosb, sinb, cosc, sinc
+          );
+          nx = ret.x;
+          ny = ret.y;
+          nz = ret.z;
+        }
+        return vec3(nx, ny, nz);
+      }
       
       vec3 R(vec3 pos, vec3 rot, int isGeo){
         if(isLine != 0.0) return pos;
@@ -3193,6 +3281,27 @@ const BasicShader = (renderer, options=[]) => {
         float rheightMapIntensity = heightMapIntensity / factor;
         float rmaxHeightmap = maxHeightmap / factor;
         
+
+
+        vec3 nCamOri = vec3(camOri.x,
+                            camOri.y,
+                            camOri.z);
+        
+        vec3 nGeoOri = vec3(geoOri.x,
+                            geoOri.y,
+                            geoOri.z);
+                            
+        //rposition.x *= -1.0;
+        //rposition.y *= -1.0;
+        //rposition.z *= -1.0;
+        //rnormal.y *= -1.0;
+        //rcamPos.y *= -1.0;
+        //rgeoPos.x *= -1.0;
+        //rgeoPos.y *= -1.0;
+        //rgeoPos.z *= -1.0;
+
+
+
         hasPhong = 0.0;
         
         float cx, cy, cz;
@@ -3250,30 +3359,31 @@ const BasicShader = (renderer, options=[]) => {
         float cpy = rcamPos.y;
         float cpz = rcamPos.z;
         
+        
         if(cameraMode == 1.0){  // 'FPS' mode
           if(isSprite != 0.0 || isLight != 0.0){
-            geo = R(rgeoPos, camOri, 0);
+            geo = R(rgeoPos, nCamOri, 0);
             pos = R(vec3(cx, cy, cz),
-                     vec3(0.0, -camOri.y + M_PI, 0.0), 0);
+                     vec3(0.0, -nCamOri.y + M_PI, 0.0), 0);
             pos = R(pos,
-                     vec3(-camOri.x, 0.0, -camOri.z ), 0);
+                     vec3(-nCamOri.x, 0.0, -nCamOri.z ), 0);
             pos.x += cpx;
             pos.y += cpy;
             pos.z += cpz;
-            pos = R(pos, camOri, 0);
+            pos = R(pos, nCamOri, 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = R(nVec, geoOri, 1);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z), 0);
+            nVec = R(nVec, nGeoOri, 1);
+            nVec = R(nVec, vec3(0.0, nCamOri.y, nCamOri.z), 0);
           }else{
-            geo = R(rgeoPos, camOri, 0);
-            pos = R(fPosi, geoOri, 1);
+            geo = R(rgeoPos, nCamOri, 0);
+            pos = R(fPosi, nGeoOri, 1);
             pos.x += cpx;
             pos.y += cpy;
             pos.z += cpz;
-            pos = R(pos, camOri, 0);
+            pos = R(pos, nCamOri, 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = R(nVec, geoOri, 1);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z), 0);
+            nVec = R(nVec, nGeoOri, 1);
+            nVec = R(nVec, vec3(0.0, nCamOri.y, nCamOri.z), 0);
           }
           cpx = 0.0;
           cpy = 0.0;
@@ -3281,41 +3391,41 @@ const BasicShader = (renderer, options=[]) => {
           fPos = pos;
         }else{
           if(isSprite != 0.0 || isLight != 0.0){
-            geo = R(rgeoPos, camOri, 0);
+            geo = R(rgeoPos, nCamOri, 0);
             pos = R(vec3(cx, cy, cz),
-                     vec3(0.0, -camOri.y + M_PI, 0.0), 0);
+                     vec3(0.0, -nCamOri.y + M_PI, 0.0), 0);
             pos = R(pos,
-                     vec3(-camOri.x, 0.0, -camOri.z ), 0);
+                     vec3(-nCamOri.x, 0.0, -nCamOri.z ), 0);
                      
             
-            pos = R(pos, camOri, 0);
+            pos = R(pos, nCamOri, 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = R(nVec, geoOri, 1);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z), 0);
+            nVec = R(nVec, nGeoOri, 1);
+            nVec = R(nVec, vec3(0.0, nCamOri.y, nCamOri.z), 0);
           }else{
-            geo = R(rgeoPos, camOri, 0);
-            pos = R(vec3(cx, cy, cz), geoOri, 1);
-            pos = R(pos, camOri, 0);
+            geo = R(rgeoPos, nCamOri, 0);
+            pos = R(vec3(cx, cy, cz), nGeoOri, 1);
+            pos = R(pos, nCamOri, 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = R(nVec, geoOri, 1);
-            nVec = R(nVec, vec3(0.0, camOri.y, camOri.z), 0);
+            nVec = R(nVec, nGeoOri, 1);
+            nVec = R(nVec, vec3(nCamOri.x, nCamOri.y, nCamOri.z), 0);
           }
           fPos = pos;
         }
         
         ${uVertCode}
         
-        float camz = cpz * fov / 1e3;
+        float camz = cpz * fov;
         
         float X, Y;
-        float Z = pos.z + camz + geo.z;
+        float Z = fPos.z + camz + geo.z;
         if((isLine != 0.0 || isParticle != 0.0) &&
           penumbraPass != 0.0) Z += .001;
         if(isLine != 0.0){
-          X = rposition.x * fov / resolution.x;
-          Y = rposition.y * fov / resolution.y;
+          X = rposition.x * fov;
+          Y = rposition.y * fov;
           Z = rposition.z;
-          gl_Position = vec4(X, Y, Z/50000.0, 1.0);
+          gl_Position = vec4(X/factor, Y/factor, Z/factor, 1.0);
           skip = 0.0;
           vUv = uv;
         }else{
@@ -3358,7 +3468,7 @@ const BasicShader = (renderer, options=[]) => {
             Y = (pos.y + cpy + geo.y) * fov / Z / resolution.y;
             if(Z > 0.0) {
               gl_PointSize = 100.0 * rpointSize / Z;
-              gl_Position = vec4(X, Y, Z/50000.0, 1.0);
+              gl_Position = vec4(X, Y, Z/1e4, 1.0);
               skip = 0.0;
               vUv = uv;
             }else{
@@ -4247,8 +4357,8 @@ const BasicShader = (renderer, options=[]) => {
         var vshaderInfo = gl.getShaderInfoLog(vertexShader)
         var fshaderInfo = gl.getShaderInfoLog(fragmentShader)
         console.error(`bad shader :( ${info}`)
-        console.error(`vShader info : ${vshaderInfo}`)
-        console.error(`fShader info : ${fshaderInfo}`)
+        console.error(`vShader info : ${vshaderInfo}`, ret.vert)
+        console.error(`fShader info : ${fshaderInfo}`, ret.frag)
       }
     }
   }

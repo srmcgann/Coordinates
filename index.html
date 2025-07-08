@@ -16,7 +16,7 @@
 
   import * as Coordinates from
   //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
-  "https://boss.veriler.com/coordinates.js?2"
+  "https://boss.veriler.com/coordinates.js?3"
 
   var rendererOptions = {
     fov: 1e3, margin: 0,
@@ -455,8 +455,7 @@
     arrowShape.pitch = p2
     renderer.Draw(arrowShape)
    
-    if(Rn() < .01) console.log(Math.hypot(renderer.x,renderer.y,renderer.z))
-    renderer.factor = 1.1+C(t)
+    //renderer.factor = 1.1+C(t)
   }
   
 </script>
