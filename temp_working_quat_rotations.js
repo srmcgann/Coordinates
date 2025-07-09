@@ -3184,12 +3184,12 @@ const BasicShader = (renderer, options=[]) => {
         float Yw = rot.z;
         float cosa, sina, cosb, sinb, cosc, sinc;
         if(rotationMode == 0){
-          cosa = cos(Rl);
-          sina = sin(Rl);
-          cosb = cos(-Yw);
-          sinb = sin(-Yw);
-          cosc = cos(Pt);
-          sinc = sin(Pt);
+          cosa = cos(-Rl);
+          sina = sin(-Rl);
+          cosb = cos(Pt);
+          sinb = sin(Pt);
+          cosc = cos(-Yw);
+          sinc = sin(-Yw);
           ret = pFunc(vec3(x, y, z),
             cosa, sina, cosb, sinb, cosc, sinc
           );
@@ -3198,24 +3198,12 @@ const BasicShader = (renderer, options=[]) => {
           nz = ret.z;
         }
         if(rotationMode == 1) {
-          cosa = cos(Rl+geoOri.x);
-          sina = sin(Rl+geoOri.x);
-          cosc = cos(Yw);
-          sinc = sin(Yw);
-          cosb = cos(-Pt);
-          sinb = sin(-Pt);
-          ret = pFunc(vec3(x, y, z),
-            cosa, sina, cosb, sinb, cosc, sinc
-          );
-          x = ret.x;
-          y = ret.y;
-          z = ret.z;
-          cosa = cos(-geoOri.x);
-          sina = sin(-geoOri.x);
-          cosc = cos(0.0);
-          sinc = sin(0.0);
-          cosb = cos(0.0);
-          sinb = sin(0.0);
+          cosa = cos(-Rl);
+          sina = sin(-Rl);
+          cosb = cos(Yw);
+          sinb = sin(Yw);
+          cosc = cos(-Pt);
+          sinc = sin(-Pt);
           ret = pFunc(vec3(x, y, z),
             cosa, sina, cosb, sinb, cosc, sinc
           );
@@ -3224,38 +3212,27 @@ const BasicShader = (renderer, options=[]) => {
           nz = ret.z;
         }
         if(rotationMode == 2) {
-          cosa = cos(Rl);
-          sina = sin(Rl);
-          cosc = cos(0.0);
-          sinc = sin(0.0);
+          cosa = cos(-Rl);
+          sina = sin(-Rl);
           cosb = cos(0.0);
           sinb = sin(0.0);
-          ret = pFunc(vec3(x, y, z),
-            cosa, sina, cosb, sinb, cosc, sinc
-          );
-          x = ret.x;
-          y = ret.y;
-          z = ret.z;
-          cosa = cos(0.0);
-          sina = sin(0.0);
-          cosc = cos(Yw);
-          sinc = sin(Yw);
-          cosb = cos(-Pt);
-          sinb = sin(-Pt);
+          cosc = cos(0.0);
+          sinc = sin(0.0);
           ret = pFunc(vec3(x, y, z),
             cosa, sina, cosb, sinb, cosc, sinc
           );
           nx = ret.x;
           ny = ret.y;
           nz = ret.z;
-        }
-        if(rotationMode == 3) {
-          cosa = cos(-Rl);
-          sina = sin(-Rl);
-          cosb = cos(Pt);
-          sinb = sin(Pt);
-          cosc = cos(-Yw);
-          sinc = sin(-Yw);
+          x = ret.x;
+          y = ret.y;
+          z = ret.z;
+          cosa = cos(0.0);
+          sina = sin(0.0);
+          cosb = cos(Yw);
+          sinb = sin(Yw);
+          cosc = cos(-Pt);
+          sinc = sin(-Pt);
           ret = pFunc(vec3(x, y, z),
             cosa, sina, cosb, sinb, cosc, sinc
           );
@@ -3389,6 +3366,21 @@ const BasicShader = (renderer, options=[]) => {
         if(cameraMode == 1.0){  // 'FPS' mode
           if(isSprite != 0.0 || isLight != 0.0){
             
+            /*
+            geo = Quat(geoPos, camOri);
+            pos = Quat(vec3(cx, cy, cz),
+                     vec3(0.0, -camOri.y + M_PI, 0.0));
+            pos = Quat(pos,
+                     vec3(-camOri.x, 0.0, -camOri.z ));
+            pos.x += cpx;
+            pos.y += cpy;
+            pos.z += cpz;
+            pos = Quat(pos, camOri);
+            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+            nVec = Quat(nVec, geoOri);
+            nVec = Quat(nVec, vec3(0.0, camOri.y, camOri.z));
+            */
+            
             geo = rgeoPos;
             pos = vec3(cx, cy, cz);
             pos = Quat(pos, vec3(0.0, camOri.y + M_PI, 0.0));
@@ -3402,52 +3394,55 @@ const BasicShader = (renderer, options=[]) => {
             nVec = Quat(nVec, vec3(geoOri.x+camOri.x,-geoOri.y,geoOri.z));
             nVec = Quat(nVec, vec3(M_PI/2.0, 0.0, 0.0));
 
+
+            //geo = Quat(geoPos, vec3(0.0, 0.0, 0.0));
+            //geo = Quat(geo, vec3(CamOri.x, camOri.y, camOri.z));
+            //pos = vec3(cx, cy, cz); //Quat(vec3(cx, cy, cz), geoOri);
+            //pos = Quat(pos, camOri + geoOri);
+            //geo = Quat(geoPos, camOri);
+            /*
+            geo = geoPos;
+            geo = Quat(geo, vec3(-M_PI/2.0, 0.0, 0.0));
+            geo = Quat(geo, vec3(camOri.x,-camOri.y, camOri.z));
+            geo = Quat(geo, vec3(M_PI/2.0, 0.0, 0.0));
+            pos = vec3(cx, cy, cz);
+            pos = Quat(pos, vec3(geoOri.x+camOri.x,-geoOri.y,geoOri.z));
+            pos = Quat(pos, vec3(M_PI/2.0, 0.0, 0.0));
+            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+            nVec = Quat(nVec, vec3(geoOri.x+camOri.x,-geoOri.y,geoOri.z));
+            nVec = Quat(nVec, vec3(M_PI/2.0, 0.0, 0.0));
+            */
           }else{
-            if(rotationMode == 3){
-              geo = rgeoPos;
-              geo = Quat(geo, vec3(-M_PI/2.0, 0.0, 0.0));
-              geo = Quat(geo, vec3(camOri.x,-camOri.y, camOri.z));
-              geo = Quat(geo, vec3(M_PI/2.0, 0.0, 0.0));
-              pos = fPosi;
-              pos = Quat(pos, vec3(-M_PI/2.0, 0.0, 0.0));
-              pos = Quat(pos, vec3(0.0, -geoOri.y, 0.0));
-              pos = Quat(pos, vec3(0.0, 0.0, geoOri.z));
-              pos = Quat(pos, vec3(M_PI/2.0, 0.0, 0.0));
-              pos += vec3(cpx, cpy, cpz);
-              pos = Quat(pos, vec3(-M_PI/2.0, 0.0, 0.0));
-              pos = Quat(pos, vec3(camOri.x,-camOri.y, camOri.z));
-              pos = Quat(pos, vec3(M_PI/2.0, 0.0, 0.0));
-              
-              nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-              nVec = Quat(nVec, vec3(geoOri.x+camOri.x,-geoOri.y,geoOri.z));
-              nVec = Quat(nVec, vec3(M_PI/2.0, 0.0, 0.0));
-              nVec = Quat(nVec, vec3(0.0, -nCamOri.y, nCamOri.z));
-            }else{
-              geo = rgeoPos;
-              geo = Quat(geo, vec3(-M_PI/2.0, 0.0, 0.0));
-              geo = Quat(geo, vec3(camOri.x,-camOri.y, camOri.z));
-              geo = Quat(geo, vec3(M_PI/2.0, 0.0, 0.0));
-              pos = fPosi;
-              pos = Quat(pos, vec3(-M_PI/2.0, 0.0, 0.0));
-              pos = Quat(pos, vec3(0.0, -geoOri.y, 0.0));
-              pos = Quat(pos, vec3(-geoOri.x, 0.0, geoOri.z));
-              pos = Quat(pos, vec3(M_PI/2.0, 0.0, 0.0));
-              pos += vec3(cpx, cpy, cpz);
-              pos = Quat(pos, vec3(-M_PI/2.0, 0.0, 0.0));
-              pos = Quat(pos, vec3(camOri.x,-camOri.y, camOri.z));
-              pos = Quat(pos, vec3(M_PI/2.0, 0.0, 0.0));
-              
-              nVec = nVeci;
-              nVec = Quat(nVec, vec3(-M_PI/2.0, 0.0, 0.0));
-              nVec = Quat(nVec, vec3(0.0, -geoOri.y, 0.0));
-              nVec = Quat(nVec, vec3(-geoOri.x, 0.0, geoOri.z));
-              nVec = Quat(nVec, vec3(0.0, -nCamOri.y, nCamOri.z));
-              nVec = Quat(nVec, vec3(M_PI/2.0, 0.0, 0.0));
-            }
+            /*
+            geo = Quat(rgeoPos, nCamOri);
+            pos = Quat(fPosi, nGeoOri);
+            pos.x += cpx;
+            pos.y += cpy;
+            pos.z += cpz;
+            pos = Quat(pos, nCamOri);
+            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+            nVec = Quat(nVec, nGeoOri);
+            nVec = Quat(nVec, vec3(0.0, nCamOri.y, nCamOri.z));
+            */
             
+            geo = rgeoPos;
+            geo = Quat(geo, vec3(-M_PI/2.0, 0.0, 0.0));
+            geo = Quat(geo, vec3(camOri.x,-camOri.y, camOri.z));
+            geo = Quat(geo, vec3(M_PI/2.0, 0.0, 0.0));
+            pos = fPosi;
+            pos = Quat(pos, vec3(-M_PI/2.0, 0.0, 0.0));
+            pos = Quat(pos, vec3(0.0, -geoOri.y, 0.0));
+            pos = Quat(pos, vec3(0.0, 0.0, geoOri.z));
+            pos = Quat(pos, vec3(M_PI/2.0, 0.0, 0.0));
+            pos += vec3(cpx, cpy, cpz);
+            pos = Quat(pos, vec3(-M_PI/2.0, 0.0, 0.0));
+            pos = Quat(pos, vec3(camOri.x,-camOri.y, camOri.z));
+            pos = Quat(pos, vec3(M_PI/2.0, 0.0, 0.0));
             
-            
-            
+            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+            nVec = Quat(nVec, vec3(geoOri.x+camOri.x,-geoOri.y,geoOri.z));
+            nVec = Quat(nVec, vec3(M_PI/2.0, 0.0, 0.0));
+            nVec = Quat(nVec, vec3(0.0, -nCamOri.y, nCamOri.z));
           }
           cpx = 0.0;
           cpy = 0.0;
