@@ -25,7 +25,7 @@
       var rndCoord = () => [(Rn()-.5)*32, (Rn()-.5)*18, 0]
       
       var splineCurve
-      const loadCurve = () => {
+      const loadCurve = async () => {
         var geoOptions = {
           shapeType: 'bspline',
           geometryData: Array(5).fill().map(v=>rndCoord()),
@@ -35,15 +35,15 @@
           penumbra: .25,
           color: 0x00ff44,
         }
-        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        await Coordinates.LoadGeometry(renderer, geoOptions).then((geometry) => {
           splineCurve = geometry
         })  
       }
       
-      window.Draw = () => {
+      window.Draw = async () => {
         var t = renderer.t
         renderer.z = 10
-        if(!((t*60|0)%20)) loadCurve()
+        if(!((t*60|0)%20)) await loadCurve()
         renderer.Draw(splineCurve)
       }
       
