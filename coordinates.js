@@ -1531,7 +1531,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'tetrahedron':
         if(equirectangular == -1) equirectangular = true
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
-        shape = Tetrahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape = await Tetrahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1541,7 +1541,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'octahedron':
         if(equirectangular == -1) equirectangular = true
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
-        shape = Octahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape = await Octahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1551,7 +1551,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'icosahedron':
         if(equirectangular == -1) equirectangular = true
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
-        shape = Icosahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape = await Icosahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1559,7 +1559,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'torus':
-        shape = Torus(size, subs, sphereize,
+        shape = await Torus(size, subs, sphereize,
                       flipNormals, shapeType, rows, cols)
         shape.geometry.map(v => {
           vertices.push(...v.position)
@@ -1568,7 +1568,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'torus knot':
-        shape = TorusKnot(size, subs, rows, cols, sphereize,
+        shape = await TorusKnot(size, subs, rows, cols, sphereize,
                       flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
@@ -1577,7 +1577,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'cylinder':
-        shape = Cylinder(size, subs, rows, cols, sphereize,
+        shape = await Cylinder(size, subs, rows, cols, sphereize,
                       flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
@@ -1586,7 +1586,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'dynamic':
-        shape = GeometryFromRaw(geometryData, texCoords,
+        shape = await GeometryFromRaw(geometryData, texCoords,
             size, subs, sphereize, flipNormals,
             !!geometryData.filter(v=>v.length==4).length,
             shapeType)
@@ -1610,7 +1610,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'bspline':
         isLine = 1.0
         geoOptions.omitShape = true
-        BSpline (renderer, geoOptions).then(res => {
+        await BSpline (renderer, geoOptions).then(res => {
           res.curve.map(v => {
             vertices.push(...v)
           })
@@ -1619,14 +1619,14 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'curveto':
         isLine = 1.0
         geoOptions.omitShape = true
-        CurveTo (renderer, geoOptions).then(res => {
+        await CurveTo (renderer, geoOptions).then(res => {
           res.map(v => {
             vertices.push(...v)
           })
         })
       break
       case 'cube':
-        shape = Cube(size, subs, sphereize, flipNormals, shapeType)
+        shape = await Cube(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1634,7 +1634,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'rectangle':
-        shape = Rectangle(size, subs, sphereize, flipNormals, shapeType)
+        shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1643,7 +1643,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'sprite':
         isSprite = true
-        shape = Rectangle(size, subs, sphereize, flipNormals, shapeType)
+        shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -1661,7 +1661,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(!showSource){
           shape = { geometry: [] }
         }else{
-          shape = Rectangle(Math.max(size, .5) , subs+1, sphereize, flipNormals, shapeType)
+          shape = await Rectangle(Math.max(size, .5) , subs+1, sphereize, flipNormals, shapeType)
         }
         shape.geometry.map(v => {
           vertices.push(...v.position)
@@ -1700,7 +1700,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'dodecahedron':
         if(equirectangular == -1) equirectangular = true
         if(equirectangularHeightmap == -1) equirectangularHeightmap = true
-        shape = Dodecahedron(size, subs, sphereize, flipNormals, shapeType)
+        shape = await Dodecahedron(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
           normals.push(...v.normal)
@@ -5722,7 +5722,7 @@ const PointInPoly3D = (X1, Y1, Z1, X2, Y2, Z2, facet, autoFlipNormals=false) => 
   return isc
 }
 
-const CurveTo = (renderer, geoOptions) => {
+const CurveTo = async (renderer, geoOptions) => {
   var ret = []
   var oOmitShape = geoOptions.omitShape
   geoOptions.omitShape = true
@@ -5755,7 +5755,7 @@ const CurveTo = (renderer, geoOptions) => {
       [X1,Y1,Z1],[X3,Y3,Z3],
       [X4,Y4,Z4],[X2,Y2,Z2],
     ]
-    BSpline(renderer, geoOptions).then(res => {
+    await BSpline(renderer, geoOptions).then(res => {
       ret.push(...res.curve)
     })
   })
@@ -5772,7 +5772,7 @@ const CurveTo = (renderer, geoOptions) => {
 }
 
       
-const BSpline = (renderer, geoOptions) => {
+const BSpline = async (renderer, geoOptions) => {
   var mpts = []
   
   // defaults
