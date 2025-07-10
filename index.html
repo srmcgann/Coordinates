@@ -17,6 +17,7 @@
   import * as Coordinates from
   //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
   "https://boss.veriler.com/coordinates.js"
+  //"https://boss.veriler.com/working.js"
 
   var rendererOptions = {
     fov: 1e3, margin: 0,
@@ -30,7 +31,7 @@
   var Rn = Math.random
   var x, y, z, p, d, ox, oy, oz, dx, dy, dz, q
   
-  var rotationMode = 3
+  var rotationMode = 0
  
   //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
   //var refTexture = 'https://i.imgur.com/1Mmrurz.mp4'
@@ -109,6 +110,7 @@
     shapeType: 'particles',
     geometryData,
     name: 'particles',
+    rotationMode,
     size: 20,
     color: 0xffffff,
     alpha: .5,
@@ -121,6 +123,7 @@
   var geoOptions = {
     shapeType: 'dodecahedron',
     name: 'background',
+    rotationMode,
     subs: 3,
     map: refTexture,
     size: 1e4,
