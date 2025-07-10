@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #333;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+  var rendererOptions = {
+    fov: 1e3, margin: 0,
+    //width: 960, height: 540,
+    width: 1920, height: 1080,
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  //var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/rd5_po2_small.mp4'
+  var rotationMode = 0
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  var x, y, z, p, d, ox, oy, oz, dx, dy, dz, q
+
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .6}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } },
+  ]
+  var flameShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: {type: 'ambientLight', value: 1}
+    },
+    { uniform: {
+      type: 'phong',
+      value: .5
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      value: .5
+    } }
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .6}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } },
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shapes = []
+  
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    rotationMode,
+    subs: 3,
+    map: refTexture,
+    size: 1e4,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+
+  var geoOptions = {
+    shapeType: 'obj',
+    name: 'base jet',
+    url: `https://srmcgann.github.io/objs/jet/jet_hipoly.obj`,
+    map: `https://srmcgann.github.io/objs/jet/jet_neutral.png`,
+    showNormals: false,
+    rotationMode,
+    objyaw: Math.PI,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    shader.ConnectGeometry(geometry)
+  })  
+
+
+  var baseVerts, baseUVs, thrusterShape, update
+  var geoOptions = {
+    shapeType: 'cylinder',
+    name: 'thrusters',
+    rotationMode,
+    rows: 32,
+    cols: 8,
+    equirectangular: false,
+    map: 'https://srmcgann.github.io/Coordinates/resources/flames.jpg',
+    size: .8,
+    scaleX: 1.5,
+    scaleZ: 1.5,
+    scaleY: 33,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    
+    thrusterShape = geometry
+    await flameShader.ConnectGeometry(geometry)
+    
+    // grab copies of verts & uvs.
+    // verts will be duplicated, animated, and optionally normal-sync'd.
+    // uvs will be duplicated (1 thruster is copied to become 2)
+    baseVerts = await structuredClone(geometry.vertices)
+    baseUVs   = await structuredClone(geometry.uvs)
+
+
+    // re-dimension the geometry data containers. double everything
+    geometry.vertices = new Float32Array(Array(baseVerts.length*2).fill())
+    //geometry.normals = new Float32Array(Array(baseVerts.length * 4).fill())
+    //geometry.normalVecs = new Float32Array(Array(baseVerts.length*2).fill())
+    geometry.uvs = new Float32Array(Array(baseUVs.length*2).fill().map((v, i)=>{
+      return baseUVs[i%baseUVs.length]
+    }))
+
+    // double indices for the buffers which get passed to shaders
+    var nVIndices    = new Uint32Array(Array(geometry.vIndices.length*2).fill().map((v,i)=>i))
+    var nUvIndices   = new Uint32Array(Array(geometry.uvIndices.length*2).fill().map((v,i)=>i))
+    var nNIndices    = new Uint32Array(Array(geometry.nIndices.length*2).fill().map((v,i)=>i))
+    var nNVecIndices = new Uint32Array(Array(geometry.nVecIndices.length*2).fill().map((v,i)=>i))
+    geometry.vIndices    = nVIndices
+    geometry.uvIndices   = nUvIndices
+    geometry.nIndices    = nNIndices
+    geometry.nVecIndices = nNVecIndices
+
+    
+    ox = 1.36    // thruster offsets relative to jet model
+    oy = -.35
+    oz = -31.65
+    // procedural animation
+    const rotFunc = () => {
+      p = Math.atan2(y, z) + Math.PI/2
+      d = Math.hypot(y, z)
+      y = S(p) * d
+      z = C(p) * d
+      if(z < 8){
+        var intro = (-z+8) / 200
+        var outro = Math.max(1,(-z+5)**3/300)
+        p = Math.atan2(x, y)
+        d = Math.hypot(x, y)
+        dx = d + (-z+10) / 24 - ((-z+4) ** 2 / 15.425 - 1) / 6.02 +
+                  intro * (.5+C(z/2 + renderer.t*32)/2) * 32 / outro
+        dy = (d + (-z+10) / 2 - ((-z+4.66) ** 2 / 15.425 - 1)) / 3
+        dy += intro * ((1+C(z/1.5 + y*2 + renderer.t*24))*5)**2 / outro
+        x = S(p) * dx
+        y = C(p) * dy
+      }
+      z *= 2
+    }
+    
+    // update function is global scoped @ declaration above.
+    // called per frame inside main drawing loop, to animate thrusters
+    update = async (geometry, syncNormals=false) => {
+      var nVerts = new Float32Array(baseVerts.length*2)
+      for(var i = 0; i < baseVerts.length; i+=3) {
+        var l = i%baseVerts.length
+        x = baseVerts[l+0]
+        y = baseVerts[l+1]
+        z = baseVerts[l+2]
+        rotFunc()
+        nVerts[i+0] = x
+        nVerts[i+1] = y
+        nVerts[i+2] = z
+      }
+      var tNverts = structuredClone(nVerts)
+      for(var i = 0; i < geometry.vertices.length; i++){
+        var l = i%baseVerts.length, m, m2
+        m = i < baseVerts.length ? 1 : (i%3==0 ? -1 : 1)
+        m2 = i%3 == 1 && i < baseVerts.length ? -1 : 1
+        var o 
+        switch(i%3){
+          case 0: o=ox; break
+          case 1: o=oy; break
+          case 2: o=oz; break
+        }
+        nVerts[i]  = tNverts[l%baseVerts.length] * m * m2 + o * m
+      }
+      geometry.vertices = nVerts
+      for(var i = 0; i < geometry.uvs.length; i += 2){
+        geometry.uvs[i+0] -= C(renderer.t) * .025 * (8/10)
+        geometry.uvs[i+1] -= .032 * (8/10)
+      }
+      if(syncNormals) Coordinates.SyncNormals(geometry, true, false)
+    }
+    await update(geometry, true)
+  })  
+  
+  Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+  })
+  
+  // temp camera scaffolding
+  if(1){
+    renderer.z = 0
+    renderer.x = -24
+    renderer.yaw = Math.PI/2
+    renderer.pitch = .7
+    renderer.y = -10
+  } else {
+    renderer.x = 0
+    renderer.y = -7
+    renderer.z = -60
+    renderer.yaw = 0
+    renderer.pitch = 0
+  }
+  window.Draw = () => {
+    var t = renderer.t
+    //renderer.z = 25
+    //renderer.yaw = t
+    //renderer.yaw = t
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+        break
+        case 'base jet':
+          //shape.pitch += .001
+          shape.yaw += .01
+          //shape.roll += .003
+        break
+        default:
+        break
+      }
+      renderer.Draw(shape)
+    })
+    //thrusterShape.pitch += .001
+    thrusterShape.yaw += .01
+    //thrusterShape.roll += .003
+    renderer.Draw(thrusterShape)
+    update(thrusterShape, false)
+  }
+  
+</script>
+  </body>
+</html>

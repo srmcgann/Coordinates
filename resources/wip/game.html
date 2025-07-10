@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #333;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+  import * as Coordinates from
+  //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  "https://boss.veriler.com/coordinates.js"
+  //"https://boss.veriler.com/working.js"
+
+  var rendererOptions = {
+    fov: 1e3, margin: 0,
+    //width: 960, height: 540,
+    width: 1920, height: 1080,
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  var x, y, z, p, d, ox, oy, oz, dx, dy, dz, q
+  
+  var rotationMode = 0
+ 
+  //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+  //var refTexture = 'https://i.imgur.com/1Mmrurz.mp4'
+  var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .6}},
+    { uniform: {
+      type: 'phong',
+      value: .3
+    } },
+    { uniform: {
+      type: 'reflection',
+      value: .3,
+      enabled: true,
+      map: refTexture,
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .25}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } },
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .6}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } },
+  ]
+  var flameShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var backgroundShape
+  var jetShapes = [], jetType
+  for(var i = 0; i < 3; i++){
+    switch(i){
+      case 0: jetType = '_neutral'; break
+      case 1: jetType = '_enemy'; break
+      case 2: jetType = '_ally'; break
+    }
+    var geoOptions = {
+      shapeType: 'obj',
+      name: `jet${jetType}`,
+      url: `https://srmcgann.github.io/objs/jet/jet_medpoly.obj?${i}`,
+      map: `https://srmcgann.github.io/objs/jet/jet${jetType}.png`,
+      showNormals: false,
+      rotationMode,
+      //objyaw: i ? 0: Math.PI,
+      colorMix: 0,
+    }
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      jetShapes[jetType] = geometry
+      shader.ConnectGeometry(geometry)
+    })  
+  }
+  
+  
+  var iPc = 5e3
+  var G = 5e3
+  var particlesShape
+  var geometryData = Array(iPc).fill().map(v=>{
+    x = (Rn() - .5) * G
+    y = (Rn() - .5) * G
+    z = (Rn() - .5) * G
+    return [x, y, z]
+  })
+  var geoOptions = {
+    shapeType: 'particles',
+    geometryData,
+    name: 'particles',
+    rotationMode,
+    size: 20,
+    color: 0xffffff,
+    alpha: .5,
+    penumbra: .5,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    particlesShape = geometry
+  })  
+  
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    rotationMode,
+    subs: 3,
+    map: refTexture,
+    size: 1e4,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    backgroundShape = geometry
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+  
+  var arrowShape
+  var geoOptions = {
+    //shapeType: 'custom shape',
+    shapeType: 'custom shape',
+    url: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.json',
+    map: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.jpg',
+    name: 'temp arrow',
+    rotationMode,
+    scaleX: .2,
+    scaleY: .2,
+    scaleZ: -.2,
+    Y: 10,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    arrowShape = geometry
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+  
+  var notRun = true, update
+  var baseVerts, baseUVs, thrusterShape
+  var geoOptions = {
+    shapeType: 'cylinder',
+    name: 'thrusters',
+    rotationMode,
+    rows: 32,
+    cols: 8,
+    equirectangular: false,
+    map: 'https://srmcgann.github.io/Coordinates/resources/flames.jpg',
+    size: .8,
+    scaleX: 1.5,
+    scaleZ: 1.5,
+    scaleY: 33,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    
+    thrusterShape = geometry
+    await flameShader.ConnectGeometry(geometry)
+    
+    // grab copies of verts & uvs.
+    // verts will be duplicated, animated, and optionally normal-sync'd.
+    // uvs will be duplicated (1 thruster is copied to become 2)
+    baseVerts = await structuredClone(geometry.vertices)
+    baseUVs   = await structuredClone(geometry.uvs)
+
+
+    // re-dimension the geometry data containers. double everything
+    geometry.vertices = new Float32Array(Array(baseVerts.length*2).fill())
+    //geometry.normals = new Float32Array(Array(baseVerts.length * 4).fill())
+    //geometry.normalVecs = new Float32Array(Array(baseVerts.length*2).fill())
+    geometry.uvs = new Float32Array(Array(baseUVs.length*2).fill().map((v, i)=>{
+      return baseUVs[i%baseUVs.length]
+    }))
+
+    // double indices for the buffers which get passed to shaders
+    var nVIndices    = new Uint32Array(Array(geometry.vIndices.length*2).fill().map((v,i)=>i))
+    var nUvIndices   = new Uint32Array(Array(geometry.uvIndices.length*2).fill().map((v,i)=>i))
+    var nNIndices    = new Uint32Array(Array(geometry.nIndices.length*2).fill().map((v,i)=>i))
+    var nNVecIndices = new Uint32Array(Array(geometry.nVecIndices.length*2).fill().map((v,i)=>i))
+    geometry.vIndices    = nVIndices
+    geometry.uvIndices   = nUvIndices
+    geometry.nIndices    = nNIndices
+    geometry.nVecIndices = nNVecIndices
+
+    
+    ox = 1.36    // thruster offsets relative to jet model
+    oy = -.35
+    oz = -31.65
+    // procedural animation
+    const rotFunc = () => {
+      p = Math.atan2(y, z) + Math.PI/2
+      d = Math.hypot(y, z)
+      y = S(p) * d
+      z = C(p) * d
+      if(z < 8){
+        var intro = (-z+8) / 200
+        var outro = Math.max(1,(-z+5)**3/300)
+        p = Math.atan2(x, y)
+        d = Math.hypot(x, y)
+        dx = d + (-z+10) / 24 - ((-z+4) ** 2 / 15.425 - 1) / 6.02 +
+                  intro * (.5+C(z/2 + renderer.t*32)/2) * 32 / outro
+        dy = (d + (-z+10) / 2 - ((-z+4.66) ** 2 / 15.425 - 1)) / 3
+        dy += intro * ((1+C(z/1.5 + y*2 + renderer.t*24))*5)**2 / outro
+        x = S(p) * dx
+        y = C(p) * dy
+      }
+      z *= 2
+    }
+    
+    // update function is global scoped @ declaration above.
+    // called per frame inside main drawing loop, to animate thrusters
+    update = async (geometry, syncNormals=false) => {
+      var nVerts = new Float32Array(baseVerts.length*2)
+      for(var i = 0; i < baseVerts.length; i+=3) {
+        var l = i%baseVerts.length
+        x = baseVerts[l+0]
+        y = baseVerts[l+1]
+        z = baseVerts[l+2]
+        rotFunc()
+        nVerts[i+0] = x
+        nVerts[i+1] = y
+        nVerts[i+2] = z
+      }
+      var tNverts = structuredClone(nVerts)
+      for(var i = 0; i < geometry.vertices.length; i++){
+        var l = i%baseVerts.length, m, m2
+        m = i < baseVerts.length ? 1 : (i%3==0 ? -1 : 1)
+        m2 = i%3 == 1 && i < baseVerts.length ? -1 : 1
+        var o 
+        switch(i%3){
+          case 0: o=ox; break
+          case 1: o=oy; break
+          case 2: o=oz; break
+        }
+        nVerts[i]  = tNverts[l%baseVerts.length] * m * m2 + o * m
+      }
+      geometry.vertices = nVerts
+      for(var i = 0; i < geometry.uvs.length; i += 2){
+        geometry.uvs[i+0] -= C(renderer.t) * .025 * (8/10)
+        geometry.uvs[i+1] -= .032 * (8/10)
+      }
+      if(syncNormals) Coordinates.SyncNormals(geometry, true, false)
+    }
+    await update(geometry, true)
+  })  
+  
+  
+  // temp camera scaffolding
+  if(0){
+    renderer.z = 15
+    renderer.x = -32
+    renderer.yaw = Math.PI/2
+  } else {
+    renderer.x = 0
+    renderer.y = -7
+    renderer.z = -60
+    renderer.yaw = 0
+    renderer.pitch = 0
+  }
+
+  if(1) Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+    useKeys: false,
+    mSpeed: 2,
+    rSpeed: 2,
+    crosshairSel: 2,
+    crosshairSize: .5,
+  })
+  
+  var iJc = 1
+  var camSel = 0
+  var jets = Array(iJc).fill().map((jet, idx) => {
+    switch(idx%3){
+      case 0: jetType = idx%2 ? '_enemy' : '_neutral'; break
+      case 1: jetType = idx%2 ? '_enemy' : '_neutral'; break
+      case 2: jetType = '_ally'; break
+    }
+    return {
+      name: `jet ${idx+1}`,
+      shape: jetShapes['_ally'],//jetShapes[jetType],
+      x: 0,
+      y: -(i/iJc*idx*1.6-iJc/2 +.5) * 20,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: -1,
+      rollv: 0,
+      pitchv: 0,
+      yawv: 0,
+      vx: 0,
+      vy: 0,
+      vz: 1,
+      speedv: 0,
+      speed: 0,
+    }
+  })
+  
+  var jetRv = .01
+  var jetMv = .1
+  var keys = Array(256).fill(false)
+  var accel = false
+  
+  window.onkeydown = e => {
+    console.log(e.keyCode)
+    keys[e.keyCode] = true
+  }
+  
+  window.onkeyup = e => {
+    keys[e.keyCode] = false
+  }
+  
+  const doKeys = () => {
+    accel = false
+    keys.map((v, idx) => {
+      if(v){
+        switch(idx){
+          case 87:    // w
+            jets[camSel].speedv += jetMv
+          break
+          case 65:    // a
+          break
+          case 83:    // s
+            jets[camSel].speedv -= jetMv
+          break
+          case 68:    // d
+          break
+          case 37:    // left arrow
+            jets[camSel].yawv -= jetRv
+          break
+          case 38:    // up arrow
+            jets[camSel].pitchv += jetRv
+          break
+          case 39:    // right arrow
+            jets[camSel].yawv += jetRv
+          break
+          case 40:    // down arrow
+            jets[camSel].pitchv -= jetRv
+          break
+          case 32: accel = true; break
+        }
+      }
+    })
+  }
+  
+  window.Draw = () => {
+    var t = renderer.t
+    //renderer.yaw += .001
+    //renderer.z = Math.min(70, Math.max(32, (.3+C(t))*150))
+    //renderer.pitch = Math.min(.5, Math.max(.1,-(-.3+C(t))*1))
+    
+    doKeys()
+    
+    jets[camSel].yaw    += jets[camSel].yawv
+    jets[camSel].pitch  += jets[camSel].pitchv
+    jets[camSel].yawv   /= 1.1
+    jets[camSel].pitchv /= 1.1
+    
+    jets[camSel].speed += jets[camSel].speedv
+    jets[camSel].speedv /= 1.1
+    
+    var tailX = 0
+    var tailY = 0
+    var tailZ = -30
+    
+    p = Math.atan2(tailX, tailZ) + jets[camSel].yaw
+    var p2 = jets[camSel].pitch
+    d = Math.hypot(tailX, tailY, tailZ)
+    tailX = vx = S(p) * d * S(q = -p2 + Math.PI/2)
+    tailY = vy = -C(q) * d - 0
+    tailZ = vz = C(p) * S(q) * d
+    
+    renderer.x += (-renderer.x - jets[camSel].x + tailX) / 3
+    renderer.y += (-renderer.y - jets[camSel].y + tailY) / 3
+    renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 3
+    
+    //renderer.roll += (-renderer.roll - jets[camSel].x) / 60
+    //renderer.pitch += (-renderer.pitch - jets[camSel].y - 10) / 60
+    renderer.pitch += (-renderer.pitch + jets[camSel].pitch) / 20
+    renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 20
+    
+    backgroundShape.x = jets[camSel].x
+    backgroundShape.y = jets[camSel].y
+    backgroundShape.z = jets[camSel].z
+    if(1)renderer.Draw(backgroundShape)
+    
+    if(1) for(var i = 0; i < particlesShape.vertices.length; i+=3){
+      var x = particlesShape.vertices[i + 0]
+      var y = particlesShape.vertices[i + 1]
+      var z = particlesShape.vertices[i + 2]
+      
+      if(x + renderer.x > G/2) x = particlesShape.vertices[i + 0] -= G
+      if(x + renderer.x < -G/2) x = particlesShape.vertices[i + 0] += G
+      if(y + renderer.y > G/2) y = particlesShape.vertices[i + 1] -= G
+      if(y + renderer.y < -G/2) y = particlesShape.vertices[i + 1] += G
+      if(z + renderer.z > G/2) z = particlesShape.vertices[i + 2] -= G
+      if(z + renderer.z < -G/2) z = particlesShape.vertices[i + 2] += G
+      
+      particlesShape.vertices[i + 0] = x
+      particlesShape.vertices[i + 1] = y
+      particlesShape.vertices[i + 2] = z
+    }
+    renderer.Draw(particlesShape)
+
+    jets.map((jet, idx) => {
+    
+      //jet.yaw += .0125 * (idx%2 ? -1 : 1)
+      //jet.roll += .0125 * (idx%2 ? -1 : 1)
+    
+      jet.vx = S(p = jet.yaw) * jet.speed
+      jet.vz = C(p) * jet.speed
+    
+      thrusterShape.x = jet.shape.x = jet.x -= jet.vx
+      thrusterShape.y = jet.shape.y = jet.y -= jet.vy
+      thrusterShape.z = jet.shape.z = jet.z -= jet.vz
+
+      thrusterShape.roll  = -(jet.shape.roll  = jet.roll)
+      thrusterShape.pitch = -(jet.shape.pitch = jet.pitch)
+      thrusterShape.yaw   = (jet.shape.yaw   = jet.yaw) + Math.PI
+      
+      renderer.Draw(jet.shape)
+      if(accel) renderer.Draw(thrusterShape)
+    })
+    if(accel) update(thrusterShape, false)
+   
+    //jets[camSel].yaw   += C(t/2) / 100
+    //jets[camSel].pitch += C(t/4) / 200
+   
+    var vx = jets[camSel].vx = 0
+    var vy = jets[camSel].vy = 0
+    var vz = jets[camSel].vz = jets[camSel].speed
+    p = Math.atan2(vx, vz) + jets[camSel].yaw
+    var p2 = jets[camSel].pitch
+    d = Math.hypot(vx, vy, vz)
+    jets[camSel].vx = vx = S(p) * d * S(q = -p2 + Math.PI/2)
+    jets[camSel].vy = vy = C(q) * d
+    jets[camSel].vz = vz = C(p) * S(q) * d
+    
+    var p1 = jets[camSel].yaw
+    arrowShape.x = jets[camSel].x
+    arrowShape.y = jets[camSel].y + 5 
+    arrowShape.z = jets[camSel].z
+    arrowShape.yaw = p1
+    arrowShape.pitch = p2
+    renderer.Draw(arrowShape)
+   
+    //renderer.factor = 1.1+C(t)
+  }
+  
+</script>
+  </body>
+</html>
