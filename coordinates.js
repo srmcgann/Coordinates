@@ -1454,7 +1454,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
             if(involveCache && (cacheItem = cache.geometry.filter(v=>v.url==fileURL)).length){
               console.log(`found geometry (${hint}) in cache... using it`)
               var data          = cacheItem[0].data
-              if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
+              if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
               vertices          = new Float32Array(data.vertices)
               normals           = new Float32Array(data.normals)
               normalVecs        = new Float32Array(data.normalVecs)
@@ -1463,7 +1463,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
               resolved = true
             }else{
               await fetch(fileURL).then(res=>res.json()).then(data => {
-                if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
+                if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
                 vertices    = data.vertices
                 normals     = data.normals
                 normalVecs  = data.normalVecs
@@ -1491,7 +1491,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
            (cacheItem = cache.customShapes.filter(v=>v.url==url)).length){
           console.log(`found custom shape in cache... using it`)
           var data   = cacheItem[0].data
-          if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
+          if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
           vertices   = data.vertices
           normals    = data.normals
           normalVecs = data.normalVecs
@@ -1502,7 +1502,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(!resolved){
           if(typeof geometryData.vertices != 'undefined' &&
              geometryData.vertices.length){
-            if(typeof geometryData.normalAssocs != 'undefined') geometry.normalAssocs = geometryData.normalAssocs
+            if(typeof geometryData.normalAssocs != 'undefined') normalAssocs = geometryData.normalAssocs
             vertices    = geometryData.vertices
             normals     = geometryData.normals
             normalVecs  = geometryData.normalVecs
@@ -1511,7 +1511,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
             //cache.customShapes.push({data: structuredClone(geometryData), url})
           }else{
             await fetch(fileURL).then(res=>res.json()).then(data=>{
-              if(typeof data.normalAssocs != 'undefined') geometry.normalAssocs = data.normalAssocs
+              if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
               vertices     = data.vertices
               normals      = data.normals
               normalVecs   = data.normalVecs
@@ -2883,7 +2883,7 @@ const BasicShader = (renderer, options=[]) => {
                   dataType:            'uniform1f',
                   vertDeclaration:     `
                   `,
-                  vertCode:            `
+                  vertCode:            ` 
                   `,
                   fragDeclaration:     `
                     uniform float reflection;
@@ -2913,7 +2913,7 @@ const BasicShader = (renderer, options=[]) => {
                     vec2 refCoords = vec2(1.0 - refP1 * 2.0, refP2);
                     vec4 refCol = vec4(texture2D(reflectionMap, vec2(refCoords.x, refCoords.y)).rgb * 1.25, reflection / 1.0);
                     mixColor = merge(mixColor, refCol);
-                    baseColorIp = 1.0 - reflection;
+                    baseColorIp = 1.0 - reflection; //min(1.0, 2.0 - reflection);
                     //light += reflection / 4.0;
                   `,
                 }
@@ -3125,6 +3125,7 @@ const BasicShader = (renderer, options=[]) => {
       uniform float penumbraPass;
       uniform float fov;
       uniform float equirectangular;
+      uniform float maxHeightmap;
       uniform float equirectangularHeightmap;
       uniform float renderNormals;
       uniform vec2 resolution;
@@ -3160,12 +3161,16 @@ const BasicShader = (renderer, options=[]) => {
                     yx*pt.x + yy*pt.y + yz*pt.z,
                     zx*pt.x + zy*pt.y + zz*pt.z);
       }
-      vec3 Quat(vec3 pos, vec3 rot){
+      vec3 Quat(vec3 pos, vec3 rot, int isGeo){
         
         if(isLine != 0.0) return pos;
         float cosa, sina, cosb, sinb, cosc, sinc;
         vec3 ret = vec3(pos.x, pos.y, pos.z);
-        if(rotationMode == 0){
+        if(rotationMode == 0 || isGeo == 0){
+          cosa = cos(-rot.x); sina = sin(-rot.x);
+          cosb = cos(0.0);    sinb = sin(0.0);
+          cosc = cos(0.0);    sinc = sin(0.0);
+          ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
           cosa = cos(0.0);    sina = sin(0.0);
           cosb = cos(-rot.z); sinb = sin(-rot.z);
           cosc = cos(0.0);    sinc = sin(0.0);
@@ -3173,27 +3178,23 @@ const BasicShader = (renderer, options=[]) => {
           cosa = cos(0.0);    sina = sin(0.0);
           cosb = cos(0.0);    sinb = sin(0.0);
           cosc = cos(rot.y);  sinc = sin(rot.y);
+          ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+        }
+        if(rotationMode == 1 && isGeo == 1){
+          cosa = cos(0.0);    sina = sin(0.0);
+          cosb = cos(0.0);    sinb = sin(0.0);
+          cosc = cos(rot.y);  sinc = sin(rot.y);
+          ret = pFunc(ret,    cosa, sina, cosb, sinb, cosc, sinc);
+          cosa = cos(0.0);    sina = sin(0.0);
+          cosb = cos(-rot.z); sinb = sin(-rot.z);
+          cosc = cos(0.0);    sinc = sin(0.0);
           ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
           cosa = cos(-rot.x); sina = sin(-rot.x);
           cosb = cos(0.0);    sinb = sin(0.0);
           cosc = cos(0.0);    sinc = sin(0.0);
           ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
         }
-        if(rotationMode == 1){
-          cosa = cos(0.0);    sina = sin(0.0);
-          cosb = cos(0.0);    sinb = sin(0.0);
-          cosc = cos(rot.y);  sinc = sin(rot.y);
-          ret = pFunc(ret,    cosa, sina, cosb, sinb, cosc, sinc);
-          cosa = cos(0.0);    sina = sin(0.0);
-          cosb = cos(-rot.z); sinb = sin(-rot.z);
-          cosc = cos(0.0);    sinc = sin(0.0);
-          ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
-          cosa = cos(-rot.x); sina = sin(-rot.x);
-          cosb = cos(0.0);    sinb = sin(0.0);
-          cosc = cos(0.0);    sinc = sin(0.0);
-          ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
-        }
-        if(rotationMode == 2){
+        if(rotationMode == 2 && isGeo == 1){
           cosa = cos(-rot.x); sina = sin(-rot.x);
           cosb = cos(0.0);    sinb = sin(0.0);
           cosc = cos(0.0);    sinc = sin(0.0);
@@ -3207,19 +3208,19 @@ const BasicShader = (renderer, options=[]) => {
           cosc = cos(0.0);    sinc = sin(0.0);
           ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
         }
-        if(rotationMode == 3){
+        if(rotationMode == 3 && isGeo == 1){
           cosa = cos(-rot.x); sina = sin(-rot.x);
           cosb = cos(0.0);    sinb = sin(0.0);
-          cosc = cos(0.0);    sinc = sin(0.0);
-          ret = pFunc(ret,    cosa, sina, cosb, sinb, cosc, sinc);
-          cosa = cos(0.0);    sina = sin(0.0);
-          cosb = cos(-rot.z); sinb = sin(-rot.z);
           cosc = cos(0.0);    sinc = sin(0.0);
           ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
           cosa = cos(0.0);    sina = sin(0.0);
           cosb = cos(0.0);    sinb = sin(0.0);
           cosc = cos(rot.y);  sinc = sin(rot.y);
           ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+          cosa = cos(0.0);    sina = sin(0.0);
+          cosb = cos(-rot.z); sinb = sin(-rot.z);
+          cosc = cos(0.0);    sinc = sin(0.0);
+          ret = pFunc(ret,    cosa, sina, cosb, sinb, cosc, sinc);
         }
         return ret;
       }
@@ -3293,7 +3294,7 @@ const BasicShader = (renderer, options=[]) => {
 
             
           h = texture2D( heightMap, uvi);
-          lum = ((h.r + h.g + h.b) / 3.0) * (heightMapIntensity) / 2.0;
+          lum = min(maxHeightmap, ((h.r + h.g + h.b) / 3.0) * (heightMapIntensity) / 2.0);
           cx += normalVec.x * lum;
           cy += normalVec.y * lum;
           cz += normalVec.z * lum;
@@ -3316,25 +3317,27 @@ const BasicShader = (renderer, options=[]) => {
         
         if(cameraMode == 1.0){  // 'FPS' mode
           if(isSprite != 0.0 || isLight != 0.0){
-            geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z+M_PI/2.0));
+            geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z+M_PI/2.0), 0);
             pos = vec3(cx, cy, cz);
-            pos = Quat(pos,  vec3(0.0, camOri.y, 0.0));
-            pos = Quat(pos,  vec3(0.0, 0.0, camOri.z));
-            pos = Quat(pos,  vec3(-camOri.x, 0.0, 0.0));
+            pos = Quat(pos,  vec3(0.0, camOri.y, 0.0), 0);
+            pos = Quat(pos,  vec3(0.0, 0.0, camOri.z), 0);
+            pos = Quat(pos,  vec3(-camOri.x, 0.0, 0.0), 0);
             pos.x += cpx;
             pos.y += cpy;
             pos.z += cpz;
-            pos = Quat(pos,  vec3(camOri.x, -camOri.y, -camOri.z));
+            pos = Quat(pos,  vec3(camOri.x, -camOri.y, -camOri.z), 0);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = Quat(nVec, vec3(geoOri.x+camOri.x, -geoOri.y-camOri.y, -geoOri.z-camOri.z));
+            nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            nVec = Quat(nVec, vec3(camOri.x, -camOri.y, -camOri.z), 0);
           }else{
-            geo = Quat(geo, vec3(camOri.x, camOri.y, -camOri.z));            
-            pos = Quat(vec3(cx, cy, cz), vec3(geoOri.x, -geoOri.y, -geoOri.z));
+            geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z), 0);
+            pos = Quat(vec3(cx, cy, cz), vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
             pos.x += cpx;
             pos.y += cpy;
             pos.z += cpz;
-            pos = Quat(pos,  vec3(-camOri.x, -camOri.y, -camOri.z));
-            nVec = Quat(nVeci, vec3(geoOri.x-camOri.x, -geoOri.y-camOri.y, -geoOri.z-camOri.z));
+            pos = Quat(pos,  vec3(-camOri.x, -camOri.y, -camOri.z), 0);
+            nVec = Quat(nVeci, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            nVec = Quat(nVec, vec3(0.0, -camOri.y, -camOri.z), 0);
           }
           cpx = 0.0;
           cpy = 0.0;
@@ -3342,17 +3345,20 @@ const BasicShader = (renderer, options=[]) => {
           fPos = pos;
         }else{
           if(isSprite != 0.0 || isLight != 0.0){
-            geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z+M_PI/2.0));
+            geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z+M_PI/2.0), 0);
             pos = vec3(cx, cy, cz);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = Quat(nVec, vec3(geoOri.x+camOri.x, -geoOri.y-camOri.y, -geoOri.z-camOri.z));
+            nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            nVec = Quat(nVec, vec3(camOri.x, -camOri.y, -camOri.z), 0);
           }else{
-            geo = Quat(geoPos, vec3(camOri.x,M_PI/2.0 - camOri.y, -camOri.z));
+            geo = Quat(geoPos, vec3(camOri.x, camOri.y, -camOri.z), 0);
             pos = vec3(cx, cy, cz);
-            pos = Quat(pos, vec3(geoOri.x+camOri.x, -geoOri.y-camOri.y, -geoOri.z-camOri.z));
+            pos = Quat(pos, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            pos = Quat(pos, vec3(camOri.x, -camOri.y, -camOri.z), 0);
             
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = Quat(nVec, vec3(geoOri.x+camOri.x, -geoOri.y-camOri.y, -geoOri.z-camOri.z));
+            nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            nVec = Quat(nVec, vec3(camOri.x, -camOri.y, -camOri.z), 0);
           }
           fPos = pos;
         }
@@ -3640,7 +3646,7 @@ const BasicShader = (renderer, options=[]) => {
                 float c1 = cr3.x - cr2.x;
                 float c2 = cr3.y - cr2.y;
                 float c3 = (lum3 - 0.5) * rad2 - (lum2 - 0.5) * rad2;
-                vec3 anorm =  vec3(b2*c3-b3*c2, b3*c1-b1*c3, b1*c2-b2*c1) * min(rmaxHeightmap / 5.0, (1.0 + rheightMapIntensity) / 2.0);
+                vec3 anorm =  vec3(b2*c3-b3*c2, b3*c1-b1*c3, b1*c2-b2*c1) * min(maxHeightmap / 5.0, (1.0 + heightMapIntensity) / 2.0);
                 nV = normalize( nVec + anorm);
                 nVi = normalize( nVeci + anorm);
               }else{
@@ -3657,11 +3663,13 @@ const BasicShader = (renderer, options=[]) => {
                 gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
               }else{
                 
-                texel.a = baseColorIp;
+                texel.a = baseColorIp / 2.0;
                 vec4 col = merge(mixColor, texel);
-                col.a = baseColorIp;
-                mixColor2.a = baseColorIp2;
-                col = merge(mixColor2, col); // refractions
+                col.a = 1.0;
+                if(baseColorIp2 != 0.0){
+                  mixColor2.a = baseColorIp2;
+                  col = merge(mixColor2, col); // refractions
+                }
                 col.rgb *= light.rgb;
                 gl_FragColor = vec4(col.rgb * colorMag, 1.0);
               }
