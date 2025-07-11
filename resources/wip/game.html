@@ -31,17 +31,12 @@
   var Rn = Math.random
   var x, y, z, p, d, ox, oy, oz, dx, dy, dz, q
   
-  var rotationMode = 3
+  var rotationMode = 0
  
   //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
   //var refTexture = 'https://i.imgur.com/1Mmrurz.mp4'
-  //var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
-
-  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/ultrapseudoequirectangular.jpg'
-  var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2.png'
-  var playbackSpeed = 1
-
-
+  var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
+  
   Coordinates.AnimationLoop(renderer, 'Draw')
 
   var shaderOptions = [
@@ -58,21 +53,6 @@
     } },
   ]
   var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-  
-  var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .75}},
-    { uniform: {
-      type: 'phong',
-      value: .8
-    } },
-    { uniform: {
-      type: 'reflection',
-      value: .3,
-      enabled: true,
-      map: refTexture,
-    } },
-  ]
-  var floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
   var shaderOptions = [
     {lighting: {type: 'ambientLight', value: .25}},
@@ -84,7 +64,7 @@
   var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: 1}},
+    {lighting: {type: 'ambientLight', value: .6}},
     { uniform: {
       type: 'phong',
       value: 0
@@ -105,15 +85,6 @@
       name: `jet${jetType}`,
       url: `https://srmcgann.github.io/objs/jet/jet_medpoly.obj?${i}`,
       map: `https://srmcgann.github.io/objs/jet/jet${jetType}.png`,
-      //map: heightMap,
-      showNormals: false,
-      //heightMap,
-      //heightMap: 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg',
-      //equirectangular: true,
-      //equirectangularHeightmap: true,
-      //heightMapIntensity: 5,
-      //playbackSpeed,
-      //maxheightMap: .5,
       showNormals: false,
       rotationMode,
       //objyaw: i ? 0: Math.PI,
@@ -163,26 +134,12 @@
     await backgroundShader.ConnectGeometry(geometry)
   })  
   
-  var floorShape
-  var geoOptions = {
-    shapeType: 'custom shape',
-    name: 'floor',
-    url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7q',
-    map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
-    flipNormals: true,
-    colorMix: 0,
-  }
-  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    floorShape = geometry
-    await floorShader.ConnectGeometry(geometry)
-  })  
-  
   var arrowShape
   var geoOptions = {
     //shapeType: 'custom shape',
-    shapeType: 'sprite',
-    //url: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.json',
-    //map: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.jpg',
+    shapeType: 'custom shape',
+    url: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.json',
+    map: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.jpg',
     name: 'temp arrow',
     rotationMode,
     scaleX: .2,
@@ -355,13 +312,8 @@
     }
   })
   
-  const floor = (x, z) => {
-    var p = Math.atan2(x, z)
-    return Math.min(200, Math.max(-50, C(p*2 + Math.hypot(x, z) / 500- renderer.t*2) * 250))
-  }
-  
-  var jetRv = .005
-  var jetMv = .01
+  var jetRv = .01
+  var jetMv = .1
   var keys = Array(256).fill(false)
   var accel = false
   
@@ -381,7 +333,6 @@
         switch(idx){
           case 87:    // w
             jets[camSel].speedv += jetMv
-            accel = true
           break
           case 65:    // a
           break
@@ -402,6 +353,7 @@
           case 40:    // down arrow
             jets[camSel].pitchv -= jetRv
           break
+          case 32: accel = true; break
         }
       }
     })
@@ -415,7 +367,6 @@
     
     doKeys()
     
-    jets[camSel].roll   = -jets[camSel].yawv * 9
     jets[camSel].yaw    += jets[camSel].yawv
     jets[camSel].pitch  += jets[camSel].pitchv
     jets[camSel].yawv   /= 1.1
@@ -429,20 +380,20 @@
     var tailZ = -30
     
     p = Math.atan2(tailX, tailZ) + jets[camSel].yaw
-    var p2 = jets[camSel].pitch 
-    d = Math.abs(tailZ) //Math.hypot(tailX, tailY, tailZ)
+    var p2 = jets[camSel].pitch
+    d = Math.hypot(tailX, tailY, tailZ)
     tailX = vx = S(p) * d * S(q = -p2 + Math.PI/2)
     tailY = vy = -C(q) * d - 0
     tailZ = vz = C(p) * S(q) * d
     
-    renderer.x += (-renderer.x - jets[camSel].x + tailX) / 2
-    renderer.y += (-renderer.y - jets[camSel].y + tailY) / 2
-    renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 2
+    renderer.x += (-renderer.x - jets[camSel].x + tailX) / 3
+    renderer.y += (-renderer.y - jets[camSel].y + tailY) / 3
+    renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 3
     
     //renderer.roll += (-renderer.roll - jets[camSel].x) / 60
     //renderer.pitch += (-renderer.pitch - jets[camSel].y - 10) / 60
-    renderer.pitch += (-renderer.pitch + jets[camSel].pitch) / 10
-    renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 10
+    renderer.pitch += (-renderer.pitch + jets[camSel].pitch) / 20
+    renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 20
     
     backgroundShape.x = jets[camSel].x
     backgroundShape.y = jets[camSel].y
@@ -502,25 +453,12 @@
     jets[camSel].vz = vz = C(p) * S(q) * d
     
     var p1 = jets[camSel].yaw
-    //arrowShape.x = jets[camSel].x
-    //arrowShape.y = jets[camSel].y + 5 
-    //arrowShape.z = jets[camSel].z
-    //arrowShape.yaw = p1
-    //arrowShape.pitch = p2
-    //renderer.Draw(arrowShape)
-    
-    for(var i=0; i<floorShape.vertices.length; i+=3){
-      var x = floorShape.vertices[i+0]
-      var y = floorShape.vertices[i+1]
-      var z = floorShape.vertices[i+2]
-      y = floor(x, z)
-      floorShape.vertices[i+0] = x
-      floorShape.vertices[i+1] = y - 100 
-      floorShape.vertices[i+2] = z
-    }
-    console.log(floorShape)
-    if(floorShape.normalAssocs) Coordinates.SyncNormals(floorShape, true, true)
-    renderer.Draw(floorShape)
+    arrowShape.x = jets[camSel].x
+    arrowShape.y = jets[camSel].y + 5 
+    arrowShape.z = jets[camSel].z
+    arrowShape.yaw = p1
+    arrowShape.pitch = p2
+    renderer.Draw(arrowShape)
    
     //renderer.factor = 1.1+C(t)
   }
