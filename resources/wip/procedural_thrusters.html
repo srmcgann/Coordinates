@@ -15,9 +15,11 @@
 <script type="module">
 
   import * as Coordinates from
-  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  "https://boss.veriler.com/coordinates.js"
 
   var rendererOptions = {
+    ambientLight: .5,
     fov: 1e3, margin: 0,
     //width: 960, height: 540,
     width: 1920, height: 1080,
@@ -25,37 +27,37 @@
   var renderer = await Coordinates.Renderer(rendererOptions)
   
   //var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
-  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/rd5_po2_small.mp4'
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
   var rotationMode = 0
   
   var S = Math.sin
   var C = Math.cos
   var Rn = Math.random
-  var x, y, z, p, d, ox, oy, oz, dx, dy, dz, q
+  var x, y, z, p, d, ox, oy, oz, dx, dy, dz, q, vx, vy, vz
 
   Coordinates.AnimationLoop(renderer, 'Draw')
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .6}},
+    {lighting: {type: 'ambientLight', value: 1.25}},
     { uniform: {
       type: 'phong',
-      value: 0
+      value: 0 
     } },
   ]
   var flameShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
   var shaderOptions = [
-    { lighting: {type: 'ambientLight', value: 1}
+    { lighting: {type: 'ambientLight', value: .5}
     },
     { uniform: {
       type: 'phong',
-      value: .5
+      value: .25
     } },
     { uniform: {
       type: 'reflection',
       map: refTexture,
-      value: .5
-    } }
+      value: .25,
+    } },
   ]
   var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
@@ -70,6 +72,7 @@
 
   var shapes = []
   
+  var backgroundShape
   var geoOptions = {
     shapeType: 'dodecahedron',
     name: 'background',
@@ -80,25 +83,32 @@
     colorMix: 0,
   }
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    shapes.push(geometry)
+    backgroundShape = geometry
     await backgroundShader.ConnectGeometry(geometry)
-  })  
+  })
 
-  var geoOptions = {
-    shapeType: 'obj',
-    name: 'base jet',
-    url: `https://srmcgann.github.io/objs/jet/jet_hipoly.obj`,
-    map: `https://srmcgann.github.io/objs/jet/jet_neutral.png`,
-    showNormals: false,
-    rotationMode,
-    objyaw: Math.PI,
-    colorMix: 0,
+  var jetShapes = [], jetType
+  for(var i = 0; i < 3; i++){
+    switch(i){
+      case 0: jetType = '_neutral'; break
+      case 1: jetType = '_enemy'; break
+      case 2: jetType = '_ally'; break
+    }
+    var geoOptions = {
+      shapeType: 'obj',
+      name: `jet${jetType}`,
+      url: `https://srmcgann.github.io/objs/jet/jet_medpoly.obj?${i}`,
+      map: `https://srmcgann.github.io/objs/jet/jet${jetType}.png`,
+      showNormals: false,
+      rotationMode:3,
+      //objyaw: i ? 0: Math.PI,
+      colorMix: 0,
+    }
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      jetShapes[jetType] = geometry
+      shader.ConnectGeometry(geometry)
+    })  
   }
-  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    shapes.push(geometry)
-    shader.ConnectGeometry(geometry)
-  })  
-
 
   var baseVerts, baseUVs, thrusterShape, update
   var geoOptions = {
@@ -207,17 +217,124 @@
     await update(geometry, true)
   })  
   
-  Coordinates.LoadFPSControls(renderer, {
+  
+  var iJc = 1
+  var camSel = 0
+  var jets = Array(iJc).fill().map((jet, idx) => {
+    switch(idx%3){
+      case 0: jetType = idx%2 ? '_enemy' : '_neutral'; break
+      case 1: jetType = idx%2 ? '_enemy' : '_neutral'; break
+      case 2: jetType = '_ally'; break
+    }
+    return {
+      name: `jet ${idx+1}`,
+      shape: jetShapes['_ally'],//jetShapes[jetType],
+      x: 0,
+      y: -(i/iJc*idx*1.6-iJc/2 +.5) * 20,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: 0,
+      rollv: 0,
+      pitchv: 0,
+      yawv: 0,
+      vx: 0,
+      vy: 0,
+      vz: 1,
+      speedv: 0,
+      speed: 0,
+    }
+  })
+
+  
+  var jetRv = .01
+  var jetMv = .1
+  var keys = Array(256).fill(false)
+  var accel = false
+  
+  window.onkeydown = e => {
+    console.log(e.keyCode)
+    keys[e.keyCode] = true
+  }
+  
+  window.onkeyup = e => {
+    keys[e.keyCode] = false
+  }
+  
+  const doKeys = () => {
+    accel = false
+    keys.map((v, idx) => {
+      if(v){
+        switch(idx){
+          case 87:    // w
+            jets[camSel].speedv += jetMv
+          break
+          case 65:    // a
+          break
+          case 83:    // s
+            jets[camSel].speedv -= jetMv
+          break
+          case 68:    // d
+          break
+          case 37:    // left arrow
+            jets[camSel].yawv -= jetRv
+          break
+          case 38:    // up arrow
+            jets[camSel].pitchv += jetRv
+          break
+          case 39:    // right arrow
+            jets[camSel].yawv += jetRv
+          break
+          case 40:    // down arrow
+            jets[camSel].pitchv -= jetRv
+          break
+          case 32: accel = true; break
+        }
+      }
+    })
+  }
+
+  var iPc = 5e3
+  var G = 5e3
+  var particlesShape
+  var geometryData = Array(iPc).fill().map(v=>{
+    x = (Rn() - .5) * G
+    y = (Rn() - .5) * G
+    z = (Rn() - .5) * G
+    return [x, y, z]
+  })
+  var geoOptions = {
+    shapeType: 'particles',
+    geometryData,
+    name: 'particles',
+    rotationMode,
+    size: 20,
+    color: 0xffffff,
+    alpha: .5,
+    penumbra: .5,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    particlesShape = geometry
+  })  
+
+  
+  if(1) Coordinates.LoadFPSControls(renderer, {
     flyMode: true,
+    useKeys: false,
+    mSpeed: 2,
+    rSpeed: 2,
+    crosshairSel: 2,
+    crosshairSize: .5,
   })
   
   // temp camera scaffolding
+  
   if(1){
-    renderer.z = 0
-    renderer.x = -24
-    renderer.yaw = Math.PI/2
-    renderer.pitch = .7
+    renderer.x = 0
     renderer.y = -10
+    renderer.z = 30
+    renderer.yaw = 0
+    renderer.pitch = 0
   } else {
     renderer.x = 0
     renderer.y = -7
@@ -225,30 +342,84 @@
     renderer.yaw = 0
     renderer.pitch = 0
   }
+  
+  var x, y, z
+  
   window.Draw = () => {
+  
+    doKeys()
+  
     var t = renderer.t
-    //renderer.z = 25
-    //renderer.yaw = t
-    //renderer.yaw = t
-    shapes.forEach(shape => {
-      switch(shape.name){
-        case 'background':
-        break
-        case 'base jet':
-          //shape.pitch += .001
-          shape.yaw += .01
-          //shape.roll += .003
-        break
-        default:
-        break
-      }
-      renderer.Draw(shape)
+
+    jets[camSel].yaw    += jets[camSel].yawv
+    jets[camSel].pitch  += jets[camSel].pitchv
+    jets[camSel].yawv   /= 1.1
+    jets[camSel].pitchv /= 1.1
+    
+    jets[camSel].speed += jets[camSel].speedv
+    jets[camSel].speedv /= 1.1
+    
+    var tailX = 0
+    var tailY = 0
+    var tailZ = -30
+    
+    p = Math.atan2(tailX, tailZ) + jets[camSel].yaw
+    var p2 = jets[camSel].pitch
+    d = Math.hypot(tailX, tailY, tailZ)
+    tailX = vx = S(p) * d * S(q = -p2 + Math.PI/2)
+    tailY = vy = -C(q) * d - 0
+    tailZ = vz = C(p) * S(q) * d
+    
+    renderer.x -= (jets[camSel].x + tailX + renderer.x) / 3
+    renderer.y -= (jets[camSel].y + tailY + renderer.y) / 3
+    renderer.z -= (jets[camSel].z + tailZ + renderer.z) / 3
+
+    renderer.pitch += (-renderer.pitch + jets[camSel].pitch) / 20
+    renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 20
+    
+    backgroundShape.x = jets[camSel].x
+    backgroundShape.y = jets[camSel].y
+    backgroundShape.z = jets[camSel].z
+    if(1)renderer.Draw(backgroundShape)
+
+    jets.map((jet, idx) => {
+    
+      //jet.yaw += .0125 * (idx%2 ? -1 : 1)
+      //jet.roll += .0125 * (idx%2 ? -1 : 1)
+    
+      jet.vx = S(p = jet.yaw) * jet.speed
+      jet.vz = C(p) * jet.speed
+    
+      thrusterShape.x = jet.shape.x = jet.x -= jet.vx
+      thrusterShape.y = jet.shape.y = jet.y -= jet.vy
+      thrusterShape.z = jet.shape.z = jet.z -= jet.vz
+
+      thrusterShape.roll  = -(jet.shape.roll  = jet.roll)
+      thrusterShape.pitch = -(jet.shape.pitch = jet.pitch)
+      thrusterShape.yaw   = (jet.shape.yaw   = jet.yaw) + Math.PI
+      
+      renderer.Draw(jet.shape)
+      if(accel) renderer.Draw(thrusterShape)
     })
-    //thrusterShape.pitch += .001
-    thrusterShape.yaw += .01
-    //thrusterShape.roll += .003
-    renderer.Draw(thrusterShape)
-    update(thrusterShape, false)
+    if(accel) update(thrusterShape, false)
+
+    if(1) for(var i = 0; i < particlesShape.vertices.length; i+=3){
+      var x = particlesShape.vertices[i + 0]
+      var y = particlesShape.vertices[i + 1]
+      var z = particlesShape.vertices[i + 2]
+      
+      if(x + renderer.x > G/2) x = particlesShape.vertices[i + 0] -= G
+      if(x + renderer.x < -G/2) x = particlesShape.vertices[i + 0] += G
+      if(y + renderer.y > G/2) y = particlesShape.vertices[i + 1] -= G
+      if(y + renderer.y < -G/2) y = particlesShape.vertices[i + 1] += G
+      if(z + renderer.z > G/2) z = particlesShape.vertices[i + 2] -= G
+      if(z + renderer.z < -G/2) z = particlesShape.vertices[i + 2] += G
+      
+      particlesShape.vertices[i + 0] = x
+      particlesShape.vertices[i + 1] = y
+      particlesShape.vertices[i + 2] = z
+    }
+    renderer.Draw(particlesShape)
   }
   
 </script>
