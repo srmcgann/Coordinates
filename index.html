@@ -33,11 +33,11 @@
   
   var rotationMode = 3
  
-  //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
   //var refTexture = 'https://i.imgur.com/1Mmrurz.mp4'
   //var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
 
-  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
+  //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/skymaze_po2.jpg'
   var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2.png'
   var playbackSpeed = 1
 
@@ -148,7 +148,7 @@
   })  
   
   
-  var iPc = 1e4
+  var iPc = 3e3
   var smokeParticles
   var geometryData = Array(iPc).fill().map(v=>{
     x = 1e8
@@ -186,6 +186,7 @@
   
   var floorShapeMed, floorVerticesMed, floorNormalsMed
   var floorShapeLow, floorVerticesLow, floorNormalsLow
+  /*
   var baseName = 'floor_medpoly'
   var geoOptions = {
     shapeType: 'custom shape',
@@ -241,7 +242,50 @@
     floorNormalsLow = structuredClone(floorShapeLow.normals)
     await floorShader.ConnectGeometry(geometry)
   })
-  
+  */
+
+  var shapes = []
+  for(var m = 2; m--;)for(var k=2; k--;){
+    var shapeName, lod
+    var shape = {}
+    switch(m){
+      case 0: shapeName = 'floor'; break
+      case 2: shapeName = 'foliage'; break
+      case 1: shapeName = 'clouds'; break
+    }
+    switch(k){
+      case 0: lod = '_lowpoly'; break
+      case 1: lod = '_hipoly'; break
+    }
+    var baseName = shapeName + lod
+    var geoOptions = {
+      shapeType: 'obj',
+      name: baseName,
+      showNormals: false,
+      url: `https://srmcgann.github.io/objs/landscape/${baseName}.obj`,
+      map: `https://srmcgann.github.io/objs/landscape/landscape.jpg`,
+      //flipNormals: true,
+      //averageNormals: true,
+      //precomputeNormalAssocs: true,
+      //downloadShape: true,
+      scaleX: 100,
+      scaleY: 100,
+      scaleZ: 100,
+      y: -1000,
+      //color: 0x4400ff,
+      colorMix: 0,
+    }
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      //await Coordinates.SyncNormals(geometry, true, true)
+      shape.name = baseName
+      shape.geometry = geometry
+      shape.vertices = structuredClone(geometry.vertices)
+      shape.normals = structuredClone(geometry.normals)
+      //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
+      await floorShader.ConnectGeometry(geometry)
+      shapes.push(shape)
+    })
+  }
   if(0){
     var arrowShape
     var geoOptions = {
@@ -437,8 +481,8 @@
     return Math.min(500, Math.max(-500, C(p*2 + Math.hypot(x, z) / 1500- renderer.t*2) * 1000))
   }
   
-  var jetRv = .0025
-  var jetMv = .1
+  var jetRv = .005
+  var jetMv = .2
   var keys = Array(256).fill(false)
   var accel = false
   
@@ -504,7 +548,7 @@
     
     doKeys()
     
-    jets[camSel].roll   = -jets[camSel].yawv * 32
+    jets[camSel].roll   = -jets[camSel].yawv * 16
     jets[camSel].yaw    += jets[camSel].yawv
     jets[camSel].pitch  += jets[camSel].pitchv
     jets[camSel].yawv   /= 1.04
@@ -571,7 +615,7 @@
       thrusterShape.x = jet.shape.x = jet.x += jet.vx
       thrusterShape.y = jet.shape.y = jet.y += jet.vy
       thrusterShape.z = jet.shape.z = jet.z += jet.vz
-      for(var m = 4; m--;) spawnSmoke(jet.x, jet.y, jet.z)
+      for(var m = 1; m--;) spawnSmoke(jet.x, jet.y, jet.z)
 
       thrusterShape.roll  = -(jet.shape.roll  = jet.roll)
       thrusterShape.pitch = -(jet.shape.pitch = jet.pitch + jet.pitchv*10)
@@ -604,10 +648,10 @@
     //renderer.Draw(arrowShape)
     
     
-    var fcl = 5
+    var fcl = 3
     var frw = 1
-    var fbr = 5
-    var fsp = 4990
+    var fbr = 3
+    var fsp = 4990 * 2
     //var floorShape = floorShapeLow
     //var floorVertices = floorVerticesLow
     Array(fcl*frw*fbr).fill().map((v,j)=>{
@@ -619,86 +663,95 @@
       while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
       while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
       while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
-      var floorShape = Math.hypot(-renderer.x - tx, -renderer.z - tz) >= fsp ? floorShapeLow : floorShapeMed
-      var x, y, z
-      if(0) for(var i=0; i<floorShape.vertices.length; i+=3){
-        switch(j){
-          case 0:
-            floorShape.vertices[i+0] = -floorVertices[i+0]
-            floorShape.vertices[i+1] = floorVertices[i+1] +
-              floor(-floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
-            floorShape.vertices[i+2] = -floorVertices[i+2]
-          break
-          case 1:
-            floorShape.vertices[i+0] = floorVertices[i+0]
-            floorShape.vertices[i+1] = floorVertices[i+1] +
-              floor(floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
-            floorShape.vertices[i+2] = -floorVertices[i+2]
-          break
-          case 2:
-            floorShape.vertices[i+0] = -floorVertices[i+0]
-            floorShape.vertices[i+1] = floorVertices[i+1] +
-              floor(-floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
-            floorShape.vertices[i+2] = -floorVertices[i+2]
-          break
-          case 3:
-            floorShape.vertices[i+0] = -floorVertices[i+0]
-            floorShape.vertices[i+1] = floorVertices[i+1] +
-              floor(-floorVertices[i+0] + tx, floorVertices[i+2] + tz)
-            floorShape.vertices[i+2] = floorVertices[i+2]
-          break
-          case 4:
-            floorShape.vertices[i+0] = floorVertices[i+0]
-            floorShape.vertices[i+1] = floorVertices[i+1] +
-              floor(floorVertices[i+0] + tx, floorVertices[i+2] + tz)
-            floorShape.vertices[i+2] = floorVertices[i+2]
-          break
-          case 5:
-            floorShape.vertices[i+0] = -floorVertices[i+0]
-            floorShape.vertices[i+1] = floorVertices[i+1] +
-              floor(-floorVertices[i+0] + tx, floorVertices[i+2] + tz)
-            floorShape.vertices[i+2] = floorVertices[i+2]
-          break
-          case 6:
-            floorShape.vertices[i+0] = -floorVertices[i+0]
-            floorShape.vertices[i+1] = floorVertices[i+1] +
-              floor(-floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
-            floorShape.vertices[i+2] = -floorVertices[i+2]
-          break
-          case 7:
-            floorShape.vertices[i+0] = floorVertices[i+0]
-            floorShape.vertices[i+1] = floorVertices[i+1] +
-              floor(floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
-            floorShape.vertices[i+2] = -floorVertices[i+2]
-          break
-          case 8:
-            floorShape.vertices[i+0] = -floorVertices[i+0]
-            floorShape.vertices[i+1] = floorVertices[i+1] +
-              floor(-floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
-            floorShape.vertices[i+2] = -floorVertices[i+2]
-          break
+      var lod = Math.hypot(-renderer.x - tx, -renderer.z - tz) >= fsp ? '_lowpoly' : '_hipoly'
+      var shapeName
+      for(var m = 2; m--;){
+        switch(m){
+          case 0: shapeName = 'floor'; break
+          case 2: shapeName = 'foliage'; break
+          case 1: shapeName = 'clouds'; break
         }
-        /*
-        var x = floorNormals[i*2+0]
-        var y = floorNormals[i*2+1]
-        var z = floorNormals[i*2+2]
-        y += floor(x, z)
-        floorShape.normals[i*2+0] = x
-        floorShape.normals[i*2+1] = y
-        floorShape.normals[i*2+2] = z
-        var x = floorNormals[i*2+3]
-        var y = floorNormals[i*2+4]
-        var z = floorNormals[i*2+5]
-        y += floor(x, z)
-        floorShape.normals[i*2+3] = x
-        floorShape.normals[i*2+4] = y
-        floorShape.normals[i*2+5] = z
-        */
+        var shp = shapes.filter(v=>v.name == shapeName + lod)[0]
+        var x, y, z
+        if(0) for(var i=0; i<shp.vertices.length; i+=3){
+          switch(j){
+            case 0:
+              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
+              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
+                floor(-shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
+              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
+            break
+            case 1:
+              shp.geometry.vertices[i+0] = shp.vertices[i+0]
+              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
+                floor(shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
+              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
+            break
+            case 2:
+              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
+              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
+                floor(-shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
+              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
+            break
+            case 3:
+              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
+              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
+                floor(-shp.vertices[i+0] + tx, shp.vertices[i+2] + tz)
+              shp.geometry.vertices[i+2] = shp.vertices[i+2]
+            break
+            case 4:
+              shp.geometry.vertices[i+0] = shp.vertices[i+0]
+              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
+                floor(shp.vertices[i+0] + tx, shp.vertices[i+2] + tz)
+              shp.geometry.vertices[i+2] = shp.vertices[i+2]
+            break
+            case 5:
+              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
+              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
+                floor(-shp.vertices[i+0] + tx, shp.vertices[i+2] + tz)
+              shp.geometry.vertices[i+2] = shp.vertices[i+2]
+            break
+            case 6:
+              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
+              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
+                floor(-shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
+              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
+            break
+            case 7:
+              shp.geometry.vertices[i+0] = shp.vertices[i+0]
+              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
+                floor(shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
+              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
+            break
+            case 8:
+              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
+              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
+                floor(-shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
+              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
+            break
+          }
+          /*
+          var x = floorNormals[i*2+0]
+          var y = floorNormals[i*2+1]
+          var z = floorNormals[i*2+2]
+          y += floor(x, z)
+          shp.normals[i*2+0] = x
+          shp.normals[i*2+1] = y
+          shp.normals[i*2+2] = z
+          var x = floorNormals[i*2+3]
+          var y = floorNormals[i*2+4]
+          var z = floorNormals[i*2+5]
+          y += floor(x, z)
+          shp.normals[i*2+3] = x
+          shp.normals[i*2+4] = y
+          shp.normals[i*2+5] = z
+          */
+        }
+        //if(shp.normalAssocs) Coordinates.SyncNormals(shp, true, false)
+        shp.geometry.x = tx
+        shp.geometry.z = tz
+        renderer.Draw(shp.geometry)
       }
-      //if(floorShape.normalAssocs) Coordinates.SyncNormals(floorShape, true, false)
-      floorShape.x = tx
-      floorShape.z = tz
-      renderer.Draw(floorShape)
     })
     for(var j = 0; j < smokeParticles.vertices.length; j += 3){
       if(j/3|0 > smoke.length) {
