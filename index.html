@@ -37,7 +37,7 @@
   //var refTexture = 'https://i.imgur.com/1Mmrurz.mp4'
   //var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
 
-  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/ultrapseudoequirectangular.jpg'
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
   var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2.png'
   var playbackSpeed = 1
 
@@ -45,14 +45,14 @@
   Coordinates.AnimationLoop(renderer, 'Draw')
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .6}},
+    {lighting: {type: 'ambientLight', value: .2}},
     { uniform: {
       type: 'phong',
-      value: .3
+      value: .5
     } },
     { uniform: {
       type: 'reflection',
-      value: .3,
+      value: .5,
       enabled: true,
       map: refTexture,
     } },
@@ -60,14 +60,14 @@
   var shader = await Coordinates.BasicShader(renderer, shaderOptions)
   
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .75}},
+    {lighting: {type: 'ambientLight', value: .3333}},
     { uniform: {
       type: 'phong',
-      value: .8
+      value: 1
     } },
     { uniform: {
       type: 'reflection',
-      value: .3,
+      value: .4,
       enabled: true,
       map: refTexture,
     } },
@@ -75,7 +75,7 @@
   var floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .25}},
+    {lighting: {type: 'ambientLight', value: 1.25}},
     { uniform: {
       type: 'phong',
       value: 0
@@ -84,7 +84,7 @@
   var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: 1}},
+    {lighting: {type: 'ambientLight', value: 1.25}},
     { uniform: {
       type: 'phong',
       value: 0
@@ -103,10 +103,9 @@
     var geoOptions = {
       shapeType: 'obj',
       name: `jet${jetType}`,
-      url: `https://srmcgann.github.io/objs/jet/jet_medpoly.obj?${i}`,
+      url: `https://srmcgann.github.io/objs/jet/jet_lowpoly.obj?${i}`,
       map: `https://srmcgann.github.io/objs/jet/jet${jetType}.png`,
       //map: heightMap,
-      showNormals: false,
       //heightMap,
       //heightMap: 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg',
       //equirectangular: true,
@@ -114,7 +113,6 @@
       //heightMapIntensity: 5,
       //playbackSpeed,
       //maxheightMap: .5,
-      showNormals: false,
       rotationMode,
       //objyaw: i ? 0: Math.PI,
       colorMix: 0,
@@ -126,7 +124,7 @@
   }
   
   
-  var iPc = 5e3
+  var iPc = 2e3
   var G = 5e3
   var particlesShape
   var geometryData = Array(iPc).fill().map(v=>{
@@ -149,13 +147,36 @@
     particlesShape = geometry
   })  
   
+  
+  var iPc = 1e4
+  var smokeParticles
+  var geometryData = Array(iPc).fill().map(v=>{
+    x = 1e8
+    y = 0
+    z = 0
+    return [x, y, z]
+  })
+  var geoOptions = {
+    shapeType: 'particles',
+    geometryData,
+    name: 'smoke particles',
+    rotationMode,
+    size: 10,
+    color: 0xff8844,
+    alpha: .25,
+    penumbra: .65,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    smokeParticles = geometry
+  })  
+  
   var geoOptions = {
     shapeType: 'dodecahedron',
     name: 'background',
     rotationMode,
     subs: 3,
     map: refTexture,
-    size: 1e4,
+    size: 1e5,
     colorMix: 0,
   }
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -163,38 +184,93 @@
     await backgroundShader.ConnectGeometry(geometry)
   })  
   
-  var floorShape
+  var floorShapeMed, floorVerticesMed, floorNormalsMed
+  var floorShapeLow, floorVerticesLow, floorNormalsLow
+  var baseName = 'floor_medpoly'
   var geoOptions = {
     shapeType: 'custom shape',
-    name: 'floor',
-    url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7q',
-    map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
-    flipNormals: true,
-    colorMix: 0,
+    name: baseName,
+    showNormals: false,
+    //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7q',
+    url: `https://srmcgann.github.io/Coordinates/custom shapes/floor/${baseName}.json`,
+    map: `https://srmcgann.github.io/objs/floor/floor.png`,
+    //map: `https://srmcgann.github.io/Coordinates/custom shapes/floor/floor.png`,
+    //flipNormals: true,
+    //averageNormals: true,
+    //precomputeNormalAssocs: true,
+    //downloadShape: true,
+    //scaleX: 50,
+    scaleY: 2,
+    //scaleZ: 50,
+    y: -1000,
+    color: 0x4400ff,
+    colorMix: .1,
   }
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    floorShape = geometry
+    await Coordinates.SyncNormals(geometry, true, true)
+    floorShapeMed = geometry
+    await Coordinates.SyncNormals(floorShapeMed, true, true, false)
+    floorVerticesMed = structuredClone(floorShapeMed.vertices)
+    floorNormalsMed = structuredClone(floorShapeMed.normals)
     await floorShader.ConnectGeometry(geometry)
-  })  
-  
-  var arrowShape
+  })
+  var baseName = 'floor_lowpoly'
   var geoOptions = {
-    //shapeType: 'custom shape',
-    shapeType: 'sprite',
-    //url: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.json',
-    //map: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.jpg',
-    name: 'temp arrow',
-    rotationMode,
-    scaleX: .2,
-    scaleY: .2,
-    scaleZ: -.2,
-    Y: 10,
-    colorMix: 0,
+    shapeType: 'custom shape',
+    name: baseName,
+    showNormals: false,
+    url: `https://srmcgann.github.io/Coordinates/custom shapes/floor/${baseName}.json`,
+    map: `https://srmcgann.github.io/objs/floor/floor.png`,
+    //flipNormals: true,
+    //averageNormals: true,
+    //precomputeNormalAssocs: true,
+    //downloadShape: true,
+    //scaleX: 50,
+    scaleY: 2,
+    //scaleY: 50,
+    //scaleZ: 50,
+    y: -1000,
+    color: 0x4400ff,
+    colorMix: .1,
   }
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    arrowShape = geometry
-    await backgroundShader.ConnectGeometry(geometry)
-  })  
+    await Coordinates.SyncNormals(geometry, true, true)
+    floorShapeLow = geometry
+    await Coordinates.SyncNormals(floorShapeLow, true, true, false)
+    floorVerticesLow = structuredClone(floorShapeLow.vertices)
+    floorNormalsLow = structuredClone(floorShapeLow.normals)
+    await floorShader.ConnectGeometry(geometry)
+  })
+  
+  if(0){
+    var arrowShape
+    var geoOptions = {
+      //shapeType: 'custom shape',
+      shapeType: 'sprite',
+      //url: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.json',
+      //map: 'https://srmcgann.github.io/Coordinates/custom shapes/arrows/arrow 1.jpg',
+      name: 'temp arrow',
+      rotationMode,
+      scaleX: .2,
+      scaleY: .2,
+      scaleZ: -.2,
+      Y: 10,
+      colorMix: 0,
+    }
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      arrowShape = geometry
+      await backgroundShader.ConnectGeometry(geometry)
+    })
+  }
+  
+  var smoke = []
+  var variation = 20
+  const spawnSmoke = (x, y, z) => {
+    x += variation * (Rn() - .5)
+    y += variation * (Rn() - .5)
+    z += variation * (Rn() - .5)
+    smoke.push([x, y, z, 1])
+  }
   
   var notRun = true, update
   var baseVerts, baseUVs, thrusterShape
@@ -346,6 +422,7 @@
       yaw: -1,
       rollv: 0,
       pitchv: 0,
+      pitchv2: 0,
       yawv: 0,
       vx: 0,
       vy: 0,
@@ -356,12 +433,12 @@
   })
   
   const floor = (x, z) => {
-    var p = Math.atan2(x, z)
-    return Math.min(200, Math.max(-50, C(p*2 + Math.hypot(x, z) / 500- renderer.t*2) * 250))
+    var p = 0 //Math.atan2(x, z)
+    return Math.min(500, Math.max(-500, C(p*2 + Math.hypot(x, z) / 1500- renderer.t*2) * 1000))
   }
   
-  var jetRv = .005
-  var jetMv = .01
+  var jetRv = .0025
+  var jetMv = .1
   var keys = Array(256).fill(false)
   var accel = false
   
@@ -374,6 +451,10 @@
     keys[e.keyCode] = false
   }
   
+  var maxRotationv = .2
+  var maxSpeedv = 1
+  var maxSpeed = 100
+  var minSpeed = 5
   const doKeys = () => {
     accel = false
     keys.map((v, idx) => {
@@ -381,26 +462,34 @@
         switch(idx){
           case 87:    // w
             jets[camSel].speedv += jetMv
+            jets[camSel].speedv = Math.max(-maxSpeedv, Math.min(maxSpeedv, jets[camSel].speedv))
             accel = true
           break
           case 65:    // a
           break
           case 83:    // s
             jets[camSel].speedv -= jetMv
+            jets[camSel].speedv = Math.max(-maxSpeedv, Math.min(maxSpeedv, jets[camSel].speedv))
           break
           case 68:    // d
           break
           case 37:    // left arrow
             jets[camSel].yawv -= jetRv
+            jets[camSel].yawv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].yawv))
           break
           case 38:    // up arrow
-            jets[camSel].pitchv += jetRv
+            jets[camSel].pitchv += jetRv / 1.25
+            jets[camSel].pitchv2 += jetRv / 1.25
+            jets[camSel].pitchv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].pitchv))
           break
           case 39:    // right arrow
             jets[camSel].yawv += jetRv
+            jets[camSel].yawv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].yawv))
           break
           case 40:    // down arrow
-            jets[camSel].pitchv -= jetRv
+            jets[camSel].pitchv -= jetRv / 1.25
+            jets[camSel].pitchv2 -= jetRv / 1.25
+            jets[camSel].pitchv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].pitchv))
           break
         }
       }
@@ -415,21 +504,22 @@
     
     doKeys()
     
-    jets[camSel].roll   = -jets[camSel].yawv * 9
+    jets[camSel].roll   = -jets[camSel].yawv * 32
     jets[camSel].yaw    += jets[camSel].yawv
     jets[camSel].pitch  += jets[camSel].pitchv
-    jets[camSel].yawv   /= 1.1
-    jets[camSel].pitchv /= 1.1
+    jets[camSel].yawv   /= 1.04
+    jets[camSel].pitchv /= 1.04
     
     jets[camSel].speed += jets[camSel].speedv
-    jets[camSel].speedv /= 1.1
+    jets[camSel].speed = Math.min(maxSpeed, Math.max(minSpeed, jets[camSel].speed))
+    jets[camSel].speedv /= 1.5
     
     var tailX = 0
     var tailY = 0
-    var tailZ = -30
+    var tailZ = -45
     
     p = Math.atan2(tailX, tailZ) + jets[camSel].yaw
-    var p2 = jets[camSel].pitch 
+    var p2 = jets[camSel].pitch
     d = Math.abs(tailZ) //Math.hypot(tailX, tailY, tailZ)
     tailX = vx = S(p) * d * S(q = -p2 + Math.PI/2)
     tailY = vy = -C(q) * d - 0
@@ -439,15 +529,17 @@
     renderer.y += (-renderer.y - jets[camSel].y + tailY) / 2
     renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 2
     
-    //renderer.roll += (-renderer.roll - jets[camSel].x) / 60
+    
+    
+    //renderer.roll += (-renderer.roll + jets[camSel].roll) / 60
     //renderer.pitch += (-renderer.pitch - jets[camSel].y - 10) / 60
-    renderer.pitch += (-renderer.pitch + jets[camSel].pitch) / 10
-    renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 10
+    renderer.pitch += (-renderer.pitch + jets[camSel].pitch) / 5
+    renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 5
     
     backgroundShape.x = jets[camSel].x
     backgroundShape.y = jets[camSel].y
     backgroundShape.z = jets[camSel].z
-    if(1)renderer.Draw(backgroundShape)
+    if(1) renderer.Draw(backgroundShape)
     
     if(1) for(var i = 0; i < particlesShape.vertices.length; i+=3){
       var x = particlesShape.vertices[i + 0]
@@ -472,15 +564,17 @@
       //jet.yaw += .0125 * (idx%2 ? -1 : 1)
       //jet.roll += .0125 * (idx%2 ? -1 : 1)
     
-      jet.vx = S(p = jet.yaw) * jet.speed
-      jet.vz = C(p) * jet.speed
+      jet.vx = -S(p = jet.yaw) * S(q = -jet.pitch + Math.PI/2) * jet.speed
+      jet.vy = -C(q) * jet.speed
+      jet.vz = -C(p) * S(q) * jet.speed
     
-      thrusterShape.x = jet.shape.x = jet.x -= jet.vx
-      thrusterShape.y = jet.shape.y = jet.y -= jet.vy
-      thrusterShape.z = jet.shape.z = jet.z -= jet.vz
+      thrusterShape.x = jet.shape.x = jet.x += jet.vx
+      thrusterShape.y = jet.shape.y = jet.y += jet.vy
+      thrusterShape.z = jet.shape.z = jet.z += jet.vz
+      for(var m = 4; m--;) spawnSmoke(jet.x, jet.y, jet.z)
 
       thrusterShape.roll  = -(jet.shape.roll  = jet.roll)
-      thrusterShape.pitch = -(jet.shape.pitch = jet.pitch)
+      thrusterShape.pitch = -(jet.shape.pitch = jet.pitch + jet.pitchv*10)
       thrusterShape.yaw   = (jet.shape.yaw   = jet.yaw) + Math.PI
       
       renderer.Draw(jet.shape)
@@ -509,19 +603,119 @@
     //arrowShape.pitch = p2
     //renderer.Draw(arrowShape)
     
-    for(var i=0; i<floorShape.vertices.length; i+=3){
-      var x = floorShape.vertices[i+0]
-      var y = floorShape.vertices[i+1]
-      var z = floorShape.vertices[i+2]
-      y = floor(x, z)
-      floorShape.vertices[i+0] = x
-      floorShape.vertices[i+1] = y - 100 
-      floorShape.vertices[i+2] = z
+    
+    var fcl = 5
+    var frw = 1
+    var fbr = 5
+    var fsp = 4990
+    //var floorShape = floorShapeLow
+    //var floorVertices = floorVerticesLow
+    Array(fcl*frw*fbr).fill().map((v,j)=>{
+      var tx = ((j%fcl)-fcl/2 + .5) * fsp
+      var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
+      var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
+      //var floorVertices = tx||tz ? floorVerticesLow : floorVerticesMed
+      while(-renderer.x - tx > fsp*fcl/2) tx += fsp*fcl
+      while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
+      while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
+      while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
+      var floorShape = Math.hypot(-renderer.x - tx, -renderer.z - tz) >= fsp ? floorShapeLow : floorShapeMed
+      var x, y, z
+      if(0) for(var i=0; i<floorShape.vertices.length; i+=3){
+        switch(j){
+          case 0:
+            floorShape.vertices[i+0] = -floorVertices[i+0]
+            floorShape.vertices[i+1] = floorVertices[i+1] +
+              floor(-floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
+            floorShape.vertices[i+2] = -floorVertices[i+2]
+          break
+          case 1:
+            floorShape.vertices[i+0] = floorVertices[i+0]
+            floorShape.vertices[i+1] = floorVertices[i+1] +
+              floor(floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
+            floorShape.vertices[i+2] = -floorVertices[i+2]
+          break
+          case 2:
+            floorShape.vertices[i+0] = -floorVertices[i+0]
+            floorShape.vertices[i+1] = floorVertices[i+1] +
+              floor(-floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
+            floorShape.vertices[i+2] = -floorVertices[i+2]
+          break
+          case 3:
+            floorShape.vertices[i+0] = -floorVertices[i+0]
+            floorShape.vertices[i+1] = floorVertices[i+1] +
+              floor(-floorVertices[i+0] + tx, floorVertices[i+2] + tz)
+            floorShape.vertices[i+2] = floorVertices[i+2]
+          break
+          case 4:
+            floorShape.vertices[i+0] = floorVertices[i+0]
+            floorShape.vertices[i+1] = floorVertices[i+1] +
+              floor(floorVertices[i+0] + tx, floorVertices[i+2] + tz)
+            floorShape.vertices[i+2] = floorVertices[i+2]
+          break
+          case 5:
+            floorShape.vertices[i+0] = -floorVertices[i+0]
+            floorShape.vertices[i+1] = floorVertices[i+1] +
+              floor(-floorVertices[i+0] + tx, floorVertices[i+2] + tz)
+            floorShape.vertices[i+2] = floorVertices[i+2]
+          break
+          case 6:
+            floorShape.vertices[i+0] = -floorVertices[i+0]
+            floorShape.vertices[i+1] = floorVertices[i+1] +
+              floor(-floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
+            floorShape.vertices[i+2] = -floorVertices[i+2]
+          break
+          case 7:
+            floorShape.vertices[i+0] = floorVertices[i+0]
+            floorShape.vertices[i+1] = floorVertices[i+1] +
+              floor(floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
+            floorShape.vertices[i+2] = -floorVertices[i+2]
+          break
+          case 8:
+            floorShape.vertices[i+0] = -floorVertices[i+0]
+            floorShape.vertices[i+1] = floorVertices[i+1] +
+              floor(-floorVertices[i+0] + tx, -floorVertices[i+2] + tz)
+            floorShape.vertices[i+2] = -floorVertices[i+2]
+          break
+        }
+        /*
+        var x = floorNormals[i*2+0]
+        var y = floorNormals[i*2+1]
+        var z = floorNormals[i*2+2]
+        y += floor(x, z)
+        floorShape.normals[i*2+0] = x
+        floorShape.normals[i*2+1] = y
+        floorShape.normals[i*2+2] = z
+        var x = floorNormals[i*2+3]
+        var y = floorNormals[i*2+4]
+        var z = floorNormals[i*2+5]
+        y += floor(x, z)
+        floorShape.normals[i*2+3] = x
+        floorShape.normals[i*2+4] = y
+        floorShape.normals[i*2+5] = z
+        */
+      }
+      //if(floorShape.normalAssocs) Coordinates.SyncNormals(floorShape, true, false)
+      floorShape.x = tx
+      floorShape.z = tz
+      renderer.Draw(floorShape)
+    })
+    for(var j = 0; j < smokeParticles.vertices.length; j += 3){
+      if(j/3|0 > smoke.length) {
+        smokeParticles.vertices[j+0] = 1e8
+        smokeParticles.vertices[j+1] = 0
+        smokeParticles.vertices[j+2] = 0
+      }
     }
-    console.log(floorShape)
-    if(floorShape.normalAssocs) Coordinates.SyncNormals(floorShape, true, true)
-    renderer.Draw(floorShape)
-   
+    smoke = smoke.filter((v, i) => v[3] > 0)
+    smoke.map((v, i) => {
+      var j = i*3
+      smokeParticles.vertices[j+0] = smoke[i][0]
+      smokeParticles.vertices[j+1] = smoke[i][1]
+      smokeParticles.vertices[j+2] = smoke[i][2]
+      smoke[i][3] -= .0001
+    })
+    renderer.Draw(smokeParticles)
     //renderer.factor = 1.1+C(t)
   }
   
