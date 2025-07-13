@@ -20,7 +20,7 @@
   //"https://boss.veriler.com/working.js"
 
   var rendererOptions = {
-    fov: 1e3, margin: 0,
+    fov: 1000, margin: 0,
     //width: 960, height: 540,
     width: 1920, height: 1080,
   }
@@ -33,8 +33,8 @@
   
   var rotationMode = 3
  
-  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
-  //var refTexture = 'https://i.imgur.com/1Mmrurz.mp4'
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/volcanoes_lowres.jpg'
+  var refTexture = 'https://i.imgur.com/OGWRF63.mp4'
   //var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
 
   //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/skymaze_po2.jpg'
@@ -60,22 +60,37 @@
   var shader = await Coordinates.BasicShader(renderer, shaderOptions)
   
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .3333}},
+    {lighting: {type: 'ambientLight', value: .5}},
     { uniform: {
       type: 'phong',
-      value: 1
+      value: 3
     } },
     { uniform: {
       type: 'reflection',
-      value: .4,
+      value: .5,
       enabled: true,
       map: refTexture,
     } },
   ]
   var floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
+  
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .7}},
+    { uniform: {
+      type: 'phong',
+      value: .5
+    } },
+    { uniform: {
+      type: 'reflection',
+      value: .3,
+      enabled: true,
+      map: refTexture,
+    } },
+  ]
+  var cloudShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: 1.25}},
+    {lighting: {type: 'ambientLight', value: 1.75}},
     { uniform: {
       type: 'phong',
       value: 0
@@ -124,7 +139,7 @@
   }
   
   
-  var iPc = 2e3
+  var iPc = 1e3
   var G = 5e3
   var particlesShape
   var geometryData = Array(iPc).fill().map(v=>{
@@ -138,7 +153,7 @@
     geometryData,
     name: 'particles',
     rotationMode,
-    size: 20,
+    size: 40,
     color: 0xffffff,
     alpha: .5,
     penumbra: .5,
@@ -148,7 +163,7 @@
   })  
   
   
-  var iPc = 3e3
+  var iPc = 1e3
   var smokeParticles
   var geometryData = Array(iPc).fill().map(v=>{
     x = 1e8
@@ -186,72 +201,17 @@
   
   var floorShapeMed, floorVerticesMed, floorNormalsMed
   var floorShapeLow, floorVerticesLow, floorNormalsLow
-  /*
-  var baseName = 'floor_medpoly'
-  var geoOptions = {
-    shapeType: 'custom shape',
-    name: baseName,
-    showNormals: false,
-    //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7q',
-    url: `https://srmcgann.github.io/Coordinates/custom shapes/floor/${baseName}.json`,
-    map: `https://srmcgann.github.io/objs/floor/floor.png`,
-    //map: `https://srmcgann.github.io/Coordinates/custom shapes/floor/floor.png`,
-    //flipNormals: true,
-    //averageNormals: true,
-    //precomputeNormalAssocs: true,
-    //downloadShape: true,
-    //scaleX: 50,
-    scaleY: 2,
-    //scaleZ: 50,
-    y: -1000,
-    color: 0x4400ff,
-    colorMix: .1,
-  }
-  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    await Coordinates.SyncNormals(geometry, true, true)
-    floorShapeMed = geometry
-    await Coordinates.SyncNormals(floorShapeMed, true, true, false)
-    floorVerticesMed = structuredClone(floorShapeMed.vertices)
-    floorNormalsMed = structuredClone(floorShapeMed.normals)
-    await floorShader.ConnectGeometry(geometry)
-  })
-  var baseName = 'floor_lowpoly'
-  var geoOptions = {
-    shapeType: 'custom shape',
-    name: baseName,
-    showNormals: false,
-    url: `https://srmcgann.github.io/Coordinates/custom shapes/floor/${baseName}.json`,
-    map: `https://srmcgann.github.io/objs/floor/floor.png`,
-    //flipNormals: true,
-    //averageNormals: true,
-    //precomputeNormalAssocs: true,
-    //downloadShape: true,
-    //scaleX: 50,
-    scaleY: 2,
-    //scaleY: 50,
-    //scaleZ: 50,
-    y: -1000,
-    color: 0x4400ff,
-    colorMix: .1,
-  }
-  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    await Coordinates.SyncNormals(geometry, true, true)
-    floorShapeLow = geometry
-    await Coordinates.SyncNormals(floorShapeLow, true, true, false)
-    floorVerticesLow = structuredClone(floorShapeLow.vertices)
-    floorNormalsLow = structuredClone(floorShapeLow.normals)
-    await floorShader.ConnectGeometry(geometry)
-  })
-  */
-
+ 
   var shapes = []
-  for(var m = 2; m--;)for(var k=2; k--;){
+  for(var m = 3; m--;)for(var k=2; k--;){
     var shapeName, lod
     var shape = {}
+    var colorMix = 0, color, flipNormals = false
     switch(m){
-      case 0: shapeName = 'floor'; break
-      case 2: shapeName = 'foliage'; break
-      case 1: shapeName = 'clouds'; break
+      case 0: shapeName = 'floor'; flipNormals = false
+        colorMix = .1, color = 0x002244; break
+      case 1: shapeName = 'foliage'; break
+      case 2: shapeName = 'clouds';  colorMix = .25, color = 0x4400ff; break
     }
     switch(k){
       case 0: lod = '_lowpoly'; break
@@ -264,16 +224,16 @@
       showNormals: false,
       url: `https://srmcgann.github.io/objs/landscape/${baseName}.obj`,
       map: `https://srmcgann.github.io/objs/landscape/landscape.jpg`,
-      //flipNormals: true,
+      flipNormals,
       //averageNormals: true,
       //precomputeNormalAssocs: true,
       //downloadShape: true,
       scaleX: 100,
-      scaleY: 100,
+      scaleY: 300,
       scaleZ: 100,
       y: -1000,
-      //color: 0x4400ff,
-      colorMix: 0,
+      color,
+      colorMix,
     }
     await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
       //await Coordinates.SyncNormals(geometry, true, true)
@@ -282,7 +242,11 @@
       shape.vertices = structuredClone(geometry.vertices)
       shape.normals = structuredClone(geometry.normals)
       //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
-      await floorShader.ConnectGeometry(geometry)
+      if(shapeName == 'floor'){
+        await floorShader.ConnectGeometry(geometry)
+      }else{
+        await cloudShader.ConnectGeometry(geometry)
+      }
       shapes.push(shape)
     })
   }
@@ -477,8 +441,8 @@
   })
   
   const floor = (x, z) => {
-    var p = 0 //Math.atan2(x, z)
-    return Math.min(500, Math.max(-500, C(p*2 + Math.hypot(x, z) / 1500- renderer.t*2) * 1000))
+    var p = Math.atan2(x, z)
+    return Math.min(0, Math.max(-2500, C(p + Math.hypot(x, z) / 2500- renderer.t*2) * 3000))
   }
   
   var jetRv = .005
@@ -496,8 +460,8 @@
   }
   
   var maxRotationv = .2
-  var maxSpeedv = 1
-  var maxSpeed = 100
+  var maxSpeedv = 1.5
+  var maxSpeed = 200
   var minSpeed = 5
   const doKeys = () => {
     accel = false
@@ -569,9 +533,9 @@
     tailY = vy = -C(q) * d - 0
     tailZ = vz = C(p) * S(q) * d
     
-    renderer.x += (-renderer.x - jets[camSel].x + tailX) / 2
-    renderer.y += (-renderer.y - jets[camSel].y + tailY) / 2
-    renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 2
+    renderer.x += (-renderer.x - jets[camSel].x + tailX) / 1
+    renderer.y += (-renderer.y - jets[camSel].y + tailY) / 1
+    renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 1
     
     
     
@@ -648,9 +612,9 @@
     //renderer.Draw(arrowShape)
     
     
-    var fcl = 3
+    var fcl = 4
     var frw = 1
-    var fbr = 3
+    var fbr = 4
     var fsp = 4990 * 2
     //var floorShape = floorShapeLow
     //var floorVertices = floorVerticesLow
@@ -659,98 +623,35 @@
       var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
       var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
       //var floorVertices = tx||tz ? floorVerticesLow : floorVerticesMed
+      var shapeName
       while(-renderer.x - tx > fsp*fcl/2) tx += fsp*fcl
       while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
       while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
       while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
-      var lod = Math.hypot(-renderer.x - tx, -renderer.z - tz) >= fsp ? '_lowpoly' : '_hipoly'
-      var shapeName
-      for(var m = 2; m--;){
+      for(var m = 3; m--;){
         switch(m){
           case 0: shapeName = 'floor'; break
-          case 2: shapeName = 'foliage'; break
-          case 1: shapeName = 'clouds'; break
+          case 1: shapeName = 'foliage'; break
+          case 2: shapeName = 'clouds'; break
         }
-        var shp = shapes.filter(v=>v.name == shapeName + lod)[0]
-        var x, y, z
-        if(0) for(var i=0; i<shp.vertices.length; i+=3){
-          switch(j){
-            case 0:
-              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
-              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
-                floor(-shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
-              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
-            break
-            case 1:
-              shp.geometry.vertices[i+0] = shp.vertices[i+0]
-              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
-                floor(shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
-              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
-            break
-            case 2:
-              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
-              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
-                floor(-shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
-              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
-            break
-            case 3:
-              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
-              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
-                floor(-shp.vertices[i+0] + tx, shp.vertices[i+2] + tz)
-              shp.geometry.vertices[i+2] = shp.vertices[i+2]
-            break
-            case 4:
-              shp.geometry.vertices[i+0] = shp.vertices[i+0]
-              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
-                floor(shp.vertices[i+0] + tx, shp.vertices[i+2] + tz)
-              shp.geometry.vertices[i+2] = shp.vertices[i+2]
-            break
-            case 5:
-              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
-              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
-                floor(-shp.vertices[i+0] + tx, shp.vertices[i+2] + tz)
-              shp.geometry.vertices[i+2] = shp.vertices[i+2]
-            break
-            case 6:
-              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
-              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
-                floor(-shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
-              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
-            break
-            case 7:
-              shp.geometry.vertices[i+0] = shp.vertices[i+0]
-              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
-                floor(shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
-              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
-            break
-            case 8:
-              shp.geometry.vertices[i+0] = -shp.vertices[i+0]
-              shp.geometry.vertices[i+1] = shp.vertices[i+1] +
-                floor(-shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
-              shp.geometry.vertices[i+2] = -shp.vertices[i+2]
-            break
+        var d = Math.hypot(-renderer.x - tx, -renderer.z - tz)
+        var lod = d >= fsp ? '_lowpoly' : '_hipoly'
+        if((shapeName == 'floor' || shapeName == '') && ((d < fsp * fcl / 3 && shapeName == 'floor') ||
+           shapeName == 'clouds' ||
+           (d < fsp * fcl / 5 && shapeName == 'foliage'))){
+          var shp = shapes.filter(v=>v.name == shapeName + lod)[0]
+          var x, y, z
+          if(0 && (shapeName == 'floor' || shapeName == 'foliage')) for(var i=0; i<shp.vertices.length; i+=3){
+            shp.geometry.vertices[i+0] = -shp.vertices[i+0]
+            shp.geometry.vertices[i+1] = shp.vertices[i+1] +
+              floor(-shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
+            shp.geometry.vertices[i+2] = -shp.vertices[i+2]
           }
-          /*
-          var x = floorNormals[i*2+0]
-          var y = floorNormals[i*2+1]
-          var z = floorNormals[i*2+2]
-          y += floor(x, z)
-          shp.normals[i*2+0] = x
-          shp.normals[i*2+1] = y
-          shp.normals[i*2+2] = z
-          var x = floorNormals[i*2+3]
-          var y = floorNormals[i*2+4]
-          var z = floorNormals[i*2+5]
-          y += floor(x, z)
-          shp.normals[i*2+3] = x
-          shp.normals[i*2+4] = y
-          shp.normals[i*2+5] = z
-          */
+          //if(shp.normalAssocs) Coordinates.SyncNormals(shp, true, false)
+          shp.geometry.x = tx
+          shp.geometry.z = tz
+          renderer.Draw(shp.geometry)
         }
-        //if(shp.normalAssocs) Coordinates.SyncNormals(shp, true, false)
-        shp.geometry.x = tx
-        shp.geometry.z = tz
-        renderer.Draw(shp.geometry)
       }
     })
     for(var j = 0; j < smokeParticles.vertices.length; j += 3){
