@@ -15,12 +15,12 @@
 <script type="module">
 
   import * as Coordinates from
-  //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
-  "https://boss.veriler.com/coordinates.js"
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  //"https://boss.veriler.com/coordinates.js"
   //"https://boss.veriler.com/working.js"
 
   var rendererOptions = {
-    fov: 1000, margin: 0,
+    fov: 1200, margin: 0,
     //width: 960, height: 540,
     width: 1920, height: 1080,
   }
@@ -33,11 +33,11 @@
   
   var rotationMode = 3
  
-  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/volcanoes_lowres.jpg'
+  //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/volcanoes_lowres'
   //var refTexture = 'https://i.imgur.com/OGWRF63.mp4'
   //var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
 
-  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/equisky.jpg'
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/ultrapseudoequirectangular.jpg'
   var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2.png'
   var playbackSpeed = 1
 
@@ -68,26 +68,29 @@
     { uniform: {
       type: 'reflection',
       value: .25,
-      enabled: true,
+      enabled: false,
       map: refTexture,
     } },
   ]
   var floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
   
-  var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .7}},
-    { uniform: {
-      type: 'phong',
-      value: .5
-    } },
-    { uniform: {
-      type: 'reflection',
-      value: .3,
-      enabled: true,
-      map: refTexture,
-    } },
-  ]
-  var cloudShader = await Coordinates.BasicShader(renderer, shaderOptions)
+  var drawClouds = true
+  if(drawClouds){
+    var shaderOptions = [
+      {lighting: {type: 'ambientLight', value: .7}},
+      { uniform: {
+        type: 'phong',
+        value: .5
+      } },
+      { uniform: {
+        type: 'reflection',
+        value: .3,
+        enabled: true,
+        map: refTexture,
+      } },
+    ]
+    var cloudShader = await Coordinates.BasicShader(renderer, shaderOptions)
+  }
 
   var shaderOptions = [
     {lighting: {type: 'ambientLight', value: 1.75}},
@@ -201,76 +204,72 @@
   
   var floorShapeMed, floorVerticesMed, floorNormalsMed
   var floorShapeLow, floorVerticesLow, floorNormalsLow
+  
+  var floorScaleY = 200, cloudScaleY = 150
+  
+  var shapeName, lod
+  var hipolySuffix = '_hipoly'
+  var lowpolySuffix = '_lowpoly'
  
-  var shapes = []
-  for(var m = 3; m--;)for(var k=2; k--;){
-    var shapeName, lod
+  var floorTiles = [], clouds = []
+  
+  // bumpy landscape tile
+  for(var k=2; k--;){
     var shape = {}
-    var colorMix = 0, color, flipNormals = false
-    switch(m){
-      case 0: shapeName = 'floor'; flipNormals = false
-        colorMix = .1, color = 0x002244; break
-      case 1: shapeName = 'foliage'; break
-      case 2: shapeName = 'clouds';  colorMix = .25, color = 0x4400ff; break
-    }
+    var colorMix = 0, color, flipNormals = false, color = 0x002244
+    shapeName = 'landscape'; 
     switch(k){
-      case 0: lod = '_lowpoly'; break
-      case 1: lod = '_medpoly'; break
+      case 0: lod = lowpolySuffix; break
+      case 1: lod = hipolySuffix; break
     }
-    var baseName = shapeName + lod
     var geoOptions = {
       shapeType: 'obj',
-      name: baseName,
+      name: shapeName + lod,
       showNormals: false,
-      url: `https://srmcgann.github.io/objs/landscape/${baseName}.obj`,
+      url: `https://srmcgann.github.io/objs/landscape/${'floor' + lod}.obj`,
       map: `https://srmcgann.github.io/objs/landscape/landscape.jpg`,
       flipNormals,
       //averageNormals: true,
       //precomputeNormalAssocs: true,
       //downloadShape: true,
       scaleX: 100,
-      scaleY: shapeName == 'clouds' || shapeName == 'floor' ? 250 : 100,
+      scaleY: floorScaleY,
       scaleZ: 100,
-      y: shapeName == 'clouds' ? 0 : -1000,
+      y: -1000,
       color,
       colorMix,
     }
     await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
       //await Coordinates.SyncNormals(geometry, true, true)
-      shape.name = baseName
+      shape.name = shapeName
       shape.geometry = geometry
       shape.vertices = structuredClone(geometry.vertices)
       shape.normals = structuredClone(geometry.normals)
       //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
-      if(shapeName == 'floor'){
-        await floorShader.ConnectGeometry(geometry)
-      }else{
-        await cloudShader.ConnectGeometry(geometry)
-      }
-      shapes.push(shape)
+      await floorShader.ConnectGeometry(geometry)
+      floorTiles.push(shape)
     })
-  }
-  
-  
-  if(1) for(var k = 2; k--;) {
-    var shapeName, lod
+    
+    // mountain tile
     var colorMix = 0, color, flipNormals = false
-    switch(k){
-      case 0: lod = '_lowpoly'; break
-      case 1: lod = '_medpoly'; break
-    }
+    //switch(k){
+    //  case 0: lod = lowpolySuffix; break
+    //  case 1: lod = hipolySuffix; break
+    //}
+    shapeName = 'mountain'
     var geoOptions = {
       shapeType: 'obj',
-      name: 'floor2' + lod,
       showNormals: false,
-      url: `https://srmcgann.github.io/objs/floor/${'floor' + lod}.obj`,
-      map: `https://srmcgann.github.io/objs/floor/floor.png`,
+      name: shapeName + lod,
+      url: `https://srmcgann.github.io/objs/mountain/${'mountain' + lod}.obj?4`,
+      //url: `https://bosstools.mooo.com/c/raw.php?slug=2w7r`,
+      map: `https://srmcgann.github.io/objs/mountain/mountain.jpg`,
       flipNormals,
-      averageNormals: true,
+      //averageNormals: true,
       //precomputeNormalAssocs: true,
       //downloadShape: true,
       scaleX: 100,
-      scaleY: 200,
+      scaleY: floorScaleY/3,
       scaleZ: 100,
       y: -1000,
       color,
@@ -279,17 +278,93 @@
     await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
       //await Coordinates.SyncNormals(geometry, true, true)
       var shape = {}
-      shape.name = 'floor2' + lod
+      shape.name = shapeName
       shape.geometry = geometry
       shape.vertices = structuredClone(geometry.vertices)
       shape.normals = structuredClone(geometry.normals)
-      shapes.push(shape)
+      floorTiles.push(shape)
       //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
       await floorShader.ConnectGeometry(geometry)
     })
   }
 
 
+  // 'clouds' tile
+  if(drawClouds) for(var k = 2; k--;) {
+    var colorMix = 0, color, flipNormals = false
+    switch(k){
+      case 0: lod = lowpolySuffix; break
+      case 1: lod = hipolySuffix; break
+    }
+    shapeName = 'clouds'
+    var geoOptions = {
+      shapeType: 'obj',
+      name: shapeName + lod,
+      showNormals: false,
+      url: `https://srmcgann.github.io/objs/landscape/${'clouds' + lod}.obj?4`,
+      map: `https://srmcgann.github.io/objs/landscape/landscape.jpg`,
+      flipNormals,
+      //averageNormals: true,
+      //precomputeNormalAssocs: true,
+      //downloadShape: true,
+      scaleX: 100,
+      scaleY: floorScaleY*2,
+      scaleZ: 100,
+      y: -1000,
+      color,
+      colorMix,
+    }
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      //await Coordinates.SyncNormals(geometry, true, true)
+      var cloud = {}
+      cloud.name = shapeName
+      cloud.geometry = geometry
+      cloud.vertices = structuredClone(geometry.vertices)
+      cloud.normals = structuredClone(geometry.normals)
+      clouds.push(cloud)
+      //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
+      await cloudShader.ConnectGeometry(geometry)
+    })
+  }
+
+  // 'floor' tile
+  if(1) for(var k = 2; k--;) {
+    var colorMix = 0, color, flipNormals = false
+    switch(k){
+      case 0: lod = lowpolySuffix; break
+      case 1: lod = hipolySuffix; break
+    }
+    shapeName = 'floor2'
+    var geoOptions = {
+      shapeType: 'obj',
+      name: shapeName + lod,
+      showNormals: false,
+      url: `https://srmcgann.github.io/objs/floor/${'floor' + lod}.obj?5`,
+      map: `https://bosstools.mooo.com/assets/uploads/227EJH.jpeg`,
+      //map: `https://srmcgann.github.io/objs/floor/floor.jpg`,
+      flipNormals,
+      //averageNormals: true,
+      //precomputeNormalAssocs: true,
+      //downloadShape: true,
+      scaleX: 100,
+      scaleY: floorScaleY,
+      scaleZ: 100,
+      y: -1000,
+      color,
+      colorMix,
+    }
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      //await Coordinates.SyncNormals(geometry, true, true)
+      var shape = {}
+      shape.name = shapeName
+      shape.geometry = geometry
+      shape.vertices = structuredClone(geometry.vertices)
+      shape.normals = structuredClone(geometry.normals)
+      floorTiles.push(shape)
+      //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
+      await floorShader.ConnectGeometry(geometry)
+    })
+  }
 
 
   var smoke = []
@@ -479,9 +554,9 @@
     keys[e.keyCode] = false
   }
   
-  var maxRotationv = .2
-  var maxSpeedv = 1.5
-  var maxSpeed = 200
+  var maxRotationv = .15
+  var maxSpeedv = 5
+  var maxSpeed = 2000
   var minSpeed = 5
   const doKeys = () => {
     accel = false
@@ -524,6 +599,13 @@
     })
   }
   
+  var fcl = 5
+  var frw = 1
+  var fbr = 5
+  var fsp = 4990 * 2
+
+  var floorIdentities = Array(fcl * frw * fbr).fill().map(v=>(Rn() * floorTiles.length) |0)
+
   window.Draw = () => {
     var t = renderer.t
     //renderer.yaw += .001
@@ -623,18 +705,7 @@
     jets[camSel].vy = vy = C(q) * d
     jets[camSel].vz = vz = C(p) * S(q) * d
     
-    var p1 = jets[camSel].yaw
-    //arrowShape.x = jets[camSel].x
-    //arrowShape.y = jets[camSel].y + 5 
-    //arrowShape.z = jets[camSel].z
-    //arrowShape.yaw = p1
-    //arrowShape.pitch = p2
-    //renderer.Draw(arrowShape)
-
-    var fcl = 6
-    var frw = 1
-    var fbr = 6
-    var fsp = 4985 * 2
+    var p1 = jets[camSel].yaw, shp
     //var floorShape = floorShapeLow
     //var floorVertices = floorVerticesLow
     Array(fcl*frw*fbr).fill().map((v, j)=>{
@@ -643,37 +714,24 @@
       var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
       var flid = j%2 //(j+(j/fcl/frw|0))%2
       //var floorVertices = tx||tz ? floorVerticesLow : floorVerticesMed
-      var shapeName
       while(-renderer.x - tx > fsp*fcl/2) tx += fsp*fcl
       while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
       while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
       while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
-      for(var m = 3; m--;){
-        switch(m){
-          case 0: shapeName = flid ? 'floor2' : 'floor'; break
-          case 1: shapeName = 'foliage'; break
-          case 2: shapeName = 'clouds'; break
-        }
-        var d = Math.hypot(-renderer.x - tx, -renderer.z - tz)
-        var lod = d >= fsp ? '_lowpoly' : '_medpoly'
-        if((shapeName == 'floor' || shapeName == 'floor2' ||
-            shapeName == 'clouds' || (!flid && shapeName == 'foliage')) &&
-            ((d < fsp * fcl / 3 && (shapeName == 'floor' || shapeName == 'floor2')) ||
-           shapeName == 'clouds' ||
-           (d < fsp * fcl / 5 && shapeName == 'foliage'))){
-          var shp = shapes.filter(v=>v.name == shapeName + lod)[0]
-          var x, y, z
-          if(0 && ((shapeName == 'floor2' || shapeName == 'floor') || shapeName == 'foliage')) for(var i=0; i<shp.vertices.length; i+=3){
-            shp.geometry.vertices[i+0] = -shp.vertices[i+0]
-            shp.geometry.vertices[i+1] = shp.vertices[i+1] +
-              floor(-shp.vertices[i+0] + tx, -shp.vertices[i+2] + tz)
-            shp.geometry.vertices[i+2] = -shp.vertices[i+2]
-          }
-          //if(shp.normalAssocs) Coordinates.SyncNormals(shp, true, false)
-          shp.geometry.x = tx
-          shp.geometry.z = tz
-          renderer.Draw(shp.geometry)
-        }
+      var d = Math.hypot(-renderer.x - tx, -renderer.z - tz)
+      var lod = d >= fsp ? lowpolySuffix : hipolySuffix
+      if(drawClouds){
+        shp = clouds.filter(v=>v.geometry.name == 'clouds' + lod)[0]
+        shp.geometry.x = tx
+        shp.geometry.z = tz
+        renderer.Draw(shp.geometry)
+      }
+      shp = floorTiles.filter(v=>v.geometry.name == 
+                         floorTiles[floorIdentities[j]].name + lod)[0]
+      if(typeof shp != 'undefined'){
+        shp.geometry.x = tx
+        shp.geometry.z = tz
+        renderer.Draw(shp.geometry)
       }
     })
     for(var j = 0; j < smokeParticles.vertices.length; j += 3){
