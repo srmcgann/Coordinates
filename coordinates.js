@@ -6032,28 +6032,28 @@ const LoadFPSControls = async (renderer, options) => {
   }
 
   var crosshairsLoaded = false
-  var crosshairImages  = Array(crosshairs.length).fill()
-  crosshairImages.map(async (v, i) => {
-    crosshairImages[i] = {
+  renderer.crosshairImages  = Array(crosshairs.length).fill()
+  renderer.crosshairImages.map(async (v, i) => {
+    renderer.crosshairImages[i] = {
       img: new Image(),
       loaded: false,
     }
-    crosshairImages[i].img.onload = () => {
-      crosshairImages[i].loaded = true
+    renderer.crosshairImages[i].img.onload = () => {
+      renderer.crosshairImages[i].loaded = true
     }
     await fetch(crosshairs[i]).then(res=>res.blob()).then(data => {
-      crosshairImages[i].img.src = URL.createObjectURL(data)
+      renderer.crosshairImages[i].img.src = URL.createObjectURL(data)
     })
     //return ret
   })
   if(renderer.crosshairMap){
     renderer.crosshairSel = crosshairs.length
-    crosshairImages.push( {img: new Image(), loaded: false} )
-    crosshairImages[crosshairImages.length - 1].img.onload = () => {
-      crosshairImages[crosshairImages.length - 1].loaded = true
+    renderer.crosshairImages.push( {img: new Image(), loaded: false} )
+    renderer.crosshairImages[renderer.crosshairImages.length - 1].img.onload = () => {
+      renderer.crosshairImages[renderer.crosshairImages.length - 1].loaded = true
     }
     await fetch(renderer.crosshairMap).then(res=>res.blob()).then(data => {
-      crosshairImages[crosshairImages.length-1].img.src = URL.createObjectURL(data)
+      renderer.crosshairImages[renderer.crosshairImages.length-1].img.src = URL.createObjectURL(data)
     })
   }
 
@@ -6118,14 +6118,6 @@ const LoadFPSControls = async (renderer, options) => {
 
       mv = .1 * renderer.mspeed
       rv = .005 * renderer.rspeed
-
-      if(renderer.showCrosshair && crosshairImages[renderer.crosshairSel].loaded) {
-        var s = 200 * renderer.crosshairSize
-        Overlay.ctx.globalAlpha = renderer.crosshairAlpha
-        Overlay.ctx.drawImage(crosshairImages[renderer.crosshairSel].img,
-          Overlay.width / 2 - s/2, Overlay.height / 2 - s/2, s, s)
-        Overlay.ctx.globalAlpha = 1
-      }
 
       renderer.yaw += rvx
       renderer.pitch += rvy
@@ -6323,8 +6315,17 @@ const AnimationLoop = (renderer, func) => {
     renderer.t += 1/60 
     requestAnimationFrame(loop)
     
-    if(renderer.useKeys && renderer.doKeys){
-      await renderer.doKeys()
+    if(renderer.cameraMode == 'fps'){
+      if(renderer.useKeys && renderer.doKeys){
+        await renderer.doKeys()
+      }
+      if(renderer.showCrosshair && renderer.crosshairImages[renderer.crosshairSel].loaded) {
+        var s = 200 * renderer.crosshairSize
+        Overlay.ctx.globalAlpha = renderer.crosshairAlpha
+        Overlay.ctx.drawImage(renderer.crosshairImages[renderer.crosshairSel].img,
+          Overlay.width / 2 - s/2, Overlay.height / 2 - s/2, s, s)
+        Overlay.ctx.globalAlpha = 1
+      }
     }
   }
   window.addEventListener('load', () => {
