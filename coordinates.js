@@ -3054,7 +3054,8 @@ const BasicShader = (renderer, options=[]) => {
                       
                       //if(refFlipRefs == 1.0) phongP2 = M_PI - phongP2;
 
-                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0)), 3.0), 3.0) / 5e5 * phong ;
+                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0)), 3.0), 3.0) / 5e5 * phong +
+                      pow(pow((1.0+cos(phongP1 + M_PI)) * (1.0+cos(phongP2+M_PI/2.0)), 3.0), 3.0) / 5e5 * phong;
                       light = vec4(light.rgb + fact, 1.0) * 15.0;
                     }
                   `,
@@ -4405,7 +4406,7 @@ const IsPolyhedron = shapeType => {
     case 'dodecahedron' : isPolyhedron = true; break
     case 'icosahedron'  : isPolyhedron = true; break
     case 'tetrahedron'  : isPolyhedron = true; break
-    case 'dynamic'      : isPolyhedron = true; break
+    case 'dynamic'      : isPolyhedron = false; break
     default: isPolyhedron = false; break
   }
   return isPolyhedron
