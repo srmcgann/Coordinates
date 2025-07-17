@@ -1,10 +1,12 @@
+blankTile
 <!DOCTYPE html>
 <!--
  TO DO
  ✔ fix smoke particles (sorting)
- *  floor collisions for aircraft and missiles
+ ✔ floor collisions
+ ✔ levels
  *  map
- *  levels / map-regions with load-screen & new terrain @ entry
+ *  map-regions with load-screen & new terrain @ entry
  *  more terrain sets for levels
  *  integrate camera roll & 1st person camera view
  *  anti-aircraft guns / missiles
@@ -28,12 +30,12 @@
 <script type="module">
 
   import * as Coordinates from
-  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js?2"
   //"https://boss.veriler.com/coordinates.js"
   //"https://boss.veriler.com/working.js"
 
   var rendererOptions = {
-    fov: 1200, margin: 0,
+    fov: 1000, margin: 0,
     //width: 960, height: 540,
     width: 1920, height: 1080,
   }
@@ -50,7 +52,7 @@
   //var refTexture = 'https://i.imgur.com/OGWRF63.mp4'
   //var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
 
-  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/fake_equirectangular_sky.jpg'
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/earth_heightmap_lowres.jpg'
   var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2.png'
   var playbackSpeed = 1
 
@@ -87,7 +89,7 @@
   ]
   var floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
   
-  var drawClouds = true, drawSmoke = true
+  var drawClouds = false, drawSmoke = true
   if(drawClouds){
     var shaderOptions = [
       {lighting: {type: 'ambientLight', value: .5}},
@@ -136,16 +138,7 @@
       name: `jet${jetType}`,
       url: `https://srmcgann.github.io/objs/jet/jet_lowpoly.obj?${i}`,
       map: `https://srmcgann.github.io/objs/jet/jet${jetType}.png`,
-      //map: heightMap,
-      //heightMap,
-      //heightMap: 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg',
-      //equirectangular: true,
-      //equirectangularHeightmap: true,
-      //heightMapIntensity: 5,
-      //playbackSpeed,
-      //maxheightMap: .5,
       rotationMode,
-      //objyaw: i ? 0: Math.PI,
       colorMix: 0,
     }
     await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -169,17 +162,17 @@
     geometryData,
     name: 'particles',
     rotationMode,
-    size: 150,
+    size: 200,
     color: 0xffffff,
-    alpha: .75,
-    penumbra: .2,
+    alpha: .5,
+    penumbra: .25,
   }
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
     particlesShape = geometry
   })  
   
   
-  var iSmokec = 1e4
+  var iSmokec = 3e3
   var smokeParticles
   var geometryData = Array(iSmokec).fill().map(v=>{
     x = 1e8
@@ -193,205 +186,212 @@
     name: 'smoke particles',
     rotationMode,
     size: 20,
-    color: 0xff8844,
-    alpha: .25,
+    color: 0xffaa66,
+    alpha: .5,
     penumbra: .4,
   }
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
     smokeParticles = geometry
   })  
   
+  var iSplosionc = 2e3
+  var splosionParticles, splosionParticleSize = 200
+  var geometryData = Array(iSplosionc).fill().map(v=>{
+    x = 1e8
+    y = 0
+    z = 0
+    return [x, y, z]
+  })
   var geoOptions = {
-    shapeType: 'dodecahedron',
-    name: 'background',
+    shapeType: 'particles',
+    geometryData,
+    name: 'splosion particles',
     rotationMode,
-    subs: 3,
-    map: refTexture,
-    size: 1e5,
-    colorMix: 0,
+    size: splosionParticleSize,
+    color: 0xff8822,
+    alpha: .75,
+    penumbra: .25,
   }
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    backgroundShape = geometry
-    await backgroundShader.ConnectGeometry(geometry)
+    splosionParticles = geometry
   })  
   
   var floorShapeMed, floorVerticesMed, floorNormalsMed
   var floorShapeLow, floorVerticesLow, floorNormalsLow
-  
   var floorScaleY = 150, cloudScaleY = 150
-  
-  var lod
+  var lod, floorOffset = -300
   var hipolySuffix = '_hipoly'
   var lowpolySuffix = '_lowpoly'
- 
   var floorTiles = [], clouds = []
   
-  // blank landscape tile
-  for(var k=2; k--;){
-    var colorMix = 0, color, flipNormals = false, color = 0x002244
-    switch(k){
-      case 0: lod = lowpolySuffix; break
-      case 1: lod = hipolySuffix; break
-    }
+  var floorIdentities
+  var floorIdentitiesMemo
+  
+  var fcl = 5
+  var frw = 1
+  var fbr = 5
+  var fsp = 4990 * 2
+
+  const loadLevel = async lvl => {
+    var blankTileURLBase, blankTileURLMap, blankTileColorMix, blankTileColor
+    var blankTileFreq, blankTileScaleUVX, blankTileScaleUVY
+    
+    floorTiles = []
+    var tiles = []
+    
+    //background
     var geoOptions = {
-      shapeType: 'obj',
-      name: 'blankTile' + lod,
-      url: `https://srmcgann.github.io/objs/blankFloorTile/${'blankTile_uvs_fill' + lod}.obj?2`,
-      scaleUVX: 1,
-      scaleUVY: 1,
-      map: `https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg`,
-      flipNormals,
-      //precomputeNormalAssocs: true,
-      //downloadShape: true,
-      scaleX: 100,
-      scaleY: floorScaleY,
-      scaleZ: 100,
-      y: -300,
-      color,
-      colorMix,
+      shapeType: 'dodecahedron',
+      name: 'background',
+      rotationMode,
+      subs: 2,
+      map: refTexture,
+      size: 1e5,
+      colorMix: 0,
     }
     await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      var shape = {}
-      //await Coordinates.SyncNormals(geometry, true, true)
-      shape.name = 'blankTile'
-      shape.geometry = geometry
-      shape.vertices = structuredClone(geometry.vertices)
-      shape.normals = structuredClone(geometry.normals)
-      //await Coordinates.SyncNormals(geometry, true, true, true)
-      await floorShader.ConnectGeometry(geometry)
-      for(var m = 30; m--;) floorTiles.push(shape)
+      backgroundShape = geometry
+      await backgroundShader.ConnectGeometry(geometry)
     })
     
-    // bumpy landscape tile
-    var colorMix = 0, color, flipNormals = false, color = 0x002244
-    var geoOptions = {
-      shapeType: 'obj',
-      name: 'landscape' + lod,
-      showNormals: false,
-      url: `https://srmcgann.github.io/objs/landscape/${'floor' + lod}.obj`,
-      map: `https://srmcgann.github.io/objs/landscape/landscape.jpg`,
-      flipNormals,
-      //averageNormals: true,
-      //precomputeNormalAssocs: true,
-      //downloadShape: true,
-      scaleX: 100,
-      scaleY: floorScaleY,
-      scaleZ: 100,
-      y: -300,
-      color,
-      colorMix,
+    // floor tiles
+    switch(lvl){
+      case 1:
+        tiles.push({
+          Name: 'blankTile',
+          URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+          URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
+          Freq: fcl,
+          ScaleX: 100,
+          ScaleY: 1,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+        })
+        tiles.push({
+          Name: 'landscape',
+          URLBase: 'https://srmcgann.github.io/objs/landscape/floor',
+          URLMap: 'https://srmcgann.github.io/objs/landscape/landscape.jpg',
+          Freq: 2,
+          ScaleX: 100,
+          ScaleY: floorScaleY,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+        })
+        tiles.push({
+          Name: 'mountain',
+          URLBase: 'https://srmcgann.github.io/objs/mountain/mountain',
+          URLMap: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
+          Freq: 1,
+          ScaleX: 100,
+          ScaleY: floorScaleY/2,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+        })
+      break
+      case 2:
+        tiles.push({
+          Name: 'blankTile',
+          URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+          URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
+          Freq: fcl,
+          ScaleX: 100,
+          ScaleY: 1,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+        })
+        tiles.push({
+          Name: 'floor2',
+          URLBase: 'https://srmcgann.github.io/objs/floor/floor',
+          URLMap: 'https://srmcgann.github.io/objs/floor/floor.jpg',
+          Freq: 2,
+          ScaleX: 100,
+          ScaleY: floorScaleY * 1.5,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+        })
+        tiles.push({
+          Name: 'cartoon_girl_base',
+          URLBase: 'https://srmcgann.github.io/objs/cartoon_girl/cartoon_girl_base',
+          URLMap: 'https://srmcgann.github.io/objs/cartoon_girl/cartoon_girl_grass_base_lowres.jpg',
+          Freq: 1,
+          ScaleX: 100,
+          ScaleY: 100,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+        })
+      break
     }
-    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      var shape = {}
-      //await Coordinates.SyncNormals(geometry, true, true)
-      shape.name = 'landscape'
-      shape.geometry = geometry
-      shape.vertices = structuredClone(geometry.vertices)
-      shape.normals = structuredClone(geometry.normals)
-      //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
-      await floorShader.ConnectGeometry(geometry)
-      for(var m = 16; m--;) floorTiles.push(shape)
-    })
     
-    // mountain tile
-    var colorMix = 0, color, flipNormals = false
-    var geoOptions = {
-      shapeType: 'obj',
-      showNormals: false,
-      name: 'mountain' + lod,
-      url: `https://srmcgann.github.io/objs/mountain/${'mountain' + lod}.obj?4`,
-      //url: `https://bosstools.mooo.com/c/raw.php?slug=2w7r`,
-      map: `https://srmcgann.github.io/objs/mountain/mountain.jpg`,
-      flipNormals,
-      //averageNormals: true,
-      //precomputeNormalAssocs: true,
-      //downloadShape: true,
-      scaleX: 100,
-      scaleY: floorScaleY/2,
-      scaleZ: 100,
-      y: -300,
-      color,
-      colorMix,
-    }
-    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      //await Coordinates.SyncNormals(geometry, true, true)
-      var shape = {}
-      shape.name = 'mountain'
-      shape.geometry = geometry
-      shape.vertices = structuredClone(geometry.vertices)
-      shape.normals = structuredClone(geometry.normals)
-      floorTiles.push(shape)
-      //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
-      for(var m = 10; m--;) await floorShader.ConnectGeometry(geometry)
-    })
+    var ttlTiles = 0
+    tiles.forEach(v => ttlTiles+=v.Freq)
     
-    // 'floor' tile
-    var colorMix = 0, color, flipNormals = false
-    var geoOptions = {
-      shapeType: 'obj',
-      name: 'floor2' + lod,
-      showNormals: false,
-      url: `https://srmcgann.github.io/objs/floor/${'floor' + lod}.obj?5`,
-      //map: `https://bosstools.mooo.com/assets/uploads/227EJH.jpeg`,
-      map: `https://srmcgann.github.io/objs/floor/floor.jpg`,
-      flipNormals,
-      //averageNormals: true,
-      //precomputeNormalAssocs: true,
-      //downloadShape: true,
-      scaleX: 100,
-      scaleY: floorScaleY,
-      scaleZ: 100,
-      y: -300,
-      color,
-      colorMix,
-    }
-    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      //await Coordinates.SyncNormals(geometry, true, true)
-      var shape = {}
-      shape.name = 'floor2'
-      shape.geometry = geometry
-      shape.vertices = structuredClone(geometry.vertices)
-      shape.normals = structuredClone(geometry.normals)
-      for(var m = 10; m--;) floorTiles.push(shape)
-      //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
-      await floorShader.ConnectGeometry(geometry)
-    })
-    
-    // cartoon girl tile
-    if(1){
-      var colorMix = 0, color, flipNormals = false
-      var geoOptions = {
-        shapeType: 'obj',
-        name: 'cartoon_girl_base' + lod,
-        showNormals: false,
-        url: `https://srmcgann.github.io/objs/cartoon_girl/${'cartoon_girl_base' + lod}.obj?5`,
-        map: `https://srmcgann.github.io/objs/cartoon_girl/cartoon_girl_grass_base_lowres.jpg`,
-        flipNormals,
-        //averageNormals: true,
-        //precomputeNormalAssocs: true,
-        //downloadShape: true,
-        scaleX: 100,
-        scaleY: 100,
-        scaleZ: 100,
-        y: -300,
-        color,
-        colorMix,
+    // tiles from config above
+    await tiles.forEach(async tile => {
+      for(var k=2; k--;){
+        switch(k){
+          case 0: lod = lowpolySuffix; break
+          case 1: lod = hipolySuffix; break
+        }
+        var geoOptions = {
+          shapeType: 'obj',
+          name: tile.Name + lod,
+          url: `${tile.URLBase}${lod}.obj`,
+          map: tile.URLMap,
+          scaleUVX: tile.ScaleUVX,
+          scaleUVY: tile.ScaleUVY,
+          scaleX: tile.ScaleX,
+          scaleY: tile.ScaleY,
+          scaleZ: tile.ScaleZ,
+          y: floorOffset,
+          color: tile.Color,
+          colorMix: tile.ColorMix,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
+          var shape = {}
+          shape.name = tile.Name
+          shape.geometry = geometry
+          shape.vertices = structuredClone(geometry.vertices)
+          shape.normals = structuredClone(geometry.normals)
+          await floorShader.ConnectGeometry(geometry)
+          for(var m = tile.Freq; m--;) floorTiles.push(shape)
+          if(floorTiles.length == ttlTiles*2) {
+            levelLoaded = true
+            floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => {
+              return j == centris ? 0 : Rn() * floorTiles.length | 0
+            })
+            floorIdentitiesMemo = Array(fcl * frw * fbr).fill().map((v, j) =>{
+              var tx = ((j%fcl)-fcl/2 + .5) * fsp
+              var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
+              var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
+              return [tx, ty, tz]
+            })
+          }
+        })
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        //await Coordinates.SyncNormals(geometry, true, true)
-        var shape = {}
-        shape.name = 'cartoon_girl_base'
-        shape.geometry = geometry
-        shape.vertices = structuredClone(geometry.vertices)
-        shape.normals = structuredClone(geometry.normals)
-        for(var m = 1; m--;) floorTiles.push(shape)
-        //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
-        await floorShader.ConnectGeometry(geometry)
-      })
-    }
+    })
   }
-
-
+  
+  var levelLoaded = false
+  loadLevel(1)
+  
   // 'clouds' tile
   if(drawClouds) for(var k = 2; k--;) {
     var colorMix = 0, color, flipNormals = false
@@ -431,7 +431,8 @@
 
 
   var smoke = []
-  var variation = 10
+  var splosions = []
+  var variation = 30
   const spawnSmoke = (x, y, z) => {
     var vx, vy, vz
     x += vx = variation * (Rn() - .5)
@@ -439,6 +440,26 @@
     z += vz = variation * (Rn() - .5)
     smoke.push([x, y, z, 1, vx/25, vy/25, vz/25])
     while(smoke.length > iSmokec) smoke.shift()
+  }
+  
+  var iSplosionv = 25
+  var splosions = []
+  var splosionUnits = Array(3).fill(0)
+  const spawnSplosion = (x, y, z) => {
+    var vx, vy, vz, p, q
+    var b = 0
+    splosionUnits.forEach((v, idx) => {if(!v) b=idx })
+    splosionUnits[b] = 1
+    for(var i = 750; i--;){
+      var ls = (.2 + Rn()*.8) * iSplosionv
+      vx = S(p=Math.PI * 2 * Rn()) *
+                S(q = Rn() < .5 ? Math.PI / 2 * Rn() **.5 :
+                  Math.PI - Math.PI / 2 * Rn() **.5) * ls
+      vy = C(q) * ls
+      vz = C(p) * S(q) * ls
+      splosions.push([x, y, z, 1, vx, vy, vz, b])
+    }
+    while(splosions.length > iSplosionc) splosions.shift()
   }
   
   var notRun = true, update
@@ -582,9 +603,9 @@
     }
     return {
       name: `jet ${idx+1}`,
-      shape: jetShapes['_neutral'],//jetShapes[jetType],
+      shape: jetShapes['_enemy'],//jetShapes[jetType],
       x: 0,
-      y: -(i/iJc*idx*1.6-iJc/2 +.5) * 20,
+      y: 500,
       z: 0,
       roll: 0,
       pitch: 0,
@@ -619,48 +640,82 @@
   window.onkeyup = e => {
     keys[e.keyCode] = false
   }
-
-  var fcl = 5
-  var frw = 1
-  var fbr = 5
-  var fsp = 4990 * 2
   
-  const getFloor = (x, z) => {
-    var fl = -1
-    var j = (fbr/2 | 0) * fcl + fcl/2|0
-    var tx = ((j%fcl)-fcl/2 + .5) * fsp
-    var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
-    var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
-    while(-renderer.x - tx > fsp/2) tx += fsp
-    while(-renderer.x - tx < -fsp/2) tx -= fsp
-    while(-renderer.z - tz > fsp/2) tz += fsp
-    while(-renderer.z - tz < -fsp/2) tz -= fsp
-    
-    //x = (Math.abs(x) % (fsp*fcl/2)) * (renderer.x < 0 ? 1: -1)
-    //z = (Math.abs(z) % (fsp*fbr/2)) * (renderer.z < 0 ? 1: -1)
-    
-    var tile = floorTiles.filter(v=>v.geometry.name == 
-                         floorTiles[floorIdentities[j]].name + hipolySuffix)[0]
-    var x1, y1, z1, x2, y2, z2, x3, y3, z3
-    var verts = tile.geometry.vertices
-    var mind = 1e10, d, idx, y1
-    for(var i = 0; i < verts.length; i+=3){
-      x1 = verts[i+0] + tx
-      y1 = verts[i+1]
-      z1 = verts[i+2] + tz
-      if((d = Math.hypot(x-x1, z-z1)) < mind){
+  const shift2DArray = (ar, dir, width) => {
+    var x1, y1, x2, y2, height = ar.length / width
+    var a = Array(ar.length).fill()
+    for(var i = 0; i < ar.length; i++){
+      x1 = x2 = i%width
+      y1 = y2 = i/width|0
+      switch(dir){
+        case 'left':  x2++; break
+        case 'up':    y2++; break
+        case 'right': x2--; break
+        case 'down':  y2--; break
+      }
+      while(x2 < 0) x2 += width
+      while(x2 >= width) x2 -= width
+      while(y2 < 0) y2 += height
+      while(y2 >= height) y2 -= height
+      a[i] = ar[y2*width + x2]
+    }
+    a.map((v, i) => ar[i] = v)
+  }
+  
+  const centris = (fbr/2 | 0) * fcl + fcl/2|0
+  const getCollision = (x, y, z, rad) => {
+    var fl, mind = 9e9, idx = -1, tx, tz, itx, itz
+    var x1, y1, z1
+    var j = centris
+    Array(fcl*frw*fbr).fill().map((v, j) => {
+      tx = ((j%fcl)-fcl/2 + .5) * fsp
+      //ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
+      tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
+      while(-renderer.x - tx > fsp*fcl/2) tx += fsp*fcl
+      while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
+      while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
+      while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
+      if((d=Math.hypot(x-tx, z-tz)) < mind){
+        idx = j
         mind = d
-        idx = i/3
-        fl = y1
+        itx = tx
+        itz = tz
+      }
+    })
+    var tile = floorTiles.filter(v=>v.geometry.name == 
+                         floorTiles[floorIdentities[idx]].name + (
+                         floorTiles[floorIdentities[idx]].name == 'blankTile' ? 
+                           hipolySuffix : hipolySuffix))[0]
+                           //hipolySuffix : lowpolySuffix))[0]
+    var verts = tile.geometry.vertices
+    var mind = 9e9
+    x -= itx
+    z -= itz
+    for(var i = 0; i < verts.length; i+=3){
+      x1 = verts[i+0]
+      y1 = verts[i+1]
+      z1 = verts[i+2]
+      if((d = Math.hypot(x-x1, (y-y1) * 8, z-z1)) < mind && d < Math.max(250, rad*1.25)){
+        mind = d
+        fl = [verts[i+0]+itx, verts[i+1], verts[i+2]+itz]
       }
     }
     return fl
   }
   
+  const respawn = camID => {
+    jets[camID].x = 0
+    jets[camID].y = 2e3
+    jets[camID].z = 0
+    jets[camID].speed = minSpeed
+    jets[camID].alive = true
+    
+  }
+  
   var maxRotationv = .1
   var maxSpeedv = 2
-  var maxSpeed = 300
-  var minSpeed = 5
+  var maxSpeed = 500
+  var minSpeed = 25
   const doKeys = () => {
     accel = false
     keys.map((v, idx) => {
@@ -697,191 +752,231 @@
             jets[camSel].pitchv2 -= jetRv / 1.25
             jets[camSel].pitchv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].pitchv))
           break
+          case 32:
+            if(!jets[camSel].alive) respawn(camSel)
+          break
         }
       }
     })
   }
 
-  var floorIdentities = Array(fcl * frw * fbr).fill().map(v=>(Rn() * floorTiles.length) |0)
-  var floorIdentitiesMemo = Array(fcl * frw * fbr).fill().map((v, j) =>{
-    var tx = ((j%fcl)-fcl/2 + .5) * fsp
-    var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
-    var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
-    return [tx, ty, tz]
-  })
-
   window.Draw = () => {
-    var t = renderer.t
-    //renderer.yaw += .001
-    //renderer.z = Math.min(70, Math.max(32, (.3+C(t))*150))
-    //renderer.pitch = Math.min(.5, Math.max(.1,-(-.3+C(t))*1))
-    
-    doKeys()
-    jets[camSel].pitch /= 1.01
-    jets[camSel].roll   = -jets[camSel].yawv * 16
-    jets[camSel].yaw    += jets[camSel].yawv
-    jets[camSel].pitch  += jets[camSel].pitchv
-    jets[camSel].yawv   /= 1.04
-    jets[camSel].pitchv /= 1.04
-    
-    
-    jets[camSel].speed += jets[camSel].speedv
-    jets[camSel].speed = Math.min(maxSpeed, Math.max(minSpeed, jets[camSel].speed))
-    jets[camSel].speedv /= 1.5
-    
-    var tailX = 0
-    var tailY = 0
-    var tailZ = -16
-    
-    p = Math.atan2(tailX, tailZ) + jets[camSel].yaw
-    var p2 = jets[camSel].pitch
-    d = 50 - Math.abs(tailZ * (1+jets[camSel].speed/26)) //Math.hypot(tailX, tailY, tailZ)
-    tailX = vx = S(p) * d * S(q = -p2 + Math.PI/2)
-    tailY = vy = -C(q) * d - 8
-    tailZ = vz = C(p) * S(q) * d
-    
-    renderer.x += (-renderer.x - jets[camSel].x + tailX) / 1
-    renderer.y += (-renderer.y - jets[camSel].y + tailY) / 1
-    renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 1
-    
-    
-    
-    //renderer.roll += (-renderer.roll + jets[camSel].roll) / 60
-    //renderer.pitch += (-renderer.pitch - jets[camSel].y - 10) / 60
-    renderer.pitch += (-renderer.pitch + jets[camSel].pitch * 1.1) / 3
-    renderer.y -= jets[camSel].pitch * 5
-    renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 5
-    
-    backgroundShape.x = jets[camSel].x
-    backgroundShape.y = jets[camSel].y
-    backgroundShape.z = jets[camSel].z
-    if(1) renderer.Draw(backgroundShape)
-    
-    if(1) for(var i = 0; i < particlesShape.vertices.length; i+=3){
-      var x = particlesShape.vertices[i + 0]
-      var y = particlesShape.vertices[i + 1]
-      var z = particlesShape.vertices[i + 2]
+    if(!levelLoaded){
+    }else{
+      var t = renderer.t
+      //renderer.yaw += .001
+      //renderer.z = Math.min(70, Math.max(32, (.3+C(t))*150))
+      //renderer.pitch = Math.min(.5, Math.max(.1,-(-.3+C(t))*1))
       
-      if(x + renderer.x > G/2) x = particlesShape.vertices[i + 0] -= G
-      if(x + renderer.x < -G/2) x = particlesShape.vertices[i + 0] += G
-      if(y + renderer.y > G/2) y = particlesShape.vertices[i + 1] -= G
-      if(y + renderer.y < -G/2) y = particlesShape.vertices[i + 1] += G
-      if(z + renderer.z > G/2) z = particlesShape.vertices[i + 2] -= G
-      if(z + renderer.z < -G/2) z = particlesShape.vertices[i + 2] += G
+      doKeys()
+      jets[camSel].pitch /= 1.01
+      jets[camSel].roll   = -jets[camSel].yawv * 16
+      jets[camSel].yaw    += jets[camSel].yawv
+      jets[camSel].pitch  += jets[camSel].pitchv
+      jets[camSel].yawv   /= 1.04
+      jets[camSel].pitchv /= 1.04
       
-      particlesShape.vertices[i + 0] = x
-      particlesShape.vertices[i + 1] = y
-      particlesShape.vertices[i + 2] = z
-    }
-    renderer.Draw(particlesShape)
+      
+      jets[camSel].speed += jets[camSel].speedv
+      jets[camSel].speed = Math.min(maxSpeed, Math.max(minSpeed, jets[camSel].speed))
+      jets[camSel].speedv /= 1.5
+      
+      var tailX = 0
+      var tailY = 0
+      var tailZ = -16
+      
+      p = Math.atan2(tailX, tailZ) + jets[camSel].yaw
+      var p2 = jets[camSel].pitch
+      d = 50 - Math.abs(tailZ * (1+jets[camSel].speed/26)) //Math.hypot(tailX, tailY, tailZ)
+      tailX = vx = S(p) * d * S(q = -p2 + Math.PI/2)
+      tailY = vy = -C(q) * d - 8
+      tailZ = vz = C(p) * S(q) * d
+      
+      renderer.x += (-renderer.x - jets[camSel].x + tailX) / 1
+      renderer.y += (-renderer.y - jets[camSel].y + tailY) / 1
+      renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 1
+      
+      
+      
+      //renderer.roll += (-renderer.roll + jets[camSel].roll) / 60
+      //renderer.pitch += (-renderer.pitch - jets[camSel].y - 10) / 60
+      renderer.pitch += (-renderer.pitch + jets[camSel].pitch * 1.1) / 3
+      renderer.y -= jets[camSel].pitch * 5
+      renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 5
+      
+      backgroundShape.x = jets[camSel].x
+      backgroundShape.y = jets[camSel].y
+      backgroundShape.z = jets[camSel].z
+      if(1) renderer.Draw(backgroundShape)
+      
+      if(1) for(var i = 0; i < particlesShape.vertices.length; i+=3){
+        var x = particlesShape.vertices[i + 0]
+        var y = particlesShape.vertices[i + 1]
+        var z = particlesShape.vertices[i + 2]
+        
+        if(x + renderer.x > G/2) x = particlesShape.vertices[i + 0] -= G
+        if(x + renderer.x < -G/2) x = particlesShape.vertices[i + 0] += G
+        if(y + renderer.y > G/2) y = particlesShape.vertices[i + 1] -= G
+        if(y + renderer.y < -G/2) y = particlesShape.vertices[i + 1] += G
+        if(z + renderer.z > G/2) z = particlesShape.vertices[i + 2] -= G
+        if(z + renderer.z < -G/2) z = particlesShape.vertices[i + 2] += G
+        
+        particlesShape.vertices[i + 0] = x
+        particlesShape.vertices[i + 1] = y
+        particlesShape.vertices[i + 2] = z
+      }
+      renderer.Draw(particlesShape)
 
-    jets.map((jet, idx) => {
-    
-      //jet.yaw += .0125 * (idx%2 ? -1 : 1)
-      //jet.roll += .0125 * (idx%2 ? -1 : 1)
-    
-      if(jet.alive){
-        jet.vx = -S(p = jet.yaw) * S(q = -jet.pitch + Math.PI/2) * jet.speed
-        jet.vy = -C(q) * jet.speed
-        jet.vz = -C(p) * S(q) * jet.speed
-        var fl = getFloor(jet.x, jet.z)
-        console.log(fl, jet.y)
-        if(jet.y < fl-500) jet.alive = false, alert('crashed')
-      }else{
-        jet.vx = jet.vy = jet.vz = 0
-      }
-    
-      thrusterShape.x = jet.shape.x = jet.x += jet.vx
-      thrusterShape.y = jet.shape.y = jet.y += jet.vy
-      thrusterShape.z = jet.shape.z = jet.z += jet.vz
+      jets.map((jet, idx) => {
       
-      if(drawSmoke){
-        var tailX = 0
-        var tailY = 0
-        var tailZ = -16
-        p = Math.atan2(tailX, tailZ) + jet.yaw
-        var p2 = jet.pitch
-        d = -20 //+ Math.abs(tailZ * (1+jet.speed/26))
-        x = jet.x + S(p) * d * S(q = -p2 + Math.PI/2)
-        y = jet.y + -C(q) * d - 8
-        z = jet.z + C(p) * S(q) * d
-        for(var m = 5; m--;) spawnSmoke(x, y, z)
-      }
+        //jet.yaw += .0125 * (idx%2 ? -1 : 1)
+        //jet.roll += .0125 * (idx%2 ? -1 : 1)
+      
+        if(jet.alive){
+          var fl
+          if(fl = getCollision(jet.x, jet.y, jet.z, jet.speed)) {
+            jet.alive = false
+            jet.speed = 0
+            var d = Math.hypot(jet.x-fl[0], jet.z-fl[2])
+            jet.x = (fl[0] + (jet.x - fl[0]) / d * 50)
+            //jet.y = (fl[1] - (jet.y - fl[1]) / d * 50)
+            jet.z = (fl[2] + (jet.z - fl[2]) / d * 50)
+            spawnSplosion(jet.x, jet.y, jet.z)
+          }else{
+            jet.vx = -S(p = jet.yaw) * S(q = -jet.pitch + Math.PI/2) * jet.speed
+            jet.vy = -C(q) * jet.speed
+            jet.vz = -C(p) * S(q) * jet.speed
+          }
+        }else{
+          jet.vx = jet.vy = jet.vz = 0
+        }
+      
+        thrusterShape.x = jet.shape.x = jet.x += jet.vx
+        thrusterShape.y = jet.shape.y = jet.y += jet.vy
+        thrusterShape.z = jet.shape.z = jet.z += jet.vz
+        
+        if(drawSmoke){
+          var tailX = 0
+          var tailY = 0
+          var tailZ = -16
+          p = Math.atan2(tailX, tailZ) + jet.yaw
+          var p2 = jet.pitch
+          d = -20 //+ Math.abs(tailZ * (1+jet.speed/26))
+          x = jet.x + S(p) * d * S(q = -p2 + Math.PI/2)
+          y = jet.y + -C(q) * d - 8
+          z = jet.z + C(p) * S(q) * d
+          for(var m = Math.max(0, (jet.speed/25-1)|0); m--;) spawnSmoke(x, y, z)
+        }
 
-      thrusterShape.roll  = -(jet.shape.roll  = jet.roll)
-      thrusterShape.pitch = -(jet.shape.pitch = jet.pitch + jet.pitchv*10)
-      thrusterShape.yaw   = (jet.shape.yaw   = jet.yaw) + Math.PI
+        thrusterShape.roll  = -(jet.shape.roll  = jet.roll)
+        thrusterShape.pitch = -(jet.shape.pitch = jet.pitch + jet.pitchv*10)
+        thrusterShape.yaw   = (jet.shape.yaw   = jet.yaw) + Math.PI
+        
+        renderer.Draw(jet.shape)
+        if(accel) renderer.Draw(thrusterShape)
+      })
+      if(accel) update(thrusterShape, false)
+     
+      //jets[camSel].yaw   += C(t/2) / 100
+      //jets[camSel].pitch += C(t/4) / 200
+     
+      var vx = jets[camSel].vx = 0
+      var vy = jets[camSel].vy = 0
+      var vz = jets[camSel].vz = jets[camSel].speed
+      p = Math.atan2(vx, vz) + jets[camSel].yaw
+      var p2 = jets[camSel].pitch
+      d = Math.hypot(vx, vy, vz)
+      jets[camSel].vx = vx = S(p) * d * S(q = -p2 + Math.PI/2)
+      jets[camSel].vy = vy = C(q) * d
+      jets[camSel].vz = vz = C(p) * S(q) * d
       
-      renderer.Draw(jet.shape)
-      if(accel) renderer.Draw(thrusterShape)
-    })
-    if(accel) update(thrusterShape, false)
-   
-    //jets[camSel].yaw   += C(t/2) / 100
-    //jets[camSel].pitch += C(t/4) / 200
-   
-    var vx = jets[camSel].vx = 0
-    var vy = jets[camSel].vy = 0
-    var vz = jets[camSel].vz = jets[camSel].speed
-    p = Math.atan2(vx, vz) + jets[camSel].yaw
-    var p2 = jets[camSel].pitch
-    d = Math.hypot(vx, vy, vz)
-    jets[camSel].vx = vx = S(p) * d * S(q = -p2 + Math.PI/2)
-    jets[camSel].vy = vy = C(q) * d
-    jets[camSel].vz = vz = C(p) * S(q) * d
-    
-    var p1 = jets[camSel].yaw, shp
-    //var floorShape = floorShapeLow
-    //var floorVertices = floorVerticesLow
-    Array(fcl*frw*fbr).fill().map((v, j)=>{
-      var tx = ((j%fcl)-fcl/2 + .5) * fsp
-      var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
-      var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
-      var flid = j%2 //(j+(j/fcl/frw|0))%2
-      //var floorVertices = tx||tz ? floorVerticesLow : floorVerticesMed
-      while(-renderer.x - tx > fsp*fcl/2) tx += fsp*fcl
-      while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
-      while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
-      while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
-      if(tx != floorIdentitiesMemo[j][0] ||
-         tz != floorIdentitiesMemo[j][2]){
-         floorIdentitiesMemo[j][0] = tx
-         floorIdentitiesMemo[j][2] = tz
-         floorIdentities[j] = Rn() * floorTiles.length | 0
+      var p1 = jets[camSel].yaw, shp
+      //var floorShape = floorShapeLow
+      //var floorVertices = floorVerticesLow
+      Array(fcl*frw*fbr).fill().map((v, j)=>{
+        var tx = ((j%fcl)-fcl/2 + .5) * fsp
+        var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
+        var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
+        var flid = j%2 //(j+(j/fcl/frw|0))%2
+        //var floorVertices = tx||tz ? floorVerticesLow : floorVerticesMed
+        while(-renderer.x - tx > fsp*fcl/2) tx += fsp*fcl
+        while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
+        while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
+        while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
+        if(tx != floorIdentitiesMemo[j][0] ||
+           tz != floorIdentitiesMemo[j][2]){
+           floorIdentitiesMemo[j][0] = tx
+           floorIdentitiesMemo[j][2] = tz
+           floorIdentities[j] = Rn() * floorTiles.length | 0
+        }
+        var d = Math.hypot(-renderer.x - tx, -renderer.z - tz)
+        var lod = d >= fsp * 1.5 ? lowpolySuffix : hipolySuffix
+        if(drawClouds && flid && floorTiles[floorIdentities[j]].name == 'blankTile'){ // flid is checkerboard xor
+          shp = clouds.filter(v=>v.geometry.name == 'clouds' + lod)[0]
+          shp.geometry.x = tx
+          shp.geometry.z = tz
+          renderer.Draw(shp.geometry)
+        }
+        shp = floorTiles.filter(v=>v.geometry.name == 
+                           floorTiles[floorIdentities[j]].name + lod)[0]
+        if(typeof shp != 'undefined'){
+          shp.geometry.x = tx
+          shp.geometry.z = tz
+          renderer.Draw(shp.geometry)
+        }
+      })
+      
+      for(var j = 0; j < smokeParticles.vertices.length; j += 3){
+        if(j/3|0 > smoke.length) {
+          smokeParticles.vertices[j+0] = 1e8
+          smokeParticles.vertices[j+1] = 0
+          smokeParticles.vertices[j+2] = 0
+        }
       }
-      var d = Math.hypot(-renderer.x - tx, -renderer.z - tz)
-      var lod = d >= fsp * 1.5 ? lowpolySuffix : hipolySuffix
-      if(drawClouds && flid && floorTiles[floorIdentities[j]].name == 'blankTile'){ // flid is checkerboard xor
-        shp = clouds.filter(v=>v.geometry.name == 'clouds' + lod)[0]
-        shp.geometry.x = tx
-        shp.geometry.z = tz
-        renderer.Draw(shp.geometry)
+      smoke = smoke.filter((v, i) => v[3] > 0)
+      smoke.map((v, i) => {
+        var j = i*3
+        smokeParticles.vertices[j+0] = smoke[i][0] += smoke[i][4]
+        smokeParticles.vertices[j+1] = smoke[i][1] += smoke[i][5]
+        smokeParticles.vertices[j+2] = smoke[i][2] += smoke[i][6]
+        smoke[i][3] -= .0001
+      })
+      renderer.Draw(smokeParticles)
+
+      //if(!((t*60|0)%10)) spawnSplosion(0, 2500, 0)
+
+      if(1){
+        splosions = splosions.filter((v, i) => v[3] > 0)
+        splosionUnits = splosionUnits.map((su, suIdx) => {
+          if(su){
+            for(var j = 0; j < splosionParticles.vertices.length; j += 3){
+              splosionParticles.vertices[j+0] = 1e8
+              splosionParticles.vertices[j+1] = 0
+              splosionParticles.vertices[j+2] = 0
+            }
+            splosions.map((v, i) => {
+              if(splosions[i][7] == suIdx){
+                var j = i*3
+                splosionParticles.vertices[j+0] = splosions[i][0] += splosions[i][4]
+                splosionParticles.vertices[j+1] = splosions[i][1] += splosions[i][5]
+                splosionParticles.vertices[j+2] = splosions[i][2] += splosions[i][6]
+                splosions[i][3] = su
+              }
+            })
+            if(splosions.length){
+              splosionParticles.size = splosionParticleSize * su
+              renderer.Draw(splosionParticles)
+              return Math.max(0, su - .0005)
+            }else{
+              return 0
+            }
+          }else{
+            return 0
+          }
+        })
       }
-      shp = floorTiles.filter(v=>v.geometry.name == 
-                         floorTiles[floorIdentities[j]].name + lod)[0]
-      if(typeof shp != 'undefined'){
-        shp.geometry.x = tx
-        shp.geometry.z = tz
-        renderer.Draw(shp.geometry)
-      }
-    })
-    for(var j = 0; j < smokeParticles.vertices.length; j += 3){
-      if(j/3|0 > smoke.length) {
-        smokeParticles.vertices[j+0] = 1e8
-        smokeParticles.vertices[j+1] = 0
-        smokeParticles.vertices[j+2] = 0
-      }
+      //renderer.factor = 1.1+C(t)
     }
-    smoke = smoke.filter((v, i) => v[3] > 0)
-    smoke.map((v, i) => {
-      var j = i*3
-      smokeParticles.vertices[j+0] = smoke[i][0] += smoke[i][4]
-      smokeParticles.vertices[j+1] = smoke[i][1] += smoke[i][5]
-      smokeParticles.vertices[j+2] = smoke[i][2] += smoke[i][6]
-      smoke[i][3] -= .0001
-    })
-    renderer.Draw(smokeParticles)
-    //renderer.factor = 1.1+C(t)
   }
   
 </script>
