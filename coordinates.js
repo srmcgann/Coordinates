@@ -2738,7 +2738,7 @@ const AverageNormals = (verts, normals, shapeType) => {
         [verts[i+0],verts[i+1],verts[i+2]],
         [verts[i+3],verts[i+4],verts[i+5]],
         [verts[i+6],verts[i+7],verts[i+8]]
-      ], false) //isPolyhedron)
+      ], isPolyhedron)
     }
     nrmls[i*2+0] = verts[i+0]
     nrmls[i*2+1] = verts[i+1]
@@ -4406,7 +4406,7 @@ const IsPolyhedron = shapeType => {
     case 'dodecahedron' : isPolyhedron = true; break
     case 'icosahedron'  : isPolyhedron = true; break
     case 'tetrahedron'  : isPolyhedron = true; break
-    case 'dynamic'      : isPolyhedron = true; break
+    case 'dynamic'      : isPolyhedron = false; break
     default: isPolyhedron = false; break
   }
   return isPolyhedron
