@@ -1,6 +1,5 @@
 blankTile
 <!DOCTYPE html>
-<!DOCTYPE html>
 <!--
  TO DO
  ✔ fix smoke particles (sorting)
@@ -391,7 +390,7 @@ blankTile
   }
   
   var levelLoaded = false
-  loadLevel(2)
+  loadLevel(1)
   
   // 'clouds' tile
   if(drawClouds) for(var k = 2; k--;) {
@@ -604,7 +603,7 @@ blankTile
     }
     return {
       name: `jet ${idx+1}`,
-      shape: jetShapes['_neutral'],//jetShapes[jetType],
+      shape: jetShapes['_enemy'],//jetShapes[jetType],
       x: 0,
       y: 500,
       z: 0,
