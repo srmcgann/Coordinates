@@ -2738,7 +2738,7 @@ const AverageNormals = (verts, normals, shapeType) => {
         [verts[i+0],verts[i+1],verts[i+2]],
         [verts[i+3],verts[i+4],verts[i+5]],
         [verts[i+6],verts[i+7],verts[i+8]]
-      ], isPolyhedron)
+      ], false) //isPolyhedron)
     }
     nrmls[i*2+0] = verts[i+0]
     nrmls[i*2+1] = verts[i+1]
@@ -3054,7 +3054,8 @@ const BasicShader = (renderer, options=[]) => {
                       
                       //if(refFlipRefs == 1.0) phongP2 = M_PI - phongP2;
 
-                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0)), 3.0), 3.0) / 5e5 * phong ;
+                      float fact = pow(pow((1.0+cos(phongP1)) * (1.0+cos(phongP2+M_PI/2.0)), 3.0), 3.0) / 5e5 * phong +
+                      pow(pow((1.0+cos(phongP1 + M_PI)) * (1.0+cos(phongP2+M_PI/2.0)), 3.0), 3.0) / 5e5 * phong;
                       light = vec4(light.rgb + fact, 1.0) * 15.0;
                     }
                   `,
