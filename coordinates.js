@@ -1372,7 +1372,15 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
     }
   })
-  
+
+  if(typeof objX     == 'undefined') objX     = 0
+  if(typeof objY     == 'undefined') objY     = 0
+  if(typeof objZ     == 'undefined') objZ     = 0
+  if(typeof objRoll  == 'undefined') objRoll  = 0
+  if(typeof objPitch == 'undefined') objPitch = 0
+  if(typeof objYaw   == 'undefined') objYaw   = 0
+
+
   var tempCanvas1, tempCanvas2
   if(typeof geoOptions.canvasTexture != 'undefined'){
     if(canvasTextureMix == -1) canvasTextureMix = 1
@@ -1684,12 +1692,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
           uvs         = ret.uvs
           resolved    = true
         }else{
-          if(typeof objX     == 'undefined') objX     = 0
-          if(typeof objY     == 'undefined') objY     = 0
-          if(typeof objZ     == 'undefined') objZ     = 0
-          if(typeof objRoll  == 'undefined') objRoll  = 0
-          if(typeof objPitch == 'undefined') objPitch = 0
-          if(typeof objYaw   == 'undefined') objYaw   = 0
           shape = await LoadOBJ(url, size, objX, objY, objZ,
                                 objRoll, objPitch, objYaw, false)
           vertices = shape.vertices
@@ -1835,6 +1837,37 @@ const LoadGeometry = async (renderer, geoOptions) => {
       let Y = normals[i+4] - normals[i+1]
       let Z = normals[i+5] - normals[i+2]
       normalVecs.push(X,Y,Z)
+    }
+  }
+  
+  if(shapeType == 'custom shape' && 
+    (objPitch || objRoll || objYaw || objX || objY || objZ)){
+    for(var i = 0; i < vertices.length; i+=3){
+      var x = vertices[i+0]
+      var y = vertices[i+1]
+      var z = vertices[i+2]
+      var ar = R_pyr(x, y, z, {roll:objRoll, pitch:objPitch, yaw:objYaw})
+      vertices[i+0] = ar[0] + objX
+      vertices[i+1] = ar[1] + objY
+      vertices[i+2] = ar[2] + objZ
+      if(normals.length){
+        for(var m = 2; m--;){
+          x = normals[i*2+0+m*3]
+          y = normals[i*2+1+m*3]
+          z = normals[i*2+2+m*3]
+          var ar = R_pyr(x, y, z, {roll:objRoll, pitch:objPitch, yaw:objYaw})
+          normals[i*2+0+m*3] = ar[0] + objX
+          normals[i*2+1+m*3] = ar[1] + objY
+          normals[i*2+2+m*3] = ar[2] + objZ
+        }
+        x = normalVecs[i+0]
+        y = normalVecs[i+1]
+        z = normalVecs[i+2]
+        var ar = R_pyr(x, y, z, {roll:objRoll, pitch:objPitch, yaw:objYaw})
+        normalVecs[i+0] = ar[0]
+        normalVecs[i+1] = ar[1]
+        normalVecs[i+2] = ar[2]
+      }
     }
   }
   
