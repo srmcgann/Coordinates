@@ -1692,8 +1692,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
           uvs         = ret.uvs
           resolved    = true
         }else{
-          shape = await LoadOBJ(url, size, objX, objY, objZ,
-                                objRoll, objPitch, objYaw, false)
+          shape = await LoadOBJ(url, size, 0,0,0,0,0,0, objYaw, false)
           vertices = shape.vertices
           normals  = shape.normals
           uvs      = shape.uvs
@@ -1840,7 +1839,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  if(shapeType == 'custom shape' && 
+  if((shapeType == 'custom shape' || shapeType == 'obj') && 
     (objPitch || objRoll || objYaw || objX || objY || objZ)){
     for(var i = 0; i < vertices.length; i+=3){
       var x = vertices[i+0]
