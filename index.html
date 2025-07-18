@@ -29,12 +29,12 @@
 <script type="module">
 
   import * as Coordinates from
-  //"https://srmcgann.github.io/Coordinates/coordinates.min.js?2"
-  "https://boss.veriler.com/coordinates.js"
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  //"https://boss.veriler.com/coordinates.js"
   //"https://boss.veriler.com/working.js"
 
   var rendererOptions = {
-    fov: 1200, margin: 0,
+    fov: 1100/1, margin: 0,
     //width: 960, height: 540,
     width: 1920, height: 1080,
   }
@@ -240,7 +240,7 @@
     // floor tiles
     switch(lvl){
       case 0:
-        refTexture = baseRefTexture
+        refTexture = 'https://srmcgann.github.io/Coordinates/resources/skymaze_po2.jpg'
         wrapVertical = true
         fcl = 3
         frw = 3
@@ -285,9 +285,9 @@
       break
       case 1:
         refTexture = 'https://srmcgann.github.io/Coordinates/resources/moped_girl_po2.jpg'
-        fcl = 4
+        fcl = 5
         frw = 1
-        fbr = 4
+        fbr = 5
         fsp = 4990 * 2
         wrapVertical = false
         tiles.push({
@@ -407,6 +407,68 @@
           HipolySuffix: hipolySuffix,
         })
       break
+      case 3:
+        refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
+        fcl = 5
+        frw = 1
+        fbr = 5
+        fsp = 4990 * 2
+        wrapVertical = false
+        tiles.push({
+          Name: 'blankTile',
+          URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+          URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
+          ShapeType: 'obj',
+          FileExt: 'obj',
+          Freq: fcl,
+          Equirectangular: false,
+          ScaleX: 100,
+          ScaleY: 1,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+          LowpolySuffix: lowpolySuffix,
+          HipolySuffix: hipolySuffix,
+        })
+        tiles.push({
+          Name: 'brownstone',
+          URLBase: 'https://srmcgann.github.io/objs/brownstone/brownstone',
+          URLMap: 'https://srmcgann.github.io/objs/brownstone/combined.jpg?2',
+          ShapeType: 'obj',
+          FileExt: 'obj',
+          Freq: fcl,
+          Equirectangular: false,
+          ScaleX: 100,
+          ScaleY: 100,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+          LowpolySuffix: lowpolySuffix,
+          HipolySuffix: hipolySuffix,
+        })
+        tiles.push({
+          Name: 'mountain',
+          URLBase: 'https://srmcgann.github.io/objs/mountain/mountain',
+          URLMap: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
+          ShapeType: 'obj',
+          FileExt: 'obj',
+          Freq: 1,
+          Equirectangular: false,
+          ScaleX: 100,
+          ScaleY: floorScaleY/2,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+          LowpolySuffix: lowpolySuffix,
+          HipolySuffix: hipolySuffix,
+        })
+      break
     }
     
     var ttlTiles = 0
@@ -442,13 +504,12 @@
           shape.geometry = geometry
           shape.vertices = structuredClone(geometry.vertices)
           shape.normals = structuredClone(geometry.normals)
-          console.log('shape loaded', shape.name, geometry)
           await floorShader.ConnectGeometry(geometry)
-          for(var m = tile.Freq * 3; m--;) floorTiles.push(shape)
-          if(floorTiles.length == ttlTiles*2*3) {
+          for(var m = tile.Freq * 100; m--;) floorTiles.push(shape)
+          if(floorTiles.length == ttlTiles * 200) {
             levelLoaded = true
             floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => {
-              return j == centris ? 0 : Rn() * floorTiles.length | 0
+              return j == centris ? 1 : Rn() * floorTiles.length | 0
             })
             floorIdentitiesMemo = Array(fcl * frw * fbr).fill().map((v, j) =>{
               var tx = ((j%fcl)-fcl/2 + .5) * fsp
@@ -478,7 +539,7 @@
   }
   
   var levelLoaded = false
-  loadLevel(2)
+  loadLevel(Rn() * 4 | 0)
   
   // 'clouds' tile
   if(drawClouds) for(var k = 2; k--;) {
@@ -767,7 +828,7 @@
       }
       while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
       while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
-      if((d=Math.hypot(x-tx, z-tz)) < mind){
+      if((d=Math.hypot(x-tx, y-ty, z-tz)) < mind){
         idx = j
         mind = d
         itx = tx
@@ -781,7 +842,6 @@
                            v.HipolySuffix : v.HipolySuffix))[0]
                            //v.HipolySuffix : v.LowpolySuffix))[0]
                            
-    console.log(tile)
     var verts = tile.geometry.vertices
     var mind = 9e9
     x -= itx
@@ -861,6 +921,9 @@
       }
     })
   }
+  
+  renderer.c.tabIndex = 0
+  renderer.c.focus()
 
   window.Draw = () => {
     if(!levelLoaded){
@@ -906,10 +969,12 @@
       renderer.y -= jets[camSel].pitch * 5
       renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 5
       
-      backgroundShape.x = jets[camSel].x
-      backgroundShape.y = jets[camSel].y
-      backgroundShape.z = jets[camSel].z
-      if(1) renderer.Draw(backgroundShape)
+      if(typeof backgroundShape?.vertices != 'undefined'){
+        backgroundShape.x = jets[camSel].x
+        backgroundShape.y = jets[camSel].y
+        backgroundShape.z = jets[camSel].z
+        renderer.Draw(backgroundShape)
+      }
       
       if(1) for(var i = 0; i < particlesShape.vertices.length; i+=3){
         var x = particlesShape.vertices[i + 0]
@@ -939,9 +1004,9 @@
           if(fl = getCollision(jet.x, jet.y, jet.z, jet.speed)) {
             jet.alive = false
             jet.speed = 0
-            var d = Math.hypot(jet.x-fl[0], jet.z-fl[2])
+            var d = Math.hypot(jet.x-fl[0], jet.y-fl[1], jet.z-fl[2])
             jet.x = (fl[0] + (jet.x - fl[0]) / d * 50)
-            //jet.y = (fl[1] - (jet.y - fl[1]) / d * 50)
+            jet.y = (fl[1] - (jet.y - fl[1]) / d * 50)
             jet.z = (fl[2] + (jet.z - fl[2]) / d * 50)
             spawnSplosion(jet.x, jet.y, jet.z)
           }else{
@@ -967,7 +1032,8 @@
           x = jet.x + S(p) * d * S(q = -p2 + Math.PI/2)
           y = jet.y + -C(q) * d - 8
           z = jet.z + C(p) * S(q) * d
-          for(var m = Math.max(0, (jet.speed/25-1)|0); m--;) spawnSmoke(x, y, z)
+          if(jet.alive)
+            for(var m = Math.max(0, (jet.speed/25-1)|0); m--;) spawnSmoke(x, y, z)
         }
 
         thrusterShape.roll  = -(jet.shape.roll  = jet.roll)
@@ -1010,7 +1076,7 @@
         while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
         while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
         if(tx != floorIdentitiesMemo[j][0] ||
-        (wrapVertical && ty != floorIdentities[j][1]) ||
+        (wrapVertical && ty != floorIdentitiesMemo[j][1]) ||
            tz != floorIdentitiesMemo[j][2]){
            floorIdentitiesMemo[j][0] = tx
            floorIdentitiesMemo[j][1] = ty
@@ -1092,5 +1158,6 @@
   }
   
 </script>
+
   </body>
 </html>
