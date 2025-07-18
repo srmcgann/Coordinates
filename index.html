@@ -29,8 +29,8 @@
 <script type="module">
 
   import * as Coordinates from
-  //"https://srmcgann.github.io/Coordinates/coordinates.min.js?2"
-  "https://boss.veriler.com/coordinates.js"
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  //"https://boss.veriler.com/coordinates.js"
   //"https://boss.veriler.com/working.js"
 
   var rendererOptions = {
@@ -509,7 +509,7 @@
           if(floorTiles.length == ttlTiles * 200) {
             levelLoaded = true
             floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => {
-              return j == centris ? 0 : Rn() * floorTiles.length | 0
+              return j == centris ? 1 : Rn() * floorTiles.length | 0
             })
             floorIdentitiesMemo = Array(fcl * frw * fbr).fill().map((v, j) =>{
               var tx = ((j%fcl)-fcl/2 + .5) * fsp
@@ -921,6 +921,9 @@
       }
     })
   }
+  
+  renderer.c.tabIndex = 0
+  renderer.c.focus()
 
   window.Draw = () => {
     if(!levelLoaded){
@@ -1155,5 +1158,6 @@
   }
   
 </script>
+
   </body>
 </html>
