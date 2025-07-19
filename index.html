@@ -29,8 +29,8 @@
 <script type="module">
 
   import * as Coordinates from
-  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
-  //"https://boss.veriler.com/coordinates.js"
+  //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  "https://boss.veriler.com/coordinates.js"
   //"https://boss.veriler.com/working.js"
 
   var rendererOptions = {
@@ -90,17 +90,17 @@
   ]
   var floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
   
-  var drawClouds = true, drawSmoke = true
+  var drawClouds = false, drawSmoke = true
   if(drawClouds){
     var shaderOptions = [
-      {lighting: {type: 'ambientLight', value: .5}},
+      {lighting: {type: 'ambientLight', value: .25}},
       { uniform: {
         type: 'phong',
-        value: .5
+        value: .4
       } },
       { uniform: {
         type: 'reflection',
-        value: .3,
+        value: .2,
         enabled: true,
         map: refTexture,
       } },
@@ -109,7 +109,7 @@
   }
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: 1}},
+    {lighting: {type: 'ambientLight', value: 1.25}},
     { uniform: {
       type: 'phong',
       value: 0
@@ -221,7 +221,7 @@
   var floorShapeLow, floorVerticesLow, floorNormalsLow
   var floorScaleY = 150, cloudScaleY = 150
   var lod, floorOffset = -1e3
-  var hipolySuffix = '_hipoly'
+  var hipolySuffix = '_medpoly'
   var lowpolySuffix = '_lowpoly'
   var floorTiles = [], clouds = []
   
@@ -503,14 +503,14 @@
         tiles.push({
           Name: 'brownstone',
           URLBase: 'https://srmcgann.github.io/objs/brownstone/brownstone',
-          URLMap: 'https://srmcgann.github.io/objs/brownstone/combined.jpg?2',
+          URLMap: 'https://srmcgann.github.io/objs/brownstone/combined.jpg?3',
           ShapeType: 'obj',
           FileExt: 'obj',
-          Freq: fcl,
+          Freq: 2,
           Equirectangular: false,
           ScaleX: 100,
           ScaleY: 100,
-          ScaleZ: 100,
+          ScaleZ: -100,
           ScaleUVX: 1,
           ScaleUVY: 1,
           Color: 0xffffff,
@@ -547,6 +547,114 @@
           randomYaw: false,
         })
       break
+      case 4:
+        refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/maze_bold_red.jpg'
+        fcl = 3
+        frw = 1
+        fbr = 3
+        fsp = 4990 * 2
+        wrapVertical = false
+        tiles.push({
+          Name: 'blankTile',
+          URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+          URLMap: 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2_lowres.jpg',
+          ShapeType: 'obj',
+          FileExt: 'obj',
+          Freq: fcl,
+          Equirectangular: false,
+          ScaleX: 100,
+          ScaleY: 1,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+          LowpolySuffix: lowpolySuffix,
+          HipolySuffix: hipolySuffix,
+          objX: 0, objY: 0, objZ: 0,
+          objRoll: 0, objPitch: 0, objYaw: 0,
+          randomRoll: false,
+          randomPitch: false,
+          randomYaw: false,
+        })
+        tiles.push({
+          Name: 'powerupTile',
+          URLBase: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile',
+          URLMap: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile.jpg',
+          ShapeType: 'obj',
+          FileExt: 'obj',
+          Freq: 2,
+          Equirectangular: false,
+          ScaleX: 100,
+          ScaleY: 100,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+          LowpolySuffix: lowpolySuffix,
+          HipolySuffix: hipolySuffix,
+          objX: 0, objY: 0, objZ: 0,
+          objRoll: 0, objPitch: 0, objYaw: 0,
+          randomRoll: false,
+          randomPitch: false,
+          randomYaw: false,
+        })
+        tiles.push({
+          Name: 'mountain',
+          URLBase: 'https://srmcgann.github.io/objs/mountain/mountain',
+          URLMap: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
+          ShapeType: 'obj',
+          FileExt: 'obj',
+          Freq: 2,
+          Equirectangular: false,
+          ScaleX: 100,
+          ScaleY: floorScaleY/2,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+          LowpolySuffix: lowpolySuffix,
+          HipolySuffix: hipolySuffix,
+          objX: 0, objY: 0, objZ: 0,
+          objRoll: 0, objPitch: 0, objYaw: 0,
+          randomRoll: false,
+          randomPitch: false,
+          randomYaw: false,
+        })
+      break
+      case 5:
+        refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/maze_bold_red.jpg'
+        fcl = 5
+        frw = 1
+        fbr = 5
+        fsp = 4990 * 2
+        wrapVertical = false
+        tiles.push({
+          Name: 'blankTile',
+          URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+          URLMap: 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2_lowres.jpg',
+          ShapeType: 'obj',
+          FileExt: 'obj',
+          Freq: fcl*2,
+          Equirectangular: false,
+          ScaleX: 100,
+          ScaleY: 1,
+          ScaleZ: 100,
+          ScaleUVX: 1,
+          ScaleUVY: 1,
+          Color: 0xffffff,
+          ColorMix: 0,
+          LowpolySuffix: lowpolySuffix,
+          HipolySuffix: hipolySuffix,
+          objX: 0, objY: 0, objZ: 0,
+          objRoll: 0, objPitch: 0, objYaw: 0,
+          randomRoll: false,
+          randomPitch: false,
+          randomYaw: false,
+        })
+      break
     }
     
     var ttlTiles = 0
@@ -562,7 +670,7 @@
         var geoOptions = {
           shapeType: tile.ShapeType,
           name: tile.Name + lod,
-          url: `${tile.URLBase}${lod}.${tile.FileExt}?2`,
+          url: `${tile.URLBase}${lod}.${tile.FileExt}?4`,
           map: tile.URLMap,
           equirectangular: tile.Equirectangular,
           scaleUVX: tile.ScaleUVX,
@@ -601,7 +709,7 @@
           if(floorTiles.length == ttlTiles * 20) {
             levelLoaded = true
             floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => {
-              return j == centris ? 1 : Rn() * floorTiles.length | 0
+              return j == centris ? 0 : Rn() * floorTiles.length | 0
             })
             floorIdentitiesMemo = Array(fcl * frw * fbr).fill().map((v, j) =>{
               var tx = ((j%fcl)-fcl/2 + .5) * fsp
@@ -630,8 +738,37 @@
     })
   }
   
+  var level = 4
   var levelLoaded = false
-  loadLevel(0)
+  loadLevel(level)
+  
+  var powerupShapes = []
+  var testCube
+  // supplemental stuff
+  switch(level){
+    case 4: case 5:
+      var geoOptions = {
+        shapeType: 'sprite',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+        size: 100,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        powerupShapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })  
+      var geoOptions = {
+        shapeType: 'cube',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+        color: 0x00ff44,
+        colorMix: .6,
+        size: 250,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        testCube = geometry
+        await shader.ConnectGeometry(geometry)
+      })  
+    break
+  }
   
   // 'clouds' tile
   if(drawClouds) for(var k = 2; k--;) {
@@ -644,7 +781,7 @@
       shapeType: 'obj',
       name: 'clouds' + lod,
       showNormals: false,
-      url: `https://srmcgann.github.io/objs/landscape/${'clouds' + lod}.obj?4`,
+      url: `https://srmcgann.github.io/objs/landscape/${'clouds' + lod}.obj`,
       map: `https://srmcgann.github.io/objs/landscape/landscape.jpg`,
       flipNormals,
       //averageNormals: true,
@@ -654,8 +791,8 @@
       scaleY: cloudScaleY,
       scaleZ: 100,
       y: 800,
-      color,
-      colorMix,
+      color: 0xffaacc,
+      colorMix: .5,
     }
     await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
       //await Coordinates.SyncNormals(geometry, true, true)
@@ -846,7 +983,7 @@
       name: `jet ${idx+1}`,
       shape: jetShapes['_enemy'],//jetShapes[jetType],
       x: 0,
-      y: 1e3,
+      y: 3e3,
       z: 0,
       roll: 0,
       pitch: 0,
@@ -963,7 +1100,7 @@
   
   const respawn = camID => {
     jets[camID].x = 0
-    jets[camID].y = 1e3
+    jets[camID].y = 3e3
     jets[camID].z = 0
     jets[camID].pitch = 0
     jets[camID].roll = 0
@@ -974,6 +1111,15 @@
     jets[camID].speed = minSpeed
     jets[camID].alive = true
     
+    floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => {
+      return j == centris ? 0 : Rn() * floorTiles.length | 0
+    })
+    floorIdentitiesMemo = Array(fcl * frw * fbr).fill().map((v, j) =>{
+      var tx = ((j%fcl)-fcl/2 + .5) * fsp
+      var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
+      var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
+      return [tx, ty, tz]
+    })
   }
   
   var maxRotationv = .1
@@ -1163,7 +1309,7 @@
       var p1 = jets[camSel].yaw, shp
       //var floorShape = floorShapeLow
       //var floorVertices = floorVerticesLow
-      Array(fcl*frw*fbr).fill().map(async (v, j)=>{
+      Array(fcl*frw*fbr).fill().map((v, j)=>{
         var tx = ((j%fcl)-fcl/2 + .5) * fsp
         var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
         var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
@@ -1208,8 +1354,18 @@
           shp.geometry.roll = shp.roll
           shp.geometry.pitch = shp.pitch
           shp.geometry.yaw = shp.yaw
-          console.log(shp.yaw)
-          await renderer.Draw(shp.geometry)
+          renderer.Draw(shp.geometry)
+          
+          switch(level){
+            case 4:
+              if(shp.name == 'powerupTile'){
+                powerupShapes[0].x = shp.geometry.x
+                powerupShapes[0].y = shp.geometry.y + 5e3
+                powerupShapes[0].z = shp.geometry.z
+                renderer.Draw(powerupShapes[0])
+              }
+            break
+          }
         }
       })
       
@@ -1262,7 +1418,16 @@
           }
         })
       }
-      //renderer.factor = 1.1+C(t)
+      /*
+      powerupShapes[0].x = 5e3
+      powerupShapes[0].y = 5e3
+      powerupShapes[0].z = 0
+      renderer.Draw(powerupShapes[0])
+      testCube.x = 5e3
+      testCube.y = 5e3
+      testCube.z = 0
+      renderer.Draw(testCube)
+      */
     }
   }
   
