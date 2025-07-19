@@ -3350,18 +3350,18 @@ const BasicShader = (renderer, options=[]) => {
         
         if(cameraMode == 1.0){  // 'FPS' mode
           if(isSprite != 0.0 || isLight != 0.0){
-            geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z+M_PI/2.0), 0);
+            geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z), 0);
             pos = vec3(cx, cy, cz);
             pos = Quat(pos,  vec3(0.0, camOri.y, 0.0), 0);
             pos = Quat(pos,  vec3(0.0, 0.0, camOri.z), 0);
-            pos = Quat(pos,  vec3(-camOri.x, 0.0, 0.0), 0);
+            pos = Quat(pos,  vec3(camOri.x, 0.0, 0.0), 0);
             pos.x += cpx;
             pos.y += cpy;
             pos.z += cpz;
-            pos = Quat(pos,  vec3(camOri.x, -camOri.y, -camOri.z), 0);
-            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-            nVec = Quat(nVec, vec3(camOri.x, -camOri.y, -camOri.z), 0);
+            pos = Quat(pos,  vec3(-camOri.x, -camOri.y, -camOri.z), 0);
+            nVec = Quat(nVeci, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            nVec = Quat(nVec, vec3(0.0, -camOri.y, -camOri.z), 0);
+
           }else{
             geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z), 0);
             pos = Quat(vec3(cx, cy, cz), vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
