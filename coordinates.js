@@ -36,7 +36,7 @@ const cache = {
   texImages    : []
 }
 
-const Renderer = options => {
+const Renderer = async options => {
 
   var x=0, y=0, z=0
   var width = 1920, height = 1080
@@ -442,7 +442,10 @@ const Renderer = options => {
                 ctx.activeTexture(ctx.TEXTURE2)
                 BindImage(ctx, geometry.canvasTexture,  dset.texture, geometry.textureMode, renderer.t, geometry)
               break
-              default:
+              case 'image':
+                if(geometry.rebindTextures){
+                  BindImage(ctx, geometry.image,  dset.texture, geometry.textureMode, renderer.t, geometry)
+                }
               break
             }
             
@@ -502,7 +505,7 @@ const Renderer = options => {
               }
             })
             
-            ctx.useProgram( sProg )
+            //ctx.useProgram( sProg )
             
             dset.optionalUniforms.map((uniform) => {
               if(typeof uniform?.loc === 'object'){
@@ -511,6 +514,11 @@ const Renderer = options => {
                 switch(uniform.name){
                   case 'reflection':
                     ctx.activeTexture(ctx.TEXTURE1)
+                    if(uniform.textureMode == 'image' && geometry.rebindTextures){
+                      //ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
+                      //ctx.activeTexture(ctx.TEXTURE1)
+                       BindImage(ctx, uniform.image,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
+                    }
                     if(uniform.textureMode == 'video'){
                        BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
                     }
@@ -694,14 +702,15 @@ const Renderer = options => {
         }
       }
     }
+    geometry.rebindTextures = false
   }
   renderer['Draw'] = Draw
 
-  renderer.nullShader = BasicShader(renderer, [
+  renderer.nullShader = await BasicShader(renderer, [
     {uniform: {type: 'phong', value: 0} }
   ] )
         
-  renderer.alphaShader = BasicShader(renderer, [] )
+  renderer.alphaShader = await BasicShader(renderer, [] )
   
   window.addEventListener('mousemove', e => {
     var rect = renderer.c.getBoundingClientRect()
@@ -1209,6 +1218,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var scaleX=1, scaleY=1, scaleZ=1
   var scaleUVX  = 1, scaleUVY  = 1
   var offsetUVX = 0, offsetUVY = 0
+  var rebindTextures           = false
   var rows             = 16
   var cols             = 40
                // must remain "16, 40" to trigger default quick torus/cylinder
@@ -1299,6 +1309,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'shownormals'        : showNormals = !!geoOptions[key]; break
       case 'sphereize'          : sphereize = geoOptions[key]; break
       case 'rotationmode'       : rotationMode = geoOptions[key]; break
+      case 'rebindtextures'     : rebindTextures = !!geoOptions[key]; break
       case 'flipx'              : flipX = geoOptions[key]; break
       case 'flipy'              : flipY = geoOptions[key]; break
       case 'flipz'              : flipZ = geoOptions[key]; break
@@ -2085,6 +2096,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     dataArrayWidth, dataArrayHeight, preComputeNormalAssocs,
     heightmapIsDataArray, heightmapDataArrayFormat,
     heightmapDataArrayWidth, heightmapDataArrayHeight,
+    rebindTextures
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -2093,7 +2105,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   if(geometry.shapeType == 'particles' || isParticle ||
      geometry.shapeType == 'lines' || isLine) {
-    renderer.alphaShader.ConnectGeometry(geometry)
+    await renderer.alphaShader.ConnectGeometry(geometry)
   }else{
     if(shapeType == 'point light' || shapeType == 'sprite'){
       if(typeof geoOptions.color == 'undefined'){
@@ -2104,7 +2116,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         renderer.pointLights.push(geometry)
       }
     }
-    renderer.nullShader.ConnectGeometry(geometry)
+    await renderer.nullShader.ConnectGeometry(geometry)
   }
   
   
@@ -2327,9 +2339,9 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
   }
   //gl.generateMipmap(gl.TEXTURE_2D)
   
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   
   //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -2820,7 +2832,7 @@ const AverageNormals = (verts, normals, shapeType) => {
   nrmls.forEach((v, i) => normals[i] = v)
 }
 
-const BasicShader = (renderer, options=[]) => {
+const BasicShader = async (renderer, options=[]) => {
   
   const gl = renderer.gl
   var program
@@ -2836,7 +2848,7 @@ const BasicShader = (renderer, options=[]) => {
     optionalLighting: [],
   }
   
-  options.map(option => {
+  await options.map(option => {
     Object.keys(option).forEach((key, idx) => {
       switch(key.toLowerCase()){
         case 'lighting':
@@ -3721,12 +3733,14 @@ const BasicShader = (renderer, options=[]) => {
     gl.compileShader(fragmentShader)
 
     ret.ConnectGeometry = (geometry, fromNullShader = false) => {
+
       if(0&&(geometry.shapeType == 'point light' || geometry.shapeType == 'sprite') &&
          typeof geometry?.shader != 'undefined') return
          
       var involveCache = geometry.involveCache
 
       var dset = structuredClone(dataset)
+      
       ret.datasets.push(dset)
       
       dset.program = gl.createProgram()
@@ -3844,6 +3858,7 @@ const BasicShader = (renderer, options=[]) => {
                             gl.activeTexture(gl.TEXTURE1)
                             BindImage(gl, image, uniform.refTexture, uniform.textureMode, -1, {url})
                           }
+                          uniform.image = image
                           cache.textures.push({
                             url,
                             resource: image,
@@ -4063,7 +4078,7 @@ const BasicShader = (renderer, options=[]) => {
             dset.locPointSize = gl.getUniformLocation(dset.program, "pointSize")
             gl.uniform1f(dset.locPointSize, geometry.size)
           }
-          
+
           dset.locColorMix = gl.getUniformLocation(dset.program, "colorMix")
           gl.uniform1f(dset.locColorMix, geometry.colorMix)
 
@@ -4201,6 +4216,7 @@ const BasicShader = (renderer, options=[]) => {
                     BindImage(gl, image, dset.texture, geometry.textureMode, -1, {map: textureURL})
                   }else{
                     var image = new Image()
+                    geometry.image = image
                     cache.textures.push({
                       url: textureURL,
                       resource: image,
