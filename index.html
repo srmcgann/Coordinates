@@ -39,6 +39,28 @@
   }
   var renderer = await Coordinates.Renderer(rendererOptions)
   
+  var rendererOptions = {
+    fov: 1000, margin: 0,
+    //width: 960, height: 540,
+    width: 300, height: 400,
+  }
+  var mapRenderer = await Coordinates.Renderer(rendererOptions)
+  mapRenderer.c.style.background = 'transparent'
+  mapRenderer.c.style.position = 'absolute'
+  mapRenderer.c.style.border = '4px solid #40f8'
+  mapRenderer.c.style.borderRadius = '20px'
+  mapRenderer.c.style.display = 'none'
+  const rsz = () => {
+    var rect = renderer.c.getBoundingClientRect()
+    var w = rect.height/3
+    mapRenderer.c.style.width = w + 'px'
+    mapRenderer.c.style.height = w * (4/3) + 'px'
+    mapRenderer.c.style.left = (rect.left + rect.width - 10 - w/2) + 'px'
+    mapRenderer.c.style.top = (rect.top + 10 + w*(4/3)/2) + 'px'
+  }
+  window.addEventListener('resize', rsz)
+  rsz()
+  
   var preloadedAssets = [], launch
   var assetsPreloaded = true
   var splashGraphic
@@ -78,6 +100,7 @@
     var tempCtx = canvasTexture.getContext('2d')
     canvasTexture.width = 2e3
     canvasTexture.height = 400
+    var mapShape, mapSubshape, mapShader, mapUvs, mapLines
 
     var wrapVertical
     var rotationMode = 3
@@ -136,7 +159,7 @@
       ]
       floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
       
-      if(drawClouds){
+      if(1|drawClouds){
         var shaderOptions = [
           {lighting: {type: 'ambientLight', value: .25}},
           { uniform: {
@@ -161,6 +184,8 @@
         } },
       ]
       backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      mapShader = await Coordinates.BasicShader(mapRenderer, shaderOptions)
+      
 
       var shaderOptions = [
         {lighting: {type: 'ambientLight', value: 1.25}},
@@ -331,7 +356,65 @@
     
     var fcl, frw, fbr, fsp
 
+    const loadMap = async map => {
+      var geoOptions = {
+        shapeType: 'rectangle',
+        map,
+        name: 'map shape',
+        size: 2.25,
+        scaleX: 16/9,
+        scaleY: -1,
+        y: 4.7,
+        subs: 0,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
+        mapShape = geometry
+        await mapShader.ConnectGeometry(geometry)
+      })
+
+      var geoOptions = {
+        shapeType: 'rectangle',
+        name: 'map subshape',
+        map,
+        size: 10,
+        scaleX: 16/9,
+        scaleY: -1,
+        y: -4.7 / 1.33,
+        z: .01,
+        subs: 0,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
+        mapSubshape = geometry
+        mapUvs = structuredClone(geometry.uvs)
+        await mapShader.ConnectGeometry(geometry)
+      })
+
+      var geometryData = [
+        [-6, 0, 0],[6, 0, 0],
+        [0, -3.4, 0],[0, 3.4, 0],
+      ]
+
+      var geoOptions = {
+        shapeType: 'lines',
+        name: 'map coordinates',
+        size: 3,
+        alpha: .85, 
+        penumbra: .5,
+        color: 0xff0000,
+        z: -.1,
+        y: 4.7,
+        geometryData
+      }
+      await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
+        mapLines = geometry
+      })
+    }
+
+
     const loadLevel = async lvl => {
+      levelLoaded = false
       var blankTileURLBase, blankTileURLMap, blankTileColorMix, blankTileColor
       var blankTileFreq, blankTileScaleUVX, blankTileScaleUVY
       
@@ -344,9 +427,9 @@
           splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
           refTexture = 'https://srmcgann.github.io/Coordinates/resources/skymaze_po2.jpg'
           wrapVertical = false
-          fcl = 5
+          fcl = 1
           frw = 1
-          fbr = 5
+          fbr = 1
           fsp = 4990 * 2
           tiles.push({
             Name: 'blankTile',
@@ -419,6 +502,8 @@
           })
         break
         case 1:
+          var mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
+          await loadMap(mapTexture)
           splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1cbqzr.jpeg'
           refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
           fcl = 5
@@ -845,7 +930,7 @@
                 var geoOptions = {
                   shapeType: tile.ShapeType,
                   name: tile.Name + lod,
-                  url: `${tile.URLBase}${lod}.${tile.FileExt}?4`,
+                  url: `${tile.URLBase}${lod}.${tile.FileExt}?1`,
                   map: tile.URLMap,
                   equirectangular: tile.Equirectangular,
                   scaleUVX: tile.ScaleUVX,
@@ -866,7 +951,7 @@
                 }
                 await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
                   var shape = {}
-                  //setTimeout(()=>{geometry.rebindTextures = true},1000)
+                  setTimeout(()=>{geometry.rebindTextures = true},1000)
                   shape.name = tile.Name
                   shape.LowpolySuffix = tile.LowpolySuffix
                   var tVerts = structuredClone(geometry.vertices)
@@ -884,7 +969,9 @@
                     floorTiles.push(nShape)
                   }
                   if(floorTiles.length == ttlTiles * 20) {
+                    //setTimeout(()=>{ loadLevel((level++%levels)+1) }, 10000)
                     levelLoaded = true
+                    mapRenderer.c.style.display = 'block'
                     floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => {
                       return j == centris ? 0 : Rn() * floorTiles.length | 0
                     })
@@ -918,18 +1005,18 @@
       })
     }
     
-    var level = 4
+    var level = 1
+    var levels = 5
     var levelLoaded = false
     loadLevel(level)
     
     var powerupShapes = []
-    var testCube
     // supplemental stuff
     switch(level){
       case 1:
         var geoOptions = {
           shapeType: 'sprite',
-          map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
+          map: 'https://srmcgann.github.io/Coordinates/resources/stars/star6.png',
           size: 75,
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -951,7 +1038,7 @@
     }
     
     // 'clouds' tile
-    if(drawClouds) for(var k = 2; k--;) {
+    if(1||drawClouds) for(var k = 2; k--;) {
       var colorMix = 0, color, flipNormals = false
       switch(k){
         case 0: lod = lowpolySuffix; break
@@ -1187,7 +1274,7 @@
     }
     
     var jetRv = .005
-    var jetMv = 5
+    var jetMv = 25
     var keys = Array(256).fill(false)
     var accel = false
     
@@ -1302,8 +1389,8 @@
     }
     
     var maxRotationv = .1
-    var maxSpeedv = 2
-    var maxSpeed = 500
+    var maxSpeedv = 200
+    var maxSpeed = 5000
     var minSpeed = 25
     const doKeys = () => {
       accel = false
@@ -1365,10 +1452,64 @@
         renderer.yaw = 0
         drawProgress(prog)
       }else{
+        
         var t = renderer.t
-        //renderer.yaw += .001
-        //renderer.z = Math.min(70, Math.max(32, (.3+C(t))*150))
-        //renderer.pitch = Math.min(.5, Math.max(.1,-(-.3+C(t))*1))
+      
+        if(typeof mapShape?.vertices != 'undefined'){
+          //mapShape.yaw = t
+          //mapShape.pitch = -t*2
+          mapRenderer.z = 20
+          mapRenderer.Draw(mapShape)
+          for(var i = 0; i < mapSubshape.uvs.length; i+=2){
+            var uvx = mapUvs[i+0]
+            var uvy = mapUvs[i+1]
+            
+            uvx += renderer.x / 820000
+            uvy -= renderer.z / 820000
+            
+            mapSubshape.uvs[i+0] = uvx
+            mapSubshape.uvs[i+1] = uvy
+          }
+          mapRenderer.Draw(mapSubshape)
+          
+          for(var i = 0; i < mapLines.vertices.length; i += 6){
+            var x1 = mapLines.vertices[i+0]
+            var y1 = mapLines.vertices[i+1]
+            var z1 = mapLines.vertices[i+2]
+            var x2 = mapLines.vertices[i+3]
+            var y2 = mapLines.vertices[i+4]
+            var z2 = mapLines.vertices[i+5]
+            switch(i/6 | 0){
+              case 0: // horizontal
+                var l = 6.55
+                y1 = renderer.z / 1e6 * 8
+                while(y1 > l/2) y1 -= l
+                while(y1 < -l/2) y1 += l
+                y2 = renderer.z / 1e6 * 8
+                while(y2 > l/2) y2 -= l
+                while(y2 < -l/2) y2 += l
+              break
+              case 1: // vertical
+                var l = 6.55*(16/9)
+                x1 = renderer.x / 1e6 * 8 * (16/9) * 2
+                while(x1 > l/2) x1 -= l
+                while(x1 < -l/2) x1 += l
+                x2 = renderer.x / 1e6 * 8 * (16/9) * 2
+                while(x2 > l/2) x2 -= l
+                while(x2 < -l/2) x2 += l
+              break
+            }
+            mapLines.vertices[i+0] = x1
+            mapLines.vertices[i+1] = y1
+            mapLines.vertices[i+3] = x2
+            mapLines.vertices[i+4] = y2
+          }
+          
+          mapRenderer.Draw(mapLines)
+          //renderer.yaw += .001
+          //renderer.z = Math.min(70, Math.max(32, (.3+C(t))*150))
+          //renderer.pitch = Math.min(.5, Math.max(.1,-(-.3+C(t))*1))
+        }
         
         doKeys()
         jets[camSel].pitch /= 1.01
@@ -1605,7 +1746,7 @@
         }
       }
     }
-  }    
+  }
 </script>
 
   </body>
