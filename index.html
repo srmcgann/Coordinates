@@ -4,6 +4,7 @@
  ✔ fix smoke particles (sorting)
  ✔ floor collisions
  ✔ levels
+ *  moving clouds
  *  map
  *  map-regions with load-screen & new terrain @ entry
  *  more terrain sets for levels
@@ -22,6 +23,27 @@
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
+        font-family: monospace;
+      }
+      .tools{
+        display: inline-block;
+        text-align: center;
+        z-index: 100;
+        display: none;
+      }
+      
+      .toggleToolsButton{
+        z-index: 100;
+        position: absolute;
+        display: none;
+        max-width: 150px;
+        width: calc(100% - 10px);
+        background: rgb(136,255,136);
+        border-radius: 5px;
+        border: 0;
+        margin: 5px;
+        font-weight: 900;
+        line-height: 16px;
       }
     </style>
   </head>
@@ -30,7 +52,7 @@
 
   import * as Coordinates from 
   //"./coordinates.js"
-  "https://boss.veriler.com/coordinates.js"
+  "https://boss.veriler.com/coordinates.js?2"
 
   var rendererOptions = {
     fov: 1000/1, margin: 0,
@@ -46,17 +68,80 @@
   }
   var mapRenderer = await Coordinates.Renderer(rendererOptions)
   mapRenderer.c.style.background = 'transparent'
-  mapRenderer.c.style.position = 'absolute'
-  mapRenderer.c.style.border = '4px solid #40f8'
-  mapRenderer.c.style.borderRadius = '20px'
-  mapRenderer.c.style.display = 'none'
+  mapRenderer.c.style.position = 'relative'
+  mapRenderer.c.style.borderRadius = '10px'
+  mapRenderer.c.style.borderBottomRightRadius = '0px'
+  mapRenderer.c.style.borderBottomLeftRadius = '0px'
+  
+  var tools = document.createElement('div')
+  tools.style.background = '#0008'
+  tools.style.position = 'absolute'
+  tools.style.border = '5px solid #40f8'
+  tools.style.borderRadius = '16px'
+  //tools.style.display = 'none'
+  tools.className = 'tools'
+  document.body.appendChild(tools)
+  tools.appendChild(mapRenderer.c.parentNode.removeChild(mapRenderer.c))
+  
+  var showTools = true, showMap = true
+  const toggleToolsVisibility = () => {
+    console.log('toggling tools visibility')
+    showTools = !showTools
+    if(showTools){
+      tools.style.display = 'inline-block'
+      toggleToolsButton.innerHTML = 'hide tools [t]'
+      tools.appendChild(toggleToolsButton.parentNode.removeChild(toggleToolsButton))
+    }else{
+      tools.style.display = 'none'
+      toggleToolsButton.innerHTML = 'show tools [t]'
+      document.body.appendChild(toggleToolsButton.parentNode.removeChild(toggleToolsButton))
+    }
+    reconfigToolToggleButton()
+  }
+  
+  var toggleToolsButton = document.createElement('button')
+  toggleToolsButton.className = 'toggleToolsButton'
+  toggleToolsButton.onclick = () => toggleToolsVisibility()
+  
+  const reconfigToolToggleButton = () => {
+    if(showTools){
+      toggleToolsButton.innerHTML = 'hide tools [t]'
+      tools.appendChild(toggleToolsButton)
+      toggleToolsButton.style.left = 0 + 'px'
+      toggleToolsButton.style.right = 'unset'
+      toggleToolsButton.style.top = 0 + 'px'
+      toggleToolsButton.style.position = 'static'
+      toggleToolsButton.style.maxWidth = '1000px'
+    }else{
+      var rect = renderer.c.getBoundingClientRect()
+      var w = rect.height/3
+      var lf = window.innerWidth - rect.width - rect.left
+      var tp = rect.top
+      toggleToolsButton.innerHTML = 'show tools [t]'
+      document.body.appendChild(toggleToolsButton)
+      toggleToolsButton.style.left = 'unset'
+      toggleToolsButton.style.right = lf + 'px'
+      toggleToolsButton.style.top = tp + 0 + 'px'
+      toggleToolsButton.style.position = 'absolute'
+      toggleToolsButton.style.maxWidth = '120px'
+    }
+  }
+  reconfigToolToggleButton()
+  
   const rsz = () => {
     var rect = renderer.c.getBoundingClientRect()
     var w = rect.height/3
     mapRenderer.c.style.width = w + 'px'
     mapRenderer.c.style.height = w * (4/3) + 'px'
-    mapRenderer.c.style.left = (rect.left + rect.width - 10 - w/2) + 'px'
-    mapRenderer.c.style.top = (rect.top + 10 + w*(4/3)/2) + 'px'
+    mapRenderer.c.style.left = w/2 + 'px'
+    mapRenderer.c.style.top = (w*4/3/2) + 'px'
+    tools.style.width = w + 'px'
+    tools.style.height = w * (4/3) + 40 + 'px'
+    var lf = (rect.left + rect.width - 20 - w)
+    var tp = (rect.top + 10)
+    tools.style.left = lf + 'px'
+    tools.style.top = tp + 'px'
+    reconfigToolToggleButton()
   }
   window.addEventListener('resize', rsz)
   rsz()
@@ -117,7 +202,7 @@
 
     Coordinates.AnimationLoop(renderer, 'Draw')
     var shader, progressShader, floorShader, flameShader, cloudShader, backgroundShader
-    var drawClouds = false, drawSmoke = true
+    var drawClouds = false, drawSmoke = false
 
     const loadShaders = async () => {
       var shaderOptions = [
@@ -218,7 +303,7 @@
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         jetShapes[jetType] = geometry
         shader.ConnectGeometry(geometry)
-      })  
+      })
     }
 
     const drawProgress = prog => {
@@ -344,8 +429,9 @@
     
     var floorShapeMed, floorVerticesMed, floorNormalsMed
     var floorShapeLow, floorVerticesLow, floorNormalsLow
-    var powerupShape
-    var floorScaleY = 150, cloudScaleY = 150
+    var powerupShape,  planeIconShape
+
+    var floorScaleY = 150, cloudScaleY = 225
     var lod, floorOffset = -1e3
     var hipolySuffix = '_hipoly'
     var lowpolySuffix = '_lowpoly'
@@ -410,6 +496,21 @@
       await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
         mapLines = geometry
       })
+
+      var geoOptions = {
+        shapeType: 'sprite',
+        z: 0,
+        y: 0,
+        subs: 3,
+        map: 'https://boss.veriler.com/assets/uploads/1Wf623.png',
+        color: 0xffffff,
+        colorMix: .001,
+        size: 3,
+      }
+      await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
+        planeIconShape = geometry
+        await mapShader.ConnectGeometry(geometry)
+      })  
     }
 
 
@@ -506,9 +607,9 @@
           await loadMap(mapTexture)
           splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1cbqzr.jpeg'
           refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
-          fcl = 5
+          fcl = 3
           frw = 1
-          fbr = 5
+          fbr = 3
           fsp = 4990 * 2
           wrapVertical = false
           tiles.push({
@@ -605,6 +706,8 @@
           })
         break
         case 2:
+          var mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
+          await loadMap(mapTexture)
           splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
           refTexture = baseRefTexture
           fcl = 4
@@ -947,11 +1050,11 @@
                   y: floorOffset,
                   color: tile.Color,
                   colorMix: tile.ColorMix,
-                  rebindTextures: true,
+                  //rebindTextures: true,
                 }
                 await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
                   var shape = {}
-                  setTimeout(()=>{geometry.rebindTextures = true},1000)
+                  //setTimeout(()=>{geometry.rebindTextures = true},1000)
                   shape.name = tile.Name
                   shape.LowpolySuffix = tile.LowpolySuffix
                   var tVerts = structuredClone(geometry.vertices)
@@ -971,7 +1074,11 @@
                   if(floorTiles.length == ttlTiles * 20) {
                     //setTimeout(()=>{ loadLevel((level++%levels)+1) }, 10000)
                     levelLoaded = true
-                    mapRenderer.c.style.display = 'block'
+                    if(showTools) {
+                      tools.style.display = 'inline-block'
+                    } else {
+                      toggleToolsButton.style.display = 'inline-block'
+                    }
                     floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => {
                       return j == centris ? 0 : Rn() * floorTiles.length | 0
                     })
@@ -1054,10 +1161,10 @@
         //averageNormals: true,
         //precomputeNormalAssocs: true,
         //downloadShape: true,
-        scaleX: 100,
+        scaleX: 150,
         scaleY: cloudScaleY,
-        scaleZ: 100,
-        y: 800,
+        scaleZ: 150,
+        y: 1e3,
         color: 0xffaacc,
         colorMix: .5,
       }
@@ -1274,12 +1381,18 @@
     }
     
     var jetRv = .005
-    var jetMv = 25
+    var jetMv = 1
     var keys = Array(256).fill(false)
     var accel = false
     
     window.onkeydown = e => {
+      console.log(e.keyCode)
       keys[e.keyCode] = true
+      switch(e.keyCode){
+        case 84:
+          toggleToolsVisibility()
+        break
+      }
     }
     
     window.onkeyup = e => {
@@ -1388,10 +1501,10 @@
       })
     }
     
-    var maxRotationv = .1
-    var maxSpeedv = 200
-    var maxSpeed = 5000
-    var minSpeed = 25
+    var maxRotationv = .2
+    var maxSpeedv = 16
+    var maxSpeed = 300
+    var minSpeed = 10
     const doKeys = () => {
       accel = false
       keys.map((v, idx) => {
@@ -1455,69 +1568,71 @@
         
         var t = renderer.t
       
-        if(typeof mapShape?.vertices != 'undefined'){
-          //mapShape.yaw = t
-          //mapShape.pitch = -t*2
-          mapRenderer.z = 20
-          mapRenderer.Draw(mapShape)
-          for(var i = 0; i < mapSubshape.uvs.length; i+=2){
-            var uvx = mapUvs[i+0]
-            var uvy = mapUvs[i+1]
-            
-            uvx += renderer.x / 820000
-            uvy -= renderer.z / 820000
-            
-            mapSubshape.uvs[i+0] = uvx
-            mapSubshape.uvs[i+1] = uvy
-          }
-          mapRenderer.Draw(mapSubshape)
-          
-          for(var i = 0; i < mapLines.vertices.length; i += 6){
-            var x1 = mapLines.vertices[i+0]
-            var y1 = mapLines.vertices[i+1]
-            var z1 = mapLines.vertices[i+2]
-            var x2 = mapLines.vertices[i+3]
-            var y2 = mapLines.vertices[i+4]
-            var z2 = mapLines.vertices[i+5]
-            switch(i/6 | 0){
-              case 0: // horizontal
-                var l = 6.55
-                y1 = renderer.z / 1e6 * 8
-                while(y1 > l/2) y1 -= l
-                while(y1 < -l/2) y1 += l
-                y2 = renderer.z / 1e6 * 8
-                while(y2 > l/2) y2 -= l
-                while(y2 < -l/2) y2 += l
-              break
-              case 1: // vertical
-                var l = 6.55*(16/9)
-                x1 = renderer.x / 1e6 * 8 * (16/9) * 2
-                while(x1 > l/2) x1 -= l
-                while(x1 < -l/2) x1 += l
-                x2 = renderer.x / 1e6 * 8 * (16/9) * 2
-                while(x2 > l/2) x2 -= l
-                while(x2 < -l/2) x2 += l
-              break
+        if(showTools){
+          if(showMap && typeof mapShape?.vertices != 'undefined'){
+            //mapShape.yaw = t
+            //mapShape.pitch = -t*2
+            mapRenderer.z = 20
+            //mapRenderer.Draw(mapShape)
+            for(var i = 0; i < mapSubshape.uvs.length; i+=2){
+              var uvx = mapUvs[i+0]
+              var uvy = mapUvs[i+1]
+              
+              uvx += renderer.x / 820000
+              uvy -= renderer.z / 820000
+              
+              mapSubshape.uvs[i+0] = uvx
+              mapSubshape.uvs[i+1] = uvy
             }
-            mapLines.vertices[i+0] = x1
-            mapLines.vertices[i+1] = y1
-            mapLines.vertices[i+3] = x2
-            mapLines.vertices[i+4] = y2
+            //mapRenderer.Draw(mapSubshape)
+            mapRenderer.Draw(planeIconShape)
+            
+            for(var i = 0; i < mapLines.vertices.length; i += 6){
+              var x1 = mapLines.vertices[i+0]
+              var y1 = mapLines.vertices[i+1]
+              var z1 = mapLines.vertices[i+2]
+              var x2 = mapLines.vertices[i+3]
+              var y2 = mapLines.vertices[i+4]
+              var z2 = mapLines.vertices[i+5]
+              switch(i/6 | 0){
+                case 0: // horizontal
+                  var l = 6.55
+                  y1 = renderer.z / 1e6 * 8
+                  while(y1 > l/2) y1 -= l
+                  while(y1 < -l/2) y1 += l
+                  y2 = renderer.z / 1e6 * 8
+                  while(y2 > l/2) y2 -= l
+                  while(y2 < -l/2) y2 += l
+                break
+                case 1: // vertical
+                  var l = 6.55 * (16/9)
+                  x1 = renderer.x / 1e6 * 8 * (16/9)
+                  while(x1 > l/2) x1 -= l
+                  while(x1 < -l/2) x1 += l
+                  x2 = renderer.x / 1e6 * 8 * (16/9)
+                  while(x2 > l/2) x2 -= l
+                  while(x2 < -l/2) x2 += l
+                break
+              }
+              mapLines.vertices[i+0] = x1
+              mapLines.vertices[i+1] = y1
+              mapLines.vertices[i+3] = x2
+              mapLines.vertices[i+4] = y2
+            }
+            
+            //mapRenderer.Draw(mapLines)
+            //renderer.yaw += .001
+            //renderer.z = Math.min(70, Math.max(32, (.3+C(t))*150))
+            //renderer.pitch = Math.min(.5, Math.max(.1,-(-.3+C(t))*1))
           }
-          
-          mapRenderer.Draw(mapLines)
-          //renderer.yaw += .001
-          //renderer.z = Math.min(70, Math.max(32, (.3+C(t))*150))
-          //renderer.pitch = Math.min(.5, Math.max(.1,-(-.3+C(t))*1))
         }
-        
         doKeys()
         jets[camSel].pitch /= 1.01
         jets[camSel].roll   = -jets[camSel].yawv * 16
         jets[camSel].yaw    += jets[camSel].yawv
         jets[camSel].pitch  += jets[camSel].pitchv
-        jets[camSel].yawv   /= 1.04
-        jets[camSel].pitchv /= 1.04
+        jets[camSel].yawv   /= 1.066
+        jets[camSel].pitchv /= 1.066
         
         
         jets[camSel].speed += jets[camSel].speedv
@@ -1619,7 +1734,7 @@
           thrusterShape.yaw   = (jet.shape.yaw   = jet.yaw) + Math.PI
           
           renderer.Draw(jet.shape)
-          if(accel) renderer.Draw(thrusterShape)
+          //if(accel) renderer.Draw(thrusterShape)
         })
         if(accel) update(thrusterShape, false)
        
@@ -1639,11 +1754,13 @@
         var p1 = jets[camSel].yaw, shp
         //var floorShape = floorShapeLow
         //var floorVertices = floorVerticesLow
+        var cloudTx, cloudTy, cloudTz, tx, ty, tz, flid
+        var cloudSpeed = 2e3
         Array(fcl*frw*fbr).fill().map((v, j)=>{
-          var tx = ((j%fcl)-fcl/2 + .5) * fsp
-          var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
-          var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
-          var flid = j%2 //(j+(j/fcl/frw|0))%2
+          cloudTx = tx = ((j%fcl)-fcl/2 + .5) * fsp
+          cloudTy = ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
+          cloudTz = tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
+          flid = j%2 //(j+(j/fcl/frw|0))%2
           //var floorVertices = tx||tz ? floorVerticesLow : floorVerticesMed
           while(-renderer.x - tx > fsp*fcl/2) tx += fsp*fcl
           while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
@@ -1661,13 +1778,28 @@
              floorIdentitiesMemo[j][2] = tz
              floorIdentities[j] = Rn() * floorTiles.length | 0
           }
-          var d = Math.hypot(-renderer.x - tx, -renderer.y - ty, -renderer.z - tz)
-          var lod = d >= fsp * 1.5 ? lowpolySuffix : hipolySuffix
           if(drawClouds && flid && floorTiles[floorIdentities[j]].name == 'blankTile'){ // flid is checkerboard xor
+            cloudTx += -fsp * fcl / 2 + ((t*cloudSpeed/2)%(fsp*fcl))
+            //cloudTy = ty
+            cloudTz += - fsp * fbr / 2 + ((t*cloudSpeed)%(fsp*fbr))
+
+            while(-renderer.x - cloudTx > fsp*fcl/2) cloudTx += fsp*fcl
+            while(-renderer.x - cloudTx < -fsp*fcl/2) cloudTx -= fsp*fcl
+            if(wrapVertical){
+              while(-renderer.y - cloudTy > fsp*frw/2) cloudTy += fsp*frw
+              while(-renderer.y - cloudTy < -fsp*frw/2) cloudTy -= fsp*frw
+            }
+            while(-renderer.z - cloudTz > fsp*fbr/2) cloudTz += fsp*fbr
+            while(-renderer.z - cloudTz < -fsp*fbr/2) cloudTz -= fsp*fbr
+            // add altitude to clouds
+            cloudTy += 5e3
+            var d = Math.hypot(-renderer.x - cloudTx, -renderer.y - cloudTy, -renderer.z - cloudTz)
+            var lod = d >= fsp * 1.5 ? lowpolySuffix : hipolySuffix
+
             shp = clouds.filter(v=>v.geometry.name == 'clouds' + lod)[0]
-            shp.geometry.x = tx
-            shp.geometry.y = ty
-            shp.geometry.z = tz
+            shp.geometry.x = cloudTx
+            shp.geometry.y = cloudTy
+            shp.geometry.z = cloudTz
             renderer.Draw(shp.geometry)
           }
           lod = d >= fsp * 1.5 ? floorTiles[floorIdentities[j]].LowpolySuffix :
