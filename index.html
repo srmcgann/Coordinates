@@ -148,7 +148,7 @@
   
   var preloadedAssets = [], launch
   var assetsPreloaded = true
-  var splashGraphic
+  var splashGraphic, hasPowerupTiles
   const preLoadAssets = async () => {
     var loadedCt = 0
     var assets = [
@@ -202,7 +202,7 @@
 
     Coordinates.AnimationLoop(renderer, 'Draw')
     var shader, progressShader, floorShader, flameShader, cloudShader, backgroundShader
-    var drawClouds = false, drawSmoke = false
+    var drawClouds = true, drawSmoke = true
 
     const loadShaders = async () => {
       var shaderOptions = [
@@ -237,8 +237,8 @@
         } },
         { uniform: {
           type: 'reflection',
-          value: .1,
-          enabled: true,
+          value: .25,
+          enabled: false,
           map: refTexture,
         } },
       ]
@@ -254,7 +254,7 @@
           { uniform: {
             type: 'reflection',
             value: .2,
-            enabled: true,
+            enabled: false,
             map: refTexture,
           } },
         ]
@@ -516,6 +516,7 @@
 
     const loadLevel = async lvl => {
       levelLoaded = false
+      hasPowerupTiles = false
       var blankTileURLBase, blankTileURLMap, blankTileColorMix, blankTileColor
       var blankTileFreq, blankTileScaleUVX, blankTileScaleUVY
       
@@ -603,13 +604,13 @@
           })
         break
         case 1:
+          refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
           var mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
           await loadMap(mapTexture)
           splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1cbqzr.jpeg'
-          refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
-          fcl = 3
+          fcl = 5
           frw = 1
-          fbr = 3
+          fbr = 5
           fsp = 4990 * 2
           wrapVertical = false
           tiles.push({
@@ -619,6 +620,29 @@
             ShapeType: 'obj',
             FileExt: 'obj',
             Freq: fcl*2,
+            Equirectangular: false,
+            ScaleX: 100,
+            ScaleY: 1,
+            ScaleZ: 100,
+            ScaleUVX: 1,
+            ScaleUVY: 1,
+            Color: 0xffffff,
+            ColorMix: 0,
+            LowpolySuffix: lowpolySuffix,
+            HipolySuffix: hipolySuffix,
+            objX: 0, objY: 0, objZ: 0,
+            objRoll: 0, objPitch: 0, objYaw: 0,
+            randomRoll: false,
+            randomPitch: false,
+            randomYaw: false,
+          })
+          tiles.push({
+            Name: 'blankTile2',
+            URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+            URLMap: 'https://boss.veriler.com/assets/uploads/22bL60.jpeg',
+            ShapeType: 'obj',
+            FileExt: 'obj',
+            Freq: fcl*4,
             Equirectangular: false,
             ScaleX: 100,
             ScaleY: 1,
@@ -786,6 +810,8 @@
           })
         break
         case 3:
+          var mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
+          await loadMap(mapTexture)
           splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xmQSr.jpeg'
           refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
           fcl = 5
@@ -887,6 +913,8 @@
           })
         break
         case 4:
+          var mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
+          await loadMap(mapTexture)
           splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
           refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/maze_bold_red.jpg'
           fcl = 5
@@ -965,6 +993,8 @@
           })
         break
         case 5:
+          var mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
+          await loadMap(mapTexture)
           splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
           refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/maze_bold_red.jpg'
           fcl = 5
@@ -1033,7 +1063,7 @@
                 var geoOptions = {
                   shapeType: tile.ShapeType,
                   name: tile.Name + lod,
-                  url: `${tile.URLBase}${lod}.${tile.FileExt}?1`,
+                  url: `${tile.URLBase}${lod}.${tile.FileExt}?2`,
                   map: tile.URLMap,
                   equirectangular: tile.Equirectangular,
                   scaleUVX: tile.ScaleUVX,
@@ -1052,9 +1082,10 @@
                   colorMix: tile.ColorMix,
                   //rebindTextures: true,
                 }
+                if(tile.Name == 'powerupTile') hasPowerupTiles = true
                 await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
                   var shape = {}
-                  //setTimeout(()=>{geometry.rebindTextures = true},1000)
+                  //setTimeout(()=>{geometry.rebindTextures = true}, 3000)
                   shape.name = tile.Name
                   shape.LowpolySuffix = tile.LowpolySuffix
                   var tVerts = structuredClone(geometry.vertices)
@@ -1076,9 +1107,8 @@
                     levelLoaded = true
                     if(showTools) {
                       tools.style.display = 'inline-block'
-                    } else {
-                      toggleToolsButton.style.display = 'inline-block'
                     }
+                    toggleToolsButton.style.display = 'inline-block'
                     floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => {
                       return j == centris ? 0 : Rn() * floorTiles.length | 0
                     })
@@ -1573,7 +1603,7 @@
             //mapShape.yaw = t
             //mapShape.pitch = -t*2
             mapRenderer.z = 20
-            //mapRenderer.Draw(mapShape)
+            mapRenderer.Draw(mapShape)
             for(var i = 0; i < mapSubshape.uvs.length; i+=2){
               var uvx = mapUvs[i+0]
               var uvy = mapUvs[i+1]
@@ -1584,7 +1614,7 @@
               mapSubshape.uvs[i+0] = uvx
               mapSubshape.uvs[i+1] = uvy
             }
-            //mapRenderer.Draw(mapSubshape)
+            mapRenderer.Draw(mapSubshape)
             mapRenderer.Draw(planeIconShape)
             
             for(var i = 0; i < mapLines.vertices.length; i += 6){
@@ -1620,7 +1650,7 @@
               mapLines.vertices[i+4] = y2
             }
             
-            //mapRenderer.Draw(mapLines)
+            mapRenderer.Draw(mapLines)
             //renderer.yaw += .001
             //renderer.z = Math.min(70, Math.max(32, (.3+C(t))*150))
             //renderer.pitch = Math.min(.5, Math.max(.1,-(-.3+C(t))*1))
@@ -1734,7 +1764,7 @@
           thrusterShape.yaw   = (jet.shape.yaw   = jet.yaw) + Math.PI
           
           renderer.Draw(jet.shape)
-          //if(accel) renderer.Draw(thrusterShape)
+          if(accel) renderer.Draw(thrusterShape)
         })
         if(accel) update(thrusterShape, false)
        
@@ -1818,7 +1848,7 @@
             shp.geometry.yaw = shp.yaw
             renderer.Draw(shp.geometry)
             
-            if(shp.name == 'powerupTile'){
+            if(hasPowerupTiles && shp.name == 'powerupTile'){
               powerupShape.x = shp.geometry.x
               powerupShape.y = shp.geometry.y + 5e3
               powerupShape.z = shp.geometry.z
