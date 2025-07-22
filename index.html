@@ -202,7 +202,7 @@
 
     Coordinates.AnimationLoop(renderer, 'Draw')
     var shader, progressShader, floorShader, flameShader, cloudShader, backgroundShader
-    var drawClouds = true, drawSmoke = true
+    var drawClouds = false, drawSmoke = true
 
     const loadShaders = async () => {
       var shaderOptions = [
@@ -608,18 +608,21 @@
           var mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
           await loadMap(mapTexture)
           splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1cbqzr.jpeg'
-          fcl = 5
+          fcl = 4
           frw = 1
-          fbr = 5
+          fbr = 4
           fsp = 4990 * 2
           wrapVertical = false
           tiles.push({
-            Name: 'blankTile',
+            Name: 'blankTile2',
             URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
-            URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
+            URLMap: 'https://boss.veriler.com/assets/uploads/1p8Usg.jpeg',
+            URLHeightMap: 'https://boss.veriler.com/assets/uploads/1zRsMJ.jpeg',
+            HeightmapIntensity: 1e3,
+            MaxHeightMap: 1e3,
             ShapeType: 'obj',
             FileExt: 'obj',
-            Freq: fcl*2,
+            Freq: fcl*4,
             Equirectangular: false,
             ScaleX: 100,
             ScaleY: 1,
@@ -636,13 +639,14 @@
             randomPitch: false,
             randomYaw: false,
           })
+          /*
           tiles.push({
-            Name: 'blankTile2',
+            Name: 'blankTile',
             URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
-            URLMap: 'https://boss.veriler.com/assets/uploads/22bL60.jpeg',
+            URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
             ShapeType: 'obj',
             FileExt: 'obj',
-            Freq: fcl*4,
+            Freq: fcl/2,
             Equirectangular: false,
             ScaleX: 100,
             ScaleY: 1,
@@ -728,6 +732,7 @@
             randomPitch: false,
             randomYaw: false,
           })
+          */
         break
         case 2:
           var mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
@@ -1078,6 +1083,9 @@
                   objY: tile.objY,
                   objZ: tile.objZ,
                   y: floorOffset,
+                  heightmap: tile.URLHeightMap,
+                  heightmapIntensity: tile.HeightmapIntensity,
+                  maxHeightmap: tile.MaxHeightmap,
                   color: tile.Color,
                   colorMix: tile.ColorMix,
                   //rebindTextures: true,
