@@ -6589,6 +6589,7 @@ export {
   IsPowerOf2,
   RGBToHSV,
   HSVToHex,
+  HSVFromRGB,
   HexFromHSV,
   HSVToRGB,
   RGBFromHSV,
