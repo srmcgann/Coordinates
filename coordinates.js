@@ -56,12 +56,16 @@ const Renderer = async options => {
      }
   }
   
-  var alphaQueue = []
-  var particleQueue = []
-  var lineQueue = []
-  var pointLights = []
-  var pointLightCols = []
+  var alphaQueue      = []
+  var particleQueue   = []
+  var lineQueue       = []
+  var pointLights     = []
+  var pointLightCols  = []
   var optionalPlugins = []
+  var dataArray       = {
+    data: [],
+    items: [],
+  }
   
   if(typeof options != 'undefined'){
     Object.keys(options).forEach((key, idx) =>{
@@ -104,6 +108,7 @@ const Renderer = async options => {
         case 'cameramode': cameraMode = options[key]; break
         case 'ambientlight': ambientLight = options[key]; break
         case 'showcrosshair': showCrosshair = !!options[key]; break
+        case 'dataarray': dataArray = options[key]; break
         case 'crosshairsel': crosshairSel = options[key]; break
         case 'crosshairmap': crosshairMap = options[key]; break
         case 'context':
@@ -170,7 +175,7 @@ const Renderer = async options => {
     width, height, x, y, z,
     roll, pitch, yaw, fov,
     ready: false, ambientLight,
-    pointLights, pointLightCols,
+    pointLights, pointLightCols, dataArray,
     alphaQueue, particleQueue, lineQueue, active,
     cameraMode, showCrosshair, crosshairSel,
     crosshairMap, pageX, pageY, mouseX, mouseY,
@@ -6540,6 +6545,112 @@ const getParams = ctx => {
   document.body.appendChild(popup)
 }
 
+
+const ShapeArray = {
+  push: async (renderer, shape) => {
+    console.log('push')
+    //for(var i = 0; i < renderer.shapeArray.data.length; i+=3){
+    //}
+    renderer.dataArray.items.push(shape)
+  },
+  pop: async (renderer, shape) => {
+    console.log('pop')
+  },
+  insert: async (renderer, shape) => {
+    console.log('insert')
+  },
+  slice: async (renderer, shape) => {
+    console.log('slice')
+  },
+  test: (renderer, ar, dataTexture, dtwidth, dtheight) => {
+    var margin = 1
+    var tx, ty, width = (ar.length ** .5) |0, p, ct = 0, tx2, ty2
+    var owidth = width
+    width += margin
+    tx = dtwidth  / 2
+    ty = dtheight / 2
+    var clear = false, ax, ay, pip
+    if(renderer.dataArray.items.length){
+      clear = false
+      do{
+        var d = Math.hypot(dtwidth, dtheight)
+        for(var j = 0; !clear && j<d; j += width* 1|0){
+          var sd = 3
+          for(var i = sd; !clear && i--;){
+            if(!clear){
+              tx2 = (tx + S(p=Math.PI*2/sd * i + ct/3 + renderer.t * 16) * j - width / 2) | 0
+              ty2 = (ty + C(p) * j / (16/9) - width / 2)  | 0
+              if(tx2 >= 0 && tx2 + width < dtwidth && ty2 >= 0 && ty2 + width < dtheight){
+                var poly1 = [
+                  [tx2, ty2],
+                  [tx2 + width, ty2],
+                  [tx2 + width, ty2 + width],
+                  [tx2, ty2 + width],
+                ]
+                pip = false
+                renderer.dataArray.items.forEach((item, idx) => {
+                  if(!pip){
+                    var poly2 = [
+                      [item.posx, item.posy],
+                      [item.posx + item.width, item.posy],
+                      [item.posx + item.width, item.posy + item.width],
+                      [item.posx, item.posy + item.width],
+                    ]
+                    poly1.forEach(vert => {
+                      if(PointInPoly2D(vert[0], vert[1], poly2)) pip = true
+                    })
+                    poly2.forEach(vert => {
+                      if(PointInPoly2D(vert[0], vert[1], poly1)) pip = true
+                    })
+                  }
+                })
+                if(!pip && !clear){
+                  clear = true, ax = tx2, ay = ty2
+                }
+              }
+            }
+          }
+          ct++
+        }
+      }while(ct < 1e4 && !clear);
+    }else{
+      clear = true
+      ax = tx | 0, ay = ty | 0
+    }
+    renderer.dataArray.items.push({
+      array: ar,
+      posx: ax,
+      posy: ay,
+      width: width
+    })
+    ar.forEach((v, i) =>{
+      var x = ax + i%owidth
+      var y = ay + i/owidth | 0
+      var j = (x + (y * dtwidth) | 0) * 4 | 0
+      dataTexture[j + 0] = v[0] | 0
+      dataTexture[j + 1] = v[1] | 0
+      dataTexture[j + 2] = v[2] | 0
+      dataTexture[j + 3] = 255
+        
+    })
+    var envWidth = 0
+    var envHeight = 0
+    var maxx = -6e6
+    var maxy = -6e6
+    var minx = 6e6
+    var miny = 6e6
+    renderer.dataArray.items.forEach((v, i) => {
+      if(v.posx < minx) minx = v.posx
+      if(v.posx > maxx) maxx = v.posx
+      if(v.posy < miny) miny = v.posy
+      if(v.posy > maxy) maxy = v.posy
+    })
+    envWidth = maxx //minx + (maxx - minx)
+    envHeight = maxy //miny + (maxy - miny)
+    return [envWidth, envHeight]
+  },
+}
+
 const GenHash = data => Hash.GenHash(data)
 
 var Overlay        // for sketch-up, e.g. shape-bounding graphics
@@ -6565,6 +6676,7 @@ export {
   Icosahedron,
   Dodecahedron,
   Cylinder,
+  ShapeArray,
   Torus,
   DownloadCustomShape,
   LoadAnimationFromZip,
