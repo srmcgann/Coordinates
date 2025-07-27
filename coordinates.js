@@ -1611,7 +1611,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'dynamic':
         shape = await GeometryFromRaw(geometryData, texCoords,
-            size, subs, sphereize, flipNormals,
+            size, subs+1, sphereize, flipNormals,
             !!geometryData.filter(v=>v.length==4).length,
             shapeType)
         shape.geometry.map(v => {
@@ -4488,7 +4488,7 @@ const GeometryFromRaw = (raw, texCoords, size, subs,
       Y = q[1] *= size
       Z = q[2] *= size
     })
-    if(quads){
+    if(quads || v.verts.length == 4){
       a.push(v.verts[0],v.verts[1],v.verts[2],
                  v.verts[2],v.verts[3],v.verts[0])
       if(typeof v.uvs != 'undefined' && v.uvs.length)

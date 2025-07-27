@@ -4,6 +4,7 @@
  ✔ fix smoke particles (sorting)
  ✔ floor collisions
  ✔ levels
+ *  method for auto-organizing, adding/removing arbitrary models into single shape
  *  moving clouds
  *  map
  *  map-regions with load-screen & new terrain @ entry
@@ -49,2193 +50,2323 @@
     </style>
   </head>
   <body>
-<script type="module">
+    <script type="module">
 
-  import * as Coordinates from 
-  //"./coordinates.js"
-  "https://boss.veriler.com/coordinates.js?2"
+      import * as Coordinates from 
+      "https://boss.veriler.com/coordinates.js?2"
+      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
 
-  var rendererOptions = {
-    fov: 1000/1, margin: 0,
-    //width: 960, height: 540,
-    width: 1920, height: 1080,
-  }
-  var renderer = await Coordinates.Renderer(rendererOptions)
-  
-  var rendererOptions = {
-    fov: 1000, margin: 0,
-    //width: 960, height: 540,
-    width: 300, height: 400,
-  }
-  var mapRenderer = await Coordinates.Renderer(rendererOptions)
-  mapRenderer.c.style.background = 'transparent'
-  mapRenderer.c.style.position = 'relative'
-  mapRenderer.c.style.borderRadius = '10px'
-  mapRenderer.c.style.borderBottomRightRadius = '0px'
-  mapRenderer.c.style.borderBottomLeftRadius = '0px'
-  
-  var tools = document.createElement('div')
-  tools.style.background = '#0008'
-  tools.style.position = 'absolute'
-  tools.style.border = '5px solid #40f8'
-  tools.style.borderRadius = '16px'
-  //tools.style.display = 'none'
-  tools.className = 'tools'
-  document.body.appendChild(tools)
-  tools.appendChild(mapRenderer.c.parentNode.removeChild(mapRenderer.c))
-  
-  var showTools = true, showMap = true
-  const toggleToolsVisibility = () => {
-    console.log('toggling tools visibility')
-    showTools = !showTools
-    if(showTools){
-      tools.style.display = 'inline-block'
-      toggleToolsButton.innerHTML = 'hide tools [t]'
-      tools.appendChild(toggleToolsButton.parentNode.removeChild(toggleToolsButton))
-    }else{
-      tools.style.display = 'none'
-      toggleToolsButton.innerHTML = 'show tools [t]'
-      document.body.appendChild(toggleToolsButton.parentNode.removeChild(toggleToolsButton))
-    }
-    reconfigToolToggleButton()
-  }
-  
-  var toggleToolsButton = document.createElement('button')
-  toggleToolsButton.className = 'toggleToolsButton'
-  toggleToolsButton.onclick = () => toggleToolsVisibility()
-  
-  const reconfigToolToggleButton = () => {
-    if(showTools){
-      toggleToolsButton.innerHTML = 'hide tools [t]'
-      tools.appendChild(toggleToolsButton)
-      toggleToolsButton.style.left = 0 + 'px'
-      toggleToolsButton.style.right = 'unset'
-      toggleToolsButton.style.top = 0 + 'px'
-      toggleToolsButton.style.position = 'static'
-      toggleToolsButton.style.maxWidth = '1000px'
-    }else{
-      var rect = renderer.c.getBoundingClientRect()
-      var w = rect.height/3
-      var lf = window.innerWidth - rect.width - rect.left
-      var tp = rect.top
-      toggleToolsButton.innerHTML = 'show tools [t]'
-      document.body.appendChild(toggleToolsButton)
-      toggleToolsButton.style.left = 'unset'
-      toggleToolsButton.style.right = lf + 'px'
-      toggleToolsButton.style.top = tp + 0 + 'px'
-      toggleToolsButton.style.position = 'absolute'
-      toggleToolsButton.style.maxWidth = '120px'
-    }
-  }
-  reconfigToolToggleButton()
-  
-  const rsz = () => {
-    var rect = renderer.c.getBoundingClientRect()
-    var w = rect.height/3
-    mapRenderer.c.style.width = w + 'px'
-    mapRenderer.c.style.height = w * (4/3) + 'px'
-    mapRenderer.c.style.left = w/2 + 'px'
-    mapRenderer.c.style.top = (w*4/3/2) + 'px'
-    tools.style.width = w + 'px'
-    tools.style.height = w * (4/3) + 40 + 'px'
-    var lf = (rect.left + rect.width - 20 - w)
-    var tp = (rect.top + 10)
-    tools.style.left = lf + 'px'
-    tools.style.top = tp + 'px'
-    reconfigToolToggleButton()
-  }
-  window.addEventListener('resize', rsz)
-  rsz()
-  
-  var preloadedAssets = [], launch
-  var assetsPreloaded = true
-  var splashGraphic, hasPowerupTiles
-  const preLoadAssets = async () => {
-    var loadedCt = 0
-    var assets = [
-      {
-        url: 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg',
-        type: 'image',
-      },
-    ]
-    assets.forEach(asset => {
-      switch(asset.type){
-        case 'image':
-          var terrainImg = new Image()
-          terrainImg.onload = () => {
-            loadedCt++
-            if(loadedCt == assets.length) assetsPreloaded = true
-          }
-          terrainImg.src = asset.url
-          preloadedAssets.push(terrainImg)
-        break
+      var rendererOptions = {
+        fov: 1000/1, margin: 0,
+        //width: 960, height: 540,
+        width: 1920, height: 1080,
       }
-    })
-  }
-  
-  preLoadAssets()
-  setTimeout(()=>{ launch() }, 0)
-  launch = async () => {
-    var S = Math.sin
-    var C = Math.cos
-    var Rn = Math.random
-    var x, y, z, p, d, ox, oy, oz, dx, dy, dz, q
-    var prog = 0, lsm
-    
-    var canvasTexture = document.createElement('canvas')
-    var tempCtx = canvasTexture.getContext('2d')
-    canvasTexture.width = 2e3
-    canvasTexture.height = 400
-    var mapShape, mapSubshape, mapShader, mapUvs, mapLines
-
-    var wrapVertical, mapTileData, mapTileDataCenters
-    var mapTileLines, mapTileDataSquare, mapTexture
-    var rotationMode = 3
-    
-    
-    var scratch    = document.createElement('canvas')
-    var scratchData, terrainImg, isVideo = false
-    var sctx = scratch.getContext('2d', {willReadFrequently: true,
-                                         imageSmoothingEnabled: false,
-                                         antialiasing: false})
-    var outputTiles, preCols = []
-    var mapTileLines, mapTileSquares
-    var mapTileDataCenters = []
-    var mapTileData = [], curIdents
-    var mapTileDataSquare = []
-
-
-    const preAnalyzeMap = async (textureURL, tileNumber = 4) => {
-      curIdents = Array(fcl*frw*fbr).fill().map((v, i) => -1)
-      preCols = Array(tileNumber).fill().map((v, i) => 360 / tileNumber * i + 360/tileNumber/2)
-      await fetch(textureURL).then(res=>res.blob()).then(res => {
-        if(isVideo){
-          terrainImg = document.createElement('video')
-          terrainImg.muted = true
-          terrainImg.autoplay = true
-          terrainImg.loop = true
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      var rendererOptions = {
+        fov: 1000, margin: 0,
+        //width: 960, height: 540,
+        width: 300, height: 400,
+      }
+      var mapRenderer = await Coordinates.Renderer(rendererOptions)
+      mapRenderer.c.style.background = 'transparent'
+      mapRenderer.c.style.position = 'relative'
+      mapRenderer.c.style.borderRadius = '10px'
+      mapRenderer.c.style.borderBottomRightRadius = '0px'
+      mapRenderer.c.style.borderBottomLeftRadius = '0px'
+      
+      var tools = document.createElement('div')
+      tools.style.background = '#0008'
+      tools.style.position = 'absolute'
+      tools.style.border = '5px solid #40f8'
+      tools.style.borderRadius = '16px'
+      //tools.style.display = 'none'
+      tools.className = 'tools'
+      document.body.appendChild(tools)
+      tools.appendChild(mapRenderer.c.parentNode.removeChild(mapRenderer.c))
+      
+      var showTools = true, showMap = true
+      const toggleToolsVisibility = () => {
+        console.log('toggling tools visibility')
+        showTools = !showTools
+        if(showTools){
+          tools.style.display = 'inline-block'
+          toggleToolsButton.innerHTML = 'hide tools [t]'
+          tools.appendChild(toggleToolsButton.parentNode.removeChild(toggleToolsButton))
         }else{
-          terrainImg = new Image()
+          tools.style.display = 'none'
+          toggleToolsButton.innerHTML = 'show tools [t]'
+          document.body.appendChild(toggleToolsButton.parentNode.removeChild(toggleToolsButton))
         }
-        terrainImg.src = URL.createObjectURL(res)
-        terrainImg[isVideo ? 'oncanplay' : 'onload'] = async () => {
-          if(isVideo) {
-            terrainImg.play()
-            terrainImg.defaultPlaybackRate = terrainImg.playbackRate = .5
-          }
-          scratch.width  = 1920 / 2
-          scratch.height = 1080 / 2
-          outputTiles = Array(scratch.width * scratch.height).fill()
-          sctx.drawImage(terrainImg, 0, 0, scratch.width, scratch.height)
-          var data = sctx.getImageData(0,0,scratch.width,scratch.height)
-          var l = data.data
-          scratchData = l
-          await loadMap(textureURL)
-        }
-      })
-    }
-    
-    const analyzeMap = (posx, posy, process=true) => {
-      if(typeof terrainImg == 'undefined') return
-      //sctx.drawImage(terrainImg, 0, 0, scratch.width, scratch.height)
-      //var data = sctx.getImageData(0,0,scratch.width,scratch.height)
-      //var l = data.data
-      //scratchData = l
-      if(!mapSubshape?.uvs) return false
-      for(var i = 0; i < mapSubshape.uvs.length; i+=2){
-        var uvx = mapUvs[i+0]
-        var uvy = mapUvs[i+1]
-        
-        uvx += posx
-        uvy -= posy
-        
-        mapSubshape.uvs[i+0] = uvx
-        mapSubshape.uvs[i+1] = uvy
+        reconfigToolToggleButton()
       }
       
-      posx -= .5
-      posy -= .5
-
-      var adj = 1.6 / 20
-      Array(fcl*frw*fbr).fill().map((v, j) => {
-        var tx = ((j%fcl) - fcl/2 + .5) * fsp
-        var ty = (((j/fcl|0)%frw)) * fsp
-        var tz = ((j/fcl/frw|0) - fbr/2 + .5) * fsp
-        while(-posx * (16/9) * adj - tx > fsp*fcl/2) tx += fsp*fcl
-        while(-posx * (16/9) * adj - tx < -fsp*fcl/2) tx -= fsp*fcl
-        while(-posy * adj - tz > fsp*fbr/2) tz += fsp*fbr
-        while(-posy * adj - tz < -fsp*fbr/2) tz -= fsp*fbr
-        var tx_ = tx / fsp
-        var ty_ = ty / fsp
-        var tz_ = tz / fsp
-        
-        var nx = (tx + posx*0 * adj * (16/9)) / fsp * lsm
-        var ny = -((tz + posy*0 * adj) /fsp * lsm) - 3.45
-        /*
-        mapTileLines.x = nx
-        mapTileLines.y = ny
-        mapTileLines.z = -.01
-        */
-        mapTileSquares.x = nx
-        mapTileSquares.y = ny
-        mapTileSquares.z = -.005
-        
-        var px = tx_  * lsm * 4 + posx * scratch.width
-        var py = tz_ * lsm * 4 - posy * scratch.height
-        while(px < 0) px += scratch.width
-        while(py < 0) py += scratch.height
-        while(px >= scratch.width) px -= scratch.width
-        while(py >= scratch.height) py -= scratch.height
-        
-        var lidx = (px + ((py|0) * scratch.width) | 0) * 4
-        var red   = scratchData[lidx + 0]
-        var green = scratchData[lidx + 1]
-        var blue  = scratchData[lidx + 2]
-        
-        //renderer.Draw(mapTileLines)
-        var hsv = Coordinates.RGBToHSV(red, green, blue)
-        var col, mind = 6e6, d
-        preCols.forEach(v => {
-          if((d=Math.abs(hsv[0] - v, hsv[1] - .5, hsv[2] - .5)) < mind){
-            mind = d
-            col = v
+      var toggleToolsButton = document.createElement('button')
+      toggleToolsButton.className = 'toggleToolsButton'
+      toggleToolsButton.onclick = () => toggleToolsVisibility()
+      
+      const reconfigToolToggleButton = () => {
+        if(showTools){
+          toggleToolsButton.innerHTML = 'hide tools [t]'
+          tools.appendChild(toggleToolsButton)
+          toggleToolsButton.style.left = 0 + 'px'
+          toggleToolsButton.style.right = 'unset'
+          toggleToolsButton.style.top = 0 + 'px'
+          toggleToolsButton.style.position = 'static'
+          toggleToolsButton.style.maxWidth = '1000px'
+        }else{
+          var rect = renderer.c.getBoundingClientRect()
+          var w = rect.height/3
+          var lf = window.innerWidth - rect.width - rect.left
+          var tp = rect.top
+          toggleToolsButton.innerHTML = 'show tools [t]'
+          document.body.appendChild(toggleToolsButton)
+          toggleToolsButton.style.left = 'unset'
+          toggleToolsButton.style.right = lf + 'px'
+          toggleToolsButton.style.top = tp + 0 + 'px'
+          toggleToolsButton.style.position = 'absolute'
+          toggleToolsButton.style.maxWidth = '120px'
+        }
+      }
+      reconfigToolToggleButton()
+      
+      const rsz = () => {
+        var rect = renderer.c.getBoundingClientRect()
+        var w = rect.height/3
+        mapRenderer.c.style.width = w + 'px'
+        mapRenderer.c.style.height = w * (4/3) + 'px'
+        mapRenderer.c.style.left = w/2 + 'px'
+        mapRenderer.c.style.top = (w*4/3/2) + 'px'
+        tools.style.width = w + 'px'
+        tools.style.height = w * (4/3) + 40 + 'px'
+        var lf = (rect.left + rect.width - 20 - w)
+        var tp = (rect.top + 10)
+        tools.style.left = lf + 'px'
+        tools.style.top = tp + 'px'
+        reconfigToolToggleButton()
+      }
+      window.addEventListener('resize', rsz)
+      rsz()
+      
+      var preloadedAssets = [], launch
+      var assetsPreloaded = true
+      var splashGraphic, hasPowerupTiles
+      const preLoadAssets = async () => {
+        var loadedCt = 0
+        var assets = [
+          {
+            url: 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg',
+            type: 'image',
+          },
+        ]
+        assets.forEach(asset => {
+          switch(asset.type){
+            case 'image':
+              var terrainImg = new Image()
+              terrainImg.onload = () => {
+                loadedCt++
+                if(loadedCt == assets.length) assetsPreloaded = true
+              }
+              terrainImg.src = asset.url
+              preloadedAssets.push(terrainImg)
+            break
           }
         })
-        mapTileSquares.color = Coordinates.HSVToHex(col, 1,1)
-        curIdents[j] = (col / 360 * preCols.length - .5) |0
-        mapRenderer.Draw(mapTileSquares)
-      })
-      return true
-    }
-    
-      
-    //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/volcanoes_lowres'
-    //var refTexture = 'https://i.imgur.com/OGWRF63.mp4'
-    //var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
-
-    var baseRefTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2_lowres.jpg'
-    var refTexture = baseRefTexture
-    var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2.png'
-    var playbackSpeed = 1
-
-
-    Coordinates.AnimationLoop(renderer, 'Draw')
-    var shader, progressShader, floorShader, flameShader, cloudShader, backgroundShader
-    var drawClouds = true, drawSmoke = true
-
-    const loadShaders = async () => {
-      var shaderOptions = [
-        {lighting: {type: 'ambientLight', value: .2}},
-        { uniform: {
-          type: 'phong',
-          value: .5
-        } },
-        { uniform: {
-          type: 'reflection',
-          value: .25,
-          enabled: true,
-          map: refTexture,
-        } },
-      ]
-      shader = await Coordinates.BasicShader(renderer, shaderOptions)
-      
-      var shaderOptions = [
-        {lighting: {type: 'ambientLight', value: .6}},
-        { uniform: {
-          type: 'phong',
-          value: 0
-        } }
-      ]
-      progressShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var shaderOptions = [
-        {lighting: {type: 'ambientLight', value: .75}},
-        { uniform: {
-          type: 'phong',
-          value: .25
-        } },
-        { uniform: {
-          type: 'reflection',
-          value: .25,
-          enabled: false,
-          map: refTexture,
-        } },
-      ]
-      floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
-      
-      if(1|drawClouds){
-        var shaderOptions = [
-          {lighting: {type: 'ambientLight', value: .25}},
-          { uniform: {
-            type: 'phong',
-            value: .4
-          } },
-          { uniform: {
-            type: 'reflection',
-            value: .2,
-            enabled: true,
-            map: refTexture,
-          } },
-        ]
-        cloudShader = await Coordinates.BasicShader(renderer, shaderOptions)
-      }
-
-      var shaderOptions = [
-        {lighting: {type: 'ambientLight', value: 1.1}},
-        { uniform: {
-          type: 'phong',
-          value: 0
-        } },
-      ]
-      backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
-      mapShader = await Coordinates.BasicShader(mapRenderer, shaderOptions)
-      
-
-      var shaderOptions = [
-        {lighting: {type: 'ambientLight', value: 1.25}},
-        { uniform: {
-          type: 'phong',
-          value: 0
-        } },
-      ]
-      flameShader = await Coordinates.BasicShader(renderer, shaderOptions)
-    }
-    
-    await loadShaders()
-    
-
-    lsm = 1.5
-    Array(4).fill().map((v, i) => {
-      var p, x, y, z
-      p = Math.PI * 2 / 4 * i + Math.PI / 4
-      x = S(p) * 2**.5/2 * lsm
-      y = C(p) * 2**.5/2 * lsm
-      z = 0
-      mapTileDataSquare.push([x, y, z])
-      p = Math.PI * 2 / 4 * (i + 1) + Math.PI / 4
-      x = S(p) * 2**.5/2 * lsm
-      y = C(p) * 2**.5/2 * lsm
-      z = 0
-      mapTileDataSquare.push([x, y, z])
-    })
-    
-    var geoOptions = {
-      shapeType: 'lines',
-      name: 'map tiles',
-      color: 0x00ff44,
-      geometryData: mapTileDataSquare,
-      //alpha: 1,
-      penumbra: 0,
-      size: 2,
-    }
-    await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
-      mapTileLines = geometry
-    })
-    
-    mapTileDataSquare = []
-    Array(4).fill().map((v, i) => {
-      var p, x, y, z
-      p = Math.PI * 2 / 4 * i + Math.PI / 4
-      x = S(p) * 2**.5/2 * lsm / 1.1
-      y = C(p) * 2**.5/2 * lsm / 1.1
-      z = 0
-      mapTileDataSquare.push([x, y, z])
-      //p = Math.PI * 2 / 4 * (i + 1) + Math.PI / 4
-      //x = S(p) * 2**.5/2 * lsm / 1.1
-      //y = C(p) * 2**.5/2 * lsm / 1.1
-      //z = 0
-      //mapTileDataSquare.push([x, y, z])
-    })
-    
-    var geoOptions = {
-      shapeType: 'dynamic',
-      name: 'map tiles',
-      color: 0x00ff44,
-      subs: 0,
-      colorMix: .75,
-      geometryData: [mapTileDataSquare],
-      //alpha: 1,
-      y: 4.7,
-      penumbra: 0,
-    }
-    await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
-      mapTileSquares = geometry
-      await mapShader.ConnectGeometry(geometry)
-    })
-
-    var backgroundShape
-    var jetShapes = [], jetType
-    for(var i = 0; i < 3; i++){
-      switch(i){
-        case 0: jetType = '_neutral'; break
-        case 1: jetType = '_enemy'; break
-        case 2: jetType = '_ally'; break
-      }
-      var geoOptions = {
-        shapeType: 'obj',
-        name: `jet${jetType}`,
-        url: `https://srmcgann.github.io/objs/jet/jet_lowpoly.obj?${i}`,
-        map: `https://srmcgann.github.io/objs/jet/jet${jetType}.png`,
-        rotationMode,
-        colorMix: 0,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        jetShapes[jetType] = geometry
-        shader.ConnectGeometry(geometry)
-      })
-    }
-
-    const drawProgress = prog => {
-      var fs, t = renderer.t, sp = 1
-      tempCtx.clearRect(0,0,canvasTexture.width, canvasTexture.height)
-      tempCtx.fillStyle = '#fff'
-      tempCtx.font = (fs = 200) + 'px monospace'
-      tempCtx.strokeStyle = '#0208'
-      tempCtx.lineWidth = 16
-      var str = `loading [${prog}%]` + ('.').repeat((t*16|0)%6)
-      tempCtx.fillText(str, 10, fs)
-      tempCtx.strokeText(str, 10, fs)
-
-      if(typeof loadingSplash?.vertices != 'undefined') renderer.Draw(loadingSplash)
-      for(var i=0; i<prog/2|0; i++){
-        progressIndicator.x = (-15 + 50/40*i/2) * sp
-        renderer.Draw(progressIndicator)
-      }
-      renderer.Draw(textBox)
-    }
-    var progressIndicator, textBox, loadingSplash
-    var geoOptions = {
-      shapeType: 'rectangle',
-      name: 'progress indicator',
-      size: .5,
-      scaleY: 10,
-      color: 0x00ff44,
-      colorMix: .5,
-    }
-    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      progressIndicator = geometry
-      await progressShader.ConnectGeometry(geometry)
-    })
-    
-    
-    var geoOptions = {
-      shapeType: 'sprite',
-      name: 'text box',
-      //pitch: Math.PI,
-      canvasTexture,
-      map: '',
-      size: 2,
-      scaleX: 5,
-      scaleY: -1,
-      color: 0x111111,
-      y: 5,
-      canvasTextureMix: 1,
-    }
-    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      textBox = geometry
-      await progressShader.ConnectGeometry(geometry)
-    })
-    
-    var iPc = 1e3
-    var G = 2e4
-    var particlesShape
-    var centris
-    
-    var geometryData = Array(iPc).fill().map(v=>{
-      x = (Rn() - .5) * G
-      y = (Rn() - .5) * G
-      z = (Rn() - .5) * G
-      return [x, y, z]
-    })
-    var geoOptions = {
-      shapeType: 'particles',
-      geometryData,
-      name: 'particles',
-      rotationMode,
-      size:renderer.fov / 6,
-      color: 0xffffff,
-      alpha: .5,
-      penumbra: .5,
-    }
-    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      particlesShape = geometry
-    })  
-    
-    
-    var iSmokec = 3e3
-    var smokeParticles
-    var geometryData = Array(iSmokec).fill().map(v=>{
-      x = 1e8
-      y = 0
-      z = 0
-      return [x, y, z]
-    })
-    var geoOptions = {
-      shapeType: 'particles',
-      geometryData,
-      name: 'smoke particles',
-      rotationMode,
-      size:renderer.fov / 60,
-      color: 0xffaa66,
-      alpha: .5,
-      penumbra: .5,
-    }
-    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      smokeParticles = geometry
-    })  
-    
-    var iSplosionc = 2e3
-    var splosionParticles, splosionParticleSize =renderer.fov / 6
-    var geometryData = Array(iSplosionc).fill().map(v=>{
-      x = 1e8
-      y = 0
-      z = 0
-      return [x, y, z]
-    })
-    var geoOptions = {
-      shapeType: 'particles',
-      geometryData,
-      name: 'splosion particles',
-      rotationMode,
-      size: splosionParticleSize,
-      color: 0xff8822,
-      alpha: .75,
-      penumbra: .25,
-    }
-    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      splosionParticles = geometry
-    })
-    
-    var floorShapeMed, floorVerticesMed, floorNormalsMed
-    var floorShapeLow, floorVerticesLow, floorNormalsLow
-    var powerupShape,  planeIconShape
-
-    var floorScaleY = 150, cloudScaleY = 225
-    var lod, floorOffset = -1e3
-    var hipolySuffix = '_hipoly'
-    var lowpolySuffix = '_lowpoly'
-    var floorTiles = [], clouds = []
-    
-    var floorIdentities
-    var floorIdentitiesMemo
-    
-    var fcl, frw, fbr, fsp
-
-    /*const loadMap = async map => {
-      var geoOptions = {
-        shapeType: 'rectangle',
-        canvasTexture:  map,
-        size: 10,
-        subs: 4,
-        scaleX: 16/9,
-        scaleY: -1,
-        colorMix: 0,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        mapSubshape = geometry
-        mapUvs = structuredClone(geometry.uvs)
-        await shader.ConnectGeometry(geometry)
-      })
-    }*/
-
-    const loadMap = async map => {
-      var geoOptions = {
-        shapeType: 'rectangle',
-        map,
-        name: 'map shape',
-        size: 2.25,
-        scaleX: 16/9,
-        scaleY: -1,
-        y: 4.7,
-        subs: 0,
-        colorMix: 0,
-      }
-      await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
-        mapShape = geometry
-        await mapShader.ConnectGeometry(geometry)
-      })
-
-      var geoOptions = {
-        shapeType: 'rectangle',
-        name: 'map subshape',
-        map,
-        size: 10,
-        scaleX: 16/9,
-        scaleY: -1,
-        y: -4.7 / 1.33,
-        z: .01,
-        subs: 0,
-        colorMix: 0,
-      }
-      await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
-        mapSubshape = geometry
-        mapUvs = structuredClone(geometry.uvs)
-        await mapShader.ConnectGeometry(geometry)
-      })
-
-      var geometryData = [
-        [-6, 0, 0],[6, 0, 0],
-        [0, -3.4, 0],[0, 3.4, 0],
-      ]
-
-      var geoOptions = {
-        shapeType: 'lines',
-        name: 'map coordinates',
-        size: 3,
-        alpha: .85, 
-        penumbra: 0,
-        color: 0xff0000,
-        z: -.1,
-        y: 4.7,
-        geometryData
-      }
-      await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
-        mapLines = geometry
-      })
-
-      var geoOptions = {
-        shapeType: 'cube',
-        z: 0,
-        y: 0,
-        x: 0,
-        //subs: 3,
-        map: 'https://boss.veriler.com/assets/uploads/1Wf623.png',
-        color: 0xffffff,
-        colorMix: .001,
-        size: 3,
-      }
-      if(0) await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
-        planeIconShape = geometry
-        await mapShader.ConnectGeometry(geometry)
-      })  
-    }
-
-
-    const loadLevel = async lvl => {
-      levelLoaded = false
-      hasPowerupTiles = false
-      var blankTileURLBase, blankTileURLMap, blankTileColorMix, blankTileColor
-      var blankTileFreq, blankTileScaleUVX, blankTileScaleUVY
-      
-      floorTiles = []
-      var tiles = []
-      
-      // floor tiles
-      switch(lvl){
-        case 0:
-          splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
-          refTexture = 'https://srmcgann.github.io/Coordinates/resources/skymaze_po2.jpg'
-          wrapVertical = false
-          fcl = 1
-          frw = 1
-          fbr = 1
-          fsp = 4990 * 2
-          tiles.push({
-            Name: 'blankTile',
-            URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
-            URLMap: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 0,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 100,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          tiles.push({
-            Name: 'shortpipe',
-            URLBase: 'https://srmcgann.github.io/Coordinates/custom shapes/shortpipe',
-            URLMap: '',
-            ShapeType: 'custom shape',
-            FileExt: 'json',
-            Equirectangular: true,
-            Freq: 4,
-            ScaleX: 780,
-            ScaleY: 780,
-            ScaleZ: 780,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffeecc,
-            ColorMix: .25,
-            LowpolySuffix: '',
-            HipolySuffix: '',
-            objX: 0, objY: 3000, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: true,
-          })
-          tiles.push({
-            Name: 'concave_floor',
-            URLBase: 'https://srmcgann.github.io/Coordinates/custom shapes/concave_floor',
-            URLMap: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
-            ShapeType: 'custom shape',
-            FileExt: 'json',
-            Equirectangular: true,
-            Freq: fcl*2,
-            ScaleX: 311.45,
-            ScaleY: 311.45,
-            ScaleZ: 311.45,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffeecc,
-            ColorMix: .25,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-        break
-        case 1:
-          refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
-          mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
-          //await loadMap(mapTexture)
-          splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1cbqzr.jpeg'
-          fcl = 5
-          frw = 1
-          fbr = 5
-          fsp = 4990 * 2
-
-          wrapVertical = false
-          /*
-          for(var m = 6; m--;) tiles.push({
-            Name: 'blankTile2' + m,
-            URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
-            //URLBase: 'https://srmcgann.github.io/objs/test_tile',
-            URLMap: 'https://boss.veriler.com/assets/uploads/1p8Usg.jpeg',
-            URLHeightMap: '', //'https://boss.veriler.com/assets/uploads/1zRsMJ.jpeg',
-            //HeightmapIntensity: 1e3,
-            //MaxHeightMap: 1e3,
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 1,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 100,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: Coordinates.HSVToHex(360-360/6*m, 1, 1),
-            ColorMix: .5,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          */
-          
-          tiles.push({
-            Name: 'blankTile',
-            URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
-            URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 1,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 100,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          if(0) tiles.push({
-            Name: 'powerupTile',
-            URLBase: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile',
-            URLMap: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 1,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 100,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          tiles.push({
-            Name: 'landscape',
-            URLBase: 'https://srmcgann.github.io/objs/landscape/floor',
-            URLMap: 'https://srmcgann.github.io/objs/landscape/landscape.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 1,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: floorScaleY,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          tiles.push({
-            Name: 'blankTile2',
-            URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
-            //URLBase: 'https://srmcgann.github.io/objs/test_tile',
-            URLMap: 'https://boss.veriler.com/assets/uploads/1p8Usg.jpeg',
-            URLHeightMap: '', //'https://boss.veriler.com/assets/uploads/1zRsMJ.jpeg',
-            HeightmapIntensity: 1e3,
-            MaxHeightMap: 1e3,
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 1,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 200,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0x4400ff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          tiles.push({
-            Name: 'mountain',
-            URLBase: 'https://srmcgann.github.io/objs/mountain/mountain',
-            URLMap: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 1,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: floorScaleY/2,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-
-        break
-        case 2:
-          mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
-          //await loadMap(mapTexture)
-          splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
-          refTexture = baseRefTexture
-          fcl = 4
-          frw = 1
-          fbr = 4
-          fsp = 4990 * 2
-          wrapVertical = false
-          tiles.push({
-            Name: 'blankTile',
-            URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
-            URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: fcl,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 1,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          tiles.push({
-            Name: 'floor2',
-            URLBase: 'https://srmcgann.github.io/objs/floor/floor',
-            URLMap: 'https://srmcgann.github.io/objs/floor/floor.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 2,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: floorScaleY * 1.5,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          tiles.push({
-            Name: 'cartoon_girl_base',
-            URLBase: 'https://srmcgann.github.io/objs/cartoon_girl/cartoon_girl_base',
-            URLMap: 'https://srmcgann.github.io/objs/cartoon_girl/cartoon_girl_grass_base_lowres.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 1,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 100,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-        break
-        case 3:
-          mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
-          //await loadMap(mapTexture)
-          splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xmQSr.jpeg'
-          refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
-          fcl = 3
-          frw = 1
-          fbr = 3
-          fsp = 4990 * 2
-          wrapVertical = false
-          tiles.push({
-            Name: 'blankTile',
-            URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
-            URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: fcl,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 1,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          tiles.push({
-            Name: 'powerupTile',
-            URLBase: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile',
-            URLMap: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 2,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 100,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          tiles.push({
-            Name: 'brownstone',
-            URLBase: 'https://srmcgann.github.io/objs/brownstone/brownstone',
-            URLMap: 'https://srmcgann.github.io/objs/brownstone/combined.jpg?3',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 2,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 100,
-            ScaleZ: -100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          tiles.push({
-            Name: 'mountain',
-            URLBase: 'https://srmcgann.github.io/objs/mountain/mountain',
-            URLMap: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 1,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: floorScaleY/2,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-        break
-        case 4:
-          mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
-          //await loadMap(mapTexture)
-          splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
-          refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/maze_bold_red.jpg'
-          fcl = 5
-          frw = 1
-          fbr = 5
-          fsp = 4990 * 2
-          wrapVertical = false
-          tiles.push({
-            Name: 'blankTile',
-            URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
-            URLMap: 'https://bosstools.mooo.com/assets/uploads/26MwH8.jpeg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: fcl,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 1,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          tiles.push({
-            Name: 'powerupTile',
-            URLBase: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile',
-            URLMap: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 2,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 100,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-          tiles.push({
-            Name: 'mountain',
-            URLBase: 'https://srmcgann.github.io/objs/mountain/mountain',
-            URLMap: 'https://bosstools.mooo.com/assets/uploads/1Uuy4X.jpeg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: 2,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: floorScaleY/2,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-        break
-        case 5:
-          mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
-          //await loadMap(mapTexture)
-          splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
-          refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/maze_bold_red.jpg'
-          fcl = 5
-          frw = 1
-          fbr = 5
-          fsp = 4990 * 2
-          wrapVertical = false
-          tiles.push({
-            Name: 'blankTile',
-            URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
-            URLMap: 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2_lowres.jpg',
-            ShapeType: 'obj',
-            FileExt: 'obj',
-            Freq: fcl*2,
-            Equirectangular: false,
-            ScaleX: 100,
-            ScaleY: 1,
-            ScaleZ: 100,
-            ScaleUVX: 1,
-            ScaleUVY: 1,
-            Color: 0xffffff,
-            ColorMix: 0,
-            LowpolySuffix: lowpolySuffix,
-            HipolySuffix: hipolySuffix,
-            objX: 0, objY: 0, objZ: 0,
-            objRoll: 0, objPitch: 0, objYaw: 0,
-            randomRoll: false,
-            randomPitch: false,
-            randomYaw: false,
-          })
-        break
       }
       
-      await loadShaders()
-      await preAnalyzeMap(mapTexture, tiles.length)
+      preLoadAssets()
+      setTimeout(()=>{ launch() }, 0)
+      launch = async () => {
+        var S = Math.sin
+        var C = Math.cos
+        var Rn = Math.random
+        var x, y, z, p, d, ox, oy, oz, dx, dy, dz, q
+        var prog = 0, lsm
+        
+        var canvasTexture = document.createElement('canvas')
+        var tempCtx = canvasTexture.getContext('2d')
+        canvasTexture.width = 2e3
+        canvasTexture.height = 400
+        var mapShape, mapSubshape, mapShader, mapUvs, mapLines
 
-      mapTileDataCenters = []
-      mapTileData = []
-      Array(fcl * frw * fbr).fill().map((v, i) => {
-        var x = ((i%fcl) -fcl/2 + .5)
-        var y = ((i/fcl/frw|0) - fbr/2 + .5)
-        var z = (((i/fcl)%frw) - frw/2 + .5)
-        mapTileData.push([x, y, z])
-      })
-      mapTileDataSquare = []
-
-      mapTileDataCenters = []
-      mapTileData = []
-      Array(fcl * frw * fbr).fill().map((v, i) => {
-        var x = ((i%fcl) -fcl/2 + .5)
-        var y = ((i/fcl/frw|0) - fbr/2 + .5)
-        var z = (((i/fcl)%frw) - frw/2 + .5)
-        mapTileData.push([x, y, z])
-      })
-      /*
-      mapTileDataSquare = []
-      Array(4).fill().map((v, i) => {
-        var p, x, y, z
-        p = Math.PI * 2 / 4 * i + Math.PI / 4
-        x = S(p) * 2**.5/2
-        y = C(p) * 2**.5/2
-        z = 0
-        mapTileDataSquare.push([x, y, z])
-        p = Math.PI * 2 / 4 * (i + 1) + Math.PI / 4
-        x = S(p) * 2**.5/2
-        y = C(p) * 2**.5/2
-        z = 0
-        mapTileDataSquare.push([x, y, z])
-      })
-      var geoOptions = {
-        shapeType: 'lines',
-        name: 'map tiles',
-        color: 0x00ff44,
-        colorMix: .5,
-        geometryData: mapTileDataSquare,
-        alpha: 1,
-        z: -2,
-        penumbra: 0,
-        size: 2,
-      }
-      await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
-        mapTileLines = geometry
-      })*/
+        var wrapVertical, mapTileData, mapTileDataCenters
+        var mapTileLines, mapTileDataSquare, mapTexture
+        var rotationMode = 3
+        
+        
+        var scratch    = document.createElement('canvas')
+        var scratchData, terrainImg, isVideo = false
+        var sctx = scratch.getContext('2d', {willReadFrequently: true,
+                                             imageSmoothingEnabled: false,
+                                             antialiasing: false})
+        var outputTiles, preCols = []
+        var mapTileLines, mapTileSquares
+        var mapTileDataCenters = []
+        var mapTileData = [], curIdents
+        var mapTileDataSquare = []
 
 
-      var geoOptions = {
-        shapeType: 'rectangle',
-        name: 'loading splash',
-        size: 10,
-        z: 50,
-        pitch: Math.PI,
-        scaleX: 16/9,
-        color: 0x000000,
-        colorMix: .25,
-        map: splashGraphic,
-      }
-      
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        loadingSplash = geometry
-        progressShader.ConnectGeometry(geometry)
-        prog = 10
-        setTimeout(async () => {
-          var ttlTiles = 0
-          tiles.forEach(v => ttlTiles+=v.Freq)
-          centris = (fbr/2 | 0) * fcl + fcl/2|0
-          
-          // tiles from config above
-          tiles.forEach(async (tile, tidx) => {
-            prog = (10 + 90/tiles.length * tidx) | 0
-            await setTimeout(async () => {
-              for(var k=2; k--;){
-                switch(k){
-                  case 0: lod = tile.LowpolySuffix; break
-                  case 1: lod = tile.HipolySuffix; break
-                }
-                var geoOptions = {
-                  shapeType: tile.ShapeType,
-                  name: tile.Name + lod,
-                  url: `${tile.URLBase}${lod}.${tile.FileExt}?2`,
-                  map: tile.URLMap,
-                  equirectangular: tile.Equirectangular,
-                  scaleUVX: tile.ScaleUVX,
-                  scaleUVY: tile.ScaleUVY,
-                  scaleX: tile.ScaleX,
-                  scaleY: tile.ScaleY,
-                  scaleZ: tile.ScaleZ,
-                  objRoll: tile.objRoll,
-                  objPitch: tile.objPitch,
-                  objYaw: tile.objYaw,
-                  objX: tile.objX,
-                  objY: tile.objY,
-                  objZ: tile.objZ,
-                  y: floorOffset,
-                  heightmap: tile.URLHeightMap,
-                  heightmapIntensity: tile.HeightmapIntensity,
-                  maxHeightmap: tile.MaxHeightmap,
-                  color: tile.Color,
-                  colorMix: tile.ColorMix,
-                  //rebindTextures: true,
-                }
-                if(tile.Name == 'powerupTile') hasPowerupTiles = true
-                await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
-                  var shape = {}
-                  //setTimeout(()=>{geometry.rebindTextures = true}, 3000)
-                  shape.name = tile.Name
-                  shape.LowpolySuffix = tile.LowpolySuffix
-                  var tVerts = structuredClone(geometry.vertices)
-                  var tNorms = structuredClone(geometry.normals)
-                  shape.HipolySuffix = tile.HipolySuffix
-                  await floorShader.ConnectGeometry(geometry)
-                  for(var m = tile.Freq * 1; m--;) {
-                    var nShape = structuredClone(shape)
-                    nShape.geometry = geometry
-                    nShape.vertices = tVerts
-                    nShape.normals = tNorms
-                    nShape.roll  = tile.randomRoll  ? Math.PI*2 / 4 * (Rn()*4|0) : 0
-                    nShape.pitch = tile.randomPitch ? Math.PI*2 / 4 * (Rn()*4|0) : 0
-                    nShape.yaw   = tile.randomYaw   ? Math.PI*2 / 4 * (Rn()*4|0) : 0
-                    floorTiles.push(nShape)
-                  }
-                  if(floorTiles.length == ttlTiles * 2) {
-                    //setTimeout(()=>{ loadLevel((level++%levels)+1) }, 10000)
-                    levelLoaded = true
-                    if(showTools) {
-                      tools.style.display = 'inline-block'
-                    }
-                    toggleToolsButton.style.display = 'inline-block'
-                    floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => 0)
-                    floorIdentitiesMemo = Array(fcl * frw * fbr).fill().map((v, j) =>{
-                      var tx = ((j%fcl)-fcl/2 + .5) * fsp
-                      var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
-                      var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
-                      return [tx, ty, tz]
-                    })
-                  }
-                })
+        const preAnalyzeMap = async (textureURL, tileNumber = 4) => {
+          curIdents = Array(fcl*frw*fbr).fill().map((v, i) => -1)
+          preCols = Array(tileNumber).fill().map((v, i) => 360 / tileNumber * i + 360/tileNumber/2)
+          await fetch(textureURL).then(res=>res.blob()).then(res => {
+            if(isVideo){
+              terrainImg = document.createElement('video')
+              terrainImg.muted = true
+              terrainImg.autoplay = true
+              terrainImg.loop = true
+            }else{
+              terrainImg = new Image()
+            }
+            terrainImg.src = URL.createObjectURL(res)
+            terrainImg[isVideo ? 'oncanplay' : 'onload'] = async () => {
+              if(isVideo) {
+                terrainImg.play()
+                terrainImg.defaultPlaybackRate = terrainImg.playbackRate = .5
               }
-            }, 500)
+              scratch.width  = 1920 / 2
+              scratch.height = 1080 / 2
+              outputTiles = Array(scratch.width * scratch.height).fill()
+              sctx.drawImage(terrainImg, 0, 0, scratch.width, scratch.height)
+              var data = sctx.getImageData(0,0,scratch.width,scratch.height)
+              var l = data.data
+              scratchData = l
+              await loadMap(textureURL)
+            }
           })
+        }
+        
+        const analyzeMap = (posx, posy, process=true) => {
+          if(typeof terrainImg == 'undefined') return
+          //sctx.drawImage(terrainImg, 0, 0, scratch.width, scratch.height)
+          //var data = sctx.getImageData(0,0,scratch.width,scratch.height)
+          //var l = data.data
+          //scratchData = l
+          if(!mapSubshape?.uvs) return false
+          for(var i = 0; i < mapSubshape.uvs.length; i+=2){
+            var uvx = mapUvs[i+0]
+            var uvy = mapUvs[i+1]
+            
+            uvx += posx
+            uvy -= posy
+            
+            mapSubshape.uvs[i+0] = uvx
+            mapSubshape.uvs[i+1] = uvy
+          }
           
-          //background
+          var ox = -posx * 240 * (3/fcl)
+          var oy = -posy * 240 * (3/fbr)
+          while(ox > lsm / 2) ox -= lsm * 1
+          while(ox < -lsm / 2) ox += lsm * 1
+          while(oy > lsm / 2) oy -= lsm * 1
+          while(oy < -lsm / 2) oy += lsm * 1
+
+          posx -= .5
+          posy -= .5
+
+          var adj = 1.6 / 20 
+          Array(fcl*frw*fbr).fill().map((v, j) => {
+            var tx = ((j%fcl) - fcl/2 + .5) * fsp
+            var ty = (((j/fcl|0)%frw)) * fsp
+            var tz = ((j/fcl/frw|0) - fbr/2 + .5) * fsp
+            
+            
+            //while(-posx * (16/9) * adj - tx > fsp*fcl/2) tx += fsp*fcl
+            //while(-posx * (16/9) * adj - tx < -fsp*fcl/2) tx -= fsp*fcl
+            //while(-posy * adj - tz > fsp*fbr/2) tz += fsp*fbr
+            //while(-posy * adj - tz < -fsp*fbr/2) tz -= fsp*fbr
+            
+            
+            var tx_ = tx / fsp
+            var ty_ = ty / fsp
+            var tz_ = tz / fsp
+            
+            
+            var nx = tx_  * lsm + ox
+            var ny = -tz_ * lsm - 3.45 + oy
+
+            /*
+            mapTileLines.x = nx
+            mapTileLines.y = ny
+            mapTileLines.z = -.01
+            */
+
+            mapTileSquares.x = nx
+            mapTileSquares.y = ny
+            mapTileSquares.z = -.005
+            
+            var px = tx_ * lsm * 4 + posx * scratch.width + ox * 4
+            var py = tz_ * lsm * 4 - posy * scratch.height - oy * 4
+            while(px < 0) px += scratch.width
+            while(py < 0) py += scratch.height
+            while(px >= scratch.width) px -= scratch.width
+            while(py >= scratch.height) py -= scratch.height
+            
+            var lidx = (px + ((py|0) * scratch.width) | 0) * 4
+            var red   = scratchData[lidx + 0]
+            var green = scratchData[lidx + 1]
+            var blue  = scratchData[lidx + 2]
+            
+            //renderer.Draw(mapTileLines)
+            var hsv = Coordinates.RGBToHSV(red, green, blue)
+            var col, mind = 6e6, d
+            preCols.forEach(v => {
+              if((d=Math.abs(hsv[0] - v, hsv[1] - .5, hsv[2] - .5)) < mind){
+                mind = d
+                col = v
+              }
+            })
+            mapTileSquares.color = Coordinates.HSVToHex(col, 1,1)
+            curIdents[j] = (col / 360 * preCols.length - .5) |0
+            mapRenderer.Draw(mapTileSquares)
+          })
+          return true
+        }
+        
+          
+        //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/volcanoes_lowres'
+        //var refTexture = 'https://i.imgur.com/OGWRF63.mp4'
+        //var refTexture = 'https://bosstools.mooo.com/assets/uploads/2ktOc0.jpeg'
+
+        var baseRefTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2_lowres.jpg'
+        var refTexture = baseRefTexture
+        var heightMap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2.png'
+        var playbackSpeed = 1
+
+
+        Coordinates.AnimationLoop(renderer, 'Draw')
+        var shader, progressShader, floorShader, flameShader, cloudShader, backgroundShader
+        var drawClouds = true, drawSmoke = true, drawAtmosphereParticles = false
+
+        const loadShaders = async () => {
+          var shaderOptions = [
+            {lighting: {type: 'ambientLight', value: .2}},
+            { uniform: {
+              type: 'phong',
+              value: .5
+            } },
+            { uniform: {
+              type: 'reflection',
+              value: .25,
+              enabled: true,
+              map: refTexture,
+            } },
+          ]
+          shader = await Coordinates.BasicShader(renderer, shaderOptions)
+          
+          var shaderOptions = [
+            {lighting: {type: 'ambientLight', value: .6}},
+            { uniform: {
+              type: 'phong',
+              value: 0
+            } }
+          ]
+          progressShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+          var shaderOptions = [
+            {lighting: {type: 'ambientLight', value: .4}},
+            { uniform: {
+              type: 'phong',
+              value: .5
+            } },
+            { uniform: {
+              type: 'reflection',
+              value: .2,
+              enabled: false,
+              map: refTexture,
+            } },
+          ]
+          floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
+          
+          if(1|drawClouds){
+            var shaderOptions = [
+              {lighting: {type: 'ambientLight', value: .25}},
+              { uniform: {
+                type: 'phong',
+                value: .4
+              } },
+              { uniform: {
+                type: 'reflection',
+                value: .2,
+                enabled: false,
+                map: refTexture,
+              } },
+            ]
+            cloudShader = await Coordinates.BasicShader(renderer, shaderOptions)
+          }
+
+          var shaderOptions = [
+            {lighting: {type: 'ambientLight', value: 1.1}},
+            { uniform: {
+              type: 'phong',
+              value: 0
+            } },
+          ]
+          backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+          mapShader = await Coordinates.BasicShader(mapRenderer, shaderOptions)
+          
+
+          var shaderOptions = [
+            {lighting: {type: 'ambientLight', value: 1.25}},
+            { uniform: {
+              type: 'phong',
+              value: 0
+            } },
+          ]
+          flameShader = await Coordinates.BasicShader(renderer, shaderOptions)
+        }
+        
+        await loadShaders()
+        
+
+        lsm = 1.5
+        Array(4).fill().map((v, i) => {
+          var p, x, y, z
+          p = Math.PI * 2 / 4 * i + Math.PI / 4
+          x = S(p) * 2**.5/2 * lsm
+          y = C(p) * 2**.5/2 * lsm
+          z = 0
+          mapTileDataSquare.push([x, y, z])
+          p = Math.PI * 2 / 4 * (i + 1) + Math.PI / 4
+          x = S(p) * 2**.5/2 * lsm
+          y = C(p) * 2**.5/2 * lsm
+          z = 0
+          mapTileDataSquare.push([x, y, z])
+        })
+        
+        var geoOptions = {
+          shapeType: 'lines',
+          name: 'map tiles',
+          color: 0x00ff44,
+          geometryData: mapTileDataSquare,
+          //alpha: 1,
+          penumbra: 0,
+          size: 2,
+        }
+        await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
+          mapTileLines = geometry
+        })
+        
+        mapTileDataSquare = []
+        Array(4).fill().map((v, i) => {
+          var p, x, y, z
+          p = Math.PI * 2 / 4 * i + Math.PI / 4
+          x = S(p) * 2**.5/2 * lsm / 1.1
+          y = C(p) * 2**.5/2 * lsm / 1.1
+          z = 0
+          mapTileDataSquare.push([x, y, z])
+          //p = Math.PI * 2 / 4 * (i + 1) + Math.PI / 4
+          //x = S(p) * 2**.5/2 * lsm / 1.1
+          //y = C(p) * 2**.5/2 * lsm / 1.1
+          //z = 0
+          //mapTileDataSquare.push([x, y, z])
+        })
+        
+        var geoOptions = {
+          shapeType: 'dynamic',
+          name: 'map tiles',
+          color: 0x00ff44,
+          subs: 0,
+          colorMix: .75,
+          geometryData: [mapTileDataSquare],
+          //alpha: 1,
+          y: 4.7,
+          penumbra: 0,
+        }
+        await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
+          mapTileSquares = geometry
+          await mapShader.ConnectGeometry(geometry)
+        })
+
+        var backgroundShape
+        var jetShapes = [], jetType
+        for(var i = 0; i < 3; i++){
+          switch(i){
+            case 0: jetType = '_neutral'; break
+            case 1: jetType = '_enemy'; break
+            case 2: jetType = '_ally'; break
+          }
           var geoOptions = {
-            shapeType: 'dodecahedron',
-            name: 'background',
+            shapeType: 'obj',
+            name: `jet${jetType}`,
+            url: `https://srmcgann.github.io/objs/jet/jet_lowpoly.obj?${i}`,
+            map: `https://srmcgann.github.io/objs/jet/jet${jetType}.png`,
             rotationMode,
-            subs: 3,
-            map: refTexture,
-            size: 1e5,
             colorMix: 0,
           }
           await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-            backgroundShape = geometry
-            await backgroundShader.ConnectGeometry(geometry)
+            jetShapes[jetType] = geometry
+            shader.ConnectGeometry(geometry)
           })
-        }, 0)
-      })
-    }
-    
-    var level = 1
-    var levels = 5
-    var levelLoaded = false
-    loadLevel(level)
-    
-    var powerupShapes = []
-    // supplemental stuff
-    switch(level){
-      case 1:
+        }
+
+        const drawProgress = prog => {
+          var fs, t = renderer.t, sp = 1
+          tempCtx.clearRect(0,0,canvasTexture.width, canvasTexture.height)
+          tempCtx.fillStyle = '#fff'
+          tempCtx.font = (fs = 200) + 'px monospace'
+          tempCtx.strokeStyle = '#0208'
+          tempCtx.lineWidth = 16
+          var str = `loading [${prog}%]` + ('.').repeat((t*16|0)%6)
+          tempCtx.fillText(str, 10, fs)
+          tempCtx.strokeText(str, 10, fs)
+
+          if(typeof loadingSplash?.vertices != 'undefined') renderer.Draw(loadingSplash)
+          for(var i=0; i<prog/2|0; i++){
+            progressIndicator.x = (-15 + 50/40*i/2) * sp
+            renderer.Draw(progressIndicator)
+          }
+          renderer.Draw(textBox)
+        }
+        var progressIndicator, textBox, loadingSplash
         var geoOptions = {
-          shapeType: 'sprite',
-          map: 'https://srmcgann.github.io/Coordinates/resources/stars/star6.png',
-          size: 75,
+          shapeType: 'rectangle',
+          name: 'progress indicator',
+          size: .5,
+          scaleY: 10,
+          color: 0x00ff44,
+          colorMix: .5,
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-          powerupShape = geometry
-          await shader.ConnectGeometry(geometry)
-        })  
-      break
-      case 4: case 5:
-        var geoOptions = {
-          shapeType: 'sprite',
-          map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
-          size: 75,
-        }
-        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-          powerupShape = geometry
-          await shader.ConnectGeometry(geometry)
-        })  
-      break
-    }
-    
-    // 'clouds' tile
-    if(1||drawClouds) for(var k = 2; k--;) {
-      var colorMix = 0, color, flipNormals = false
-      switch(k){
-        case 0: lod = lowpolySuffix; break
-        case 1: lod = hipolySuffix; break
-      }
-      var geoOptions = {
-        shapeType: 'obj',
-        name: 'clouds' + lod,
-        showNormals: false,
-        url: `https://srmcgann.github.io/objs/landscape/${'clouds' + lod}.obj`,
-        map: `https://srmcgann.github.io/objs/landscape/landscape.jpg`,
-        flipNormals,
-        //averageNormals: true,
-        //precomputeNormalAssocs: true,
-        //downloadShape: true,
-        scaleX: 150,
-        scaleY: cloudScaleY,
-        scaleZ: 150,
-        y: 1e3,
-        color: 0xffaacc,
-        colorMix: .5,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        //await Coordinates.SyncNormals(geometry, true, true)
-        var cloud = {}
-        cloud.name = 'clouds'
-        cloud.geometry = geometry
-        cloud.vertices = structuredClone(geometry.vertices)
-        cloud.normals = structuredClone(geometry.normals)
-        clouds.push(cloud)
-        //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
-        await cloudShader.ConnectGeometry(geometry)
-      })
-    }
-
-
-    var smoke = []
-    var splosions = []
-    var variation = 30
-    const spawnSmoke = (x, y, z) => {
-      var vx, vy, vz
-      x += vx = variation * (Rn() - .5)
-      y += vy = variation * (Rn() - .5)
-      z += vz = variation * (Rn() - .5)
-      smoke.push([x, y, z, 1, vx/25, vy/25, vz/25])
-      while(smoke.length > iSmokec) smoke.shift()
-    }
-    
-    var iSplosionv = 25
-    var splosions = []
-    var splosionUnits = Array(3).fill(0)
-    const spawnSplosion = (x, y, z) => {
-      var vx, vy, vz, p, q
-      var b = 0
-      splosionUnits.forEach((v, idx) => {if(!v) b=idx })
-      splosionUnits[b] = 1
-      for(var i = 750; i--;){
-        var ls = (.2 + Rn()*.8) * iSplosionv
-        vx = S(p=Math.PI * 2 * Rn()) *
-                  S(q = Rn() < .5 ? Math.PI / 2 * Rn() **.5 :
-                    Math.PI - Math.PI / 2 * Rn() **.5) * ls
-        vy = C(q) * ls
-        vz = C(p) * S(q) * ls
-        splosions.push([x, y, z, 1, vx, vy, vz, b])
-      }
-      while(splosions.length > iSplosionc) splosions.shift()
-    }
-    
-    var notRun = true, update
-    var baseVerts, baseUVs, thrusterShape
-    var geoOptions = {
-      shapeType: 'cylinder',
-      name: 'thrusters',
-      rotationMode,
-      rows: 32,
-      cols: 8,
-      equirectangular: false,
-      map: 'https://srmcgann.github.io/Coordinates/resources/flames.jpg',
-      size: .8,
-      scaleX: 1.5,
-      scaleZ: 1.5,
-      scaleY: 33,
-      colorMix: 0,
-    }
-    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-      
-      thrusterShape = geometry
-      await flameShader.ConnectGeometry(geometry)
-      
-      // grab copies of verts & uvs.
-      // verts will be duplicated, animated, and optionally normal-sync'd.
-      // uvs will be duplicated (1 thruster is copied to become 2)
-      baseVerts = await structuredClone(geometry.vertices)
-      baseUVs   = await structuredClone(geometry.uvs)
-
-
-      // re-dimension the geometry data containers. double everything
-      geometry.vertices = new Float32Array(Array(baseVerts.length*2).fill())
-      //geometry.normals = new Float32Array(Array(baseVerts.length * 4).fill())
-      //geometry.normalVecs = new Float32Array(Array(baseVerts.length*2).fill())
-      geometry.uvs = new Float32Array(Array(baseUVs.length*2).fill().map((v, i)=>{
-        return baseUVs[i%baseUVs.length]
-      }))
-
-      // double indices for the buffers which get passed to shaders
-      var nVIndices    = new Uint32Array(Array(geometry.vIndices.length*2).fill().map((v,i)=>i))
-      var nUvIndices   = new Uint32Array(Array(geometry.uvIndices.length*2).fill().map((v,i)=>i))
-      var nNIndices    = new Uint32Array(Array(geometry.nIndices.length*2).fill().map((v,i)=>i))
-      var nNVecIndices = new Uint32Array(Array(geometry.nVecIndices.length*2).fill().map((v,i)=>i))
-      geometry.vIndices    = nVIndices
-      geometry.uvIndices   = nUvIndices
-      geometry.nIndices    = nNIndices
-      geometry.nVecIndices = nNVecIndices
-
-      
-      ox = 1.36    // thruster offsets relative to jet model
-      oy = -.35
-      oz = -31.65
-      // procedural animation
-      const rotFunc = () => {
-        p = Math.atan2(y, z) + Math.PI/2
-        d = Math.hypot(y, z)
-        y = S(p) * d
-        z = C(p) * d
-        if(z < 8){
-          var intro = (-z+8) / 200
-          var outro = Math.max(1,(-z+5)**3/300)
-          p = Math.atan2(x, y)
-          d = Math.hypot(x, y)
-          dx = d + (-z+10) / 24 - ((-z+4) ** 2 / 15.425 - 1) / 6.02 +
-                    intro * (.5+C(z/2 + renderer.t*32)/2) * 32 / outro
-          dy = (d + (-z+10) / 2 - ((-z+4.66) ** 2 / 15.425 - 1)) / 3
-          dy += intro * ((1+C(z/1.5 + y*2 + renderer.t*24))*5)**2 / outro
-          x = S(p) * dx
-          y = C(p) * dy
-        }
-        z *= 2
-      }
-      
-      // update function is global scoped @ declaration above.
-      // called per frame inside main drawing loop, to animate thrusters
-      update = async (geometry, syncNormals=false) => {
-        var nVerts = new Float32Array(baseVerts.length*2)
-        for(var i = 0; i < baseVerts.length; i+=3) {
-          var l = i%baseVerts.length
-          x = baseVerts[l+0]
-          y = baseVerts[l+1]
-          z = baseVerts[l+2]
-          rotFunc()
-          nVerts[i+0] = x
-          nVerts[i+1] = y
-          nVerts[i+2] = z
-        }
-        var tNverts = structuredClone(nVerts)
-        for(var i = 0; i < geometry.vertices.length; i++){
-          var l = i%baseVerts.length, m, m2
-          m = i < baseVerts.length ? 1 : (i%3==0 ? -1 : 1)
-          m2 = i%3 == 1 && i < baseVerts.length ? -1 : 1
-          var o 
-          switch(i%3){
-            case 0: o=ox; break
-            case 1: o=oy; break
-            case 2: o=oz; break
-          }
-          nVerts[i]  = tNverts[l%baseVerts.length] * m * m2 + o * m
-        }
-        geometry.vertices = nVerts
-        for(var i = 0; i < geometry.uvs.length; i += 2){
-          geometry.uvs[i+0] -= C(renderer.t) * .025 * (8/10)
-          geometry.uvs[i+1] -= .032 * (8/10)
-        }
-        //if(syncNormals) Coordinates.SyncNormals(geometry, true, false)
-      }
-      await update(geometry, true)
-    })  
-    
-    
-    // temp camera scaffolding
-    if(0){
-      renderer.z = 15
-      renderer.x = -32
-      renderer.yaw = Math.PI/2
-    } else {
-      renderer.x = 0
-      renderer.y = -7
-      renderer.z = -60
-      renderer.yaw = 0
-      renderer.pitch = 0
-    }
-
-    if(1) Coordinates.LoadFPSControls(renderer, {
-      flyMode: true,
-      useKeys: false,
-      mSpeed: 2,
-      rSpeed: 2,
-      crosshairSel: 2,
-      crosshairSize: .5,
-    })
-    
-    var iJc = 1
-    var camSel = 0
-    var jets = Array(iJc).fill().map((jet, idx) => {
-      switch(idx%3){
-        case 0: jetType = idx%2 ? '_enemy' : '_neutral'; break
-        case 1: jetType = idx%2 ? '_enemy' : '_neutral'; break
-        case 2: jetType = '_ally'; break
-      }
-      return {
-        name: `jet ${idx+1}`,
-        shape: jetShapes['_neutral'],//jetShapes[jetType],
-        x: 0,
-        y: 3e3,
-        z: 0,
-        roll: 0,
-        pitch: 0,
-        yaw: 0,
-        rollv: 0,
-        pitchv: 0,
-        pitchv2: 0,
-        yawv: 0,
-        vx: 0,
-        vy: 0,
-        vz: 1,
-        speedv: 0,
-        speed: 0,
-        alive: true,
-      }
-    })
-    
-    const floor = (x, z) => {
-      var p = Math.atan2(x, z)
-      return Math.min(0, Math.max(-2500, C(p + Math.hypot(x, z) / 2500- renderer.t*2) * 3000))
-    }
-    
-    var jetRv = .005
-    var jetMv = 20
-    var keys = Array(256).fill(false)
-    var accel = false
-    
-    window.onkeydown = e => {
-      console.log(e.keyCode)
-      keys[e.keyCode] = true
-      switch(e.keyCode){
-        case 84:
-          toggleToolsVisibility()
-        break
-      }
-    }
-    
-    window.onkeyup = e => {
-      keys[e.keyCode] = false
-    }
-
-    const shift2DArray = (ar, dir, width) => {
-      var x1, y1, x2, y2, height = ar.length / width
-      var a = Array(ar.length).fill()
-      for(var i = 0; i < ar.length; i++){
-        x1 = x2 = i%width
-        y1 = y2 = i/width|0
-        switch(dir){
-          case 'left':  x2++; break
-          case 'up':    y2++; break
-          case 'right': x2--; break
-          case 'down':  y2--; break
-        }
-        while(x2 < 0) x2 += width
-        while(x2 >= width) x2 -= width
-        while(y2 < 0) y2 += height
-        while(y2 >= height) y2 -= height
-        a[i] = ar[y2*width + x2]
-      }
-      a.map((v, i) => ar[i] = v)
-    }
-    
-    const getCollision = (x, y, z, rad) => {
-      var fl, mind = 9e9, idx = -1, tx, ty, tz, itx, ity, itz
-      var x1, y1, z1
-      var j = centris
-      Array(fcl*frw*fbr).fill().map((v, j) => {
-        tx = ((j%fcl)-fcl/2 + .5) * fsp
-        ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
-        tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
-        while(-renderer.x - tx > fsp*fcl/2) tx += fsp*fcl
-        while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
-        if(wrapVertical){
-          while(-renderer.y - ty > fsp*frw/2) ty += fsp*frw
-          while(-renderer.y - ty < -fsp*frw/2) ty -= fsp*frw
-        }
-        while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
-        while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
-        if((d=Math.hypot(x-tx, y-ty, z-tz)) < mind){
-          idx = j
-          mind = d
-          itx = tx
-          ity = ty
-          itz = tz
-        }
-      })
-      if(floorIdentities.filter(v=>v==-1).length) return
-      var tile = floorTiles.filter(v=>
-                             v.roll== floorTiles[floorIdentities[idx]].roll &&
-                             v.pitch == floorTiles[floorIdentities[idx]].pitch &&
-                             v.yaw== floorTiles[floorIdentities[idx]].yaw &&
-                             v.geometry.name == 
-                           floorTiles[floorIdentities[idx]].name + (
-                           floorTiles[floorIdentities[idx]].name == 'blankTile' ? 
-                             v.HipolySuffix : v.HipolySuffix))[0]
-                             //v.HipolySuffix : v.LowpolySuffix))[0]
-                             
-      var verts = tile.geometry.vertices
-      var mind = 9e9
-      x -= itx
-      y -= ity
-      z -= itz
-      for(var i = 0; i < verts.length; i+=3){
-        x1 = verts[i+0]
-        y1 = verts[i+1]
-        z1 = verts[i+2]
-        if(tile.roll || tile.pitch || tile.yaw){
-          var ar = Coordinates.R(x1, y1, z1, tile)
-          x1 = ar [0]
-          y1 = ar [1]
-          z1 = ar [2]
-        }
-        if((d = Math.hypot(x-x1, (y-y1)*3, z-z1)) < mind && d < Math.max(250, rad*1.25)){
-          mind = d
-          fl = [verts[i+0]+itx, verts[i+1]+ity, verts[i+2]+itz]
-        }
-      }
-      return fl
-    }
-    
-    const respawn = camID => {
-      jets[camID].x = 0
-      jets[camID].y = 3e3
-      jets[camID].z = 0
-      jets[camID].pitch = 0
-      jets[camID].roll = 0
-      jets[camID].yaw = 0
-      jets[camID].rollv = 0
-      jets[camID].pitchv = 0
-      jets[camID].yawv = 0
-      jets[camID].speed = minSpeed
-      jets[camID].alive = true
-      
-      floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => -1)
-      floorIdentitiesMemo = Array(fcl * frw * fbr).fill().map((v, j) =>{
-        var tx = ((j%fcl)-fcl/2 + .5) * fsp
-        var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
-        var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
-        return [tx, ty, tz]
-      })
-    }
-    
-    var maxRotationv = .2
-    var maxSpeedv = 120
-    var maxSpeed = 1500
-    var minSpeed = 0
-    const doKeys = () => {
-      accel = false
-      keys.map((v, idx) => {
-        if(v){
-          switch(idx){
-            case 87:    // w
-              jets[camSel].speedv += jetMv
-              jets[camSel].speedv = Math.max(-maxSpeedv, Math.min(maxSpeedv, jets[camSel].speedv))
-              accel = true
-            break
-            case 65:    // a
-            break
-            case 83:    // s
-              jets[camSel].speedv -= jetMv * 10
-              jets[camSel].speedv = Math.max(-maxSpeedv, Math.min(maxSpeedv, jets[camSel].speedv))
-            break
-            case 68:    // d
-            break
-            case 37:    // left arrow
-              jets[camSel].yawv -= jetRv
-              jets[camSel].yawv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].yawv))
-            break
-            case 38:    // up arrow
-              jets[camSel].pitchv += jetRv / 1.25
-              jets[camSel].pitchv2 += jetRv / 1.25
-              jets[camSel].pitchv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].pitchv))
-            break
-            case 39:    // right arrow
-              jets[camSel].yawv += jetRv
-              jets[camSel].yawv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].yawv))
-            break
-            case 40:    // down arrow
-              jets[camSel].pitchv -= jetRv / 1.25
-              jets[camSel].pitchv2 -= jetRv / 1.25
-              jets[camSel].pitchv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].pitchv))
-            break
-            case 32:
-              if(!jets[camSel].alive) respawn(camSel)
-            break
-          }
-        }
-      })
-    }
-    
-    renderer.c.tabIndex = 0
-    renderer.c.focus()
-
-    renderer.z = 10
-    drawProgress(prog)
-    
-    window.Draw = () => {
-      if(!levelLoaded){
-        renderer.x = 0
-        renderer.y = 0
-        renderer.z = 10
-        renderer.roll = 0
-        renderer.pitch = 0
-        renderer.yaw = 0
-        drawProgress(prog)
-      }else{
+          progressIndicator = geometry
+          await progressShader.ConnectGeometry(geometry)
+        })
         
-        var t = renderer.t
-      
-        analyzeMap(-jets[camSel].x/820000, -jets[camSel].z/820000, !((t*60|0)%10))
-        if(showTools){
-          if(showMap && typeof mapShape?.vertices != 'undefined'){
-            //mapShape.yaw = t
-            //mapShape.pitch = -t*2
-            mapRenderer.z = 20
-            mapRenderer.Draw(mapShape)
-            /*for(var i = 0; i < mapSubshape.uvs.length; i+=2){
-              var uvx = mapUvs[i+0]
-              var uvy = mapUvs[i+1]
+        
+        var geoOptions = {
+          shapeType: 'sprite',
+          name: 'text box',
+          //pitch: Math.PI,
+          canvasTexture,
+          map: '',
+          size: 2,
+          scaleX: 5,
+          scaleY: -1,
+          color: 0x111111,
+          y: 5,
+          canvasTextureMix: 1,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          textBox = geometry
+          await progressShader.ConnectGeometry(geometry)
+        })
+        
+        var iPc = 1e3
+        var G = 2e4
+        var particlesShape
+        var centris
+        
+        var geometryData = Array(iPc).fill().map(v=>{
+          x = (Rn() - .5) * G
+          y = (Rn() - .5) * G
+          z = (Rn() - .5) * G
+          return [x, y, z]
+        })
+        var geoOptions = {
+          shapeType: 'particles',
+          geometryData,
+          name: 'particles',
+          rotationMode,
+          size:renderer.fov / 6,
+          color: 0xffffff,
+          alpha: .5,
+          penumbra: .5,
+        }
+        if(0)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          particlesShape = geometry
+        })  
+        
+        
+        var iSmokec = 8e3
+        var smokeParticles
+        var geometryData = Array(iSmokec).fill().map(v=>{
+          x = 1e8
+          y = 0
+          z = 0
+          return [x, y, z]
+        })
+        var geoOptions = {
+          shapeType: 'particles',
+          geometryData,
+          name: 'smoke particles',
+          rotationMode,
+          size:renderer.fov / 60,
+          color: 0xffaa66,
+          alpha: .5,
+          penumbra: .5,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          smokeParticles = geometry
+        })  
+        
+        var iSplosionc = 3e3
+        var splosionParticles, splosionParticleSize =renderer.fov / 6
+        var geometryData = Array(iSplosionc).fill().map(v=>{
+          x = 1e8
+          y = 0
+          z = 0
+          return [x, y, z]
+        })
+        var geoOptions = {
+          shapeType: 'particles',
+          geometryData,
+          name: 'splosion particles',
+          rotationMode,
+          size: splosionParticleSize,
+          color: 0xff8822,
+          alpha: .75,
+          penumbra: .25,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          splosionParticles = geometry
+        })
+        
+        var floorShapeMed, floorVerticesMed, floorNormalsMed
+        var floorShapeLow, floorVerticesLow, floorNormalsLow
+        var powerupShape,  planeIconShape
+
+        var floorScaleY = 150, cloudScaleY = 225
+        var lod, floorOffset = -1e3
+        var hipolySuffix = '_hipoly'
+        var lowpolySuffix = '_lowpoly'
+        var floorTiles = [], clouds = []
+        
+        var floorIdentities
+        var floorIdentitiesMemo
+        
+        var fcl, frw, fbr, fsp
+
+        /*const loadMap = async map => {
+          var geoOptions = {
+            shapeType: 'rectangle',
+            canvasTexture:  map,
+            size: 10,
+            subs: 4,
+            scaleX: 16/9,
+            scaleY: -1,
+            colorMix: 0,
+          }
+          await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+            mapSubshape = geometry
+            mapUvs = structuredClone(geometry.uvs)
+            await shader.ConnectGeometry(geometry)
+          })
+        }*/
+
+        const loadMap = async map => {
+          var geoOptions = {
+            shapeType: 'rectangle',
+            map,
+            name: 'map shape',
+            size: 2.25,
+            scaleX: 16/9,
+            scaleY: -1,
+            y: 4.7,
+            subs: 0,
+            colorMix: 0,
+          }
+          await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
+            mapShape = geometry
+            await mapShader.ConnectGeometry(geometry)
+          })
+
+          var geoOptions = {
+            shapeType: 'rectangle',
+            name: 'map subshape',
+            map,
+            size: 10,
+            scaleX: 16/9,
+            scaleY: -1,
+            y: -4.7 / 1.33,
+            z: .01,
+            subs: 0,
+            colorMix: 0,
+          }
+          await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
+            mapSubshape = geometry
+            mapUvs = structuredClone(geometry.uvs)
+            await mapShader.ConnectGeometry(geometry)
+          })
+
+          var geometryData = [
+            [-6, 0, 0],[6, 0, 0],
+            [0, -3.4, 0],[0, 3.4, 0],
+          ]
+
+          var geoOptions = {
+            shapeType: 'lines',
+            name: 'map coordinates',
+            size: 3,
+            alpha: .85, 
+            penumbra: 0,
+            color: 0xff0000,
+            z: -.1,
+            y: 4.7,
+            geometryData
+          }
+          await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
+            mapLines = geometry
+          })
+
+          var geoOptions = {
+            shapeType: 'cube',
+            z: 0,
+            y: 0,
+            x: 0,
+            //subs: 3,
+            map: 'https://boss.veriler.com/assets/uploads/1Wf623.png',
+            color: 0xffffff,
+            colorMix: .001,
+            size: 3,
+          }
+          if(0) await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
+            planeIconShape = geometry
+            await mapShader.ConnectGeometry(geometry)
+          })  
+        }
+
+
+        const loadLevel = async lvl => {
+          levelLoaded = false
+          hasPowerupTiles = false
+          var blankTileURLBase, blankTileURLMap, blankTileColorMix, blankTileColor
+          var blankTileFreq, blankTileScaleUVX, blankTileScaleUVY
+          
+          floorTiles = []
+          var tiles = []
+          
+          // floor tiles
+          switch(lvl){
+            case 0:
+              splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
+              refTexture = 'https://srmcgann.github.io/Coordinates/resources/skymaze_po2.jpg'
+              wrapVertical = false
+              fcl = 1
+              frw = 1
+              fbr = 1
+              fsp = 4990 * 2
+              tiles.push({
+                Name: 'blankTile',
+                URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+                URLMap: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 0,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 100,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'shortpipe',
+                URLBase: 'https://srmcgann.github.io/Coordinates/custom shapes/shortpipe',
+                URLMap: '',
+                ShapeType: 'custom shape',
+                FileExt: 'json',
+                Equirectangular: true,
+                Freq: 4,
+                ScaleX: 780,
+                ScaleY: 780,
+                ScaleZ: 780,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffeecc,
+                ColorMix: .25,
+                LowpolySuffix: '',
+                HipolySuffix: '',
+                objX: 0, objY: 3000, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: true,
+              })
+              tiles.push({
+                Name: 'concave_floor',
+                URLBase: 'https://srmcgann.github.io/Coordinates/custom shapes/concave_floor',
+                URLMap: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+                ShapeType: 'custom shape',
+                FileExt: 'json',
+                Equirectangular: true,
+                Freq: fcl*2,
+                ScaleX: 311.45,
+                ScaleY: 311.45,
+                ScaleZ: 311.45,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffeecc,
+                ColorMix: .25,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+            break
+            case 1:
+              refTexture = 'https://bosstools.mooo.com/assets/uploads/2cu6Qe.jpeg'
+              //'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
+              mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
+              //mapTexture = 'https://bosstools.mooo.com/assets/uploads/1O6Gej.jpeg'
+              //mapTexture = 'https://bosstools.mooo.com/assets/uploads/1fg9Gx.jpeg'
+              //await loadMap(mapTexture)
+              splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1cbqzr.jpeg'
+              fcl = 3
+              frw = 1
+              fbr = 3
+              fsp = 4990 * 2
+
+              wrapVertical = false
+              /*
+              for(var m = 6; m--;) tiles.push({
+                Name: 'blankTile2' + m,
+                URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+                //URLBase: 'https://srmcgann.github.io/objs/test_tile',
+                URLMap: 'https://boss.veriler.com/assets/uploads/1p8Usg.jpeg',
+                URLHeightMap: '', //'https://boss.veriler.com/assets/uploads/1zRsMJ.jpeg',
+                //HeightmapIntensity: 1e3,
+                //MaxHeightMap: 1e3,
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 100,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: Coordinates.HSVToHex(360-360/6*m, 1, 1),
+                ColorMix: .5,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              */
               
-              uvx += renderer.x / 820000
-              uvy -= renderer.z / 820000
+              tiles.push({
+                Name: 'blankTile',
+                URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+                URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 100,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              if(0) tiles.push({
+                Name: 'powerupTile',
+                URLBase: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile',
+                URLMap: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 100,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'landscape',
+                URLBase: 'https://srmcgann.github.io/objs/landscape/floor',
+                URLMap: 'https://srmcgann.github.io/objs/landscape/landscape.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: floorScaleY,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'blankTile2',
+                URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+                //URLBase: 'https://srmcgann.github.io/objs/test_tile',
+                URLMap: 'https://boss.veriler.com/assets/uploads/1p8Usg.jpeg',
+                URLHeightMap: '', //'https://boss.veriler.com/assets/uploads/1zRsMJ.jpeg',
+                HeightmapIntensity: 1e3,
+                MaxHeightMap: 1e3,
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 200,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0x4400ff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'mountain',
+                URLBase: 'https://srmcgann.github.io/objs/mountain/mountain',
+                URLMap: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: floorScaleY/2,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+
+            break
+            case 2:
+              mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
+              //await loadMap(mapTexture)
+              splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
+              refTexture = baseRefTexture
+              fcl = 5
+              frw = 1
+              fbr = 5
+              fsp = 4990 * 2
+              wrapVertical = false
+              tiles.push({
+                Name: 'blankTile',
+                URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+                URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: fcl,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 1,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'floor2',
+                URLBase: 'https://srmcgann.github.io/objs/floor/floor',
+                URLMap: 'https://srmcgann.github.io/objs/floor/floor.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 2,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: floorScaleY * 1.5,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'cartoon_girl_base',
+                URLBase: 'https://srmcgann.github.io/objs/cartoon_girl/cartoon_girl_base',
+                URLMap: 'https://srmcgann.github.io/objs/cartoon_girl/cartoon_girl_grass_base_lowres.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 100,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+            break
+            case 3:
+              mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
+              //await loadMap(mapTexture)
+              splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xmQSr.jpeg'
+              refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
+              fcl = 5
+              frw = 1
+              fbr = 5
+              fsp = 4990 * 2
+              wrapVertical = false
+              tiles.push({
+                Name: 'blankTile',
+                URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+                URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: fcl,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 1,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'powerupTile',
+                URLBase: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile',
+                URLMap: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 2,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 100,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'brownstone',
+                URLBase: 'https://srmcgann.github.io/objs/brownstone/brownstone',
+                URLMap: 'https://srmcgann.github.io/objs/brownstone/combined.jpg?3',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 2,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 100,
+                ScaleZ: -100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'mountain',
+                URLBase: 'https://srmcgann.github.io/objs/mountain/mountain',
+                URLMap: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: floorScaleY/2,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+            break
+            case 4:
+              mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
+              //await loadMap(mapTexture)
+              splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
+              refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/maze_bold_red.jpg'
+              fcl = 5
+              frw = 1
+              fbr = 5
+              fsp = 4990 * 2
+              wrapVertical = false
+              tiles.push({
+                Name: 'blankTile',
+                URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+                URLMap: 'https://bosstools.mooo.com/assets/uploads/26MwH8.jpeg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: fcl,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 1,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'powerupTile',
+                URLBase: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile',
+                URLMap: 'https://srmcgann.github.io/objs/powerup_tile/powerup_tile.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 2,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 100,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'mountain',
+                URLBase: 'https://srmcgann.github.io/objs/mountain/mountain',
+                URLMap: 'https://bosstools.mooo.com/assets/uploads/1Uuy4X.jpeg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 2,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: floorScaleY/2,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+            break
+            case 5:
+              mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
+              //await loadMap(mapTexture)
+              splashGraphic = 'https://bosstools.mooo.com/assets/uploads/1xBpcm.jpeg'
+              refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/maze_bold_red.jpg'
+              fcl = 5
+              frw = 1
+              fbr = 5
+              fsp = 4990 * 2
+              wrapVertical = false
+              tiles.push({
+                Name: 'blankTile',
+                URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+                URLMap: 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2_lowres.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: fcl*2,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 1,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+            break
+            break
+            case 6:
+              refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
+              //'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
+              //mapTexture = 'https://bosstools.mooo.com/assets/uploads/2kH4yU.jpeg'
+              //mapTexture = 'https://bosstools.mooo.com/assets/uploads/1sZamK.jpeg'
+              mapTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/treehouses.jpg'
+              //await loadMap(mapTexture)
+              splashGraphic = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
+              fcl = 5
+              frw = 1
+              fbr = 5
+              fsp = 4990 * 2
+
+              wrapVertical = false
+              for(var m = 3; m--;) tiles.push({
+                Name: 'hillHouse' + m,
+                URLBase: 'https://srmcgann.github.io/objs/hillHouse/hillHouse',
+                URLMap: 'https://srmcgann.github.io/objs/hillHouse/hillHouse.jpg',
+                URLHeightMap: '', //'https://boss.veriler.com/assets/uploads/1zRsMJ.jpeg',
+                //HeightmapIntensity: 1e3,
+                //MaxHeightMap: 1e3,
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 100,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: Coordinates.HSVToHex(360-360/2*m, 1, 1),
+                ColorMix: .2,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: true,
+              })
+              tiles.push({
+                Name: 'blankTile',
+                URLBase: 'https://srmcgann.github.io/objs/blankFloorTile/blankTile_uvs_fill',
+                URLMap: 'https://srmcgann.github.io/Coordinates/resources/grass_texture.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 100,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+              tiles.push({
+                Name: 'brownstone',
+                URLBase: 'https://srmcgann.github.io/objs/brownstone/brownstone',
+                URLMap: 'https://srmcgann.github.io/objs/brownstone/combined.jpg?3',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: 100,
+                ScaleZ: -100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: true,
+              })
+              tiles.push({
+                Name: 'mountain',
+                URLBase: 'https://srmcgann.github.io/objs/mountain/mountain',
+                URLMap: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
+                ShapeType: 'obj',
+                FileExt: 'obj',
+                Freq: 1,
+                Equirectangular: false,
+                ScaleX: 100,
+                ScaleY: floorScaleY/2,
+                ScaleZ: 100,
+                ScaleUVX: 1,
+                ScaleUVY: 1,
+                Color: 0xffffff,
+                ColorMix: 0,
+                LowpolySuffix: lowpolySuffix,
+                HipolySuffix: hipolySuffix,
+                objX: 0, objY: 0, objZ: 0,
+                objRoll: 0, objPitch: 0, objYaw: 0,
+                randomRoll: false,
+                randomPitch: false,
+                randomYaw: false,
+              })
+            break
+          }
+          
+          await loadShaders()
+          await preAnalyzeMap(mapTexture, tiles.length)
+
+          mapTileDataCenters = []
+          mapTileData = []
+          Array(fcl * frw * fbr).fill().map((v, i) => {
+            var x = ((i%fcl) -fcl/2 + .5)
+            var y = ((i/fcl/frw|0) - fbr/2 + .5)
+            var z = (((i/fcl)%frw) - frw/2 + .5)
+            mapTileData.push([x, y, z])
+          })
+          mapTileDataSquare = []
+
+          mapTileDataCenters = []
+          mapTileData = []
+          Array(fcl * frw * fbr).fill().map((v, i) => {
+            var x = ((i%fcl) -fcl/2 + .5)
+            var y = ((i/fcl/frw|0) - fbr/2 + .5)
+            var z = (((i/fcl)%frw) - frw/2 + .5)
+            mapTileData.push([x, y, z])
+          })
+          /*
+          mapTileDataSquare = []
+          Array(4).fill().map((v, i) => {
+            var p, x, y, z
+            p = Math.PI * 2 / 4 * i + Math.PI / 4
+            x = S(p) * 2**.5/2
+            y = C(p) * 2**.5/2
+            z = 0
+            mapTileDataSquare.push([x, y, z])
+            p = Math.PI * 2 / 4 * (i + 1) + Math.PI / 4
+            x = S(p) * 2**.5/2
+            y = C(p) * 2**.5/2
+            z = 0
+            mapTileDataSquare.push([x, y, z])
+          })
+          var geoOptions = {
+            shapeType: 'lines',
+            name: 'map tiles',
+            color: 0x00ff44,
+            colorMix: .5,
+            geometryData: mapTileDataSquare,
+            alpha: 1,
+            z: -2,
+            penumbra: 0,
+            size: 2,
+          }
+          await Coordinates.LoadGeometry(mapRenderer, geoOptions).then(async (geometry) => {
+            mapTileLines = geometry
+          })*/
+
+
+          var geoOptions = {
+            shapeType: 'rectangle',
+            name: 'loading splash',
+            size: 10,
+            z: 50,
+            pitch: Math.PI,
+            scaleX: 16/9,
+            color: 0x000000,
+            colorMix: .25,
+            map: splashGraphic,
+          }
+          
+          await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+            loadingSplash = geometry
+            progressShader.ConnectGeometry(geometry)
+            prog = 10
+            setTimeout(async () => {
+              var ttlTiles = 0
+              tiles.forEach(v => ttlTiles+=v.Freq)
+              centris = (fbr/2 | 0) * fcl + fcl/2|0
               
-              mapSubshape.uvs[i+0] = uvx
-              mapSubshape.uvs[i+1] = uvy
-            }*/
-            mapRenderer.Draw(mapSubshape)
-            //if(analyzeMap(-jets[camSel].x/820000, -jets[camSel].z/820000))
-              //mapRenderer.Draw(mapSubshape)
-            
-            for(var i = 0; i < mapLines.vertices.length; i += 6){
-              var x1 = mapLines.vertices[i+0]
-              var y1 = mapLines.vertices[i+1]
-              var z1 = mapLines.vertices[i+2]
-              var x2 = mapLines.vertices[i+3]
-              var y2 = mapLines.vertices[i+4]
-              var z2 = mapLines.vertices[i+5]
-              switch(i/6 | 0){
-                case 0: // horizontal
-                  var l = 6.55
-                  y1 = renderer.z / 1e6 * 8
-                  while(y1 > l/2) y1 -= l
-                  while(y1 < -l/2) y1 += l
-                  y2 = renderer.z / 1e6 * 8
-                  while(y2 > l/2) y2 -= l
-                  while(y2 < -l/2) y2 += l
+              // tiles from config above
+              tiles.forEach(async (tile, tidx) => {
+                prog = (10 + 90/tiles.length * tidx) | 0
+                await setTimeout(async () => {
+                  for(var k=2; k--;){
+                    switch(k){
+                      case 0: lod = tile.LowpolySuffix; break
+                      case 1: lod = tile.HipolySuffix; break
+                    }
+                    var geoOptions = {
+                      shapeType: tile.ShapeType,
+                      name: tile.Name + lod,
+                      url: `${tile.URLBase}${lod}.${tile.FileExt}?2`,
+                      map: tile.URLMap,
+                      equirectangular: tile.Equirectangular,
+                      scaleUVX: tile.ScaleUVX,
+                      scaleUVY: tile.ScaleUVY,
+                      scaleX: tile.ScaleX,
+                      scaleY: tile.ScaleY,
+                      scaleZ: tile.ScaleZ,
+                      objRoll: tile.objRoll,
+                      objPitch: tile.objPitch,
+                      objYaw: tile.objYaw,
+                      objX: tile.objX,
+                      objY: tile.objY,
+                      objZ: tile.objZ,
+                      y: floorOffset,
+                      heightmap: tile.URLHeightMap,
+                      heightmapIntensity: tile.HeightmapIntensity,
+                      maxHeightmap: tile.MaxHeightmap,
+                      color: tile.Color,
+                      colorMix: tile.ColorMix,
+                      //rebindTextures: true,
+                    }
+                    if(tile.Name == 'powerupTile') hasPowerupTiles = true
+                    await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
+                      var shape = {}
+                      //setTimeout(()=>{geometry.rebindTextures = true}, 3000)
+                      shape.name = tile.Name
+                      shape.LowpolySuffix = tile.LowpolySuffix
+                      var tVerts = structuredClone(geometry.vertices)
+                      var tNorms = structuredClone(geometry.normals)
+                      shape.HipolySuffix = tile.HipolySuffix
+                      await floorShader.ConnectGeometry(geometry)
+                      for(var m = tile.Freq * 1; m--;) {
+                        var nShape = structuredClone(shape)
+                        nShape.geometry = geometry
+                        nShape.vertices = tVerts
+                        nShape.normals = tNorms
+                        nShape.roll  = tile.randomRoll  ? Math.PI*2 / 4 * (Rn()*4|0) : 0
+                        nShape.pitch = tile.randomPitch ? Math.PI*2 / 4 * (Rn()*4|0) : 0
+                        nShape.yaw   = tile.randomYaw   ? Math.PI*2 / 4 * (Rn()*4|0) : 0
+                        floorTiles.push(nShape)
+                      }
+                      if(floorTiles.length == ttlTiles * 2) {
+                        //setTimeout(()=>{ loadLevel((level++%levels)+1) }, 10000)
+                        levelLoaded = true
+                        if(showTools) {
+                          tools.style.display = 'inline-block'
+                        }
+                        toggleToolsButton.style.display = 'inline-block'
+                        floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => 0)
+                        floorIdentitiesMemo = Array(fcl * frw * fbr).fill().map((v, j) =>{
+                          var tx = ((j%fcl)-fcl/2 + .5) * fsp
+                          var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
+                          var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
+                          return [tx, ty, tz]
+                        })
+                      }
+                    })
+                  }
+                }, 500)
+              })
+              
+              //background
+              var geoOptions = {
+                shapeType: 'dodecahedron',
+                name: 'background',
+                rotationMode,
+                subs: 3,
+                map: refTexture,
+                size: 1e5,
+                colorMix: 0,
+              }
+              await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+                backgroundShape = geometry
+                await backgroundShader.ConnectGeometry(geometry)
+              })
+            }, 0)
+          })
+        }
+        
+        var level = 6
+        var levels = 6
+        var levelLoaded = false
+        loadLevel(level)
+        
+        var powerupShapes = []
+        // supplemental stuff
+        switch(level){
+          case 1:
+            var geoOptions = {
+              shapeType: 'sprite',
+              map: 'https://srmcgann.github.io/Coordinates/resources/stars/star6.png',
+              size: 75,
+            }
+            await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+              powerupShape = geometry
+              await shader.ConnectGeometry(geometry)
+            })  
+          break
+          case 4: case 5:
+            var geoOptions = {
+              shapeType: 'sprite',
+              map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+              size: 75,
+            }
+            await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+              powerupShape = geometry
+              await shader.ConnectGeometry(geometry)
+            })  
+          break
+        }
+        
+        // 'clouds' tile
+        if(1||drawClouds) for(var k = 2; k--;) {
+          var colorMix = 0, color, flipNormals = false
+          switch(k){
+            case 0: lod = lowpolySuffix; break
+            case 1: lod = hipolySuffix; break
+          }
+          var geoOptions = {
+            shapeType: 'obj',
+            name: 'clouds' + lod,
+            showNormals: false,
+            url: `https://srmcgann.github.io/objs/landscape/${'clouds' + lod}.obj`,
+            map: `https://srmcgann.github.io/objs/landscape/landscape.jpg`,
+            flipNormals,
+            //averageNormals: true,
+            //precomputeNormalAssocs: true,
+            //downloadShape: true,
+            scaleX: 150,
+            scaleY: cloudScaleY,
+            scaleZ: 150,
+            y: 1e3,
+            color: 0xffaacc,
+            colorMix: .5,
+            rebindTextures: true,
+          }
+          await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+            //await Coordinates.SyncNormals(geometry, true, true)
+            var cloud = {}
+            cloud.name = 'clouds'
+            cloud.geometry = geometry
+            cloud.vertices = structuredClone(geometry.vertices)
+            cloud.normals = structuredClone(geometry.normals)
+            clouds.push(cloud)
+            //await Coordinates.SyncNormals(floorShapeMed, true, true, false)
+            await cloudShader.ConnectGeometry(geometry)
+          })
+        }
+
+
+        var smoke = []
+        var splosions = []
+        var variation = 30
+        const spawnSmoke = (x, y, z) => {
+          var vx, vy, vz
+          x += vx = variation * (Rn() - .5)
+          y += vy = variation * (Rn() - .5)
+          z += vz = variation * (Rn() - .5)
+          smoke.push([x, y, z, 1, vx/25, vy/25, vz/25])
+          while(smoke.length > iSmokec) smoke.shift()
+        }
+        
+        var iSplosionv = 25
+        var splosions = []
+        var splosionUnits = Array(3).fill(0)
+        const spawnSplosion = (x, y, z) => {
+          var vx, vy, vz, p, q
+          var b = 0
+          splosionUnits.forEach((v, idx) => {if(!v) b=idx })
+          splosionUnits[b] = 1
+          for(var i = 750; i--;){
+            var ls = (.2 + Rn()*.8) * iSplosionv
+            vx = S(p=Math.PI * 2 * Rn()) *
+                      S(q = Rn() < .5 ? Math.PI / 2 * Rn() **.5 :
+                        Math.PI - Math.PI / 2 * Rn() **.5) * ls
+            vy = C(q) * ls
+            vz = C(p) * S(q) * ls
+            splosions.push([x, y, z, 1, vx, vy, vz, b])
+          }
+          while(splosions.length > iSplosionc) splosions.shift()
+        }
+        
+        var notRun = true, update
+        var baseVerts, baseUVs, thrusterShape
+        var geoOptions = {
+          shapeType: 'cylinder',
+          name: 'thrusters',
+          rotationMode,
+          rows: 32,
+          cols: 8,
+          equirectangular: false,
+          map: 'https://srmcgann.github.io/Coordinates/resources/flames.jpg',
+          size: .8,
+          scaleX: 1.5,
+          scaleZ: 1.5,
+          scaleY: 33,
+          colorMix: 0,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          
+          thrusterShape = geometry
+          await flameShader.ConnectGeometry(geometry)
+          
+          // grab copies of verts & uvs.
+          // verts will be duplicated, animated, and optionally normal-sync'd.
+          // uvs will be duplicated (1 thruster is copied to become 2)
+          baseVerts = await structuredClone(geometry.vertices)
+          baseUVs   = await structuredClone(geometry.uvs)
+
+
+          // re-dimension the geometry data containers. double everything
+          geometry.vertices = new Float32Array(Array(baseVerts.length*2).fill())
+          //geometry.normals = new Float32Array(Array(baseVerts.length * 4).fill())
+          //geometry.normalVecs = new Float32Array(Array(baseVerts.length*2).fill())
+          geometry.uvs = new Float32Array(Array(baseUVs.length*2).fill().map((v, i)=>{
+            return baseUVs[i%baseUVs.length]
+          }))
+
+          // double indices for the buffers which get passed to shaders
+          var nVIndices    = new Uint32Array(Array(geometry.vIndices.length*2).fill().map((v,i)=>i))
+          var nUvIndices   = new Uint32Array(Array(geometry.uvIndices.length*2).fill().map((v,i)=>i))
+          var nNIndices    = new Uint32Array(Array(geometry.nIndices.length*2).fill().map((v,i)=>i))
+          var nNVecIndices = new Uint32Array(Array(geometry.nVecIndices.length*2).fill().map((v,i)=>i))
+          geometry.vIndices    = nVIndices
+          geometry.uvIndices   = nUvIndices
+          geometry.nIndices    = nNIndices
+          geometry.nVecIndices = nNVecIndices
+
+          
+          ox = 1.36    // thruster offsets relative to jet model
+          oy = -.35
+          oz = -31.65
+          // procedural animation
+          const rotFunc = () => {
+            p = Math.atan2(y, z) + Math.PI/2
+            d = Math.hypot(y, z)
+            y = S(p) * d
+            z = C(p) * d
+            if(z < 8){
+              var intro = (-z+8) / 200
+              var outro = Math.max(1,(-z+5)**3/300)
+              p = Math.atan2(x, y)
+              d = Math.hypot(x, y)
+              dx = d + (-z+10) / 24 - ((-z+4) ** 2 / 15.425 - 1) / 6.02 +
+                        intro * (.5+C(z/2 + renderer.t*32)/2) * 32 / outro
+              dy = (d + (-z+10) / 2 - ((-z+4.66) ** 2 / 15.425 - 1)) / 3
+              dy += intro * ((1+C(z/1.5 + y*2 + renderer.t*24))*5)**2 / outro
+              x = S(p) * dx
+              y = C(p) * dy
+            }
+            z *= 2
+          }
+          
+          // update function is global scoped @ declaration above.
+          // called per frame inside main drawing loop, to animate thrusters
+          update = async (geometry, syncNormals=false) => {
+            var nVerts = new Float32Array(baseVerts.length*2)
+            for(var i = 0; i < baseVerts.length; i+=3) {
+              var l = i%baseVerts.length
+              x = baseVerts[l+0]
+              y = baseVerts[l+1]
+              z = baseVerts[l+2]
+              rotFunc()
+              nVerts[i+0] = x
+              nVerts[i+1] = y
+              nVerts[i+2] = z
+            }
+            var tNverts = structuredClone(nVerts)
+            for(var i = 0; i < geometry.vertices.length; i++){
+              var l = i%baseVerts.length, m, m2
+              m = i < baseVerts.length ? 1 : (i%3==0 ? -1 : 1)
+              m2 = i%3 == 1 && i < baseVerts.length ? -1 : 1
+              var o 
+              switch(i%3){
+                case 0: o=ox; break
+                case 1: o=oy; break
+                case 2: o=oz; break
+              }
+              nVerts[i]  = tNverts[l%baseVerts.length] * m * m2 + o * m
+            }
+            geometry.vertices = nVerts
+            for(var i = 0; i < geometry.uvs.length; i += 2){
+              geometry.uvs[i+0] -= C(renderer.t) * .025 * (8/10)
+              geometry.uvs[i+1] -= .032 * (8/10)
+            }
+            //if(syncNormals) Coordinates.SyncNormals(geometry, true, false)
+          }
+          await update(geometry, true)
+        })  
+        
+        
+        // temp camera scaffolding
+        if(0){
+          renderer.z = 15
+          renderer.x = -32
+          renderer.yaw = Math.PI/2
+        } else {
+          renderer.x = 0
+          renderer.y = -7
+          renderer.z = -60
+          renderer.yaw = 0
+          renderer.pitch = 0
+        }
+
+        if(1) Coordinates.LoadFPSControls(renderer, {
+          flyMode: true,
+          useKeys: false,
+          mSpeed: 2,
+          rSpeed: 2,
+          crosshairSel: 2,
+          crosshairSize: .5,
+        })
+        
+        var iJc = 1
+        var camSel = 0
+        var jets = Array(iJc).fill().map((jet, idx) => {
+          switch(idx%3){
+            case 0: jetType = idx%2 ? '_enemy' : '_neutral'; break
+            case 1: jetType = idx%2 ? '_enemy' : '_neutral'; break
+            case 2: jetType = '_ally'; break
+          }
+          return {
+            name: `jet ${idx+1}`,
+            shape: jetShapes['_neutral'],//jetShapes[jetType],
+            x: 0,
+            y: 3e3,
+            z: 0,
+            roll: 0,
+            pitch: 0,
+            yaw: 0,
+            rollv: 0,
+            pitchv: 0,
+            pitchv2: 0,
+            yawv: 0,
+            vx: 0,
+            vy: 0,
+            vz: 1,
+            speedv: 0,
+            speed: 0,
+            alive: true,
+          }
+        })
+        
+        const floor = (x, z) => {
+          var p = Math.atan2(x, z)
+          return Math.min(0, Math.max(-2500, C(p + Math.hypot(x, z) / 2500- renderer.t*2) * 3000))
+        }
+        
+        var jetRv = .005
+        var jetMv = 2
+        var keys = Array(256).fill(false)
+        var accel = false
+        
+        window.onkeydown = e => {
+          console.log(e.keyCode)
+          keys[e.keyCode] = true
+          switch(e.keyCode){
+            case 84:
+              toggleToolsVisibility()
+            break
+          }
+        }
+        
+        window.onkeyup = e => {
+          keys[e.keyCode] = false
+        }
+
+        const shift2DArray = (ar, dir, width) => {
+          var x1, y1, x2, y2, height = ar.length / width
+          var a = Array(ar.length).fill()
+          for(var i = 0; i < ar.length; i++){
+            x1 = x2 = i%width
+            y1 = y2 = i/width|0
+            switch(dir){
+              case 'left':  x2++; break
+              case 'up':    y2++; break
+              case 'right': x2--; break
+              case 'down':  y2--; break
+            }
+            while(x2 < 0) x2 += width
+            while(x2 >= width) x2 -= width
+            while(y2 < 0) y2 += height
+            while(y2 >= height) y2 -= height
+            a[i] = ar[y2*width + x2]
+          }
+          a.map((v, i) => ar[i] = v)
+        }
+        
+        const getCollision = (x, y, z, rad) => {
+          var fl, mind = 9e9, idx = -1, tx, ty, tz, itx, ity, itz
+          var x1, y1, z1
+          var j = centris
+          Array(fcl*frw*fbr).fill().map((v, j) => {
+            tx = ((j%fcl)-fcl/2 + .5) * fsp
+            ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
+            tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
+            while(-renderer.x - tx > fsp*fcl/2) tx += fsp*fcl
+            while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
+            if(wrapVertical){
+              while(-renderer.y - ty > fsp*frw/2) ty += fsp*frw
+              while(-renderer.y - ty < -fsp*frw/2) ty -= fsp*frw
+            }
+            while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
+            while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
+            if((d=Math.hypot(x-tx, y-ty, z-tz)) < mind){
+              idx = j
+              mind = d
+              itx = tx
+              ity = ty
+              itz = tz
+            }
+          })
+          //if(floorIdentities.filter(v=>v==-1).length) return
+          var tile = floorTiles.filter(v=>
+                                 v.roll== floorTiles[floorIdentities[idx]].roll &&
+                                 v.pitch == floorTiles[floorIdentities[idx]].pitch &&
+                                 v.yaw== floorTiles[floorIdentities[idx]].yaw &&
+                                 v.geometry.name == 
+                               floorTiles[floorIdentities[idx]].name + (
+                               floorTiles[floorIdentities[idx]].name == 'blankTile' ? 
+                                 v.HipolySuffix : v.HipolySuffix))[0]
+                                 //v.HipolySuffix : v.LowpolySuffix))[0]
+                                 
+          var verts = tile.geometry.vertices
+          var mind = 9e9
+          x -= itx
+          y -= ity
+          z -= itz
+          for(var i = 0; i < verts.length; i+=3){
+            x1 = verts[i+0]
+            y1 = verts[i+1]
+            z1 = verts[i+2]
+            if(tile.roll || tile.pitch || tile.yaw){
+              var ar = Coordinates.R(x1, y1, z1, tile)
+              x1 = ar [0]
+              y1 = ar [1]
+              z1 = ar [2]
+            }
+            if((d = Math.hypot(x-x1, (y-y1)*3, z-z1)) < mind && d < Math.max(250, rad*1.25)){
+              mind = d
+              fl = [verts[i+0]+itx, verts[i+1]+ity, verts[i+2]+itz]
+            }
+          }
+          return fl
+        }
+        
+        const respawn = camID => {
+          jets[camID].x = 0
+          jets[camID].y = 3e3
+          jets[camID].z = 0
+          jets[camID].pitch = 0
+          jets[camID].roll = 0
+          jets[camID].yaw = 0
+          jets[camID].rollv = 0
+          jets[camID].pitchv = 0
+          jets[camID].yawv = 0
+          jets[camID].speed = minSpeed
+          jets[camID].alive = true
+          
+          floorIdentities = Array(fcl * frw * fbr).fill().map((v, j) => 0)
+          floorIdentitiesMemo = Array(fcl * frw * fbr).fill().map((v, j) =>{
+            var tx = ((j%fcl)-fcl/2 + .5) * fsp
+            var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
+            var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
+            return [tx, ty, tz]
+          })
+        }
+        
+        var maxRotationv = .2
+        var maxSpeedv = 12
+        var maxSpeed = 500
+        var minSpeed = 0
+        const doKeys = () => {
+          accel = false
+          keys.map((v, idx) => {
+            if(v){
+              switch(idx){
+                case 87:    // w
+                  jets[camSel].speedv += jetMv
+                  jets[camSel].speedv = Math.max(-maxSpeedv, Math.min(maxSpeedv, jets[camSel].speedv))
+                  accel = true
                 break
-                case 1: // vertical
-                  var l = 6.55 * (16/9)
-                  x1 = renderer.x / 1e6 * 8 * (16/9)
-                  while(x1 > l/2) x1 -= l
-                  while(x1 < -l/2) x1 += l
-                  x2 = renderer.x / 1e6 * 8 * (16/9)
-                  while(x2 > l/2) x2 -= l
-                  while(x2 < -l/2) x2 += l
+                case 65:    // a
+                break
+                case 83:    // s
+                  jets[camSel].speedv -= jetMv * 10
+                  jets[camSel].speedv = Math.max(-maxSpeedv, Math.min(maxSpeedv, jets[camSel].speedv))
+                break
+                case 68:    // d
+                break
+                case 37:    // left arrow
+                  jets[camSel].yawv -= jetRv
+                  jets[camSel].yawv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].yawv))
+                break
+                case 38:    // up arrow
+                  jets[camSel].pitchv += jetRv / 1.25
+                  jets[camSel].pitchv2 += jetRv / 1.25
+                  jets[camSel].pitchv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].pitchv))
+                break
+                case 39:    // right arrow
+                  jets[camSel].yawv += jetRv
+                  jets[camSel].yawv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].yawv))
+                break
+                case 40:    // down arrow
+                  jets[camSel].pitchv -= jetRv / 1.25
+                  jets[camSel].pitchv2 -= jetRv / 1.25
+                  jets[camSel].pitchv = Math.max(-maxRotationv, Math.min(maxRotationv, jets[camSel].pitchv))
+                break
+                case 32:
+                  if(!jets[camSel].alive) respawn(camSel)
                 break
               }
-              mapLines.vertices[i+0] = x1
-              mapLines.vertices[i+1] = y1
-              mapLines.vertices[i+3] = x2
-              mapLines.vertices[i+4] = y2
             }
-            
-            mapRenderer.Draw(mapLines)
-            
-            /*
-            var adj = 1.6
-            Array(fcl*frw*fbr).fill().map((v, j) => {
-              var tx = ((j%fcl)-fcl/2 + .5) * fsp
-              var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
-              var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
-              while(-renderer.x * (16/9) * adj - tx > fsp*fcl/2) tx += fsp*fcl
-              while(-renderer.x * (16/9) * adj - tx < -fsp*fcl/2) tx -= fsp*fcl
-              while(-renderer.z * adj - tz > fsp*fbr/2) tz += fsp*fbr
-              while(-renderer.z * adj - tz < -fsp*fbr/2) tz -= fsp*fbr
-              
-              var nx = -(tx + renderer.x * adj * (16/9)) / fsp
-              var ny = -(tz + renderer.z * adj) /fsp
-              var nz = -.1
-              mapTileLines.x = nx
-              mapTileLines.y = ny - 6.55 / 2
-              mapTileLines.z = nz
-              mapRenderer.Draw(mapTileLines)
-            })
-            */
-            
-            
-            //planeIconShape.x = 0
-            //planeIconShape.y =  - 6.55 / 4
-            //planeIconShape.z =  -4
-            //mapRenderer.Draw(planeIconShape)
-            
-            //mapTileDataSquare
-            //mapTileDataCenters = []
-            
-            
-            
-            //if(wrapVertical){
-            //  while(-renderer.y - ty > fsp*frw/2) ty += fsp*frw
-            //  while(-renderer.y - ty < -fsp*frw/2) ty -= fsp*frw
-            //}
-            
-            
-            //renderer.yaw += .001
-            //renderer.z = Math.min(70, Math.max(32, (.3+C(t))*150))
-            //renderer.pitch = Math.min(.5, Math.max(.1,-(-.3+C(t))*1))
-          }
-        }
-        doKeys()
-        jets[camSel].pitch /= 1.01
-        jets[camSel].roll   = -jets[camSel].yawv * 16
-        jets[camSel].yaw    += jets[camSel].yawv
-        jets[camSel].pitch  += jets[camSel].pitchv
-        jets[camSel].yawv   /= 1.066
-        jets[camSel].pitchv /= 1.066
-        
-        
-        jets[camSel].speed += jets[camSel].speedv
-        jets[camSel].speed = Math.min(maxSpeed, Math.max(minSpeed, jets[camSel].speed))
-        jets[camSel].speedv /= 1.5
-        
-        var tailX = 0
-        var tailY = 0
-        var tailZ = -16
-        
-        p = Math.atan2(tailX, tailZ) + jets[camSel].yaw
-        var p2 = jets[camSel].pitch
-        d = 50 - Math.abs(tailZ * (1+jets[camSel].speed/18)) //Math.hypot(tailX, tailY, tailZ)
-        tailX = vx = S(p) * d * S(q = -p2 + Math.PI/2)
-        tailY = vy = -C(q) * d - 8
-        tailZ = vz = C(p) * S(q) * d
-        
-        renderer.x += (-renderer.x - jets[camSel].x + tailX) / 1
-        renderer.y += (-renderer.y - jets[camSel].y + tailY) / 1
-        renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 1
-        
-        
-        
-        //renderer.roll += (-renderer.roll + jets[camSel].roll) / 60
-        //renderer.pitch += (-renderer.pitch - jets[camSel].y - 10) / 60
-        renderer.pitch += (-renderer.pitch + jets[camSel].pitch * 1.1) / 3
-        renderer.y -= jets[camSel].pitch * 5
-        renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 5
-        
-        if(typeof backgroundShape?.vertices != 'undefined'){
-          backgroundShape.x = jets[camSel].x
-          backgroundShape.y = jets[camSel].y
-          backgroundShape.z = jets[camSel].z
-          renderer.Draw(backgroundShape)
+          })
         }
         
-        if(1) for(var i = 0; i < particlesShape.vertices.length; i+=3){
-          var x = particlesShape.vertices[i + 0]
-          var y = particlesShape.vertices[i + 1]
-          var z = particlesShape.vertices[i + 2]
-          
-          if(x + renderer.x > G/2) x = particlesShape.vertices[i + 0] -= G
-          if(x + renderer.x < -G/2) x = particlesShape.vertices[i + 0] += G
-          if(y + renderer.y > G/2) y = particlesShape.vertices[i + 1] -= G
-          if(y + renderer.y < -G/2) y = particlesShape.vertices[i + 1] += G
-          if(z + renderer.z > G/2) z = particlesShape.vertices[i + 2] -= G
-          if(z + renderer.z < -G/2) z = particlesShape.vertices[i + 2] += G
-          
-          particlesShape.vertices[i + 0] = x
-          particlesShape.vertices[i + 1] = y
-          particlesShape.vertices[i + 2] = z
-        }
-        renderer.Draw(particlesShape)
+        renderer.c.tabIndex = 0
+        renderer.c.focus()
 
-        jets.map((jet, idx) => {
+        renderer.z = 10
+        drawProgress(prog)
         
-          //jet.yaw += .0125 * (idx%2 ? -1 : 1)
-          //jet.roll += .0125 * (idx%2 ? -1 : 1)
-        
-          if(jet.alive){
-            var fl
-            if(fl = getCollision(jet.x, jet.y, jet.z, jet.speed)) {
-              jet.alive = false
-              jet.speed = 0
-              var d = Math.hypot(jet.x-fl[0], jet.y-fl[1], jet.z-fl[2])
-              jet.x = (fl[0] + (jet.x - fl[0]) / d * 50)
-              jet.y = (fl[1] - (jet.y - fl[1]) / d * 50)
-              jet.z = (fl[2] + (jet.z - fl[2]) / d * 50)
-              spawnSplosion(jet.x, jet.y, jet.z)
-            }else{
-              jet.vx = -S(p = jet.yaw) * S(q = -jet.pitch + Math.PI/2) * jet.speed
-              jet.vy = -C(q) * jet.speed
-              jet.vz = -C(p) * S(q) * jet.speed
-            }
+        window.Draw = () => {
+          if(!levelLoaded){
+            renderer.x = 0
+            renderer.y = 0
+            renderer.z = 10
+            renderer.roll = 0
+            renderer.pitch = 0
+            renderer.yaw = 0
+            drawProgress(prog)
           }else{
-            jet.vx = jet.vy = jet.vz = 0
-          }
-        
-          thrusterShape.x = jet.shape.x = jet.x += jet.vx
-          thrusterShape.y = jet.shape.y = jet.y += jet.vy
-          thrusterShape.z = jet.shape.z = jet.z += jet.vz
+            
+            var t = renderer.t
           
-          if(drawSmoke){
+            analyzeMap(-jets[camSel].x/820000, -jets[camSel].z/820000, !((t*60|0)%10))
+            if(showTools){
+              if(showMap && typeof mapShape?.vertices != 'undefined'){
+                //mapShape.yaw = t
+                //mapShape.pitch = -t*2
+                mapRenderer.z = 20
+                mapRenderer.Draw(mapShape)
+                /*for(var i = 0; i < mapSubshape.uvs.length; i+=2){
+                  var uvx = mapUvs[i+0]
+                  var uvy = mapUvs[i+1]
+                  
+                  uvx += renderer.x / 820000
+                  uvy -= renderer.z / 820000
+                  
+                  mapSubshape.uvs[i+0] = uvx
+                  mapSubshape.uvs[i+1] = uvy
+                }*/
+                mapRenderer.Draw(mapSubshape)
+                //if(analyzeMap(-jets[camSel].x/820000, -jets[camSel].z/820000))
+                  //mapRenderer.Draw(mapSubshape)
+                
+                for(var i = 0; i < mapLines.vertices.length; i += 6){
+                  var x1 = mapLines.vertices[i+0]
+                  var y1 = mapLines.vertices[i+1]
+                  var z1 = mapLines.vertices[i+2]
+                  var x2 = mapLines.vertices[i+3]
+                  var y2 = mapLines.vertices[i+4]
+                  var z2 = mapLines.vertices[i+5]
+                  switch(i/6 | 0){
+                    case 0: // horizontal
+                      var l = 6.55
+                      y1 = renderer.z / 1e6 * 8
+                      while(y1 > l/2) y1 -= l
+                      while(y1 < -l/2) y1 += l
+                      y2 = renderer.z / 1e6 * 8
+                      while(y2 > l/2) y2 -= l
+                      while(y2 < -l/2) y2 += l
+                    break
+                    case 1: // vertical
+                      var l = 6.55 * (16/9)
+                      x1 = renderer.x / 1e6 * 8 * (16/9)
+                      while(x1 > l/2) x1 -= l
+                      while(x1 < -l/2) x1 += l
+                      x2 = renderer.x / 1e6 * 8 * (16/9)
+                      while(x2 > l/2) x2 -= l
+                      while(x2 < -l/2) x2 += l
+                    break
+                  }
+                  mapLines.vertices[i+0] = x1
+                  mapLines.vertices[i+1] = y1
+                  mapLines.vertices[i+3] = x2
+                  mapLines.vertices[i+4] = y2
+                }
+                
+                mapRenderer.Draw(mapLines)
+                
+                /*
+                var adj = 1.6
+                Array(fcl*frw*fbr).fill().map((v, j) => {
+                  var tx = ((j%fcl)-fcl/2 + .5) * fsp
+                  var ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
+                  var tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
+                  while(-renderer.x * (16/9) * adj - tx > fsp*fcl/2) tx += fsp*fcl
+                  while(-renderer.x * (16/9) * adj - tx < -fsp*fcl/2) tx -= fsp*fcl
+                  while(-renderer.z * adj - tz > fsp*fbr/2) tz += fsp*fbr
+                  while(-renderer.z * adj - tz < -fsp*fbr/2) tz -= fsp*fbr
+                  
+                  var nx = -(tx + renderer.x * adj * (16/9)) / fsp
+                  var ny = -(tz + renderer.z * adj) /fsp
+                  var nz = -.1
+                  mapTileLines.x = nx
+                  mapTileLines.y = ny - 6.55 / 2
+                  mapTileLines.z = nz
+                  mapRenderer.Draw(mapTileLines)
+                })
+                */
+                
+                
+                //planeIconShape.x = 0
+                //planeIconShape.y =  - 6.55 / 4
+                //planeIconShape.z =  -4
+                //mapRenderer.Draw(planeIconShape)
+                
+                //mapTileDataSquare
+                //mapTileDataCenters = []
+                
+                
+                
+                //if(wrapVertical){
+                //  while(-renderer.y - ty > fsp*frw/2) ty += fsp*frw
+                //  while(-renderer.y - ty < -fsp*frw/2) ty -= fsp*frw
+                //}
+                
+                
+                //renderer.yaw += .001
+                //renderer.z = Math.min(70, Math.max(32, (.3+C(t))*150))
+                //renderer.pitch = Math.min(.5, Math.max(.1,-(-.3+C(t))*1))
+              }
+            }
+            doKeys()
+            jets[camSel].pitch /= 1.01
+            jets[camSel].roll   = -jets[camSel].yawv * 16
+            jets[camSel].yaw    += jets[camSel].yawv
+            jets[camSel].pitch  += jets[camSel].pitchv
+            jets[camSel].yawv   /= 1.066
+            jets[camSel].pitchv /= 1.066
+            
+            
+            jets[camSel].speed += jets[camSel].speedv
+            jets[camSel].speed = Math.min(maxSpeed, Math.max(minSpeed, jets[camSel].speed))
+            jets[camSel].speedv /= 1.5
+            
             var tailX = 0
             var tailY = 0
             var tailZ = -16
-            p = Math.atan2(tailX, tailZ) + jet.yaw
-            var p2 = jet.pitch
-            d = -20 //+ Math.abs(tailZ * (1+jet.speed/26))
-            x = jet.x + S(p) * d * S(q = -p2 + Math.PI/2)
-            y = jet.y + -C(q) * d - 8
-            z = jet.z + C(p) * S(q) * d
-            if(jet.alive)
-              for(var m = Math.max(0, (jet.speed/25-1)|0); m--;) spawnSmoke(x, y, z)
-          }
-
-          thrusterShape.roll  = -(jet.shape.roll  = jet.roll)
-          thrusterShape.pitch = -(jet.shape.pitch = jet.pitch + jet.pitchv*10)
-          thrusterShape.yaw   = (jet.shape.yaw   = jet.yaw) + Math.PI
-          
-          renderer.Draw(jet.shape)
-          if(accel) renderer.Draw(thrusterShape)
-        })
-        if(accel) update(thrusterShape, false)
-       
-        //jets[camSel].yaw   += C(t/2) / 100
-        //jets[camSel].pitch += C(t/4) / 200
-       
-        var vx = jets[camSel].vx = 0
-        var vy = jets[camSel].vy = 0
-        var vz = jets[camSel].vz = jets[camSel].speed
-        p = Math.atan2(vx, vz) + jets[camSel].yaw
-        var p2 = jets[camSel].pitch
-        d = Math.hypot(vx, vy, vz)
-        jets[camSel].vx = vx = S(p) * d * S(q = -p2 + Math.PI/2)
-        jets[camSel].vy = vy = C(q) * d
-        jets[camSel].vz = vz = C(p) * S(q) * d
-        
-        var p1 = jets[camSel].yaw, shp
-        //var floorShape = floorShapeLow
-        //var floorVertices = floorVerticesLow
-        var cloudTx, cloudTy, cloudTz, tx, ty, tz, flid
-        var cloudSpeed = 2e3
-        Array(fcl*frw*fbr).fill().map((v, j)=>{
-          cloudTx = tx = ((j%fcl)-fcl/2 + .5) * fsp
-          cloudTy = ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
-          cloudTz = tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
-          flid = j%2 //(j+(j/fcl/frw|0))%2
-          //var floorVertices = tx||tz ? floorVerticesLow : floorVerticesMed
-          while(-renderer.x - tx > fsp*fcl/2) tx += fsp*fcl
-          while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
-          if(wrapVertical){
-            while(-renderer.y - ty > fsp*frw/2) ty += fsp*frw
-            while(-renderer.y - ty < -fsp*frw/2) ty -= fsp*frw
-          }
-          while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
-          while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
-          if(floorIdentities[j] == -1 || (tx != floorIdentitiesMemo[j][0] ||
-          (wrapVertical && ty != floorIdentitiesMemo[j][1]) ||
-             tz != floorIdentitiesMemo[j][2])){
-             floorIdentitiesMemo[j][0] = tx
-             floorIdentitiesMemo[j][1] = ty
-             floorIdentitiesMemo[j][2] = tz
-             floorIdentities[j] = curIdents[j] //Rn() * floorTiles.length | 0
-            //console.log(curIdents)
-            //console.log(floorTiles.length)
-          }
-          if(drawClouds && flid && floorTiles[floorIdentities[j]].name == 'blankTile'){ // flid is checkerboard xor
-            cloudTx += -fsp * fcl / 2 + ((t*cloudSpeed/2)%(fsp*fcl))
-            //cloudTy = ty
-            cloudTz += - fsp * fbr / 2 + ((t*cloudSpeed)%(fsp*fbr))
-
-            while(-renderer.x - cloudTx > fsp*fcl/2) cloudTx += fsp*fcl
-            while(-renderer.x - cloudTx < -fsp*fcl/2) cloudTx -= fsp*fcl
-            if(wrapVertical){
-              while(-renderer.y - cloudTy > fsp*frw/2) cloudTy += fsp*frw
-              while(-renderer.y - cloudTy < -fsp*frw/2) cloudTy -= fsp*frw
-            }
-            while(-renderer.z - cloudTz > fsp*fbr/2) cloudTz += fsp*fbr
-            while(-renderer.z - cloudTz < -fsp*fbr/2) cloudTz -= fsp*fbr
-            // add altitude to clouds
-            cloudTy += 5e3
-            var d = Math.hypot(-renderer.x - cloudTx, -renderer.y - cloudTy, -renderer.z - cloudTz)
-            var lod = d >= fsp * 1.5 ? lowpolySuffix : hipolySuffix
-
-            shp = clouds.filter(v=>v.geometry.name == 'clouds' + lod)[0]
-            shp.geometry.x = cloudTx
-            shp.geometry.y = cloudTy
-            shp.geometry.z = cloudTz
-            renderer.Draw(shp.geometry)
-          }
-          lod = d >= fsp * 1.5 ? floorTiles[floorIdentities[j]].LowpolySuffix :
-          floorTiles[floorIdentities[j]].HipolySuffix
-          shp = floorTiles.filter(v=>
-            v.roll== floorTiles[floorIdentities[j]].roll &&
-            v.pitch == floorTiles[floorIdentities[j]].pitch &&
-            v.yaw== floorTiles[floorIdentities[j]].yaw &&
-            v.geometry.name == floorTiles[floorIdentities[j]].name + lod)[0]
-          if(typeof shp != 'undefined'){
-            shp.geometry.x = tx
-            shp.geometry.y = ty
-            shp.geometry.z = tz
-            shp.geometry.roll = shp.roll
-            shp.geometry.pitch = shp.pitch
-            shp.geometry.yaw = shp.yaw
-            renderer.Draw(shp.geometry)
             
-            if(0 && typeof powerupShape != 'undefined'){
-              powerupShape.x = shp.geometry.x
-              powerupShape.y = shp.geometry.y + 5e3
-              powerupShape.z = shp.geometry.z
-              renderer.Draw(powerupShape)
+            p = Math.atan2(tailX, tailZ) + jets[camSel].yaw
+            var p2 = jets[camSel].pitch
+            d = 50 - Math.abs(tailZ * (1+jets[camSel].speed/18)) //Math.hypot(tailX, tailY, tailZ)
+            tailX = vx = S(p) * d * S(q = -p2 + Math.PI/2)
+            tailY = vy = -C(q) * d - 8
+            tailZ = vz = C(p) * S(q) * d
+            
+            renderer.x += (-renderer.x - jets[camSel].x + tailX) / 1
+            renderer.y += (-renderer.y - jets[camSel].y + tailY) / 1
+            renderer.z += (-renderer.z - jets[camSel].z + tailZ) / 1
+            
+            
+            
+            //renderer.roll += (-renderer.roll + jets[camSel].roll) / 60
+            //renderer.pitch += (-renderer.pitch - jets[camSel].y - 10) / 60
+            renderer.pitch += (-renderer.pitch + jets[camSel].pitch * 1.1) / 3
+            renderer.y -= jets[camSel].pitch * 5
+            renderer.yaw += (-renderer.yaw - jets[camSel].yaw + Math.PI) / 5
+            
+            if(typeof backgroundShape?.vertices != 'undefined'){
+              backgroundShape.x = jets[camSel].x
+              backgroundShape.y = jets[camSel].y
+              backgroundShape.z = jets[camSel].z
+              renderer.Draw(backgroundShape)
             }
-          }
-        })
-        
-        for(var j = 0; j < smokeParticles.vertices.length; j += 3){
-          if(j/3|0 > smoke.length) {
-            smokeParticles.vertices[j+0] = 1e8
-            smokeParticles.vertices[j+1] = 0
-            smokeParticles.vertices[j+2] = 0
-          }
-        }
-        smoke = smoke.filter((v, i) => v[3] > 0)
-        smoke.map((v, i) => {
-          var j = i*3
-          smokeParticles.vertices[j+0] = smoke[i][0] += smoke[i][4]
-          smokeParticles.vertices[j+1] = smoke[i][1] += smoke[i][5]
-          smokeParticles.vertices[j+2] = smoke[i][2] += smoke[i][6]
-          smoke[i][3] -= .0001
-        })
-        renderer.Draw(smokeParticles)
-
-        //if(!((t*60|0)%10)) spawnSplosion(0, 2500, 0)
-
-        if(1){
-          splosions = splosions.filter((v, i) => v[3] > 0)
-          splosionUnits = splosionUnits.map((su, suIdx) => {
-            if(su){
-              for(var j = 0; j < splosionParticles.vertices.length; j += 3){
-                splosionParticles.vertices[j+0] = 1e8
-                splosionParticles.vertices[j+1] = 0
-                splosionParticles.vertices[j+2] = 0
+            
+            if(drawAtmosphereParticles) {
+              for(var i = 0; i < particlesShape.vertices.length; i+=3){
+                var x = particlesShape.vertices[i + 0]
+                var y = particlesShape.vertices[i + 1]
+                var z = particlesShape.vertices[i + 2]
+                
+                if(x + renderer.x > G/2) x = particlesShape.vertices[i + 0] -= G
+                if(x + renderer.x < -G/2) x = particlesShape.vertices[i + 0] += G
+                if(y + renderer.y > G/2) y = particlesShape.vertices[i + 1] -= G
+                if(y + renderer.y < -G/2) y = particlesShape.vertices[i + 1] += G
+                if(z + renderer.z > G/2) z = particlesShape.vertices[i + 2] -= G
+                if(z + renderer.z < -G/2) z = particlesShape.vertices[i + 2] += G
+                
+                particlesShape.vertices[i + 0] = x
+                particlesShape.vertices[i + 1] = y
+                particlesShape.vertices[i + 2] = z
               }
-              splosions.map((v, i) => {
-                if(splosions[i][7] == suIdx){
-                  var j = i*3
-                  splosionParticles.vertices[j+0] = splosions[i][0] += splosions[i][4]
-                  splosionParticles.vertices[j+1] = splosions[i][1] += splosions[i][5]
-                  splosionParticles.vertices[j+2] = splosions[i][2] += splosions[i][6]
-                  splosions[i][3] = su
+              renderer.Draw(particlesShape)
+            }
+
+            jets.map((jet, idx) => {
+            
+              //jet.yaw += .0125 * (idx%2 ? -1 : 1)
+              //jet.roll += .0125 * (idx%2 ? -1 : 1)
+              if(drawSmoke){
+                var tailX = 0
+                var tailY = 0
+                var tailZ = -16
+                p = Math.atan2(tailX, tailZ) + jet.yaw
+                var p2 = jet.pitch
+                d = -20 //+ Math.abs(tailZ * (1+jet.speed/26))
+                x = jet.x + S(p) * d * S(q = -p2 + Math.PI/2)
+                y = jet.y + -C(q) * d - 8
+                z = jet.z + C(p) * S(q) * d
+                if(jet.alive)
+                  for(var m = Math.max(0, (jet.speed/25-1)|0); m--;) spawnSmoke(x, y, z)
+              }
+            
+              if(jet.alive){
+                var fl
+                if(fl = getCollision(jet.x, jet.y, jet.z, jet.speed)) {
+                  jet.alive = false
+                  jet.speed = 0
+                  var d = Math.hypot(jet.x-fl[0], jet.y-fl[1], jet.z-fl[2])
+                  jet.x = (fl[0] + (jet.x - fl[0]) / d * 50)
+                  jet.y = (fl[1] - (jet.y - fl[1]) / d * 50)
+                  jet.z = (fl[2] + (jet.z - fl[2]) / d * 50)
+                  spawnSplosion(jet.x, jet.y, jet.z)
+                }else{
+                  jet.vx = -S(p = jet.yaw) * S(q = -jet.pitch + Math.PI/2) * jet.speed
+                  jet.vy = -C(q) * jet.speed
+                  jet.vz = -C(p) * S(q) * jet.speed
+                }
+            
+                thrusterShape.x = jet.shape.x = jet.x += jet.vx
+                thrusterShape.y = jet.shape.y = jet.y += jet.vy
+                thrusterShape.z = jet.shape.z = jet.z += jet.vz
+                
+
+                thrusterShape.roll  = -(jet.shape.roll  = jet.roll)
+                thrusterShape.pitch = -(jet.shape.pitch = jet.pitch + jet.pitchv*10)
+                thrusterShape.yaw   = (jet.shape.yaw   = jet.yaw) + Math.PI
+                
+                renderer.Draw(jet.shape)
+                if(accel) renderer.Draw(thrusterShape)
+              }else{
+                jet.vx = jet.vy = jet.vz = 0
+              }
+            })
+            if(accel) update(thrusterShape, false)
+           
+            //jets[camSel].yaw   += C(t/2) / 100
+            //jets[camSel].pitch += C(t/4) / 200
+           
+            var vx = jets[camSel].vx = 0
+            var vy = jets[camSel].vy = 0
+            var vz = jets[camSel].vz = jets[camSel].speed
+            p = Math.atan2(vx, vz) + jets[camSel].yaw
+            var p2 = jets[camSel].pitch
+            d = Math.hypot(vx, vy, vz)
+            jets[camSel].vx = vx = S(p) * d * S(q = -p2 + Math.PI/2)
+            jets[camSel].vy = vy = C(q) * d
+            jets[camSel].vz = vz = C(p) * S(q) * d
+            
+            var p1 = jets[camSel].yaw, shp
+            //var floorShape = floorShapeLow
+            //var floorVertices = floorVerticesLow
+            var cloudTx, cloudTy, cloudTz, tx, ty, tz, flid
+            var cloudSpeed = 2e3
+            Array(fcl*frw*fbr).fill().map((v, j)=>{
+              cloudTx = tx = ((j%fcl)-fcl/2 + .5) * fsp
+              cloudTy = ty = (((j/fcl|0)%frw)-frw/2 + .5) * fsp
+              cloudTz = tz = ((j/fcl/frw|0)-fbr/2 + .5) * fsp
+              flid = j%2 //(j+(j/fcl/frw|0))%2
+              //var floorVertices = tx||tz ? floorVerticesLow : floorVerticesMed
+              while(-renderer.x - tx > fsp*fcl/2) tx += fsp*fcl
+              while(-renderer.x - tx < -fsp*fcl/2) tx -= fsp*fcl
+              if(wrapVertical){
+                while(-renderer.y - ty > fsp*frw/2) ty += fsp*frw
+                while(-renderer.y - ty < -fsp*frw/2) ty -= fsp*frw
+              }
+              while(-renderer.z - tz > fsp*fbr/2) tz += fsp*fbr
+              while(-renderer.z - tz < -fsp*fbr/2) tz -= fsp*fbr
+              if(floorIdentities[j] == -1 || (tx != floorIdentitiesMemo[j][0] ||
+              (wrapVertical && ty != floorIdentitiesMemo[j][1]) ||
+                 tz != floorIdentitiesMemo[j][2])){
+                 floorIdentitiesMemo[j][0] = tx
+                 floorIdentitiesMemo[j][1] = ty
+                 floorIdentitiesMemo[j][2] = tz
+                 floorIdentities[j] = curIdents[j] //Rn() * floorTiles.length | 0
+                //console.log(curIdents)
+                //console.log(floorTiles.length)
+              }
+              if(drawClouds && flid && floorTiles[floorIdentities[j]].name == 'blankTile'){ // flid is checkerboard xor
+                cloudTx += -fsp * fcl / 2 + ((t*cloudSpeed/2)%(fsp*fcl))
+                //cloudTy = ty
+                cloudTz += - fsp * fbr / 2 + ((t*cloudSpeed)%(fsp*fbr))
+
+                while(-renderer.x - cloudTx > fsp*fcl/2) cloudTx += fsp*fcl
+                while(-renderer.x - cloudTx < -fsp*fcl/2) cloudTx -= fsp*fcl
+                if(wrapVertical){
+                  while(-renderer.y - cloudTy > fsp*frw/2) cloudTy += fsp*frw
+                  while(-renderer.y - cloudTy < -fsp*frw/2) cloudTy -= fsp*frw
+                }
+                while(-renderer.z - cloudTz > fsp*fbr/2) cloudTz += fsp*fbr
+                while(-renderer.z - cloudTz < -fsp*fbr/2) cloudTz -= fsp*fbr
+                // add altitude to clouds
+                cloudTy += 5e3
+                var d = Math.hypot(-renderer.x - cloudTx, -renderer.y - cloudTy, -renderer.z - cloudTz)
+                var lod = d >= fsp * 1.5 ? lowpolySuffix : hipolySuffix
+
+                shp = clouds.filter(v=>v.geometry.name == 'clouds' + lod)[0]
+                shp.geometry.x = cloudTx
+                shp.geometry.y = cloudTy
+                shp.geometry.z = cloudTz
+                renderer.Draw(shp.geometry)
+              }
+              lod = d >= fsp * 1.5 ? floorTiles[floorIdentities[j]].LowpolySuffix :
+              floorTiles[floorIdentities[j]].HipolySuffix
+              shp = floorTiles.filter(v=>
+                v.roll== floorTiles[floorIdentities[j]].roll &&
+                v.pitch == floorTiles[floorIdentities[j]].pitch &&
+                v.yaw== floorTiles[floorIdentities[j]].yaw &&
+                v.geometry.name == floorTiles[floorIdentities[j]].name + lod)[0]
+              if(typeof shp != 'undefined'){
+                shp.geometry.x = tx
+                shp.geometry.y = ty
+                shp.geometry.z = tz
+                shp.geometry.roll = shp.roll
+                shp.geometry.pitch = shp.pitch
+                shp.geometry.yaw = shp.yaw
+                renderer.Draw(shp.geometry)
+                
+                if(0 && typeof powerupShape != 'undefined'){
+                  powerupShape.x = shp.geometry.x
+                  powerupShape.y = shp.geometry.y + 5e3
+                  powerupShape.z = shp.geometry.z
+                  renderer.Draw(powerupShape)
+                }
+              }
+            })
+            
+            for(var j = 0; j < smokeParticles.vertices.length; j += 3){
+              if(j/3|0 > smoke.length) {
+                smokeParticles.vertices[j+0] = 1e8
+                smokeParticles.vertices[j+1] = 0
+                smokeParticles.vertices[j+2] = 0
+              }
+            }
+            smoke = smoke.filter((v, i) => v[3] > 0)
+            smoke.map((v, i) => {
+              var j = i*3
+              smokeParticles.vertices[j+0] = smoke[i][0] += smoke[i][4]
+              smokeParticles.vertices[j+1] = smoke[i][1] += smoke[i][5]
+              smokeParticles.vertices[j+2] = smoke[i][2] += smoke[i][6]
+              smoke[i][3] -= .0001
+            })
+            renderer.Draw(smokeParticles)
+
+            //if(!((t*60|0)%10)) spawnSplosion(0, 2500, 0)
+
+            if(1){
+              splosions = splosions.filter((v, i) => v[3] > 0)
+              splosionUnits = splosionUnits.map((su, suIdx) => {
+                if(su){
+                  for(var j = 0; j < splosionParticles.vertices.length; j += 3){
+                    splosionParticles.vertices[j+0] = 1e8
+                    splosionParticles.vertices[j+1] = 0
+                    splosionParticles.vertices[j+2] = 0
+                  }
+                  splosions.map((v, i) => {
+                    if(splosions[i][7] == suIdx){
+                      var j = i*3
+                      splosionParticles.vertices[j+0] = splosions[i][0] += splosions[i][4]
+                      splosionParticles.vertices[j+1] = splosions[i][1] += splosions[i][5]
+                      splosionParticles.vertices[j+2] = splosions[i][2] += splosions[i][6]
+                      splosions[i][3] = su
+                    }
+                  })
+                  if(splosions.length){
+                    splosionParticles.size = splosionParticleSize * su
+                    renderer.Draw(splosionParticles)
+                    return Math.max(0, su - .0005)
+                  }else{
+                    return 0
+                  }
+                }else{
+                  return 0
                 }
               })
-              if(splosions.length){
-                splosionParticles.size = splosionParticleSize * su
-                renderer.Draw(splosionParticles)
-                return Math.max(0, su - .0005)
-              }else{
-                return 0
-              }
-            }else{
-              return 0
             }
-          })
+          }
         }
       }
-    }
-  }
-</script>
-
+    </script>
   </body>
 </html>
