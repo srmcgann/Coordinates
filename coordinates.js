@@ -62,6 +62,9 @@ const Renderer = async options => {
   var pointLights     = []
   var pointLightCols  = []
   var optionalPlugins = []
+  var hasFog          = false
+  var fog             = 0
+  var fogColor        = [0,0,0]
   var dataArray       = {
     data: [],
     items: [],
@@ -101,6 +104,8 @@ const Renderer = async options => {
         case 'pitch': pitch = options[key]; break
         case 'yaw': yaw = options[key]; break
         case 'fov': fov = options[key]; break
+        case 'fog': fog = options[key]; break
+        case 'fogcolor': fogColor = options[key]; break
         case 'clearcolor': clearColor = options[key]; break
         case 'attachtobody': attachToBody = !!options[key]; break
         case 'exportgpuspecs': exportGPUSpecs = !!options[key]; break
@@ -179,7 +184,7 @@ const Renderer = async options => {
     alphaQueue, particleQueue, lineQueue, active,
     cameraMode, showCrosshair, crosshairSel,
     crosshairMap, pageX, pageY, mouseX, mouseY,
-    mouseButton, rsz, margin, optionalPlugins
+    mouseButton, rsz, margin, optionalPlugins, fogColor
     
     // functions
     // ...
@@ -195,7 +200,7 @@ const Renderer = async options => {
         c.width = renderer.c.width
       break
       default:
-        ctx.clearColor(0,0,0,1) //...HexToRGB(), 1.0)
+        ctx.clearColor(...HexToRGB(renderer.clearColor), 1.0)
         ctx.clear(ctx.COLOR_BUFFER_BIT)
         ctx.clear(ctx.DEPTH_BUFFER_BIT)
       break
@@ -512,11 +517,22 @@ const Renderer = async options => {
             
             //ctx.useProgram( sProg )
             
+            ctx.useProgram( sProg )
+            
+            if(!renderer.hasFog){
+              ctx.uniform1f(dset.locFog, 0.0)
+              ctx.uniform3f(dset.locFogColor, ...renderer.fogColor)
+            }
+            
             dset.optionalUniforms.map((uniform) => {
               if(typeof uniform?.loc === 'object'){
                 ctx[uniform.dataType](uniform.loc,      uniform.value)
                 ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
                 switch(uniform.name){
+                  case 'fog':
+                    ctx.uniform1f(dset.locFog, uniform.value)
+                    ctx.uniform3f(dset.locFogColor, ...HexToRGB(uniform.color))
+                  break
                   case 'reflection':
                     ctx.activeTexture(ctx.TEXTURE1)
                     if(uniform.textureMode == 'image' && geometry.rebindTextures){
@@ -527,7 +543,6 @@ const Renderer = async options => {
                     if(uniform.textureMode == 'video'){
                        BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
                     }
-                    ctx.useProgram( sProg )
                     ctx.activeTexture(ctx.TEXTURE1)
                     ctx.uniform1i(uniform.locRefTexture, 1)
                     ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
@@ -543,7 +558,6 @@ const Renderer = async options => {
                     if(uniform.textureMode == 'video'){
                        BindImage(ctx, uniform.video,  uniform.refractionTexture, uniform.textureMode, renderer.t, uniform)
                     }
-                    ctx.useProgram( sProg )
                     ctx.activeTexture(ctx.TEXTURE5)
                     ctx.uniform1i(uniform.locRefractionTexture, 5)
                     ctx.bindTexture(ctx.TEXTURE_2D, uniform.refractionTexture)
@@ -2909,6 +2923,27 @@ const BasicShader = async (renderer, options=[]) => {
                 dataset.optionalUniforms.push( uniformOption )
               }
             break
+            case 'fog':
+              if(typeof option[key]?.enabled == 'undefined' ||
+                 !!option[key].enabled){
+                var uniformOption = {
+                  name:                option[key].type,
+                  loc:                 '',
+                  value:               typeof option[key].value == 'undefined' ?
+                                         .5 : option[key].value,
+                  color:               typeof option[key].color == 'undefined' ?
+                                         0x888888 : option[key].color,
+                  dataType:            'uniform1f',
+                  vertDeclaration:     ``,
+                  vertCode:            ``,
+                  fragDeclaration:     ``,
+                  fragCode:            ``,
+                }
+                renderer.clearColor = uniformOption.color
+                renderer.hasFog = true
+                dataset.optionalUniforms.push( uniformOption )
+              }
+            break
             case 'reflection':
               if(typeof option[key]?.enabled == 'undefined' ||
                  !!option[key].enabled){
@@ -3137,6 +3172,7 @@ const BasicShader = async (renderer, options=[]) => {
       //gl.cullFace(gl.BACK)
     }
 
+
     let uVertDeclaration = ''
     dataset.optionalUniforms.map(v=>{ uVertDeclaration += ("\n" + v.vertDeclaration + "\n") })
     let uVertCode= ''
@@ -3185,6 +3221,7 @@ const BasicShader = async (renderer, options=[]) => {
       attribute vec3 position;
       attribute vec3 normal;
       attribute vec3 normalVec;
+      varying float depth;
       varying vec2 vUv;
       varying vec2 uvi;
       varying vec3 nVec;
@@ -3395,20 +3432,20 @@ const BasicShader = async (renderer, options=[]) => {
           fPos = pos;
         }else{
           if(isSprite != 0.0 || isLight != 0.0){
-            geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z+M_PI/2.0), 0);
+            geo = Quat(geoPos, vec3(camOri.x, camOri.y, -camOri.z), 0);
             pos = vec3(cx, cy, cz);
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-            nVec = Quat(nVec, vec3(camOri.x, -camOri.y, -camOri.z), 0);
+            nVec = Quat(nVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
           }else{
             geo = Quat(geoPos, vec3(camOri.x, camOri.y, -camOri.z), 0);
             pos = vec3(cx, cy, cz);
             pos = Quat(pos, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-            pos = Quat(pos, vec3(camOri.x, -camOri.y, -camOri.z), 0);
+            pos = Quat(pos, vec3(camOri.x, camOri.y, -camOri.z), 0);
             
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-            nVec = Quat(nVec, vec3(camOri.x, -camOri.y, -camOri.z), 0);
+            nVec = Quat(nVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
           }
           fPos = pos;
         }
@@ -3426,6 +3463,7 @@ const BasicShader = async (renderer, options=[]) => {
           Y = position.y / resolution.y * fov;
           Z = position.z;
           gl_Position = vec4(X, Y, Z/500000.0, 1.0);
+          depth = pow(1.0 + sqrt(X*X + Y*Y + Z*Z), 1.0) / 100.0;
           skip = 0.0;
           vUv = uv;
         }else{
@@ -3469,6 +3507,7 @@ const BasicShader = async (renderer, options=[]) => {
             if(Z > 0.0) {
               gl_PointSize = 100.0 * pointSize / Z;
               gl_Position = vec4(X, Y, Z/500000.0, 1.0);
+              depth = pow(1.0 + sqrt(X*X + Y*Y + Z*Z), 1.0) / 100.0;
               skip = 0.0;
               vUv = uv;
             }else{
@@ -3519,6 +3558,13 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 camOri;
       uniform vec3 geoPos;
       uniform vec3 geoOri;
+      
+        // fog //
+      uniform vec3 fogColor;
+      uniform float fog;
+        /////////
+        
+      varying float depth;
       varying vec2 vUv;
       varying vec2 uvi;
       varying vec3 nVec;
@@ -3709,8 +3755,15 @@ const BasicShader = async (renderer, options=[]) => {
               vec2 coords = Coords(0.0, nVi);
               vec4 texel = texture2D( baseTexture, coords);
               texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
+              float fv;
               if(isSprite != 0.0 || isLight != 0.0){
-                gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
+                if(fog != 0.0){
+                  vec4 preFog = vec4(texel.rgb * 3.0, texel.a);
+                  fv = min(1.0, depth * fog) * min(alpha * 2.0, 1.0);
+                  gl_FragColor = merge(vec4(preFog.rgb, (1.0 - fv)), vec4(fogColor.rgb, 0.0));
+                }else{
+                  gl_FragColor = vec4(texel.rgb * 2.0, texel.a * alpha);
+                }
               }else{
                 
                 texel.a = baseColorIp / 2.0;
@@ -3721,7 +3774,15 @@ const BasicShader = async (renderer, options=[]) => {
                   col = merge(mixColor2, col); // refractions
                 }
                 col.rgb *= light.rgb;
-                gl_FragColor = vec4(col.rgb * colorMag, 1.0);
+                
+                
+                if(fog != 0.0){
+                  vec4 preFog = vec4(col.rgb * colorMag, 1.0);
+                  fv = min(1.0, depth * fog);
+                  gl_FragColor = merge(vec4(preFog.rgb, 1.0 - fv), vec4(fogColor.rgb, fv));
+                }else{
+                  gl_FragColor = vec4(col.rgb * colorMag, 1.0);
+                }
               }
             }
           }
@@ -3796,6 +3857,8 @@ const BasicShader = async (renderer, options=[]) => {
           if(!geometry.isLight){
             dset.optionalUniforms.map(async (uniform) => {
               switch(uniform.name){
+               case 'fog':
+               break
                 case 'reflection':
                   var url = uniform.map
                   if(url){
@@ -4093,8 +4156,12 @@ const BasicShader = async (renderer, options=[]) => {
           dset.locCameraMode = gl.getUniformLocation(dset.program, "cameraMode")
           gl.uniform1f(dset.locCameraMode, renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
 
+          
           dset.locSupplementalTextureMix = gl.getUniformLocation(dset.program, "supplementalTextureMix")
           gl.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
+
+          dset.locFog = gl.getUniformLocation(dset.program, "fog")
+          dset.locFogColor = gl.getUniformLocation(dset.program, "fogColor")
 
           dset.locIsLight = gl.getUniformLocation(dset.program, "isLight")
           gl.uniform1f(dset.locIsLight, geometry.isLight ? 1.0 : 0.0)
@@ -6325,10 +6392,21 @@ const AnimationLoop = (renderer, func) => {
                           pitch: renderer.pitch,
                           yaw: renderer.yaw}, false)
                           
-          var camz = renderer.z / 1e3 * renderer.fov
-          forSort.push({idx: i, z: camz + vec[2]})
+          //var camz = renderer.z / 1e3 * renderer.fov
+          //forSort.push({idx: i, z: camz + vec[2]})
+          forSort.push({idx: i, z: Math.hypot(
+                                    renderer.x + vec[0],
+                                    renderer.y + vec[1],
+                                    renderer.z + vec[2]) })
         })
-        forSort.sort((a, b) => b.z - a.z)
+        switch(renderer.cameraMode){
+          case 'fps':
+            forSort.sort((a, b) => b.z - a.z)
+          break
+          case 'fps':
+            forSort.sort((a, b) => a.z - b.z)
+          break
+        }
         renderer[queueType].map(async (alphaShape, idx) => {
 
 
