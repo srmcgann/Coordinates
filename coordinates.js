@@ -3462,7 +3462,7 @@ const BasicShader = async (renderer, options=[]) => {
           X = position.x / resolution.x * fov;
           Y = position.y / resolution.y * fov;
           Z = position.z;
-          gl_Position = vec4(X, Y, Z/500000.0, 1.0);
+          gl_Position = vec4(X, Y, Z/10000.0, 1.0);
           depth = pow(1.0 + sqrt(X*X + Y*Y + Z*Z), 1.0) / 100.0;
           skip = 0.0;
           vUv = uv;
@@ -3498,7 +3498,7 @@ const BasicShader = async (renderer, options=[]) => {
             if(skip == 0.0){
               float p2 = - (acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0) * 1.05;
               gl_PointSize = 100.0 * pointSize / dist;
-              gl_Position = vec4(p1, p2, dist/500000.0, 1.0);
+              gl_Position = vec4(p1, p2, dist/10000.0, 1.0);
               vUv = uv;
             }
           } else {  // default projection
@@ -3506,7 +3506,7 @@ const BasicShader = async (renderer, options=[]) => {
             Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
             if(Z > 0.0) {
               gl_PointSize = 100.0 * pointSize / Z;
-              gl_Position = vec4(X, Y, Z/500000.0, 1.0);
+              gl_Position = vec4(X, Y, Z/10000.0, 1.0);
               depth = pow(1.0 + sqrt(X*X + Y*Y + Z*Z), 1.0) / 100.0;
               skip = 0.0;
               vUv = uv;
