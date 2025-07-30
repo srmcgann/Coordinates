@@ -155,7 +155,7 @@ const Renderer = async options => {
     c.style.top        = '50vh'
     c.style.transform  = 'translate(-50%, -50%)'
     //c.style.border     = '1px solid #fff3'
-    c.style.background = '#000'
+    //c.style.background = '#000'
     document.body.appendChild(c)
   }
   
