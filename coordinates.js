@@ -1169,6 +1169,111 @@ const DrawAnimation = (renderer, animation, options) => {
   }
 }
   
+
+const GeoToOBJ = geo => {
+  
+  var ret = ''
+  var vertices    = []
+  var uvs         = []
+  var normals     = []
+  var faceVerts   = []
+  var faceNormals = []
+  var faceUVs     = []
+  
+  if(geo?.vertices) {
+    vertices = geo.vertices
+    var ct = 0, a = [], b = []
+    for(var i = 0; i < vertices.length; i += 3) {
+      var x = Math.round(vertices[i+0]*1e4)/1e4
+      var y = Math.round(vertices[i+1]*1e4)/1e4
+      var z = Math.round(vertices[i+2]*1e4)/1e4
+      ret += `v ${x} ${y} ${z}\n`
+      a.push(i/3)
+      //b.push([x,y,z])
+      if(++ct == 3){
+        ct = 0
+        faceVerts.push(a)
+        a = []
+      }
+    }
+  }
+  /*
+  if(geo.averageNormals) {
+    AverageNormals(vertices, normals, geo.shapeType)
+    var tn = []
+    for(var i = 0; i < normals.length; i+=6){
+      tn.push(normals[i+3]-normals[i+0],
+              normals[i+4]-normals[i+1],
+              normals[i+5]-normals[i+2],)
+    }
+    normals = tn
+  }
+  */
+  if(geo?.normalVecs) {
+    normals = geo.normalVecs
+    //var ct = 0, a = []
+    for(var i = 0; i < normals.length; i += 3) {
+      var nx = Math.round(normals[i+0]*1e4)/1e4 
+      var ny = Math.round(normals[i+1]*1e4)/1e4 
+      var nz = Math.round(normals[i+2]*1e4)/1e4 
+      //var x = geo.vertices[i+0]
+      //var y = geo.vertices[i+1]
+      //var z = geo.vertices[i+2]
+      //if(Math.hypot(nx+x,ny+y,nz+z) > Math.hypot(x,y,z)){
+      //  nx *= -1
+      //  ny *= -1
+      //  nz *= -1
+      //}
+      ret += `vn ${nx} ${ny} ${nz}\n`
+      //a.push(i/3)
+      //if(++ct == 3){
+      //  ct = 0
+      //  faceNormals.push(a)
+      //  a = []
+      //}
+    }
+  }
+  if(geo?.uvs) {
+    uvs = geo.uvs
+    //var ct = 0, a = []
+    for(var i = 0; i < uvs.length; i += 2) {
+      var uvx = Math.round(uvs[i+0]*1e4)/1e4
+      var uvy = Math.round(uvs[i+1]*1e4)/1e4
+      ret += `vt ${uvx} ${uvy}\n`
+      //a.push(i/2)
+      //if(++ct == 2){
+      //  ct = 0
+      //  faceUVs.push(a)
+      //  a = []
+      //}
+    }
+  }
+  var faces = []
+  faceVerts.forEach((face, fidx) => {
+    var l = fidx/1|0
+    var v1 = l * 3 + 1
+    var v2 = l * 3 + 2
+    var v3 = l * 3 + 3
+    var u1 = l * 2 + 1
+    var u2 = l * 2 + 2
+    var u3 = l * 2 + 3
+    var n1 = l * 3 + 1
+    var n2 = l * 3 + 2
+    var n3 = l * 3 + 3
+    ret += `f ${v1}/${u1}/${n1} ${v2}/${u2}/${n2} ${v3}/${u3}/${n3}\n`
+  })
+  
+  return ret
+}
+
+const DownloadAsOBJ = geo => {
+  console.log(`downloading '${geo.name? geo.name : geo.shapeType}' as OBJ file`)
+  var link      = document.createElement('a')
+  link.href     = 'data:text/plain;charset=utf-8,' + encodeURIComponent(GeoToOBJ(geo))
+  link.download = (geo.name ? geo.name : geo.shapeType) + '.obj'
+  link.click()  
+}
+
 const DownloadCustomShape = geo => {
   if(geo.preComputeNormalAssocs){
     console.log('downloading custom shape, detected preComputeNormalAssocs')
@@ -1229,6 +1334,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var boundingColor, normalAssocs
   const gl = renderer.gl
   var shape, exportShape = false, downloadShape = false
+  var exportAsOBJ = false, downloadAsOBJ = false
   
   // geo defaults
   var x = 0, y = 0, z = 0
@@ -1359,6 +1465,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'heightpamdataarrayformat' : heightmapDataArrayFormat = geoOptions[key]; break
       case 'exportshape'        : exportShape = !!geoOptions[key]; break
       case 'downloadshape'      : downloadShape = !!geoOptions[key]; break
+      case 'exportasobj'        : exportAsOBJ = !!geoOptions[key]; break
+      case 'downloadasobj'      : downloadAsOBJ = !!geoOptions[key]; break
       case 'penumbra'           : penumbra = geoOptions[key]; break
       case 'url'                : url = geoOptions[key]; break
       case 'map'                : map = geoOptions[key]; break
@@ -1458,11 +1566,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
         case 'tetrahedron_2':
         case 'tetrahedron_3':
         case 'tetrahedron_4':
-        case 'cube_0':
-        case 'cube_1':
-        case 'cube_2':
-        case 'cube_3':
-        case 'cube_4':
+        //case 'cube_0':
+        //case 'cube_1':
+        //case 'cube_2':
+        //case 'cube_3':
+        //case 'cube_4':
         case 'octahedron_0':
         case 'octahedron_1':
         case 'octahedron_2':
@@ -1859,7 +1967,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
     
   if(shapeType != 'custom shape' && !isParticle && !isLine &&
-     (!resolvedFromCache || !resolved || averageNormals || exportShape)){
+     (!resolvedFromCache || !resolved || averageNormals || exportShape || 
+                                downloadShape || exportAsOBJ || downloadAsOBJ)){
     normalVecs    = []
     for(var i=0; i<normals.length; i+=6){
       let X = normals[i+3] - normals[i+0]
@@ -1916,7 +2025,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  if(flipNormals && !exportShape){
+  if(flipNormals) {//&& !exportShape && !downloadShape && !exportAsOBJ && !downloadAsOBJ){
     for(var i=0; i<normals.length; i+=6){
       normals[i+3] = normals[i+0] - (normals[i+3]-normals[i+0])
       normals[i+4] = normals[i+1] - (normals[i+4]-normals[i+1])
@@ -1929,7 +2038,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  if(exportShape && name !== 'background'){
+  if(exportShape){
     var popup = document.createElement('div')
     popup.style.position = 'fixed'
     popup.style.zIndex = 100000
@@ -2033,6 +2142,81 @@ const LoadGeometry = async (renderer, geoOptions) => {
     document.body.appendChild(popup)
   }
 
+  if(exportAsOBJ){
+    var popup = document.createElement('div')
+    popup.style.position = 'fixed'
+    popup.style.zIndex = 100000
+    popup.style.left = '50%'
+    popup.style.top = '50%'
+    popup.style.transform = 'translate(-50%, -50%)'
+    popup.style.background = '#0008'
+    popup.style.padding = '20px'
+    popup.style.width = '600px'
+    popup.style.height = '350px'
+    popup.style.border = '1px solid #fff4'
+    popup.style.borderRadius = '5px'
+    popup.style.fontFamily = 'monospace'
+    popup.style.fontSize = '20px'
+    popup.style.color = '#fff'
+    var titleEl = document.createElement('div')
+    titleEl.style.fontSize = '24px'
+    titleEl.style.color = '#0f8c'
+    titleEl.innerHTML = `Export OBJ File -> ${shapeType} ` + (geoOptions?.name ? `(${geoOptions.name})` : '') + '<br><br>'
+    popup.appendChild(titleEl)
+    var output = document.createElement('div')
+    //output.id = 'shapeDataOutput' + geometry.name + geometry.shapeType
+    output.style.minWidth = '100%'
+    output.style.height = '250px'
+    output.style.background = '#333'
+    output.style.border = '1px solid #fff4'
+    output.style.overflowY = 'auto'
+    output.style.wordWrap = 'break-word'
+    output.style.color = '#888'
+    output.style.fontSize = '10px'
+    popup.appendChild(output)
+    var copyButton = document.createElement('button')
+    copyButton.style.border = 'none'
+    copyButton.style.padding = '3px'
+    copyButton.style.cursor = 'pointer'
+    copyButton.fontSize = '20px'
+    copyButton.style.borderRadius = '10px'
+    copyButton.style.margin = '10px'
+    copyButton.style.minWidth = '100px'
+    copyButton.innerHTML = '📋 copy'
+    copyButton.title = "copy shape data to clipboard"
+    copyButton.onclick = () => {
+      var range = document.createRange()
+      range.selectNode(output)
+      window.getSelection().removeAllRanges()
+      window.getSelection().addRange(range)
+      document.execCommand("copy")
+      window.getSelection().removeAllRanges()
+      copyButton.innerHTML = 'COPIED!'
+      setTimeout(() => {
+        copyButton.innerHTML = '📋 copy'
+      } , 1000)
+    }
+    popup.appendChild(copyButton)
+    var closeButton = document.createElement('button')
+    closeButton.onclick = () => popup.remove()
+    
+    closeButton.style.border = 'none'
+    closeButton.style.padding = '3px'
+    closeButton.style.cursor = 'pointer'
+    closeButton.fontSize = '20px'
+    closeButton.style.borderRadius = '10px'
+    closeButton.style.margin = '10px'
+    closeButton.style.background = '#faa'
+    closeButton.style.minWidth = '100px'
+    closeButton.innerHTML = 'close'
+    popup.appendChild(closeButton)
+    
+    var str = GeoToOBJ({ vertices, normalVecs, uvs, shapeType, averageNormals })
+    str = str.replaceAll('\n', '<br>')
+    output.innerHTML = str
+    document.body.appendChild(popup)
+  }
+
 
   if(!resolvedFromCache){
     vertices   = new Float32Array(vertices)
@@ -2115,7 +2299,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     dataArrayWidth, dataArrayHeight, preComputeNormalAssocs,
     heightmapIsDataArray, heightmapDataArrayFormat,
     heightmapDataArrayWidth, heightmapDataArrayHeight,
-    rebindTextures
+    rebindTextures, exportAsOBJ, downloadAsOBJ,
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -2140,6 +2324,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   
   if(geometry.downloadShape && !isFromZip) DownloadCustomShape(geometry)
+  if(geometry.downloadAsOBJ && !isFromZip) DownloadAsOBJ(geometry)
 
   return geometry
 }
@@ -3462,7 +3647,7 @@ const BasicShader = async (renderer, options=[]) => {
           X = position.x / resolution.x * fov;
           Y = position.y / resolution.y * fov;
           Z = position.z;
-          gl_Position = vec4(X, Y, Z/10000.0, 1.0);
+          gl_Position = vec4(X, Y, Z/100000.0, 1.0);
           depth = pow(1.0 + sqrt(X*X + Y*Y + Z*Z), 1.0) / 100.0;
           skip = 0.0;
           vUv = uv;
@@ -3498,7 +3683,7 @@ const BasicShader = async (renderer, options=[]) => {
             if(skip == 0.0){
               float p2 = - (acos(Y / (dist + .0001)) / M_PI * 2.0 - 1.0) * 1.05;
               gl_PointSize = 100.0 * pointSize / dist;
-              gl_Position = vec4(p1, p2, dist/10000.0, 1.0);
+              gl_Position = vec4(p1, p2, dist/100000.0, 1.0);
               vUv = uv;
             }
           } else {  // default projection
@@ -3506,7 +3691,7 @@ const BasicShader = async (renderer, options=[]) => {
             Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
             if(Z > 0.0) {
               gl_PointSize = 100.0 * pointSize / Z;
-              gl_Position = vec4(X, Y, Z/10000.0, 1.0);
+              gl_Position = vec4(X, Y, Z/100000.0, 1.0);
               depth = pow(1.0 + sqrt(X*X + Y*Y + Z*Z), 1.0) / 100.0;
               skip = 0.0;
               vUv = uv;
@@ -4518,18 +4703,18 @@ const ShapeToLines = async (shape, options={}) => {
 
 
 const IsPolyhedron = shapeType => {
-  var isPolyhedron
+  var ret
   switch(shapeType){
-    case 'tetrahedron'  : isPolyhedron = true; break
-    case 'cube'         : isPolyhedron = true; break
-    case 'octahedron'   : isPolyhedron = true; break
-    case 'dodecahedron' : isPolyhedron = true; break
-    case 'icosahedron'  : isPolyhedron = true; break
-    case 'tetrahedron'  : isPolyhedron = true; break
-    case 'dynamic'      : isPolyhedron = false; break
-    default: isPolyhedron = false; break
+    case 'tetrahedron'  : ret = true; break
+    case 'cube'         : ret = true; break
+    case 'octahedron'   : ret = true; break
+    case 'dodecahedron' : ret = true; break
+    case 'icosahedron'  : ret = true; break
+    case 'tetrahedron'  : ret = true; break
+    case 'dynamic'      : ret = false; break
+    default: ret = false; break
   }
-  return isPolyhedron
+  return ret
 }
 
 const GeometryFromRaw = (raw, texCoords, size, subs,
@@ -4618,11 +4803,11 @@ const subbed = (subs, size, sphereize, shape, texCoords, hint='') => {
       case 'tetrahedron_2': resolved = true; fileBase = hint; break
       case 'tetrahedron_3': resolved = true; fileBase = hint; break
       case 'tetrahedron_4': resolved = true; fileBase = hint; break
-      case 'cube_0': resolved = true; fileBase = hint; break
-      case 'cube_1': resolved = true; fileBase = hint; break
-      case 'cube_2': resolved = true; fileBase = hint; break
-      case 'cube_3': resolved = true; fileBase = hint; break
-      case 'cube_4': resolved = true; fileBase = hint; break
+      //case 'cube_0': resolved = true; fileBase = hint; break
+      //case 'cube_1': resolved = true; fileBase = hint; break
+      //case 'cube_2': resolved = true; fileBase = hint; break
+      //case 'cube_3': resolved = true; fileBase = hint; break
+      //case 'cube_4': resolved = true; fileBase = hint; break
       case 'octahedron_0': resolved = true; fileBase = hint; break
       case 'octahedron_1': resolved = true; fileBase = hint; break
       case 'octahedron_2': resolved = true; fileBase = hint; break
@@ -5692,7 +5877,13 @@ const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='c
   var position, texCoord
   var geometry = []
   var e = [], f
-  for(i=6; i--; e.push(b))for(b=[], j=4;j--;) b.push([(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[i%3]*(l=i<3?1:-1),a[(i+1)%3]*l,a[(i+2)%3]*l])
+  for(i=6; i--; e.push(b))for(b=[], j=4;j--;) {
+    if(i<3){
+      b.push([(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[(i+0)%3]*(l=1),a[(i+1)%3]*l,a[(i+2)%3]*l])
+    }else{
+      b.push([(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[(i+2)%3]*(l=-1),a[(i+1)%3]*l,a[(i+0)%3]*l])
+    }
+  }
   
   var texCoords = []
   for(i = 0; i < e.length; i++){
@@ -5709,7 +5900,7 @@ const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='c
     texCoords.push(a)
   }
   
-  let ret = GeometryFromRaw(e, texCoords, size / 1.2, subs,
+  let ret = GeometryFromRaw(e, texCoords, size/6, subs,
                          sphereize, flipNormals, true, shapeType)
                          
   return ret
