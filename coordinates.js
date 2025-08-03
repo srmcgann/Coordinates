@@ -1186,7 +1186,7 @@ const GeoToOBJ = geo => {
     for(var i = 0; i < vertices.length; i += 3) {
       var x = Math.round(vertices[i+0]*1e4)/1e4
       var y = Math.round(vertices[i+1]*1e4)/1e4
-      var z = Math.round(vertices[i+2]*1e4)/1e4
+      var z = -Math.round(vertices[i+2]*1e4)/1e4
       ret += `v ${x} ${y} ${z}\n`
       a.push(i/3)
       //b.push([x,y,z])
@@ -1560,17 +1560,17 @@ const LoadGeometry = async (renderer, geoOptions) => {
     hint = `${shapeType}_${subs}`
     if(subs < 5 && hint){
       var fileBase
-      switch(hint){
+      if(0)switch(hint){
         case 'tetrahedron_0':
         case 'tetrahedron_1':
         case 'tetrahedron_2':
         case 'tetrahedron_3':
         case 'tetrahedron_4':
-        //case 'cube_0':
-        //case 'cube_1':
-        //case 'cube_2':
-        //case 'cube_3':
-        //case 'cube_4':
+        case 'cube_0':
+        case 'cube_1':
+        case 'cube_2':
+        case 'cube_3':
+        case 'cube_4':
         case 'octahedron_0':
         case 'octahedron_1':
         case 'octahedron_2':
@@ -2772,8 +2772,8 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
     var camz = cpz / 1e3 * fov +cpz
     Z = vz + camz
     if(Z>0){
-      X = renderer.width / 2 + vx / Z * fov / 2
-      Y = renderer.height / 2 + vy / Z * fov / 2
+      X =  (renderer.width / 2 + vx / Z * fov / 2)
+      Y =  (renderer.height / 2 + vy / Z * fov / 2)
       return [X, Y, Z]
     }
     return false
@@ -4695,7 +4695,7 @@ const ShapeToLines = async (shape, options={}) => {
   
   lO.geometryData = geometryData
   var ret = { shape: null }
-  LoadGeometry(shape.renderer, lO).then( geo => {
+  await LoadGeometry(shape.renderer, lO).then( geo => {
     ret.shape = geo
   })
   return ret
@@ -4803,11 +4803,11 @@ const subbed = (subs, size, sphereize, shape, texCoords, hint='') => {
       case 'tetrahedron_2': resolved = true; fileBase = hint; break
       case 'tetrahedron_3': resolved = true; fileBase = hint; break
       case 'tetrahedron_4': resolved = true; fileBase = hint; break
-      //case 'cube_0': resolved = true; fileBase = hint; break
-      //case 'cube_1': resolved = true; fileBase = hint; break
-      //case 'cube_2': resolved = true; fileBase = hint; break
-      //case 'cube_3': resolved = true; fileBase = hint; break
-      //case 'cube_4': resolved = true; fileBase = hint; break
+      case 'cube_0': resolved = true; fileBase = hint; break
+      case 'cube_1': resolved = true; fileBase = hint; break
+      case 'cube_2': resolved = true; fileBase = hint; break
+      case 'cube_3': resolved = true; fileBase = hint; break
+      case 'cube_4': resolved = true; fileBase = hint; break
       case 'octahedron_0': resolved = true; fileBase = hint; break
       case 'octahedron_1': resolved = true; fileBase = hint; break
       case 'octahedron_2': resolved = true; fileBase = hint; break
@@ -5340,20 +5340,21 @@ const Cylinder = (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, 
   var p
   var texCoords = []
   for(var j = 0; j < rw; j++){
-    var j2 = j-.5
+    var j2 = j//-.5
+    var s = .5
     for(var i = 0; i < cl; i++){
-      X1 = S(p=Math.PI*2/cl*i)
+      X1 = S(p=Math.PI*2/cl*i)*s
       Y1 = -.5 + 1/rw*j2
-      Z1 = C(p=Math.PI*2/cl*i)
-      X2 = S(p=Math.PI*2/cl*(i+1))
+      Z1 = C(p=Math.PI*2/cl*i)*s
+      X2 = S(p=Math.PI*2/cl*(i+1))*s
       Y2 = -.5 + 1/rw*j2
-      Z2 = C(p=Math.PI*2/cl*(i+1))
-      X3 = S(p=Math.PI*2/cl*(i+1))
+      Z2 = C(p=Math.PI*2/cl*(i+1))*s
+      X3 = S(p=Math.PI*2/cl*(i+1))*s
       Y3 = -.5 + 1/rw*(j2+1)
-      Z3 = C(p=Math.PI*2/cl*(i+1))
-      X4 = S(p=Math.PI*2/cl*i)
+      Z3 = C(p=Math.PI*2/cl*(i+1))*s
+      X4 = S(p=Math.PI*2/cl*i)*s
       Y4 = -.5 + 1/rw*(j2+1)
-      Z4 = C(p=Math.PI*2/cl*i)
+      Z4 = C(p=Math.PI*2/cl*i)*s
       
       var p1 = Math.atan2(X1,Z1)
       var p2 = Math.atan2(X2,Z2)
@@ -5378,7 +5379,7 @@ const Cylinder = (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, 
       texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
     }
   }
-  return GeometryFromRaw(ret, texCoords, size / 1.2, subs,
+  return GeometryFromRaw(ret, texCoords, size, subs,
                          sphereize, flipNormals, true, shapeType)
 }
 
@@ -5695,26 +5696,26 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   var ret = []
 
   let B = [
-    [[0,3],[1,0],[2,2]],
-    [[0,3],[1,0],[1,3]],
-    [[0,3],[2,3],[1,3]],
-    [[0,2],[2,1],[1,0]],
-    [[0,2],[1,3],[1,0]],
-    [[0,2],[1,3],[2,0]],
-    [[0,3],[2,2],[0,0]],
-    [[1,0],[2,2],[2,1]],
-    [[1,1],[2,2],[2,1]],
-    [[1,1],[2,2],[0,0]],
-    [[1,1],[2,1],[0,1]],
-    [[0,2],[2,1],[0,1]],
-    [[2,0],[1,2],[2,3]],
-    [[0,0],[0,3],[2,3]],
-    [[1,3],[2,0],[2,3]],
-    [[2,3],[0,0],[1,2]],
-    [[1,2],[2,0],[0,1]],
-    [[0,0],[1,2],[1,1]],
-    [[0,1],[1,2],[1,1]],
-    [[0,2],[2,0],[0,1]],
+    [[2,2],[1,0],[0,3]],   // 0
+    [[1,3],[1,0],[0,3]],   // 1
+    [[1,3],[2,3],[0,3]],   // 2
+    [[1,0],[2,1],[0,2]],   // 3
+    [[1,0],[1,3],[0,2]],   // 4
+    [[2,0],[1,3],[0,2]],   // 5
+    [[0,3],[2,2],[0,0]],   // 6
+    [[2,1],[2,2],[1,0]],   // 7
+    [[2,1],[2,2],[1,1]],   // 8
+    [[1,1],[2,2],[0,0]],   // 9
+    [[0,1],[2,1],[1,1]],   // 10
+    [[0,1],[2,1],[0,2]],   // 11
+    [[2,0],[1,2],[2,3]],   // 12
+    [[2,3],[0,3],[0,0]],   // 13
+    [[1,3],[2,0],[2,3]],   // 14
+    [[1,2],[0,0],[2,3]],   // 15
+    [[1,2],[2,0],[0,1]],   // 16
+    [[0,0],[1,2],[1,1]],   // 17
+    [[1,1],[1,2],[0,1]],   // 18
+    [[0,2],[2,0],[0,1]],   // 19
   ]
   phi = .5+5**.5/2  //p[l]/p[l-1]
   a = [
@@ -5734,14 +5735,14 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   cp = JSON.parse(JSON.stringify(ret))
   out=[]
   a = []
-  B.map(v=>{
+  B.map((v, i) => {
     idx1a = v[0][0]
     idx2a = v[1][0]
     idx3a = v[2][0]
     idx1b = v[0][1]
     idx2b = v[1][1]
     idx3b = v[2][1]
-    a.push([cp[idx1a][idx1b],cp[idx2a][idx2b],cp[idx3a][idx3b]])
+    a.push([cp[idx3a][idx3b],cp[idx2a][idx2b],cp[idx1a][idx1b]])
   })
   out.push( ...a)
 
@@ -5762,7 +5763,7 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     texCoords.push(a)
   }
   
-  return GeometryFromRaw(e, texCoords, size, subs,
+  return GeometryFromRaw(e, texCoords, size, subs-1,
                          sphereize, flipNormals, false, shapeType)
 }
 
@@ -5789,7 +5790,10 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
   })
   b = structuredClone(a)
   b.map(v=>{
-    v[1] *= -1
+    var p = Math.atan2(v[0], v[1]) + Math.PI
+    var d = Math.hypot(v[0], v[1])
+    v[0] = S(p) * d
+    v[1] = C(p) * d
   })
   ret.push(a, b)
   mind = -6e6
@@ -5810,7 +5814,10 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
   b = structuredClone(ret)
   b.map(v=>{
     v.map(q=>{
-      q[2]*=-1
+      var p = Math.atan2(q[0], q[2]) + Math.PI
+      var d = Math.hypot(q[0], q[2])
+      q[0] = S(p) * d
+      q[2] = C(p) * d
     })
   })
   ret.push(...b)
@@ -5848,7 +5855,12 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
   })
   ret.push(...b, ...e)
   
-  var e = ret
+  var e = ret.map((v, i) => {
+    return v.map((q, j) => {
+      var l = v.length - j - 1
+      return [v[l][0], v[l][1], v[l][2]]
+    })
+  })
   var texCoords = []
   for(i = 0; i < e.length; i++){
     a = []
@@ -5865,7 +5877,7 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
     texCoords.push(a)
   }
   
-  return GeometryFromRaw(e, texCoords, size / Math.max(1, (2 - sphereize)), subs,
+  return GeometryFromRaw(e, texCoords, size / Math.max(1, (2 - sphereize))/1.5, subs,
                          sphereize, flipNormals, false, shapeType)
 }
 
@@ -5879,9 +5891,9 @@ const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='c
   var e = [], f
   for(i=6; i--; e.push(b))for(b=[], j=4;j--;) {
     if(i<3){
-      b.push([(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[(i+0)%3]*(l=1),a[(i+1)%3]*l,a[(i+2)%3]*l])
+      b.push([(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[(i+0)%3]*(l=2**.5/2),a[(i+1)%3]*l,a[(i+2)%3]*l])
     }else{
-      b.push([(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[(i+2)%3]*(l=-1),a[(i+1)%3]*l,a[(i+0)%3]*l])
+      b.push([(a=[S(p=pi*2/4*j+pi/4), C(p), 2**.5/2])[(i+2)%3]*(l=-(2**.5/2)),a[(i+1)%3]*l,a[(i+0)%3]*l])
     }
   }
   
@@ -5900,7 +5912,7 @@ const Cube = (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='c
     texCoords.push(a)
   }
   
-  let ret = GeometryFromRaw(e, texCoords, size/6, subs,
+  let ret = GeometryFromRaw(e, texCoords, size, subs,
                          sphereize, flipNormals, true, shapeType)
                          
   return ret
