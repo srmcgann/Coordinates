@@ -1560,7 +1560,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     hint = `${shapeType}_${subs}`
     if(subs < 5 && hint){
       var fileBase
-      if(0)switch(hint){
+      if(1)switch(hint){
         case 'tetrahedron_0':
         case 'tetrahedron_1':
         case 'tetrahedron_2':
