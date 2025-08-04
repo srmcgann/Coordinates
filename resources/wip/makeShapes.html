@@ -17,14 +17,13 @@
       import * as Coordinates from
       "https://boss.veriler.com/coordinates.js"
       //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
-    
+
       var rendererOptions = {
         ambientLight: .5,
         fov: 1500, margin: 0
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
-      
-      
+
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
@@ -35,42 +34,42 @@
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-
       var shapes = []
       var geoOptions = {
-        shapeType: 'icosahedron',
-        //name: 'icosahedron_0',
-        name: 'main',
+        shapeType: 'custom shape',
+        //sphereize: 0,
+        name: 'torus knot_0',
+        showNormals: false,
+        averageNormals: true,
+        //flipNormals: true,
         subs: 0,
-        size: 2.2,
-        //showNormals: true,
-        //averageNormals: true,
-        sphereize: .5,
+        size: 1,
         color: 0xffffff,
-        //downloadShape: true,
-        downloadAsOBJ: true,
+        downloadShape: true,
+        //downloadAsOBJ: true,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        //Coordinates.SyncNormals(geometry, false, true, false)
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
-        Coordinates.ShapeToLines(geometry, {
+        if(0)Coordinates.ShapeToLines(geometry, {
           name: 'lines',
-          size: .5,
-          penumbra: .3,
+          size: .1,
+          penumbra: 0,
         }).then(shp => {
-          //shapes.push(shp.shape)
+          shapes.push(shp.shape)
         })
       })  
       
       var S = Math.sin
       var C = Math.cos
-      renderer.z = 100
+      renderer.z = 1.5
       window.Draw = () => {
         var t = renderer.t
         renderer.Clear()
         shapes.forEach(shape => {
           switch(shape.name){
-            case 'main':
+            default:
               var ax1, ay1, az1, ax2, ay2, az2, ax3, ay3, az3, faceNo
               for(var i = 0; i < shape.vertices.length; i += 9) {
                 faceNo = i/9
@@ -88,27 +87,23 @@
                 var az = (az1 + az2 + az3) / 3
                 
 
-                // GetShaderCoord(X1, Y1, Z1, geometry, renderer)
-
-                Coordinates.Overlay.ctx.font = (fs=5e3/(renderer.z)) + 'px monospace'
-                Coordinates.Overlay.ctx.strokeStyle = 
-                Coordinates.Overlay.ctx.fillStyle = '#f008'
-                Coordinates.Overlay.ctx.textAlign = 'center'
-                var ar = Coordinates.GetShaderCoord(ax, ay, az, shape, renderer)
-                var X = ar[0]
-                var Y = ar[1]
-                Coordinates.Overlay.ctx.fillText(`${faceNo}`, X, Y)
+                if(0){
+                  Coordinates.Overlay.ctx.font = (fs=32) + 'px monospace'
+                  Coordinates.Overlay.ctx.strokeStyle = '#0008'
+                  Coordinates.Overlay.ctx.lineWidth = fs / 8
+                  Coordinates.Overlay.ctx.fillStyle = '#f008'
+                  Coordinates.Overlay.ctx.textAlign = 'center'
+                  var ar = Coordinates.GetShaderCoord(ax, ay, az, shape, renderer)
+                  var X = ar[0]
+                  var Y = ar[1]
+                  Coordinates.Overlay.ctx.strokeText(`${faceNo}`, X, Y)
+                  Coordinates.Overlay.ctx.fillText(`${faceNo}`, X, Y)
+                }
                 
               }
-              shape.yaw = C(t) *.1 + Math.PI
-              shape.pitch = S(t) * .1
+              shape.yaw = C(t) *.1 + t / 2
+              shape.pitch = S(t) * .1 - t / 4
               renderer.Draw(shape)
-            break
-            default:
-              shape.yaw = C(t) *.1 + t
-              shape.pitch = S(t) * .1
-              renderer.Draw(shape)
-            break
           }
         })
         
