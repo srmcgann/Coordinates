@@ -1184,9 +1184,9 @@ const GeoToOBJ = geo => {
     vertices = geo.vertices
     var ct = 0, a = [], b = []
     for(var i = 0; i < vertices.length; i += 3) {
-      var x = Math.round(vertices[i+0]*1e4)/1e4
+      var x = -Math.round(vertices[i+0]*1e4)/1e4
       var y = Math.round(vertices[i+1]*1e4)/1e4
-      var z = -Math.round(vertices[i+2]*1e4)/1e4
+      var z = Math.round(vertices[i+2]*1e4)/1e4
       ret += `v ${x} ${y} ${z}\n`
       a.push(i/3)
       //b.push([x,y,z])
@@ -1213,7 +1213,7 @@ const GeoToOBJ = geo => {
     normals = geo.normalVecs
     //var ct = 0, a = []
     for(var i = 0; i < normals.length; i += 3) {
-      var nx = Math.round(normals[i+0]*1e4)/1e4 
+      var nx = -Math.round(normals[i+0]*1e4)/1e4 
       var ny = Math.round(normals[i+1]*1e4)/1e4 
       var nz = Math.round(normals[i+2]*1e4)/1e4 
       //var x = geo.vertices[i+0]
@@ -1566,26 +1566,31 @@ const LoadGeometry = async (renderer, geoOptions) => {
         case 'tetrahedron_2':
         case 'tetrahedron_3':
         case 'tetrahedron_4':
+        case 'tetrahedron_5':
         case 'cube_0':
         case 'cube_1':
         case 'cube_2':
         case 'cube_3':
         case 'cube_4':
+        case 'cube_5':
         case 'octahedron_0':
         case 'octahedron_1':
         case 'octahedron_2':
         case 'octahedron_3':
         case 'octahedron_4':
+        case 'octahedron_5':
         case 'dodecahedron_0':
         case 'dodecahedron_1':
         case 'dodecahedron_2':
         case 'dodecahedron_3':
         case 'dodecahedron_4':
+        case 'dodecahedron_5':
         case 'icosahedron_0':
         case 'icosahedron_1':
         case 'icosahedron_2':
         case 'icosahedron_3':
         case 'icosahedron_4':
+        case 'icosahedron_5':
         case 'cylinder_0':
         case 'torus_0':
         case 'torus knot_0':
@@ -1939,7 +1944,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
   
   if(averageNormals) {
-    AverageNormals(vertices, normals, shapeType)
+    AverageNormals(vertices, normals, shapeType, normalVecs, flipNormals)
   }
 
   if(shapeType == 'dynamic' || preComputeNormalAssocs) {
@@ -1966,18 +1971,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
     //ComputeNormalAssocs(ret)
   }
     
-  if(shapeType != 'custom shape' && !isParticle && !isLine &&
-     (!resolvedFromCache || !resolved || averageNormals || exportShape || 
-                                downloadShape || exportAsOBJ || downloadAsOBJ)){
-    normalVecs    = []
-    for(var i=0; i<normals.length; i+=6){
-      let X = normals[i+3] - normals[i+0]
-      let Y = normals[i+4] - normals[i+1]
-      let Z = normals[i+5] - normals[i+2]
-      normalVecs.push(X,Y,Z)
-    }
-  }
-  
   if((shapeType == 'custom shape' || shapeType == 'obj') && 
     (objPitch || objRoll || objYaw || objX || objY || objZ)){
     for(var i = 0; i < vertices.length; i+=3){
@@ -2009,6 +2002,18 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
+  if(shapeType != 'custom shape' && shapeType != 'obj' &&
+    !isParticle && !isLine && !averageNormals &&
+     (!resolvedFromCache || !resolved)){
+    normalVecs    = []
+    for(var i=0; i<normals.length; i+=6){
+      let X = normals[i+3] - normals[i+0]
+      let Y = normals[i+4] - normals[i+1]
+      let Z = normals[i+5] - normals[i+2]
+      normalVecs.push(X,Y,Z)
+    }
+  }
+  
   if(flipX){
     for(var i=0; i< vertices.length; i+=3){
       vertices[i+1] *= -1
@@ -2025,7 +2030,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  if(flipNormals) {//&& !exportShape && !downloadShape && !exportAsOBJ && !downloadAsOBJ){
+  if(flipNormals && !averageNormals) {
     for(var i=0; i<normals.length; i+=6){
       normals[i+3] = normals[i+0] - (normals[i+3]-normals[i+0])
       normals[i+4] = normals[i+1] - (normals[i+4]-normals[i+1])
@@ -2594,7 +2599,7 @@ const SyncNormals = (shape, averageNormals=false, flipNormals=false,
                 [X3, Y3, Z3]], autoFlip, cx, cy, cz)
     nrms.push(n)
   }
-  var fn = shape.flipNormals ? 1 : -1
+  var fn = flipNormals ? 1 : -1
   nrms.map((nrm, idx) => {
     for(var m = 0; m<3; m++){
       shape.normals[idx*18+m*6+0] = shape.vertices[idx*9+m*3+0]
@@ -2975,11 +2980,11 @@ const ShowBounding = (shape, renderer, draw=true,
   ])
 }
 
-const AverageNormals = (verts, normals, shapeType) => {
+const AverageNormals = (verts, normals, shapeType, normalVecs, flipNormals) => {
   var nrmls = []
   var isPolyhedron = IsPolyhedron(shapeType)
   // expects triangles
-  var n
+  var n, fn = flipNormals ? -1 : 1
   for(var i = 0; i<verts.length; i+=3){
     if(!(i%9)){
       n = Normal([
@@ -2991,9 +2996,9 @@ const AverageNormals = (verts, normals, shapeType) => {
     nrmls[i*2+0] = verts[i+0]
     nrmls[i*2+1] = verts[i+1]
     nrmls[i*2+2] = verts[i+2]
-    nrmls[i*2+3] = verts[i+0] + (n[0] - n[3])
-    nrmls[i*2+4] = verts[i+1] + (n[1] - n[4])
-    nrmls[i*2+5] = verts[i+2] + (n[2] - n[5])
+    nrmls[i*2+3] = verts[i+0] - (n[3] - n[0]) * fn
+    nrmls[i*2+4] = verts[i+1] - (n[4] - n[1]) * fn
+    nrmls[i*2+5] = verts[i+2] - (n[5] - n[2]) * fn
   }
   
   var ret = []
@@ -3033,7 +3038,12 @@ const AverageNormals = (verts, normals, shapeType) => {
     modSrc[i+5] = az /= ct
   }
   modSrc.map((v,i)=>nrmls[i]=v)
-  nrmls.forEach((v, i) => normals[i] = v)
+  for(var i = 0; i < nrmls.length; i += 6){
+    for(var m=6; m--;) normals[i+m] = nrmls[i+m]
+    for(var m=3; m--;)
+        normalVecs[i/2+m] = -(nrmls[i+3+m] - nrmls[i+m]) * fn
+
+  }
 }
 
 const BasicShader = async (renderer, options=[]) => {
@@ -4741,11 +4751,11 @@ const GeometryFromRaw = (raw, texCoords, size, subs,
       Z = q[2] *= size
     })
     if(quads || v.verts.length == 4){
-      a.push(v.verts[0],v.verts[1],v.verts[2],
-                 v.verts[2],v.verts[3],v.verts[0])
+      a.push(v.verts[2],v.verts[1],v.verts[0],
+                 v.verts[0],v.verts[3],v.verts[2])
       if(typeof v.uvs != 'undefined' && v.uvs.length)
-          f.push(v.uvs[0],v.uvs[1],v.uvs[2],
-                     v.uvs[2],v.uvs[3],v.uvs[0])
+          f.push(v.uvs[2],v.uvs[1],v.uvs[0],
+                     v.uvs[0],v.uvs[3],v.uvs[2])
     }else{
       a.push(...v.verts)
       if(typeof v.uvs != 'undefined' && v.uvs.length)
@@ -4756,7 +4766,7 @@ const GeometryFromRaw = (raw, texCoords, size, subs,
   for(i = 0; i < a.length; i++){
     var normal
     j = i/3 | 0
-    b = [a[j*3+0], a[j*3+1], a[j*3+2]]
+    b = [a[j*3+2], a[j*3+1], a[j*3+0]]
     if(!(i%3)){
       normal = Normal(b, isPolyhedron)
       if(!flipNormals){
@@ -5391,13 +5401,13 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
   var p, d
   var texCoords = []
   var rw_ = rw * 4
-  var rad1 = .5
-  var rad2 = 1.25
+  var rad1 = 1 / 6
+  var rad2 = 2 / 6
   for(var j = 0; j < rw_; j++){
     var j2 = j+.5
     for(var i = 0; i < cl; i++){
 
-      X = S(p=Math.PI*2/cl*i) * rad1 + rad2
+      X = S(p=Math.PI*2/cl*(i-1)) * rad1 + rad2
       Y = C(p) * rad1
       Z = 0
       p = Math.atan2(X, Z) + Math.PI*2/rw_ * j2 + Math.PI/2
@@ -5406,7 +5416,7 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
       Y1 = Y
       Z1 = C(p) * d
 
-      X = S(p=Math.PI*2/cl*(i+1)) * rad1 + rad2
+      X = S(p=Math.PI*2/cl*i) * rad1 + rad2
       Y = C(p) * rad1
       p = Math.atan2(X, Z) + Math.PI*2/rw_ * j2 + Math.PI/2
       d = Math.hypot(X, Z)
@@ -5414,7 +5424,7 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
       Y2 = Y
       Z2 = C(p) * d
 
-      X = S(p=Math.PI*2/cl*(i+1)) * rad1 + rad2
+      X = S(p=Math.PI*2/cl*i) * rad1 + rad2
       Y = C(p) * rad1
       p = Math.atan2(X, Z) + Math.PI*2/rw_ * (j2+1) + Math.PI/2
       d = Math.hypot(X, Z)
@@ -5422,7 +5432,7 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
       Y3 = Y
       Z3 = C(p) * d
 
-      X = S(p=Math.PI*2/cl*i) * rad1 + rad2
+      X = S(p=Math.PI*2/cl*(i-1)) * rad1 + rad2
       Y = C(p) * rad1
       p = Math.atan2(X, Z) + Math.PI*2/rw_ * (j2+1) + Math.PI/2
       d = Math.hypot(X, Z)
@@ -5449,123 +5459,100 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
       TX4 = (p4+Math.PI) / Math.PI / 2
       TY4 = Y4 + .5
       
-      ret.push([[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]])
+      ret.push([[X1,Y1,Z1], [X4,Y4,Z4], [X3,Y3,Z3], [X2,Y2,Z2]])
       texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
           }
   }
-  return GeometryFromRaw(ret, texCoords, size / 1.2, subs,
+  return GeometryFromRaw(ret, texCoords, size, subs,
                          sphereize, flipNormals, true, shapeType)
 }
 
 const TorusKnot = async (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, shapeType='torus knot') => {
   var ret = []
-  var X, Y, Z
-  var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
-  var TX1,TY1, TX2,TY2, TX3,TY3, TX4,TY4
-  var p, d
-  var texCoords = []
-  var rw_ = rw * 8
-  cl /= 1
-  var rad1 = .75, p1, p2, p1a, p1b, p1c, p2a, p2b
-  var oya, oyb, oyc
-  var tRad1 = 3
-  var twists = 1
-  for(var j = 0; j < rw_ * 2; j++){
-    for(var i = 0; i < cl; i++){
-      
-      var j2a = j+.5
-      var j2b = j+1.5
-      var j2c = j+2.5
+  var a = []
+  var X, Y, Z, a, d, p, q, b, p2
+  
+  a = []
+  b = []
+  cl *= 4
+  rw *= 2
+  var ls = 1/3
+  for(var j=0; j<cl*2; j++) for(var i = 0; i < rw+1; i++){
+    X = 1 + S(p = Math.PI*2/rw*i)/4 + S(q=Math.PI*2*1.5/cl*j) * ls
+    Y = C(p)/4
+    Z = 0
 
-      X1 = tRad1 + S(p1a=Math.PI*2*1.5*twists/rw_*j2a) /1
-      Y1 = oya = C(p1a) * 2
-      X2 = tRad1 + S(p1b=Math.PI*2*1.5*twists/rw_*j2b) /1
-      Y2 = oyb = C(p1b) * 2
-      X3 = tRad1 + S(p1c=Math.PI*2*1.5*twists/rw_*j2c) /1
-      Y3 = oyc = C(p1c) * 2
-      
-      p2a = (Math.acos((Y2-Y1) / (Math.hypot(X2-X1, Y2-Y1)+.0001)) - Math.PI/2) / 2
-      p2b = (Math.acos((Y3-Y2) / (Math.hypot(X3-X2, Y3-Y2)+.0001)) - Math.PI/2) / 2
+    p2 = Math.atan2(Y, Z) + S(q)
+    d = Math.hypot(Y, Z)
+    Y = S(p2) * d + C(q) * ls * 2
+    Z = C(p2) * d
+    
+    
+    p = Math.atan2(X, Z) + Math.PI * 2 / cl * j
+    d = Math.hypot(X, Z)
+    X = S(p) * d
+    Z = C(p) * d
+    a.push([X, Y, Z])
 
-      var rad2 = tRad1 + S(p1a) /1
-      X = S(p=Math.PI*2/cl*i) * rad1 + rad2
-      Y = C(p) * rad1 + oya
-      Z = 0
-      p = Math.atan2(Y, Z) + p2a
-      d = Math.hypot(Y, Z)
-      Y = S(p) * d
-      Z = C(p) * d
-      p = Math.atan2(X, Z) + Math.PI*2/rw_ * j2a + Math.PI/2
-      d = Math.hypot(X, Z)
-      X1 = S(p) * d
-      Y1 = Y
-      Z1 = C(p) * d
+    X = 1 + S(p = Math.PI*2/rw*i)/4 + S(q=Math.PI*2*1.5/cl*(j+1)) * ls
+    Y = C(p)/4
+    Z = 0
 
-      X = S(p=Math.PI*2/cl*(i+1)) * rad1 + rad2
-      Y = C(p) * rad1 + oya
-      Z = 0
-      p = Math.atan2(Y, Z) + p2a
-      d = Math.hypot(Y, Z)
-      Y = S(p) * d
-      Z = C(p) * d
-      p = Math.atan2(X, Z) + Math.PI*2/rw_ * j2a + Math.PI/2
-      d = Math.hypot(X, Z)
-      X2 = S(p) * d
-      Y2 = Y
-      Z2 = C(p) * d
+    p2 = Math.atan2(Y, Z) + S(q)
+    d = Math.hypot(Y, Z)
+    Y = S(p2) * d + C(q) * ls * 2
+    Z = C(p2) * d
+    
 
-      rad2 = tRad1 + S(p1b) /1
-      X = S(p=Math.PI*2/cl*(i+1)) * rad1 + rad2
-      Y = C(p) * rad1 + oyb
-      Z = 0
-      p = Math.atan2(Y, Z) + p2b
-      d = Math.hypot(Y, Z)
-      Y = S(p) * d
-      Z = C(p) * d
-      p = Math.atan2(X, Z) + Math.PI*2/rw_ * j2b + Math.PI/2
-      d = Math.hypot(X, Z)
-      X3 = S(p) * d
-      Y3 = Y
-      Z3 = C(p) * d
-
-      X = S(p=Math.PI*2/cl*i) * rad1 + rad2
-      Y = C(p) * rad1 + oyb
-      Z = 0
-      p = Math.atan2(Y, Z) + p2b
-      d = Math.hypot(Y, Z)
-      Y = S(p) * d
-      Z = C(p) * d
-      p = Math.atan2(X, Z) + Math.PI*2/rw_ * j2b + Math.PI/2
-      d = Math.hypot(X, Z)
-      X4 = S(p) * d
-      Y4 = Y
-      Z4 = C(p) * d
-
-      var p1 = Math.atan2(X1,Z1)
-      var p2 = Math.atan2(X2,Z2)
-      var p3 = Math.atan2(X3,Z3)
-      var p4 = Math.atan2(X4,Z4)
-      
-      if(Math.abs(p1-p3) > Math.PI){
-        p3 += Math.PI*2
-        p4 += Math.PI*2
-      }
-      
-      TX1 = (p1+Math.PI) / Math.PI / 2
-      TY1 = Y1 + .5
-      TX2 = (p2+Math.PI) / Math.PI / 2
-      TY2 = Y2 + .5
-      TX3 = (p3+Math.PI) / Math.PI / 2
-      TY3 = Y3 + .5
-      TX4 = (p4+Math.PI) / Math.PI / 2
-      TY4 = Y4 + .5
-      
-      ret.push([[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]])
-      texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
-      
-    }
+    p = Math.atan2(X, Z) + Math.PI * 2 / cl * (j + 1)
+    d = Math.hypot(X, Z)
+    X = S(p) * d
+    Z = C(p) * d
+    b.push([X, Y, Z])
   }
-  return GeometryFromRaw(ret, texCoords, size / 1.2, subs,
+  
+  a.forEach((v, i) => {
+    if(i%(rw+1)!=rw){
+      var l = (i+1)%a.length
+      var X1 = a[i][0] * size / 3.2
+      var Y1 = a[i][1] * size / 3.2
+      var Z1 = a[i][2] * size / 3.2
+      var X2 = b[i][0] * size / 3.2
+      var Y2 = b[i][1] * size / 3.2
+      var Z2 = b[i][2] * size / 3.2
+      var X3 = b[l][0] * size / 3.2
+      var Y3 = b[l][1] * size / 3.2
+      var Z3 = b[l][2] * size / 3.2
+      var X4 = a[l][0] * size / 3.2
+      var Y4 = a[l][1] * size / 3.2
+      var Z4 = a[l][2] * size / 3.2
+      ret.push([
+        [X1,Y1,Z1],
+        [X2,Y2,Z2],
+        [X3,Y3,Z3],
+        [X4,Y4,Z4],
+      ])
+    }
+  })
+
+  var e = ret, tx, ty
+  var texCoords = []
+  for(i = 0; i < e.length; i++){
+    a = []
+    for(var k = e[i].length; k--;){
+      switch(k) {
+        case 0: tx=0, ty=0; break
+        case 1: tx=1, ty=0; break
+        case 2: tx=1, ty=1; break
+        case 3: tx=0, ty=.5; break
+        case 4: tx=0, ty=1; break
+      }
+      a.push([tx, ty])
+    }
+    texCoords.push(a)
+  }
+
+  return GeometryFromRaw(ret, texCoords, 1, subs,
                          sphereize, flipNormals, true, shapeType)
 }
 
@@ -5578,7 +5565,7 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   var ret = []
   a = []
   let h = sz/1.4142/1.25
-  for(i=3;i--;){
+  for(i=0;i<3;i++){
     X = S(p=Math.PI*2/3*i) * sz/1.25
     Y = C(p) * sz/1.25
     Z = h
@@ -5595,7 +5582,7 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     Y = C(p) * sz/1.25
     Z = h
     a.push([X,Y,Z])
-    X = S(p=Math.PI*2/3*(j+1)) * sz/1.25
+    X = S(p=Math.PI*2/3*(j-1)) * sz/1.25
     Y = C(p) * sz/1.25
     Z = h
     a.push([X,Y,Z])
@@ -5638,7 +5625,7 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     texCoords.push(a)
   }
   
-  return GeometryFromRaw(e, texCoords, size, subs,
+  return GeometryFromRaw(e, texCoords, size, subs-1,
                          sphereize, flipNormals, false, shapeType)
 }
 
@@ -5652,14 +5639,25 @@ const Octahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, 
     a = []
     X = 0
     Y = 0
-    Z = h * (j<4?-1:1)
-    a.push([X,Y,Z])
-    X = S(p=Math.PI*2/4*j) * sz/1.25
-    Y = C(p) * sz/1.25
-    Z = 0
-    a.push([X,Y,Z])
-    X = S(p=Math.PI*2/4*(j+1)) * sz/1.25
-    Y = C(p) * sz/1.25
+    if(j<4){
+      Z = h
+      a.push([X,Y,Z])
+      X = S(p=Math.PI*2/4*j) * sz/1.25
+      Y = C(p) * sz/1.25
+      Z = 0
+      a.push([X,Y,Z])
+      X = S(p=Math.PI*2/4*(j+1)) * sz/1.25
+      Y = C(p) * sz/1.25
+    }else{
+      Z = -h
+      a.push([X,Y,Z])
+      X = S(p=Math.PI*2/4*j) * sz/1.25
+      Y = C(p) * sz/1.25
+      Z = 0
+      a.push([X,Y,Z])
+      X = S(p=Math.PI*2/4*(j-1)) * sz/1.25
+      Y = C(p) * sz/1.25
+    }
     Z = 0
     a.push([X,Y,Z])
     ret.push(a)
@@ -5682,7 +5680,7 @@ const Octahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, 
     texCoords.push(a)
   }
   
-  return GeometryFromRaw(e, texCoords, size, subs,
+  return GeometryFromRaw(e, texCoords, size, subs-1,
                          sphereize, flipNormals, false, shapeType)
 }
 
@@ -5696,25 +5694,25 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   var ret = []
 
   let B = [
-    [[2,2],[1,0],[0,3]],   // 0
+    [[0,3],[1,0],[2,2]],   // 0
     [[1,3],[1,0],[0,3]],   // 1
-    [[1,3],[2,3],[0,3]],   // 2
-    [[1,0],[2,1],[0,2]],   // 3
+    [[0,3],[2,3],[1,3]],   // 2
+    [[0,2],[2,1],[1,0]],   // 3
     [[1,0],[1,3],[0,2]],   // 4
-    [[2,0],[1,3],[0,2]],   // 5
+    [[0,2],[1,3],[2,0]],   // 5
     [[0,3],[2,2],[0,0]],   // 6
     [[2,1],[2,2],[1,0]],   // 7
-    [[2,1],[2,2],[1,1]],   // 8
-    [[1,1],[2,2],[0,0]],   // 9
-    [[0,1],[2,1],[1,1]],   // 10
+    [[1,1],[2,2],[2,1]],   // 8
+    [[0,0],[2,2],[1,1]],   // 9
+    [[1,1],[2,1],[0,1]],   // 10
     [[0,1],[2,1],[0,2]],   // 11
-    [[2,0],[1,2],[2,3]],   // 12
+    [[2,3],[1,2],[2,0]],   // 12
     [[2,3],[0,3],[0,0]],   // 13
-    [[1,3],[2,0],[2,3]],   // 14
-    [[1,2],[0,0],[2,3]],   // 15
-    [[1,2],[2,0],[0,1]],   // 16
-    [[0,0],[1,2],[1,1]],   // 17
-    [[1,1],[1,2],[0,1]],   // 18
+    [[2,3],[2,0],[1,3]],   // 14
+    [[2,3],[0,0],[1,2]],   // 15
+    [[0,1],[2,0],[1,2]],   // 16
+    [[1,1],[1,2],[0,0]],   // 17
+    [[0,1],[1,2],[1,1]],   // 18
     [[0,2],[2,0],[0,1]],   // 19
   ]
   phi = .5+5**.5/2  //p[l]/p[l-1]
@@ -5727,9 +5725,9 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   for(j=3;j--;ret.push(b))for(b=[],i=4;i--;) b.push([a[i][j],a[i][(j+1)%3],a[i][(j+2)%3]])
   ret.map(v=>{
     v.map(q=>{
-      q[0]*=1/2.25
-      q[1]*=1/2.25
-      q[2]*=1/2.25
+      q[0]*=1/2.25 * size
+      q[1]*=1/2.25 * size
+      q[2]*=1/2.25 * size
     })
   })
   cp = JSON.parse(JSON.stringify(ret))
@@ -5742,7 +5740,11 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     idx1b = v[0][1]
     idx2b = v[1][1]
     idx3b = v[2][1]
-    a.push([cp[idx3a][idx3b],cp[idx2a][idx2b],cp[idx1a][idx1b]])
+    //if(i){
+      a.push([cp[idx3a][idx3b],cp[idx2a][idx2b],cp[idx1a][idx1b]])
+    //}else{
+    //  a.push([cp[idx1a][idx1b],cp[idx1a][idx1b],cp[idx1a][idx1b]])
+    //}
   })
   out.push( ...a)
 
@@ -5763,7 +5765,7 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     texCoords.push(a)
   }
   
-  return GeometryFromRaw(e, texCoords, size, subs-1,
+  return GeometryFromRaw(e, texCoords, 1, subs-1,
                          sphereize, flipNormals, false, shapeType)
 }
 
