@@ -1914,9 +1914,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
      (sphereize || scaleX != 1 || scaleY != 1 || scaleZ != 1)){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
-    var sz = isParticle || isLine ? 1 : size
+    var maxd = -6e6
     for(var i = 0; i< vertices.length; i+=3){
-      var d, val
+      var d, val, nx, ny, nz
     
       var X = vertices[i+0]
       var Y = vertices[i+1]
@@ -1928,9 +1928,20 @@ const LoadGeometry = async (renderer, geoOptions) => {
       X *= ip1 + d*ip2
       Y *= ip1 + d*ip2
       Z *= ip1 + d*ip2
-      vertices[i+0] = X * sz * scaleX
-      vertices[i+1] = Y * sz * scaleY
-      vertices[i+2] = Z * sz * scaleZ
+      nx = vertices[i+0] = X * scaleX
+      ny = vertices[i+1] = Y * scaleY
+      nz = vertices[i+2] = Z * scaleZ
+      if((d=Math.hypot(nx, ny, nz)) > maxd) maxd = d
+    }
+    for(var i = 0; i < vertices.length; i +=3){
+      
+      vertices[i+0] /= maxd
+      vertices[i+1] /= maxd
+      vertices[i+2] /= maxd
+      
+      vertices[i+0] *= size
+      vertices[i+1] *= size
+      vertices[i+2] *= size
       
       var ox = normals[i*2+0]
       var oy = normals[i*2+1]
@@ -1949,6 +1960,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       //normals[i*2+3] *= scaleX
       //normals[i*2+4] *= scaleY
       //normals[i*2+5] *= scaleZ
+      
     }
   }
   
@@ -5636,7 +5648,7 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     texCoords.push(a)
   }
   
-  return GeometryFromRaw(e, texCoords, size, subs-1,
+  return GeometryFromRaw(e, texCoords, size, subs,
                          sphereize, flipNormals, false, shapeType)
 }
 
@@ -5691,7 +5703,7 @@ const Octahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, 
     texCoords.push(a)
   }
   
-  return GeometryFromRaw(e, texCoords, size, subs-1,
+  return GeometryFromRaw(e, texCoords, size, subs,
                          sphereize, flipNormals, false, shapeType)
 }
 
@@ -5772,7 +5784,7 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     texCoords.push(a)
   }
   
-  return GeometryFromRaw(e, texCoords, 1, subs-1,
+  return GeometryFromRaw(e, texCoords, 1, subs,
                          sphereize, flipNormals, false, shapeType)
 }
 
