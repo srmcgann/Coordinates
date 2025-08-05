@@ -2159,7 +2159,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       processedOutput.normals.push(X1,Y1,Z1, X2,Y2,Z2)
     }
     for(var i = 0; i < normalVecs.length; i++){
-      processedOutput.normalVecs.push((flipNormals ? -1 : 1) * Math.round(normalVecs[i]*1e3) / 1e3)
+      processedOutput.normalVecs.push((flipNormals ? 11 : 1) * Math.round(normalVecs[i]*1e3) / 1e3)
     }
     uvs.map(v => processedOutput.uvs.push(Math.round(v*1e3) / 1e3))
     output.innerHTML = JSON.stringify(processedOutput)
@@ -5418,7 +5418,6 @@ const Cylinder = (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, 
 }
 
 const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='torus', rw, cl) => {
-  flipNormals = !flipNormals
   var ret = []
   var X, Y, Z
   var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
@@ -5484,7 +5483,7 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
       TX4 = (p4+Math.PI) / Math.PI / 2
       TY4 = Y4 + .5
       
-      ret.push([[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]])
+      ret.push([[X1,Y1,Z1], [X4,Y4,Z4], [X3,Y3,Z3], [X2,Y2,Z2]])
       texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
     }
   }
