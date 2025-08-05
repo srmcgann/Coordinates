@@ -1608,7 +1608,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
              ){
             resolved = true;
             url = `${ModuleBase}/new%20shapes/`
-            fileURL = `${url}${hint}.json`
+            fileURL = `${url}${hint}.json?2`
             if(involveCache && (cacheItem = cache.geometry.filter(v=>v.url==fileURL)).length){
               console.log(`found geometry (${hint}) in cache... using it`)
               var data          = cacheItem[0].data
@@ -1717,6 +1717,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'torus':
+        //flipNormals = !flipNormals
+        console.log(flipNormals)
         shape = await Torus(size, subs, sphereize,
                       flipNormals, shapeType, rows, cols)
         shape.geometry.map(v => {
@@ -5470,7 +5472,7 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
       
       ret.push([[X1,Y1,Z1], [X4,Y4,Z4], [X3,Y3,Z3], [X2,Y2,Z2]])
       texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
-          }
+    }
   }
   return GeometryFromRaw(ret, texCoords, size, subs,
                          sphereize, flipNormals, true, shapeType)
@@ -5573,10 +5575,10 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   var geometry = []
   var ret = []
   a = []
-  let h = sz/1.4142/1.25
+  let h = sz/1.4142/1.75
   for(i=0;i<3;i++){
-    X = S(p=Math.PI*2/3*i) * sz/1.25
-    Y = C(p) * sz/1.25
+    X = S(p=Math.PI*2/3*i) * sz/1.75
+    Y = C(p) * sz/1.75
     Z = h
     a.push([X,Y,Z])
   }
@@ -5587,12 +5589,12 @@ const Tetrahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     Y = 0
     Z = -h
     a.push([X,Y,Z])
-    X = S(p=Math.PI*2/3*j) * sz/1.25
-    Y = C(p) * sz/1.25
+    X = S(p=Math.PI*2/3*j) * sz/1.75
+    Y = C(p) * sz/1.75
     Z = h
     a.push([X,Y,Z])
-    X = S(p=Math.PI*2/3*(j-1)) * sz/1.25
-    Y = C(p) * sz/1.25
+    X = S(p=Math.PI*2/3*(j-1)) * sz/1.75
+    Y = C(p) * sz/1.75
     Z = h
     a.push([X,Y,Z])
     ret.push(a)
@@ -5643,7 +5645,7 @@ const Octahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, 
   var f, i, j, l, a, b, sz = 1
   var geometry = []
   var ret = []
-  let h = sz/1.25
+  let h = sz/2
   for(j=8;j--;){
     a = []
     X = 0
@@ -5651,21 +5653,21 @@ const Octahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, 
     if(j<4){
       Z = h
       a.push([X,Y,Z])
-      X = S(p=Math.PI*2/4*j) * sz/1.25
-      Y = C(p) * sz/1.25
+      X = S(p=Math.PI*2/4*j) * sz/2
+      Y = C(p) * sz/2
       Z = 0
       a.push([X,Y,Z])
-      X = S(p=Math.PI*2/4*(j+1)) * sz/1.25
-      Y = C(p) * sz/1.25
+      X = S(p=Math.PI*2/4*(j+1)) * sz/2
+      Y = C(p) * sz/2
     }else{
       Z = -h
       a.push([X,Y,Z])
-      X = S(p=Math.PI*2/4*j) * sz/1.25
-      Y = C(p) * sz/1.25
+      X = S(p=Math.PI*2/4*j) * sz/2
+      Y = C(p) * sz/2
       Z = 0
       a.push([X,Y,Z])
-      X = S(p=Math.PI*2/4*(j-1)) * sz/1.25
-      Y = C(p) * sz/1.25
+      X = S(p=Math.PI*2/4*(j-1)) * sz/2
+      Y = C(p) * sz/2
     }
     Z = 0
     a.push([X,Y,Z])
