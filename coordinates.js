@@ -1596,10 +1596,13 @@ const LoadGeometry = async (renderer, geoOptions) => {
         case 'icosahedron_4':
         case 'icosahedron_5':
         case 'cylinder_0':
+        case 'cylinder_1':
+        case 'cylinder_2':
+        case 'cylinder_3':
         case 'torus_0':
         case 'torus knot_0':
-          if((hint != 'cylinder_0' && hint != 'torus_0') ||
-             (hint == 'cylinder_0' && rows == 16 && cols == 40) ||
+          if((hint.indexOf('cylinder') == -1 && hint != 'torus_0') ||
+             (hint.indexOf('cylinder') == -1 && rows == 16 && cols == 40) ||
              (hint == 'torus_0' && rows == 16 && cols == 40) ||
              (hint == 'torus knot_0' && rows == 16 && cols == 40) 
              ){
@@ -4748,20 +4751,21 @@ const GeometryFromRaw = (raw, texCoords, size, subs,
     default: shape = subbed(subs + (isPolyhedron?1:0), 1, sphereize, e, texCoords, hint); break
   }
   
-  shape.map(v => {
-    v.verts.map(q=>{
+  shape.map((v, vidx) => {
+    var verts = v.verts //!flipNormals ? shape[shape.length-vidx-1].verts : v.verts
+    verts.map(q=>{
       X = q[0] *= size
       Y = q[1] *= size
       Z = q[2] *= size
     })
-    if(quads || v.verts.length == 4){
-      a.push(v.verts[2],v.verts[1],v.verts[0],
-                 v.verts[0],v.verts[3],v.verts[2])
+    if(quads || verts.length == 4){
+      a.push(verts[2],verts[1],verts[0],
+                 verts[0],verts[3],verts[2])
       if(typeof v.uvs != 'undefined' && v.uvs.length)
           f.push(v.uvs[2],v.uvs[1],v.uvs[0],
                      v.uvs[0],v.uvs[3],v.uvs[2])
     }else{
-      a.push(...v.verts)
+      a.push(...verts)
       if(typeof v.uvs != 'undefined' && v.uvs.length)
         f.push(...v.uvs)
     }
@@ -4772,20 +4776,20 @@ const GeometryFromRaw = (raw, texCoords, size, subs,
     j = i/3 | 0
     b = [a[j*3+2], a[j*3+1], a[j*3+0]]
     if(!(i%3)){
-      normal = Normal(b, isPolyhedron)
-      if(!flipNormals){
-        normal[3] = normal[0] + (normal[0]-normal[3])
-        normal[4] = normal[1] + (normal[1]-normal[4])
-        normal[5] = normal[2] + (normal[2]-normal[5])
+      normal = Normal(b, false)//isPolyhedron)
+      if(flipNormals){
+        normal[3] = normal[0] - (normal[0]-normal[3])
+        normal[4] = normal[1] - (normal[1]-normal[4])
+        normal[5] = normal[2] - (normal[2]-normal[5])
       }
     }
     l = flipNormals ? a.length - i - 1 : i
     geometry.push({
       position: a[l],
       normal: [...a[l],
-               a[l][0] + (normal[3]-normal[0]),
-               a[l][1] + (normal[4]-normal[1]),
-               a[l][2] + (normal[5]-normal[2])],
+               a[l][0] - (normal[3]-normal[0]),
+               a[l][1] - (normal[4]-normal[1]),
+               a[l][2] - (normal[5]-normal[2])],
       texCoord: f[l],
     })
   }
@@ -5257,8 +5261,9 @@ const subbed = (subs, size, sphereize, shape, texCoords, hint='') => {
   }
   
   return shape.map((v, i) => {
+    var verts = v//shape[shape.length-i-1]
     return {
-      verts: v,
+      verts,
       uvs: texCoords[i]
     }
   })
@@ -5729,9 +5734,9 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
   for(j=3;j--;ret.push(b))for(b=[],i=4;i--;) b.push([a[i][j],a[i][(j+1)%3],a[i][(j+2)%3]])
   ret.map(v=>{
     v.map(q=>{
-      q[0]*=1/2.25 * size
-      q[1]*=1/2.25 * size
-      q[2]*=1/2.25 * size
+      q[0]*=1/2.25 * size * .7
+      q[1]*=1/2.25 * size * .7
+      q[2]*=1/2.25 * size * .7
     })
   })
   cp = JSON.parse(JSON.stringify(ret))
@@ -5744,11 +5749,7 @@ const Icosahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false,
     idx1b = v[0][1]
     idx2b = v[1][1]
     idx3b = v[2][1]
-    //if(i){
-      a.push([cp[idx3a][idx3b],cp[idx2a][idx2b],cp[idx1a][idx1b]])
-    //}else{
-    //  a.push([cp[idx1a][idx1b],cp[idx1a][idx1b],cp[idx1a][idx1b]])
-    //}
+    a.push([cp[idx3a][idx3b],cp[idx2a][idx2b],cp[idx1a][idx1b]])
   })
   out.push( ...a)
 
@@ -5863,7 +5864,7 @@ const Dodecahedron = async (size = 1, subs = 0, sphereize = 0, flipNormals=false
   
   var e = ret.map((v, i) => {
     return v.map((q, j) => {
-      var l = v.length - j - 1
+      var l = j //v.length - j - 1
       return [v[l][0], v[l][1], v[l][2]]
     })
   })
