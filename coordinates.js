@@ -900,6 +900,10 @@ const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
                         ...n[2], ...n[3], ...n[0])
       break
     }
+    var l = ret.normals.length - 7
+    var nvx = ret.normals[l+3] - ret.normals[l+0]
+    var nvy = ret.normals[l+4] - ret.normals[l+1]
+    var nvz = ret.normals[l+5] - ret.normals[l+2]
   })
 }
 
@@ -2002,7 +2006,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  if(shapeType != 'custom shape' && shapeType != 'obj' &&
+  if(shapeType != 'custom shape' &&
     !isParticle && !isLine && !averageNormals &&
      (!resolvedFromCache || !resolved)){
     normalVecs    = []
@@ -5389,7 +5393,7 @@ const Cylinder = (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, 
       texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
     }
   }
-  return GeometryFromRaw(ret, texCoords, size, subs,
+  return GeometryFromRaw(ret, texCoords, 1, subs,
                          sphereize, flipNormals, true, shapeType)
 }
 
