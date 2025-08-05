@@ -1717,8 +1717,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'torus':
-        //flipNormals = !flipNormals
-        console.log(flipNormals)
         shape = await Torus(size, subs, sphereize,
                       flipNormals, shapeType, rows, cols)
         shape.geometry.map(v => {
@@ -3059,11 +3057,14 @@ const AverageNormals = (verts, normals, shapeType, normalVecs, flipNormals) => {
     modSrc[i+5] = az /= ct
   }
   modSrc.map((v,i)=>nrmls[i]=v)
+  var flp = shapeType == 'torus' || shapeType == 'torus knot' ? -1 : 1
   for(var i = 0; i < nrmls.length; i += 6){
-    for(var m=6; m--;) normals[i+m] = nrmls[i+m]
-    for(var m=3; m--;)
-        normalVecs[i/2+m] = -(nrmls[i+3+m] - nrmls[i+m]) * fn
-
+    for(var m=3; m--;) {
+      normals[i+m*2] = nrmls[i+m*2]
+      normals[i+m*2+1] = nrmls[i+m*2] -
+                           (nrmls[i+m*2] + nrmls[i+m*2+1]) * fn // * flp
+        normalVecs[i/2+m] = (nrmls[i+3+m] - nrmls[i+m]) * fn * flp
+    }
   }
 }
 
@@ -5417,6 +5418,7 @@ const Cylinder = (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, 
 }
 
 const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='torus', rw, cl) => {
+  flipNormals = !flipNormals
   var ret = []
   var X, Y, Z
   var X1,Y1,Z1, X2,Y2,Z2, X3,Y3,Z3, X4,Y4,Z4
@@ -5482,7 +5484,7 @@ const Torus = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shape
       TX4 = (p4+Math.PI) / Math.PI / 2
       TY4 = Y4 + .5
       
-      ret.push([[X1,Y1,Z1], [X4,Y4,Z4], [X3,Y3,Z3], [X2,Y2,Z2]])
+      ret.push([[X1,Y1,Z1], [X2,Y2,Z2], [X3,Y3,Z3], [X4,Y4,Z4]])
       texCoords.push([[TX1,TY1], [TX2,TY2], [TX3,TY3], [TX4,TY4]])
     }
   }
