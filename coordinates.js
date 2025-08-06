@@ -1216,10 +1216,11 @@ const GeoToOBJ = geo => {
   if(geo?.normalVecs) {
     normals = geo.normalVecs
     //var ct = 0, a = []
+    var l = geo.resolved ? 1: -1
     for(var i = 0; i < normals.length; i += 3) {
-      var nx = -Math.round(normals[i+0]*1e4)/1e4 
-      var ny = Math.round(normals[i+1]*1e4)/1e4 
-      var nz = Math.round(normals[i+2]*1e4)/1e4 
+      var nx = Math.round(normals[i+0]*1e4)/1e4 * l
+      var ny = -Math.round(normals[i+1]*1e4)/1e4 * l
+      var nz = -Math.round(normals[i+2]*1e4)/1e4 * l
       //var x = geo.vertices[i+0]
       //var y = geo.vertices[i+1]
       //var z = geo.vertices[i+2]
@@ -1360,6 +1361,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var sphereize                = 0
   var color                    = 0x333333
   var colorMix                 = .1
+  var resolved                 = false // loaded from stock files
   var equirectangular          = -1
   var rotationMode             = 0
   var equirectangularHeightmap = -1
@@ -1554,7 +1556,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var normalVecs        = []
 
   var fileURL, hint
-  var resolved          = false
   var resolvedFromCache = false
   
   if(shapeType.indexOf('custom shape') != -1 || (url && shapeType == 'lines')){
@@ -1607,8 +1608,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
             sphereize /= hint.indexOf('octahedron') != -1 ? 2 : 1
             sphereize /= hint.indexOf('cube') != -1 ? 1.5 : 1
           }
-          if((hint.indexOf('cylinder') == -1 && hint != 'torus_0') ||
-             (hint.indexOf('cylinder') == -1 && rows == 16 && cols == 40) ||
+          if((hint != 'torus_0') ||
+             (rows == 16 && cols == 40) ||
              (hint == 'torus_0' && rows == 16 && cols == 40) ||
              (hint == 'torus knot_0' && rows == 16 && cols == 40) 
              ){
@@ -1986,8 +1987,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
 
   if(shapeType == 'dynamic' || preComputeNormalAssocs) {
     // pre-compute coincidental normals for averaging
-//    var vertices = geometry.vertices
-    //geometry.preComputeNormalAssocs = true
+    // var vertices = geometry.vertices
+    // geometry.preComputeNormalAssocs = true
     normalAssocs = []
     for(var i = 0; i < vertices.length; i+=3){
       var X1 = vertices[i+0]
@@ -2342,6 +2343,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     heightmapIsDataArray, heightmapDataArrayFormat,
     heightmapDataArrayWidth, heightmapDataArrayHeight,
     rebindTextures, exportAsOBJ, downloadAsOBJ,
+    resolved
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -3075,7 +3077,7 @@ const AverageNormals = (verts, normals, shapeType, normalVecs, flipNormals) => {
     modSrc[i+5] = az /= ct
   }
   modSrc.map((v,i)=>nrmls[i]=v)
-  var flp = shapeType == 'torus' || shapeType == 'torus knot' ? -1 : 1
+  var flp = shapeType == 'cylinder' || shapeType == 'torus' || shapeType == 'torus knot' ? -1 : 1
   for(var i = 0; i < nrmls.length; i += 6){
     for(var m=3; m--;) {
       normals[i+m*2] = nrmls[i+m*2]
