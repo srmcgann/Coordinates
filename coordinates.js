@@ -1918,8 +1918,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   //sphereize
   if(shapeType != 'lines' && shapeType != 'particles' && !isParticle &&
-     shapeType != 'custom shape' && shapeType != 'obj' &&
-     (sphereize || scaleX != 1 || scaleY != 1 || scaleZ != 1)){
+     shapeType != 'custom shape' && shapeType != 'obj'){// &&
+     //(sphereize || scaleX != 1 || scaleY != 1 || scaleZ != 1)){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
     
