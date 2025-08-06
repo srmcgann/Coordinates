@@ -2043,7 +2043,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
     !isParticle && !isLine && !averageNormals &&
      (!resolvedFromCache || !resolved)){
     normalVecs    = []
-    console.log('hmmmm', shapeType)
     for(var i=0; i<normals.length; i+=6){
       let X = normals[i+3] - normals[i+0]
       let Y = normals[i+4] - normals[i+1]
@@ -7038,4 +7037,3 @@ export {
   GenHash,
   IsArray,
 }
-
