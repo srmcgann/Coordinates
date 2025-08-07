@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #333;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://boss.veriler.com/coordinates.js"
+      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var rendererOptions = {
+        ambientLight: .5, margin: 0,
+        //fov: 1500/2, width: 960, height: 540
+        fov: 2e3
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+      
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .75
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: 1} },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } }
+      ]
+      var turtleShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shapes = []
+
+      var sRad = 8
+      var iPc = 300, p, q
+      var iPv = .1
+      var x, y, z, p, d, a, iTc = iPc, iTv = .1, iTRv = .05
+
+      var geometryData = []
+      for(var i = iTc; i--;) geometryData.push([[0,0,0],[0,0,0],[0,0,0]])
+
+      var turtleShape
+      var geoOptions = {
+        shapeType: 'dynamic',
+        //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7x',
+        geometryData,
+        name: 'turtle',
+        color: 0x00ff00,
+        colorMix: .5,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        turtleShape = geometry
+        await turtleShader.ConnectGeometry(geometry)
+      })      
+
+      var geometryData = Coordinates.GeoSphere(0,0,0, iPc, sRad*1.5)[4]
+      var particles = []
+      Array(iPc).fill().map((v, i) => {
+        var vx = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * iPv
+        var vy = C(q) * iPv
+        var vz = C(p) * S(q) * iPv
+        particles.push({
+          x: geometryData[i][0],
+          y: geometryData[i][1],
+          z: geometryData[i][2],
+          vx, vy, vz,
+        })
+      })
+      
+      var geoOptions = {
+        shapeType: 'particles',
+        geometryData,
+        name: 'particles',
+        color: 0xff0000,
+        penumbra: .4,
+        alpha:.75,
+        size: .5,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+      })      
+
+
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        size: sRad-.01,
+        sphereize: 1,
+        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+        subs: 2,
+        colorMix: 0,
+        averageNormals: true,
+      }
+      
+      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        //Coordinates.SyncNormals(geometry, true)
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      
+      if(1) Coordinates.LoadFPSControls(renderer, {
+        flyMode: true,
+        crosshairSel: 2,
+        crosshairSize: .5
+      })
+      
+      renderer.z = 16
+      //renderer.pitch = -.75
+      window.Draw = () => {
+        renderer.Clear()
+        var t = renderer.t
+        //renderer.yaw += .005
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'particles':
+              var d, ox, oy, oz, vx, vy, vz
+              for(var i = 0; i < shape.vertices.length; i += 3){
+                var j = i/3|0
+                shape.vertices[i+0] = ox = particles[j].x
+                shape.vertices[i+1] = oy = particles[j].y
+                shape.vertices[i+2] = oz = particles[j].z
+                particles[j].x += particles[j].vx
+                particles[j].y += particles[j].vy
+                particles[j].z += particles[j].vz
+                var d = Math.hypot(particles[j].x,
+                                   particles[j].y,
+                                   particles[j].z)
+                particles[j].x /= d
+                particles[j].y /= d
+                particles[j].z /= d
+                particles[j].x *= sRad*1.35/1.333
+                particles[j].y *= sRad*1.35/1.333
+                particles[j].z *= sRad*1.35/1.333
+                vx = particles[j].x - ox
+                vy = particles[j].y - oy
+                vz = particles[j].z - oz
+                d = Math.hypot(vx, vy, vz)
+                particles[j].vx = vx / d * iPv
+                particles[j].vy = vy / d * iPv
+                particles[j].vz = vz / d * iPv
+                
+              }
+              for(var j = 0; j < turtleShape.vertices.length; j+=9) {
+                var idx = j/9|0, tx, ty, tz
+                if(idx < particles.length){
+                  tx = particles[idx].x
+                  ty = particles[idx].y
+                  tz = particles[idx].z
+                  d = Math.hypot(tx, ty, tz)
+                  tx/=d
+                  ty/=d
+                  tz/=d
+                  tx*=sRad
+                  ty*=sRad
+                  tz*=sRad
+                  var p1 = Math.atan2(tx, tz)
+                  var p2 = -Math.acos(ty / Math.hypot(tx, ty, tz)) + Math.PI/2
+                  var theta = Math.atan2(particles[idx].vx, particles[idx].vz)
+                  for(var i = 3; i--;) {
+                    var ls = (i ? 1/5 : 1.5/5)
+                    x = S(p=Math.PI*2/3*i+theta)*ls
+                    y = C(p)*ls
+                    z = 0
+                    d = Math.hypot(y, z)
+                    p = Math.atan2(y, z) + p2
+                    y = S(p) * d
+                    z = C(p) * d
+                    d = Math.hypot(x, z)
+                    p = Math.atan2(x, z) + p1
+                    x = S(p) * d
+                    z = C(p) * d
+                    if(!i){
+                      //turtles[idx].x = x / ls * iTv
+                      //turtles[idx].y = y / ls * iTv
+                      //turtles[idx].z = z / ls * iTv
+                    }
+                    turtleShape.vertices[j+i*3+0] = tx + x
+                    turtleShape.vertices[j+i*3+1] = ty + y
+                    turtleShape.vertices[j+i*3+2] = tz + z
+                  }
+                } else {
+                  for(var i = 3; i--;) {
+                    turtleShape.vertices[j+i*3+0] = 0
+                    turtleShape.vertices[j+i*3+1] = 0
+                    turtleShape.vertices[j+i*3+2] = 0
+                  }
+                }
+              }
+              renderer.Draw(turtleShape)
+              renderer.Draw(shape)
+            break
+            default:
+              renderer.Draw(shape)
+            break
+          }
+        })
+      }
+      
+    </script>
+  </body>
+</html>
