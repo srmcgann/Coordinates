@@ -1918,8 +1918,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   //sphereize
   if(shapeType != 'lines' && shapeType != 'particles' && !isParticle &&
-     shapeType != 'custom shape' && shapeType != 'obj'){// &&
-     //(sphereize || scaleX != 1 || scaleY != 1 || scaleZ != 1)){
+     shapeType != 'custom shape' && shapeType != 'obj' && shapeType != 'dynamic'){
+       // && (sphereize || scaleX != 1 || scaleY != 1 || scaleZ != 1)){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
     
@@ -2008,7 +2008,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
     //ComputeNormalAssocs(ret)
   }
-    
+
+
   if((shapeType == 'custom shape' || shapeType == 'obj') && 
     (objPitch || objRoll || objYaw || objX || objY || objZ)){
     for(var i = 0; i < vertices.length; i+=3){
@@ -6868,6 +6869,24 @@ const getParams = ctx => {
   document.body.appendChild(popup)
 }
 
+const Quat = axis => {
+  var S = Math.sin
+  var C = Math.cos
+  var cosa = C(axis[0]), sina = S(axis[0])
+  var cosb = C(axis[1]), sinb = S(axis[1])
+  var cosc = C(axis[2]), sinc = S(axis[2])
+  var xx = cosa*cosb
+  var xy = cosa*sinb*sinc - sina*cosc
+  var xz = cosa*sinb*cosc + sina*sinc
+  var yx = sina*cosb
+  var yy = sina*sinb*sinc + cosa*cosc
+  var yz = sina*sinb*cosc - cosa*sinc
+  var zx = -sinb
+  var zy = cosb*sinc
+  var zz = cosb*cosc
+  return [xx + xy + xz, yx + yy + yz, zx + zy + zz]
+}
+
 
 const ShapeArray = {
   push: async (renderer, shape) => {
@@ -7018,6 +7037,7 @@ export {
   Reflect,
   Normal,
   BSpline,
+  Quat,
   CurveTo,
   ImageToPo2,
   LoadOBJ,
