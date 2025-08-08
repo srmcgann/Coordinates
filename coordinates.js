@@ -1918,7 +1918,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   //sphereize
   if(shapeType != 'lines' && shapeType != 'particles' && !isParticle &&
-     shapeType != 'custom shape' && shapeType != 'obj' && shapeType != 'dynamic'){
+     shapeType != 'custom shape' && shapeType != 'obj' && shapeType != 'dynamic' ||
+     (scaleX != 1 || scaleY != 1 || scaleZ != 1)){
        // && (sphereize || scaleX != 1 || scaleY != 1 || scaleZ != 1)){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
@@ -3372,7 +3373,7 @@ const BasicShader = async (renderer, options=[]) => {
                       }
 
                       phongP1 = atan(px, pz) + phongTheta;
-                      phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)));
+                      phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)))-.2;
                       
                       //if(refFlipRefs == 1.0) phongP2 = M_PI - phongP2;
 
