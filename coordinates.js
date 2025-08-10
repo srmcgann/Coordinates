@@ -179,7 +179,7 @@ const Renderer = async options => {
     c, ctx, contextType, t:0, alpha,
     width, height, x, y, z,
     roll, pitch, yaw, fov,
-    ready: false, ambientLight,
+    ready: false, ambientLight, clearColor,
     pointLights, pointLightCols, dataArray,
     alphaQueue, particleQueue, lineQueue, active,
     cameraMode, showCrosshair, crosshairSel,
@@ -2682,6 +2682,7 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
                         equirectangularPlugin=false, omitSplitCheck=true,
                         splitCheckPass=0) => {
   var X, Y, Z, ar
+  vy *= -1
   if(geometry.heightMap && SHMdata.length){
     var uvi
     if(geometry.equirectangularHeightmap){
@@ -2743,12 +2744,12 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   var posx, posy, posz
   if(renderer.cameraMode.toLowerCase() == 'fps'){
     vx += cpx
-    vy -= cpy
+    vy += cpy
     vz += cpz
     
     ar = R_ypr(vx, vy, vz, {
       roll: -renderer.roll,
-      pitch: -renderer.pitch,
+      pitch: renderer.pitch,
       yaw: renderer.yaw,
     }, false)
     vx = ar[0]
@@ -4675,6 +4676,70 @@ const BasicShader = async (renderer, options=[]) => {
   return ret
 }
 
+
+const ShapeFromArray = async (shape, pointArray, options={}) => {
+  
+  var geometryData = { vertices: [], normals: [], normalVecs: [], uvs: [] }
+  var v      = shape.vertices
+  var n      = shape.normals
+  var uv     = shape.uvs
+  var nv     = shape.normalVecs
+  var stride = shape.vertices.length
+  pointArray.map((par, i) => {
+    var tx = par[0]
+    var ty = par[1]
+    var tz = par[2]
+    for(var j = 0; j < v.length; j+=3){
+      geometryData.vertices.push(tx+v[j+0], ty+v[j+1], tz+v[j+2])
+      if(n)  geometryData.normals.push(tx+n[j*2+0], ty+n[j*2+1], tz+n[j*2+2])
+      if(n)  geometryData.normals.push(tx+n[j*2+3], ty+n[j*2+4], tz+n[j*2+5])
+      if(uv) geometryData.uvs.push(uv[j/3*2+0], tx+uv[j/3*2+1])
+      if(nv) geometryData.normalVecs.push(nv[j+0], nv[j+1], nv[j+2])
+    }
+  })
+  var ret, opts = {}
+  
+  var tcan, tshptyp = shape.shapeType
+  if(shape.canvasTexture) tcan = shape.canvasTexture
+  ;([
+    'x', 'y', 'z', 'rows', 'cols', 'size', 'url',
+    'roll', 'pitch', 'yaw', 'color', 'colorMix',
+    'showNormals', 'exportShape', 'downloadShape',
+    'normalAssocs', 'equirectangular', 'flipNormals',
+    'textureMode', 'isSprite', 'isLight', 'playbackSpeed',
+    'disableDepthTest', 'lum', 'alpha', 'involveCache',
+    'isParticle', 'isLine', 'penumbra', 'wireframe',
+    'canvasTextureMix', 'showBounding',
+    'boundingColor', 'heightMap', 'heightMapIntensity',
+    'heightMapIsCanvas', 'equirectangularHeightmap',
+    'isFromZip', 'rotationMode',
+    'mapIsDataArray', 'dataArrayFormat', 'maxHeightmap',
+    'dataArrayWidth', 'dataArrayHeight', 'preComputeNormalAssocs',
+    'heightmapIsDataArray', 'heightmapDataArrayFormat',
+    'heightmapDataArrayWidth', 'heightmapDataArrayHeight',
+    'rebindTextures', 'exportAsOBJ', 'downloadAsOBJ',
+    'resolved','map', 'video', 'muted',
+  ]).forEach(key => { opts[key] = shape[key] })
+  opts.name = shape.name + '_array'
+  Object.keys(options).forEach((key, idx) => {
+    opts[key] = options[key]
+  })
+  if(shape.canvasTexture) opts.canvasTexture = shape.canvasTexture
+  opts.shapeType ='custom shape'
+  opts.geometryData = geometryData
+  await LoadGeometry(shape.renderer, opts).then(async geometry => {
+    for(var i = 0; i < geometry.vertices.length; i+= stride){
+      for(var j = 0; j < stride; j+=3){
+        var k = (i + j) / 3 * 2
+        geometry.uvs[k+0] = shape.uvs[k%shape.uvs.length+0]
+        geometry.uvs[k+1] = shape.uvs[k%shape.uvs.length+1]
+      }
+    }
+    geometry.shapeType = tshptyp
+    ret = {shape: geometry}
+  })
+  return ret
+}
 
 const ShapeToLines = async (shape, options={}) => {
   
@@ -7020,6 +7085,7 @@ export {
   Dodecahedron,
   Cylinder,
   ShapeArray,
+  ShapeFromArray  ,
   Torus,
   DownloadCustomShape,
   LoadAnimationFromZip,

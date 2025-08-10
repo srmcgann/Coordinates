@@ -1,4 +1,19 @@
 <!DOCTYPE html>
+<!--
+ TO DO
+ ✔ fix smoke particles (sorting)
+ ✔ floor collisions
+ ✔ levels
+ ✔  moving clouds
+ ✔  map
+ ✔  map-regions with load-screen & new terrain @ entry
+ ✔  fog or fading @ distance
+ *  more terrain sets for levels
+ *  integrate camera roll & 1st person camera view
+ *  anti-aircraft guns / missiles
+ *  plane weaponry
+ *  gyroscope / altimiter
+-->
 <html>
   <head>
     <title>Coordinates boilerplate example</title>
@@ -8,37 +23,80 @@
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
+        font-family: monospace;
+      }
+      .tools{
+        display: inline-block;
+        text-align: center;
+        z-index: 100;
+        display: none;
+      }
+      
+      .toggleToolsButton{
+        z-index: 100;
+        cursor: pointer;
+        position: absolute;
+        display: none;
+        max-width: 150px;
+        width: calc(100% - 10px);
+        background: rgb(136,255,136);
+        border-radius: 5px;
+        border: 0;
+        margin: 5px;
+        font-weight: 900;
+        line-height: 16px;
       }
     </style>
   </head>
   <body>
     <script type="module">
-    
+
       import * as Coordinates from
-      "https://boss.veriler.com/coordinates.js"
-      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
-    
+      //"https://boss.veriler.com/coordinates.js"
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
       var rendererOptions = {
-        ambientLight: .5, margin: 0,
+        ambientLight: .1, margin: 0,
         //fov: 1500/2, width: 960, height: 540
-        fov: 2e3
+        fov: 1e3
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
-      
+
       Coordinates.AnimationLoop(renderer, 'Draw')
-      
+
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
 
+
+      //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/equisky.jpg'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/'
+
+      var heightmap = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2_small.mp4'
+
       var shaderOptions = [
+        {lighting: {type: 'ambientLight', value: .4}},
         { uniform: {
           type: 'phong',
-          value: .75
-        } }
+          value: .5
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          enabled: false,
+          value: .25
+        } },
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: 1} },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } }
+      ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
       var shaderOptions = [
         { lighting: {type: 'ambientLight', value: 1} },
         { uniform: {
@@ -51,83 +109,219 @@
       var shapes = []
 
       var sRad = 8
-      var iPc = 300, p, q
+      var iPc = 50, p, q
       var iPv = .1
+      var turtleSize = .6
+      var altVar = 0 //4.25
+      var homing = .25
+      var maxGoals = 64
       var x, y, z, p, d, a, iTc = iPc, iTv = .1, iTRv = .05
+
+
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        map: refTexture,
+        size: 1e4,
+        subs: 4,
+        name: 'background',
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await backgroundShader.ConnectGeometry(geometry)
+      })
 
       var geometryData = []
       for(var i = iTc; i--;) geometryData.push([[0,0,0],[0,0,0],[0,0,0]])
-
       var turtleShape
       var geoOptions = {
         shapeType: 'dynamic',
         //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7x',
         geometryData,
         name: 'turtle',
-        color: 0x00ff00,
-        colorMix: .5,
+        color: 0x00ff88,
+        colorMix: .75,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         turtleShape = geometry
         await turtleShader.ConnectGeometry(geometry)
       })      
 
-      var geometryData = Coordinates.GeoSphere(0,0,0, iPc, sRad*1.5)[4]
+      //var geometryData = Coordinates.GeoSphere(0,0,0, iPc, sRad*1.5)[4]
+      var q
+      var geometryData = []
+      var oy =  Math.PI/2
+      for(var i = 0; i < iPc; i++){
+        var x = S(p=Math.PI*2/iPc*i+Math.PI) * S(q=Math.PI/2) * sRad * 1.5
+        var y = C(q) * sRad * 1.5
+        var z = C(p) * S(q) * sRad * 1.5
+        /*
+        var n = (i**3.1/9)%1
+        if(n>=1/3 && n <2/3){
+          oy = Math.PI/2*(i%2)
+          p = Math.atan2(x, y) + oy
+          d = Math.hypot(x, y)
+          x = S(p) * d
+          y = C(p) * d
+        }else if(n>=2/3){
+          oy = Math.PI/2*(i%2)
+          p = Math.atan2(y, z) + oy
+          d = Math.hypot(y, z)
+          y = S(p) * d
+          z = C(p) * d
+        }
+        */
+        oy = 0 //Math.PI/3*(i%3)
+        p = Math.atan2(y, z) + oy
+        d = Math.hypot(y, z)
+        y = S(p) * d
+        z = C(p) * d
+        geometryData.push([x,y,z])
+      }
       var particles = []
       Array(iPc).fill().map((v, i) => {
-        var vx = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * iPv
+        //var vx = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * iPv
+        //var vy = C(q) * iPv
+        //var vz = C(p) * S(q) * iPv
+        var vx = S(p=Math.PI*2/iPc*i+Math.PI-Math.PI/2) * S(q=Math.PI/2) * iPv
         var vy = C(q) * iPv
         var vz = C(p) * S(q) * iPv
+        /*
+        var n = (i**3.1/9)%1
+        if(n>=1/3 && n <2/3){
+          oy = Math.PI/2*(i%2)
+          p = Math.atan2(vx, vy) + oy
+          d = Math.hypot(vx, vy)
+          vx = S(p) * d
+          vy = C(p) * d
+        }else if(n>=2/3){
+          oy = Math.PI/2*(i%2)
+          p = Math.atan2(vy, vz) + oy
+          d = Math.hypot(vy, vz)
+          vy = S(p) * d
+          vz = C(p) * d
+        }
+        */
+        oy = 0 //Math.PI/3*(i%3)
+        p = Math.atan2(vy, vz) + oy
+        d = Math.hypot(vy, vz)
+        vy = S(p) * d
+        vz = C(p) * d
         particles.push({
           x: geometryData[i][0],
           y: geometryData[i][1],
           z: geometryData[i][2],
-          vx, vy, vz,
+          vx: vx, //* (i%2 ? -1 : 1),
+          vy,
+          vz: vz, //* (i%2 ? -1 : 1),
+          theta: 0,
+          vx2:0, vy2:0, vz2:0,
+          size: .2, //.3 + Rn()**8 * .7,
+          alt: sRad + (Rn()*altVar) ** 2,
         })
       })
-      
+
       var geoOptions = {
         shapeType: 'particles',
         geometryData,
         name: 'particles',
-        color: 0xff0000,
+        color: 0x4400ff,
         penumbra: .4,
-        alpha:.75,
-        size: .5,
+        alpha: .75,
+        size: turtleSize / 1.5,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
       })      
 
+      var goalShape, flashShape, baseFlashShape
+      var geoOptions = {
+        shapeType: 'sprite',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+        name: 'goal',
+        size: 6,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        goalShape = geometry
+      })      
 
       var geoOptions = {
-        shapeType: 'dodecahedron',
-        size: sRad-.01,
-        sphereize: 1,
-        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
-        subs: 2,
-        colorMix: 0,
-        averageNormals: true,
+        shapeType: 'sprite',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
+        name: 'flash',
+        size: 1,
       }
-      
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        baseFlashShape = structuredClone(geometry.vertices)
+        flashShape = geometry
+      })      
+
+
+      var geoOptions = {
+        shapeType: 'custom shape',
+        url: 'https://srmcgann.github.io/Coordinates/custom shapes/dodecahedron_sphere_hipoly.json',
+        scaleX: sRad*.995,
+        scaleY: sRad*.995,
+        scaleZ: sRad*.995,
+        //sphereize: 1,
+        equirectangular: true,
+        //equirectangularHeightmap: true,
+        playbackSpeed: 2,
+        
+        //map: heightmap,
+        //heightmap: heightmap,
+        //heightmapIntensity: 1,
+        //maxheightmap: .5,
+        //subs: 3,
+        color: 0x110033,
+        colorMix: .5,
+        //averageNormals: true,
+      }
+
       if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         //Coordinates.SyncNormals(geometry, true)
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
       })
-      
-      if(1) Coordinates.LoadFPSControls(renderer, {
+
+      if(0) Coordinates.LoadFPSControls(renderer, {
         flyMode: true,
         crosshairSel: 2,
-        crosshairSize: .5
+        crosshairSize: .25,
+        rSpeed: .5,
+        mSpeed: .5,
       })
+
+
+      var goals = []
+      const SpawnGoal = () => {
+        var av = sRad + ((.75+Rn()*.25)*altVar) ** 2
+        var x = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * av
+        var y = C(q) * av
+        var z = C(p) * S(q) * av
+        goals.push({
+          x, y, z,
+          vx: 0, vy: 0, vz: 0,
+          life: 1, alt: av
+        })
+      }
+      var flashes = []
+      const SpawnFlash = (x, y, z) => {
+        flashes.push({ x, y, z, life: 1 })
+      }
       
       renderer.z = 16
       //renderer.pitch = -.75
       window.Draw = () => {
         renderer.Clear()
         var t = renderer.t
-        //renderer.yaw += .005
+        
+        //renderer.z = Math.min(12, Math.max(8.2, (1.1-C(t/4))*10))
+        //renderer.yaw = Math.min(Math.PI, Math.max(0, (.6-C(t/8))*4)) + Math.PI/2
+        //renderer.pitch = -S(t/3) / 4
+        
+        //if(t > 5) if(!((t*60|0)%240)) SpawnGoal()
+
         shapes.forEach(shape => {
           switch(shape.name){
             case 'particles':
@@ -137,26 +331,46 @@
                 shape.vertices[i+0] = ox = particles[j].x
                 shape.vertices[i+1] = oy = particles[j].y
                 shape.vertices[i+2] = oz = particles[j].z
-                particles[j].x += particles[j].vx
-                particles[j].y += particles[j].vy
-                particles[j].z += particles[j].vz
-                var d = Math.hypot(particles[j].x,
+                vx = particles[j].vx += particles[j].vx2
+                vy = particles[j].vy += particles[j].vy2
+                vz = particles[j].vz += particles[j].vz2
+                particles[j].vx2 /= 1.1
+                particles[j].vy2 /= 1.1
+                particles[j].vz2 /= 1.1
+                d = Math.hypot(vx, vy, vz) + .00001
+                vx /= d
+                vy /= d
+                vz /= d
+                var vel = iPv*particles[j].size**.5
+                vx *= vel
+                vy *= vel
+                vz *= vel
+                particles[j].x += vx
+                particles[j].y += vy
+                particles[j].z += vz
+                var d1 = Math.hypot(particles[j].x,
                                    particles[j].y,
-                                   particles[j].z)
-                particles[j].x /= d
-                particles[j].y /= d
-                particles[j].z /= d
-                particles[j].x *= sRad*1.35/1.333
-                particles[j].y *= sRad*1.35/1.333
-                particles[j].z *= sRad*1.35/1.333
-                vx = particles[j].x - ox
-                vy = particles[j].y - oy
-                vz = particles[j].z - oz
-                d = Math.hypot(vx, vy, vz)
-                particles[j].vx = vx / d * iPv
-                particles[j].vy = vy / d * iPv
-                particles[j].vz = vz / d * iPv
-                
+                                   particles[j].z) + .00001
+                particles[j].x /= d1
+                particles[j].y /= d1
+                particles[j].z /= d1
+                particles[j].x *= particles[j].alt
+                particles[j].y *= particles[j].alt
+                particles[j].z *= particles[j].alt
+                vx = (particles[j].x - ox)
+                vy = (particles[j].y - oy)
+                vz = (particles[j].z - oz)
+                d = Math.hypot(vx, vy, vz) + .00001
+                d1**=2
+                var vel = iPv*particles[j].size**.5
+                vx = vx / d * vel / d1
+                vy = vy / d * vel / d1
+                vz = vz / d * vel / d1
+                d = Math.hypot(vx, vy, vz) + .00001
+                particles[j].vx = vx / d * vel
+                particles[j].vy = vy / d * vel
+                particles[j].vz = vz / d * vel
+
               }
               for(var j = 0; j < turtleShape.vertices.length; j+=9) {
                 var idx = j/9|0, tx, ty, tz
@@ -164,18 +378,20 @@
                   tx = particles[idx].x
                   ty = particles[idx].y
                   tz = particles[idx].z
-                  d = Math.hypot(tx, ty, tz)
+                  d = Math.hypot(tx, ty, tz) + .00001
                   tx/=d
                   ty/=d
                   tz/=d
-                  tx*=sRad
-                  ty*=sRad
-                  tz*=sRad
+                  tx *= particles[idx].alt
+                  ty *= particles[idx].alt
+                  tz *= particles[idx].alt
                   var p1 = Math.atan2(tx, tz)
-                  var p2 = -Math.acos(ty / Math.hypot(tx, ty, tz)) + Math.PI/2
-                  var theta = Math.atan2(particles[idx].vx, particles[idx].vz)
+                  var p2 = (-Math.acos(ty / Math.hypot(tx, ty, tz))) + Math.PI/2 
+                  var mind = 6e6
+                  var tdir = 0
                   for(var i = 3; i--;) {
-                    var ls = (i ? 1/5 : 1.5/5)
+                  var theta = particles[idx].theta // * (tz>=0?-1:1)
+                    var ls = (i ? 1 : 2) * turtleSize * particles[idx].size
                     x = S(p=Math.PI*2/3*i+theta)*ls
                     y = C(p)*ls
                     z = 0
@@ -187,15 +403,41 @@
                     p = Math.atan2(x, z) + p1
                     x = S(p) * d
                     z = C(p) * d
-                    if(!i){
-                      //turtles[idx].x = x / ls * iTv
-                      //turtles[idx].y = y / ls * iTv
-                      //turtles[idx].z = z / ls * iTv
-                    }
                     turtleShape.vertices[j+i*3+0] = tx + x
                     turtleShape.vertices[j+i*3+1] = ty + y
                     turtleShape.vertices[j+i*3+2] = tz + z
+                    if(!i){
+                      for(var m=2; m--;) {
+                        var ls = (i ? 1 : 2)
+                        x = S(p=theta+(m?.01:-.01))*ls
+                        y = C(p)*ls
+                        z = 0
+                        d = Math.hypot(y, z)
+                        p = Math.atan2(y, z) + p2
+                        y = S(p) * d
+                        z = C(p) * d
+                        d = Math.hypot(x, z)
+                        p = Math.atan2(x, z) + p1
+                        x = S(p) * d
+                        z = C(p) * d
+                        vx = particles[idx].vx
+                        vy = particles[idx].vy
+                        vz = particles[idx].vz
+                        d = Math.hypot(vx, vy, vz)
+                        vx /= d
+                        vy /= d
+                        vz /= d
+                        vx *= ls
+                        vy *= ls
+                        vz *= ls
+                        if((d=Math.hypot(x-vx, y-vy, z-vz))<mind){
+                          mind = d
+                          tdir = (m ? d : -d) * (1+iPv*particles[idx].size**.5*50) / 25
+                        }
+                      }
+                    }
                   }
+                  particles[idx].theta += tdir //Math.min(.01, Math.max(-.01, tdir))
                 } else {
                   for(var i = 3; i--;) {
                     turtleShape.vertices[j+i*3+0] = 0
@@ -204,7 +446,74 @@
                   }
                 }
               }
+              turtleShape.color = 0xffffff //Coordinates.HSVToHex(t*100*(C(t)/2+.5), 0, 1)
               renderer.Draw(turtleShape)
+              shape.color = Coordinates.HSVToHex(0, 1, 1)
+              renderer.Draw(shape)
+              
+              goals = goals.filter((v, i) => v.life > 0 && (i || goals.length < maxGoals))
+              flashes = flashes.filter((v, i) => v.life > 0)
+              var idx
+              goals.map((goal, tidx) => {
+                var x = goalShape.x = goal.x += goal.vx
+                var y = goalShape.y = goal.y += goal.vy
+                var z = goalShape.z = goal.z += goal.vz
+                goal.life -= .001
+                renderer.Draw(goalShape)
+              })
+              particles.map((particle, pidx) => {
+                var x2 = particle.x
+                var y2 = particle.y
+                var z2 = particle.z
+                particle.alt += Math.min(.125, Math.abs( sRad - particle.alt) / 20) *
+                                    (sRad < particle.alt ? -1: 1)
+                var mind = 6e6
+                idx = -1
+                goals.map((goal, tidx) => {
+                  x = goal.x
+                  y = goal.y
+                  z = goal.z
+                  if((d = Math.hypot(x2-x, y2-y, z2-z))<mind){
+                    mind = d
+                    idx = tidx
+                  }
+                })
+                if(idx != -1){
+                  if(mind<iPv*particle.size**.5*2.25){
+                    goals[idx].life = 0
+                    SpawnFlash(goals[idx].x, goals[idx].y, goals[idx].z)
+                  }else{
+                    var a, b, e
+                    var hx = particle.x
+                    var hy = particle.y
+                    var hz = particle.z
+                    d = Math.hypot(a = goals[idx].x-hx, b = goals[idx].y-hy, e = goals[idx].z-hz) + .00001
+                    a /= d
+                    b /= d
+                    e /= d
+                    particle.vx2 = a * homing * (1/particle.size)
+                    particle.vy2 = b * homing * (1/particle.size)
+                    particle.vz2 = e * homing * (1/particle.size)
+                    particle.alt += ( goals[idx].alt > particle.alt - .25 ? 1 : -1) * iPv *particle.size**.5 / (1+particle.alt/3) * 5 / (1.5+d/4) * Math.min(1, Math.abs(goals[idx].alt - (particle.alt-.25)))
+                  }
+                }
+              })
+              flashes.map(flash => {
+                flashShape.x = flash.x
+                flashShape.y = flash.y
+                flashShape.z = flash.z
+                for(var i = 0; i < baseFlashShape.length; i+=3){
+                  flashShape.vertices[i+0] = baseFlashShape[i+0] * 40 * flash.life
+                  flashShape.vertices[i+1] = baseFlashShape[i+1] * 40 * flash.life
+                  flashShape.vertices[i+2] = baseFlashShape[i+2] * 40 * flash.life
+                }
+                renderer.Draw(flashShape)
+                flash.life -= .1
+              })
+            break
+            case 'background':
+              var l = 0 //Math.min(1.25, Math.max(0, (-.3-C(t/4))*4))
+              backgroundShader.datasets[0].optionalLighting[0].value = l
               renderer.Draw(shape)
             break
             default:
@@ -213,7 +522,7 @@
           }
         })
       }
-      
     </script>
+
   </body>
 </html>
