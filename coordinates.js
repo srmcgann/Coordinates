@@ -2735,11 +2735,11 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   }
 
   var cpx = renderer.x
-  var cpy = renderer.y
+  var cpy = -renderer.y
   var cpz = renderer.z
 
   vx += geometry.x
-  vy -= geometry.y
+  vy += geometry.y
   vz += geometry.z
   var posx, posy, posz
   if(renderer.cameraMode.toLowerCase() == 'fps'){
@@ -2749,7 +2749,7 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
     
     ar = R_ypr(vx, vy, vz, {
       roll: -renderer.roll,
-      pitch: renderer.pitch,
+      pitch: -renderer.pitch,
       yaw: renderer.yaw,
     }, false)
     vx = ar[0]
@@ -4680,6 +4680,7 @@ const BasicShader = async (renderer, options=[]) => {
 const ShapeFromArray = async (shape, pointArray, options={}) => {
   
   var geometryData = { vertices: [], normals: [], normalVecs: [], uvs: [] }
+  var stride = shape.vertices.length
   var v      = shape.vertices
   var n      = shape.normals
   var uv     = shape.uvs
@@ -4736,7 +4737,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
       }
     }
     geometry.shapeType = tshptyp
-    ret = {shape: geometry}
+    ret = {shape: geometry, stride}
   })
   return ret
 }
