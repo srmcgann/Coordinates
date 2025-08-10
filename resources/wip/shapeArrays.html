@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+
+      import * as Coordinates from
+      "https://boss.veriler.com/coordinates.js"
+      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+      var rendererOptions = {
+        ambientLight: .9,
+        fov: 1500, margin: 0, clearColor: 0x110044,
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/ultracloudsbase.jpg'
+
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          enabled: false,
+          value: .25
+        } },
+        { uniform: {
+          type: 'fog',
+          color: 0x222222,
+          value: 2
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var cl = 5
+      var rw = 5
+      var br = 5
+      var sp = 4 * (2**.5)
+      
+      var cubes = []
+      var showIDS = true
+      var pointArray = []
+      Array(cl*rw*br).fill().map((v, i) => {
+        var x = ((i%cl)-cl/2 + .5) * sp
+        var y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+        var z = ((i/cl/rw|0)-br/2 + .5) * sp
+        if(Math.hypot(x, y) < sp * cl / 2){
+          pointArray.push([x, y, z])
+          cubes.push({
+            ox: x, oy: y, oz: z,
+            x: 0, y: 0, z: 0,
+            roll:  0,
+            pitch: 0,
+            yaw:   0,
+          })
+        }
+      })
+
+      var shapes = []
+
+      var geoOptions = {
+        shapeType: 'obj',
+        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7y',
+        map: 'https://boss.veriler.com/assets/uploads/2b5V0S.jpeg',
+        x: -20,
+        scaleZ: 4,
+        colorMix: 0,
+      }
+      var stride
+      if(0)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        stride = geometry.vertices.length
+        Coordinates.ShapeFromArray(geometry, pointArray, {
+          name: 'shape array',
+        }).then(async ret => {
+          shapes.push(ret.shape)
+          ret.shape.vstate  = structuredClone(ret.shape.vertices)
+          ret.shape.nstate  = structuredClone(ret.shape.normals)
+          ret.shape.uvs     = structuredClone(ret.shape.uvs)
+          ret.shape.nvstate = structuredClone(ret.shape.normalVecs)
+          await shader.ConnectGeometry(ret.shape)
+        })
+      })  
+      
+      var geoOptions = {
+        shapeType: 'obj',
+        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7z',
+        map: 'https://boss.veriler.com/assets/uploads/1UZnsL.jpeg',
+        colorMix: 0,
+        scaleZ: 4,
+        size: 1, //x: 20
+      }
+      var stride2
+      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        stride2 = geometry.vertices.length
+        Coordinates.ShapeFromArray(geometry, pointArray, {
+          name: 'shape array2',
+        }).then(async ret => {
+          shapes.push(ret.shape)
+          ret.shape.vstate  = structuredClone(ret.shape.vertices)
+          ret.shape.nstate  = structuredClone(ret.shape.normals)
+          ret.shape.uvs     = structuredClone(ret.shape.uvs)
+          ret.shape.nvstate = structuredClone(ret.shape.normalVecs)
+          await shader.ConnectGeometry(ret.shape)
+        })
+      })  
+      
+      var x, y , z, tx, ty, tz, p, d
+      renderer.z = 16
+      
+      Coordinates.LoadFPSControls(renderer, {
+        flyMode: true,
+        crosshairSel: 2,
+        crosshairSize: .25,
+      })
+      
+      window.Draw = () => {
+        renderer.Clear()
+        var t = renderer.t
+        //renderer.yaw = -.2 + t/8
+        //renderer.pitch = -.2
+        
+        if(showIDS){
+          var fs
+          Coordinates.Overlay.ctx.fillStyle = '#2f8'
+          Coordinates.Overlay.ctx.textAlign = 'center'
+        }
+        
+        cubes.map((cube, idx) => {
+          
+          if(showIDS){
+            var ar = Coordinates.GetShaderCoord(cube.ox + cube.x,
+                                                cube.oy + cube.y,
+                                                cube.oz + cube.z,
+                                                shapes[0], renderer)
+            Coordinates.Overlay.ctx.font = (fs = 500/(1+ar[2])) + 'px verdana'
+            var w = Coordinates.Overlay.width
+            var h = Coordinates.Overlay.height
+            Coordinates.Overlay.ctx.fillText(idx, ar[0], h-ar[1] + fs/2.5)
+          }
+          
+          if(0)switch(idx){
+            case 0:
+            break
+            case 1:
+            break
+            case 2:
+            break
+            case 3:
+              cube.yaw = t
+              cube.pitch = -t/2
+              cube.roll = t/8
+            break
+            case 4:
+            break
+            case 5:
+              cube.yaw = t
+              cube.pitch = -t/2
+              cube.roll = t/8
+            break
+            case 6:
+            break
+            case 7:
+              cube.yaw = t * 2
+              cube.pitch = -t
+              cube.roll = t/4
+            break
+            case 8:
+            break
+            case 9:
+              cube.yaw = t
+              cube.roll = t * 8
+              cube.z = C(t*4) * 20
+            break
+            default:
+            break
+          }
+        })
+        
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'shape array':
+              for(var i = 0; i < shape.vertices.length; i+=stride){
+                var j = i/stride
+                console.log(cubes[j])
+                tx = cubes[j].ox
+                ty = cubes[j].oy
+                tz = cubes[j].oz
+                var vstate = []
+                for(var k = 0; k < stride; k+=3){
+                  for(var m = 2; m--;){
+                    var l = m ? 'vstate' : 'nvstate'
+                    x = shape[l][i + k + 0] - tx * m
+                    y = shape[l][i + k + 1] - ty * m
+                    z = shape[l][i + k + 2] - tz * m
+                    p = Math.atan2(y, z) + cubes[j].pitch
+                    d = Math.hypot(y, z)
+                    x = x
+                    y = S(p) * d
+                    z = C(p) * d
+                    p = Math.atan2(x, z) + cubes[j].yaw
+                    d = Math.hypot(x, z)
+                    x = S(p) * d
+                    y = y
+                    z = C(p) * d
+                    p = Math.atan2(x, y) + cubes[j].roll
+                    d = Math.hypot(x, y)
+                    x = S(p) * d
+                    y = C(p) * d
+                    z = z
+                    var l = m ? 'vertices' : 'normalVecs'
+                    shape[l][i + k + 0] = x + (tx + cubes[j].x) * m
+                    shape[l][i + k + 1] = y + (ty + cubes[j].y) * m
+                    shape[l][i + k + 2] = z + (tz + cubes[j].z) * m
+                    if(shape.showNormals){
+                      x = shape.nstate[(i + k) * 2 + 0 + m * 3] - tx
+                      y = shape.nstate[(i + k) * 2 + 1 + m * 3] - ty
+                      z = shape.nstate[(i + k) * 2 + 2 + m * 3] - tz
+                      p = Math.atan2(y, z) + cubes[j].pitch
+                      d = Math.hypot(y, z)
+                      x = x
+                      y = S(p) * d
+                      z = C(p) * d
+                      p = Math.atan2(x, z) + cubes[j].yaw
+                      d = Math.hypot(x, z)
+                      x = S(p) * d
+                      y = y
+                      z = C(p) * d
+                      p = Math.atan2(x, y) + cubes[j].roll
+                      d = Math.hypot(x, y)
+                      x = S(p) * d
+                      y = C(p) * d
+                      z = z
+                      shape.normals[(i + k) * 2 + 0 + m * 3] = x + tx
+                      shape.normals[(i + k) * 2 + 1 + m * 3] = y + ty
+                      shape.normals[(i + k) * 2 + 2 + m * 3] = z + tz
+                    }
+                  }
+                }
+              }
+              renderer.Draw(shape)
+            break
+            case 'shape array2':
+              for(var i = 0; i < shape.vertices.length; i+=stride2){
+                var j = i/stride2
+                tx = cubes[j].ox
+                ty = cubes[j].oy
+                tz = cubes[j].oz
+                var vstate = []
+                for(var k = 0; k < stride2; k+=3){
+                  for(var m = 2; m--;){
+                    var l = m ? 'vstate' : 'nvstate'
+                    x = shape[l][i + k + 0] - tx * m
+                    y = shape[l][i + k + 1] - ty * m
+                    z = shape[l][i + k + 2] - tz * m
+                    p = Math.atan2(y, z) + cubes[j].pitch
+                    d = Math.hypot(y, z)
+                    x = x
+                    y = S(p) * d
+                    z = C(p) * d
+                    p = Math.atan2(x, z) + cubes[j].yaw
+                    d = Math.hypot(x, z)
+                    x = S(p) * d
+                    y = y
+                    z = C(p) * d
+                    p = Math.atan2(x, y) + cubes[j].roll
+                    d = Math.hypot(x, y)
+                    x = S(p) * d
+                    y = C(p) * d
+                    z = z
+                    var l = m ? 'vertices' : 'normalVecs'
+                    shape[l][i + k + 0] = x + (tx + cubes[j].x) * m
+                    shape[l][i + k + 1] = y + (ty + cubes[j].y) * m
+                    shape[l][i + k + 2] = z + (tz + cubes[j].z) * m
+                    if(shape.showNormals){
+                      x = shape.nstate[(i + k) * 2 + 0 + m * 3] - tx
+                      y = shape.nstate[(i + k) * 2 + 1 + m * 3] - ty
+                      z = shape.nstate[(i + k) * 2 + 2 + m * 3] - tz
+                      p = Math.atan2(y, z) + cubes[j].pitch
+                      d = Math.hypot(y, z)
+                      x = x
+                      y = S(p) * d
+                      z = C(p) * d
+                      p = Math.atan2(x, z) + cubes[j].yaw
+                      d = Math.hypot(x, z)
+                      x = S(p) * d
+                      y = y
+                      z = C(p) * d
+                      p = Math.atan2(x, y) + cubes[j].roll
+                      d = Math.hypot(x, y)
+                      x = S(p) * d
+                      y = C(p) * d
+                      z = z
+                      shape.normals[(i + k) * 2 + 0 + m * 3] = x + tx
+                      shape.normals[(i + k) * 2 + 1 + m * 3] = y + ty
+                      shape.normals[(i + k) * 2 + 2 + m * 3] = z + tz
+                    }
+                  }
+                }
+              }
+              renderer.Draw(shape)
+            break
+            default:
+              renderer.Draw(shape)
+            break
+          }
+        })
+      }
+      
+    </script>
+  </body>
+</html>
