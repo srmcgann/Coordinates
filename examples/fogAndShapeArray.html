@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>fog / shape array example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var fogColor = 0x333333
+      var rendererOptions = {
+        ambientLight: 4, margin: 0,
+        fov: 1400, clearColor: fogColor
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      var S  = Math.sin
+      var C  = Math.cos
+      var Rn = Math.random
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: 1
+        } },
+        { uniform: {
+          type: 'fog',
+          color: fogColor,
+          value: 5.5
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shapes = []
+      var geoOptions = {
+        shapeType: 'octahedron',
+        subs: 2,
+        sphereize: -.75,
+        averageNormals: true,
+        size: 1,
+        color: 0xffffff,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        var p
+        var ar
+        ar = Array(10).fill().map((v, i) => [S(p=Math.PI*2/10*i)*5, C(p)*5, 0])
+        Coordinates.ShapeFromArray(geometry, ar, {
+          y: 2,
+          color: 0x00ff44,
+          name: 'centris',
+        }).then(async res => {
+          shapes.push(res.shape)
+          await shader.ConnectGeometry(res.shape)
+        })
+        ar = Array(100).fill().map((v, i) => [
+          ((i%10)-5+.5) * 3, -4, ((i/10|0)-5+.5) * 3,
+        ])
+        Coordinates.ShapeFromArray(geometry, ar, {
+          name: 'floor',
+          color: 0x4400ff,
+        }).then(async res => {
+          shapes.push(res.shape)
+          await shader.ConnectGeometry(res.shape)
+        })
+      })  
+      
+      
+      window.Draw = () => {
+        renderer.Clear()
+        var t = renderer.t
+        renderer.z = 9
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'floor':
+              shape.yaw = t/2
+            break
+            default:
+              shape.roll = t
+              shape.pitch = t + Math.PI/2
+              shape.yaw = t*2
+            break
+          }
+          renderer.Draw(shape)
+        })
+      }
+      
+    </script>
+  </body>
+</html>
