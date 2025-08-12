@@ -4,7 +4,7 @@
     <title>Coordinates boilerplate example</title>
     <style>
       body, html{
-        background: #333;
+        background: #000;
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
@@ -13,97 +13,229 @@
   </head>
   <body>
     <script type="module">
-    
       import * as Coordinates from 
       "https://boss.veriler.com/coordinates.js?2"
       //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
       var rendererOptions = {
-        ambientLight: .2,
-        fov: 1e3
+        ambientLight: .3,
+        //fov: 400, width: 960, height: 540,
+        fov: 1200, //width: 960, height: 540,
+        margin: 0,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      renderer.z = 24
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+      
+      var playbackSpeed = .5
       
       Coordinates.AnimationLoop(renderer, 'Draw')
       
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/earth_clouds_transparency.png'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/rd4_po2_small.mp4'
 
       var shaderOptions = [
+        {  lighting: {type: 'ambientLight', value: .5}
+        },
         { uniform: {
           type: 'phong',
-          value: .5
+          value: .2
         } },
         { uniform: {
           type: 'reflection',
           map: refTexture,
-          value: .1
+          playbackSpeed,
+          enabled: false,
+          value: .05
         } },
         { uniform: {
           type: 'fog',
-          color: 0x333333,
-          value:2.2,
+          color: 0x884400,
+          value: 2,
         } },
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+      
+      var shaderOptions = [
+        {  lighting: {type: 'ambientLight', value: 0}
+        },
+        { uniform: {
+          type: 'phong',
+          value: .25
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          playbackSpeed,
+          enabled: true,
+          value: .5,
+        } },
+        { uniform: {
+          type: 'fog',
+          color: 0x000000,
+          value: 2,
+        } },
+      ]
+      var skullShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: .1} },
+        { lighting: {type: 'ambientLight', value: 5} },
         { uniform: {
           type: 'phong',
           value: 0
         } },
         { uniform: {
           type: 'fog',
-          color: 0x333333,
-          value: 1.2,
+          color: 0x000000,
+          value: 1.25,
         } },
       ]
       var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+
+      const processShapeArray = shape => {
+        for(var i = 0; i < shape.vertices.length; i += shape.stride){
+          var shpIdx = i/shape.stride
+          if(shpData[shpIdx].mx != shpData[shpIdx].x ||
+             shpData[shpIdx].my != shpData[shpIdx].y ||
+             shpData[shpIdx].mz != shpData[shpIdx].z ||
+             shpData[shpIdx].mroll != shpData[shpIdx].roll ||
+             shpData[shpIdx].mpitch != shpData[shpIdx].pitch ||
+             shpData[shpIdx].myaw != shpData[shpIdx].yaw){
+            tx = shpData[shpIdx].ox
+            ty = shpData[shpIdx].oy
+            tz = shpData[shpIdx].oz
+            for(var k = 0; k < shape.stride; k+=3){
+              for(var m = 2; m--;){
+                var l = m ? 'vstate' : 'nvstate'
+                x = shape[l][i + k + 0] - tx * m
+                y = shape[l][i + k + 1] - ty * m
+                z = shape[l][i + k + 2] - tz * m
+                p = Math.atan2(y, z) + shpData[shpIdx].pitch
+                d = Math.hypot(y, z)
+                x = x
+                y = S(p) * d
+                z = C(p) * d
+                p = Math.atan2(x, y) + shpData[shpIdx].roll
+                d = Math.hypot(x, y)
+                x = S(p) * d
+                y = C(p) * d
+                z = z
+                p = Math.atan2(x, z) + shpData[shpIdx].yaw
+                d = Math.hypot(x, z)
+                x = S(p) * d
+                y = y
+                z = C(p) * d
+                var l = m ? 'vertices' : 'normalVecs'
+                shape[l][i + k + 0] = x + (tx + shpData[shpIdx].x) * m
+                shape[l][i + k + 1] = y + (ty + shpData[shpIdx].y) * m
+                shape[l][i + k + 2] = z + (tz + shpData[shpIdx].z) * m
+                if(shape.showNormals){
+                  x = shape.nstate[(i + k) * 2 + 0 + m * 3] - tx
+                  y = shape.nstate[(i + k) * 2 + 1 + m * 3] - ty
+                  z = shape.nstate[(i + k) * 2 + 2 + m * 3] - tz
+                  p = Math.atan2(y, z) + shpData[shpIdx].pitch
+                  d = Math.hypot(y, z)
+                  x = x
+                  y = S(p) * d
+                  z = C(p) * d
+                  p = Math.atan2(x, z) + shpData[shpIdx].yaw
+                  d = Math.hypot(x, z)
+                  x = S(p) * d
+                  y = y
+                  z = C(p) * d
+                  p = Math.atan2(x, y) + shpData[shpIdx].roll
+                  d = Math.hypot(x, y)
+                  x = S(p) * d
+                  y = C(p) * d
+                  z = z
+                  shape.normals[(i + k) * 2 + 0 + m * 3] = x + tx
+                  shape.normals[(i + k) * 2 + 1 + m * 3] = y + ty
+                  shape.normals[(i + k) * 2 + 2 + m * 3] = z + tz
+                }
+              }
+            }
+          }
+        }
+      }
+
       var shapes     = []
-      var spacing    = 2**.5 * 3.5 / 2
       var pointArray = []
       var cubes      = []
-      var showIDS    = true
+      var showIDs    = true
       var shpData    = []
-      Array(125).fill().map((v, i) => {
-        var x = ((i%5)-2) * spacing
-        var y = (((i/5|0)%5)-2) * spacing
-        var z = ((i/25|0)-2) * spacing
-        if(Math.hypot(x, y) < spacing * 5 / 2){
+      var cl         = 5
+      var rw         = 5
+      var br         = 5
+      var loaded     = false
+      var spacing    = 2**.5 * 10
+      Array(cl*rw*br).fill().map((v, i) => {
+        var x = ((i%cl)-cl/2 + .5) * spacing
+        var y = (((i/cl|0)%rw)-rw/2 + .5) * spacing
+        var z = ((i/rw/cl|0)-br/2 + .5) * spacing
+        if((x||y||z) && Math.hypot(x, y, z) < spacing * cl / 3){
           pointArray.push([x, y, z])
           shpData.push({
             ox: x, oy: y, oz: z,
             x: 0, y: 0, z: 0,
-            roll:  0,
+            roll:  (Rn()-.5)*.5,
             pitch: 0,
-            yaw:   0,
+            yaw:   pointArray.length == 17 ? -1 : Math.atan2(x,z) - Math.PI/2,
+            mx: x, my: y, mz: z,
+            mroll:  0,
+            mpitch: 0,
+            myaw:   0,
           })
         }
       })
+      
+      var pointLight
       var geoOptions = {
-        shapeType: 'tetrahedron',
-        subs: 1,
-        map: 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg',
-        sphereize: -.75,
-        averageNormals: true,
-        size: 1,
-        colorMix: 0,
+        shapeType: 'sprite',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+        size: 100,
+        //showSource: true,
       }
-      var stride
-      Coordinates.LoadGeometry(renderer, geoOptions).then(geometry => {
-        Coordinates.ShapeFromArray(geometry, pointArray).then(res => {
-          stride = res.stride
-          shapes.push(res.shape)
-          res.shape.vstate  = structuredClone(res.shape.vertices)
-          res.shape.nstate  = structuredClone(res.shape.normals)
-          res.shape.uvs     = structuredClone(res.shape.uvs)
-          res.shape.nvstate = structuredClone(res.shape.normalVecs)
-          shader.ConnectGeometry(res.shape)
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        pointLight = geometry
+      })  
+      
+      for(var m = 2; m--;){
+        var name = m ? 'skull' : 'face'
+        var geoOptions = {
+          shapeType: 'obj',
+          url: `https://srmcgann.github.io/objs/skullface/skullface_${name}.obj`,
+          map: `https://srmcgann.github.io/objs/skullface/skullface.jpg`,
+          name,
+          objY: 0,
+          //objYaw: Math.PI/2,
+          //sphereize: 5,
+          //averageNormals: true,
+          //size: 1,
+          colorMix: 0,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
+          await Coordinates.ShapeFromArray(geometry, structuredClone(pointArray),{
+            yaw: Math.PI/2,
+            alpha: geometry.name == 'skull' ? 1 : .5,
+          }).then(async res => {
+            res.shape.stride = res.stride
+            shapes.push(res.shape)
+            res.shape.vstate  = structuredClone(res.shape.vertices)
+            res.shape.nstate  = structuredClone(res.shape.normals)
+            res.shape.uvs     = structuredClone(res.shape.uvs)
+            res.shape.nvstate = structuredClone(res.shape.normalVecs)
+            if(geometry.name == 'skull'){
+              await skullShader.ConnectGeometry(res.shape)
+            }else{
+              await shader.ConnectGeometry(res.shape)
+            }
+            processShapeArray(res.shape)
+            loaded = true
+          })
         })
-      })
+      }
       
       var geoOptions = {
         shapeType: 'dodecahedron',
@@ -112,6 +244,7 @@
         sphereize: 1,
         size: 55,
         map: refTexture,
+        playbackSpeed,
         colorMix: 0,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -119,115 +252,88 @@
         await backgroundShader.ConnectGeometry(geometry)
       })
 
-      Coordinates.LoadFPSControls(renderer, {
+      if(0) Coordinates.LoadFPSControls(renderer, {
         flyMode: true,
         crosshairSel: 2,
         crosshairSize: .25,
       })
 
       var x, y , z, tx, ty, tz, p, d
-      var S = Math.sin
-      var C = Math.cos
-      var Rn = Math.random
       
-      renderer.z = 10 
+      //renderer.z = 10 
       window.Draw = () => {
-        var t = renderer.t
-        //renderer.yaw = t / 8
-        //Math.min(52, Math.max(8, (.3+C(t/2))*45))
+        if(loaded){
+          renderer.yaw += .005
+          var t = renderer.t
+          renderer.z = Math.min(40, Math.max(22, (.3+C(t/2))*45))
 
-        var fs
-        Coordinates.Overlay.ctx.fillStyle = '#2f8'
-        Coordinates.Overlay.ctx.textAlign = 'center'
-        pointArray.map((shp, idx) => {
-          var ar = Coordinates.GetShaderCoord(shp[0], -shp[1], shp[2], shapes[0], renderer)
-          Coordinates.Overlay.ctx.font = (fs = 200/(1+ar[2])) + 'px verdana'
-          var w = Coordinates.Overlay.width
-          var h = Coordinates.Overlay.height
-          Coordinates.Overlay.ctx.fillText(idx, ar[0], ar[1] + fs/2.5)
-        })
-        
-        shpData.map((shp, idx) => {
-          switch(idx){
-            case 0:
-              shp.yaw += .05
-            break
-            case 33:
-              shp.pitch += .05
-            break
+          var s
+          if(showIDs && (s = shapes.filter(v=>v.name == 'face')).length){
+            var fs
+            Coordinates.Overlay.ctx.fillStyle = '#ff880020'
+            Coordinates.Overlay.ctx.textAlign = 'center'
+            
+            shpData.map((shp, idx) => {
+              var ar = Coordinates.GetShaderCoord(shp.x + shp.ox,
+                                                  -(shp.y + shp.oy),
+                                                  shp.z + shp.oz, s[0], renderer)
+              Coordinates.Overlay.ctx.font = (fs = 4e3/(1+ar[2])) + 'px monospace'
+              var w = Coordinates.Overlay.width
+              var h = Coordinates.Overlay.height
+              Coordinates.Overlay.ctx.fillText('♠', ar[0], ar[1] + fs/2.5)
+              //Coordinates.Overlay.ctx.fillText(idx, ar[0], ar[1] + fs/2.5)
+            })
           }
-        })
-        
-        shapes.forEach(shape => {
-          switch(shape.name){
-            case 'background':
-            break
-            default:
-              for(var i = 0; i < shape.vertices.length; i += stride){
-                var shpIdx = i/stride
 
-                tx = shpData[shpIdx].ox
-                ty = shpData[shpIdx].oy
-                tz = shpData[shpIdx].oz
-                for(var k = 0; k < stride; k+=3){
-                  for(var m = 2; m--;){
-                    var l = m ? 'vstate' : 'nvstate'
-                    x = shape[l][i + k + 0] - tx * m
-                    y = shape[l][i + k + 1] - ty * m
-                    z = shape[l][i + k + 2] - tz * m
-                    p = Math.atan2(y, z) + shpData[shpIdx].pitch
-                    d = Math.hypot(y, z)
-                    x = x
-                    y = S(p) * d
-                    z = C(p) * d
-                    p = Math.atan2(x, z) + shpData[shpIdx].yaw
-                    d = Math.hypot(x, z)
-                    x = S(p) * d
-                    y = y
-                    z = C(p) * d
-                    p = Math.atan2(x, y) + shpData[shpIdx].roll
-                    d = Math.hypot(x, y)
-                    x = S(p) * d
-                    y = C(p) * d
-                    z = z
-                    var l = m ? 'vertices' : 'normalVecs'
-                    shape[l][i + k + 0] = x + (tx + shpData[shpIdx].x) * m
-                    shape[l][i + k + 1] = y + (ty + shpData[shpIdx].y) * m
-                    shape[l][i + k + 2] = z + (tz + shpData[shpIdx].z) * m
-                    if(shape.showNormals){
-                      x = shape.nstate[(i + k) * 2 + 0 + m * 3] - tx
-                      y = shape.nstate[(i + k) * 2 + 1 + m * 3] - ty
-                      z = shape.nstate[(i + k) * 2 + 2 + m * 3] - tz
-                      p = Math.atan2(y, z) + shpData[shpIdx].pitch
-                      d = Math.hypot(y, z)
-                      x = x
-                      y = S(p) * d
-                      z = C(p) * d
-                      p = Math.atan2(x, z) + shpData[shpIdx].yaw
-                      d = Math.hypot(x, z)
-                      x = S(p) * d
-                      y = y
-                      z = C(p) * d
-                      p = Math.atan2(x, y) + shpData[shpIdx].roll
-                      d = Math.hypot(x, y)
-                      x = S(p) * d
-                      y = C(p) * d
-                      z = z
-                      shape.normals[(i + k) * 2 + 0 + m * 3] = x + tx
-                      shape.normals[(i + k) * 2 + 1 + m * 3] = y + ty
-                      shape.normals[(i + k) * 2 + 2 + m * 3] = z + tz
-                    }
-                  }
-                }
-              }
-
-              shape.yaw += .001
-              shape.pitch = .15
-              //shape.pitch += .005
-            break
-          }
-          renderer.Draw(shape)
-        })
+          if(1)shpData.map((shp, idx) => {
+            // memo optimization
+            shp.mx = shp.x
+            shp.my = shp.y
+            shp.mz = shp.z
+            shp.mroll  = shp.roll
+            shp.mpitch = shp.pitch
+            shp.myaw   = shp.yaw
+            //
+            switch(idx) {
+              case 14:
+                shp.yaw    += .2
+                shp.pitch  = C(t/4) /4
+              break
+              case 15:
+                shp.yaw = -t * 4
+                shp.roll = Math.min(.25, Math.max(-.5, (-.1 + .7*C(t*16))))
+              break
+              case 1:
+                shp.y = Math.min(15, Math.max(-2, S(t*2)*40))
+                shp.pitch= Math.min(.25, Math.max(-.25, C(t*128)/2))
+                shp.roll= Math.min(.25, Math.max(-.25, S(t*40)/2))
+                shp.yaw = -t / 2.66
+              break
+              case 5:
+              break
+              default:
+              break
+            }
+          })
+          
+          shapes.forEach(shape => {
+            switch(shape.name){
+              case 'background':
+              break
+              case 'face':
+                shape.alpha = Math.min(9, Math.max(0,(((6+C(t)*12)**1.5)|0)))%2
+              case 'skull':
+                processShapeArray(shape)
+              break
+                shape.yaw += .001
+                shape.pitch = 0
+                //shape.pitch += .005
+              break
+            }
+            renderer.Draw(shape)
+          })
+          renderer.Draw(pointLight)
+        }
       }
       
     </script>
