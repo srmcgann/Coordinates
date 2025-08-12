@@ -28,7 +28,7 @@ for quick reference, a sample of boilerplate...
     <title>Coordinates boilerplate example</title>
     <style>
       body, html{
-        background: #333;
+        background: #000;
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
@@ -90,3 +90,4 @@ for quick reference, a sample of boilerplate...
   </body>
 </html>
 ```
+
