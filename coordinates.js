@@ -213,7 +213,12 @@ const Renderer = async options => {
     var dset   = shader.datasets[geometry.datasetIdx]
     var sProg  = dset.program
     
-    if(geometry.alpha != 1) {
+    if(geometry.alpha != 1 &&
+       !geometry.isLine &&
+       !geometry.isParticle &&
+       !geometry.isLight &&
+       !geometry.isSprite
+       ) {
       ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE)
       ctx.enable(ctx.BLEND)
       //ctx.disable(ctx.DEPTH_TEST)
