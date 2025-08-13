@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://boss.veriler.com/coordinates.js"
+      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var renderer = await Coordinates.Renderer()
+      
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [ { uniform: { type: 'phong', value: .75 } } ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      // declare a name
+      var myShapeArray 
+      // populate an array of 'points', which will be replaced by instances of the source shape
+      var cl = 10, rw = 10, br = 10
+      var sourceArray = []
+      Array(cl*rw*br).fill().map((v, i) => {
+        var x = (i%cl)-cl/2+.5
+        var y = ((i/cl|0)%rw)-rw/2+.5
+        var z = (i/cl/br|0)-br/2+.5
+        if(Math.hypot(x,y,z) < cl/1.75) sourceArray.push([x, y, z])
+      })
+      
+      var geoOptions = {
+        shapeType: 'cube',
+        size: .2,
+        colorMix: 1,
+        averageNormals: true,
+        subs: 1,
+        scaleY: 2,
+        sphereize: -.25
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
+        Coordinates.ShapeFromArray(geometry, sourceArray).then(async geometry => {
+          myShapeArray = geometry
+          await shader.ConnectGeometry(geometry)
+        })
+      })  
+      
+      
+      window.Draw = () => {
+        renderer.z = Math.min(6, Math.max(3, (.3+Math.cos(renderer.t))*10))
+        
+        // rotate every 10th component indpendently
+        for(var i = 0; i < myShapeArray.shapeData.length; i+=10) {
+          myShapeArray.shapeData[i].yaw += .1
+          myShapeArray.shapeData[i].roll += .02
+          myShapeArray.shapeData[i].pitch += .01
+        }
+        myShapeArray.yaw  += .002
+        myShapeArray.pitch += .0005
+        renderer.Draw(myShapeArray)
+      }
+      
+    </script>
+  </body>
+</html>
