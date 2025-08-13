@@ -18,20 +18,19 @@
       "https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
       var renderer = await Coordinates.Renderer()
-      
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var myShape
-      var geoOptions = {
+      await Coordinates.LoadGeometry(renderer, {
         shapeType: 'cube',
         size: 5,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async geometry => {
+      }).then(async geometry => {
         Coordinates.ShapeToLines(geometry, {
-          size: 1,
-          color: 0xff0000,
+          size: 2,
+          color: 0x4400ff,
           alpha: .5,
           penumbra: .1,
+          closePaths: false,
         }).then(res => {
           myShape = res.shape
         })
