@@ -10,13 +10,10 @@ As a stand-alone module, <b>Coordinates</b> may be included in an HTML5 project,
 Check back for updated links. The documentation is under active development at this time.
 
 ## Documentation
-- [Main overview](https://coordocs.veriler.com/?s=j2Az1T6F3&p=1)
+- [Main overview](https://coordocs.veriler.com/?s=IRjVAGs0Y&p=1)
 
 ### Method specific sections
-- [Raw Shapes](https://coordocs.veriler.com/?s=8Me2xl0PR&p=1)
-- [ShapesToLines Method](https://coordocs.veriler.com/?s=fyHA5UjgZ&p=1)
-- [Data Array Textures](https://coordocs.veriler.com/?s=kqo8Fgc9R&p=1)
-- [B-Spline Curves](https://coordocs.veriler.com/?s=HoQs88kpL&p=1)
+... in progress. check back soon
 
 ---
 
@@ -90,4 +87,5 @@ for quick reference, a sample of boilerplate...
   </body>
 </html>
 ```
+
 
