@@ -4,7 +4,7 @@
     <title>Coordinates boilerplate example</title>
     <style>
       body, html{
-        background: #333;
+        background: #000;
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
@@ -29,13 +29,14 @@
         var geoOptions = {
           shapeType: 'bspline',
           geometryData: Array(5).fill().map(v=>rndCoord()),
-          size: 3,
           alpha: 1,
+          size: 14,
           steps: 100,
           penumbra: .25,
           color: 0x00ff44,
         }
         await Coordinates.LoadGeometry(renderer, geoOptions).then((geometry) => {
+          geometry.size = 3
           splineCurve = geometry
         })  
       }
