@@ -297,6 +297,8 @@ const Renderer = async options => {
 
         ctx.useProgram( sProg )
 
+        ctx.texParameteri(ctx.TEXTURE_2D, ctx.TEXTURE_MAG_FILTER,
+          geometry.flatShading ? ctx.NEAREST : ctx.LINEAR);
         for(var m = 0; m < ((equirectangularPlugin && !omitSplitCheck) ? 2 : 1); m++){
           
           // rotation mode
@@ -2610,9 +2612,9 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    if(geometry.flatShading) gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   
   //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-  //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   //gl.activeTexture(gl.TEXTURE0)
 }
 
