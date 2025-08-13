@@ -61,8 +61,8 @@
           color: 0x00ff44,
           name: 'centris',
         }).then(async res => {
-          shapes.push(res.shape)
-          await shader.ConnectGeometry(res.shape)
+          shapes.push(res)
+          await shader.ConnectGeometry(res)
         })
         ar = Array(100).fill().map((v, i) => [
           ((i%10)-5+.5) * 3, -4, ((i/10|0)-5+.5) * 3,
@@ -71,8 +71,8 @@
           name: 'floor',
           color: 0x4400ff,
         }).then(async res => {
-          shapes.push(res.shape)
-          await shader.ConnectGeometry(res.shape)
+          shapes.push(res)
+          await shader.ConnectGeometry(res)
         })
       })  
       
