@@ -4,7 +4,7 @@
     <title>Coordinates custom shader example</title>
     <style>
       body, html{
-        background: #333;
+        background: #000;
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
@@ -15,7 +15,8 @@
     <script type="module">
     
       import * as Coordinates from
-        "https://srmcgann.github.io/Coordinates/coordinates.js"
+      "https://boss.veriler.com/coordinates.js"
+      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
       var renderer = await Coordinates.Renderer()
       Coordinates.AnimationLoop(renderer, 'Draw')
