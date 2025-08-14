@@ -10,14 +10,10 @@ As a stand-alone module, <b>Coordinates</b> may be included in an HTML5 project,
 Check back for updated links. The documentation is under active development at this time.
 
 ## Documentation
+### general documentation, introduction
 - [Main overview](https://coordocs.veriler.com/?s=IRjVAGs0Y&p=1)
 
-### Method specific sections
-general documentation, introduction
-[main docs](https://coordocs.veriler.com/?s=IRjVAGs0Y&p=1)
-
-# other methods
-
+## other sections
 speed / grouping
 [ShapeFromArray](https://coordocs.veriler.com/?s=fqAGEVGSC&p=1)
 
@@ -117,6 +113,7 @@ for quick reference, a sample of boilerplate...
   </body>
 </html>
 ```
+
 
 
 
