@@ -1337,7 +1337,7 @@ const DownloadCustomShape = geo => {
   var link      = document.createElement('a')
   link.href     = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(object))
   if(!geo.name) geo.name == 'downloadedShape'
-  link.download = geo.name + '.json'
+  link.download = (geo.name ? geo.name : geo.shapeType) + '.json'
   link.click()
 }
 
