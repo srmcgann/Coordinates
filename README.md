@@ -14,32 +14,23 @@ Check back for updated links. The documentation is under active development at t
 - [Main overview](https://coordocs.veriler.com/?s=IRjVAGs0Y&p=1)
 
 ## other sections
-speed / grouping
-[ShapeFromArray](https://coordocs.veriler.com/?s=fqAGEVGSC&p=1)
+[ShapeFromArray](https://coordocs.veriler.com/?s=fqAGEVGSC&p=1) speed / grouping
 
-manual and procedural shapes
-[raw shapes](https://coordocs.veriler.com/?s=gsPYtHhNC&p=1)
+[raw shapes](https://coordocs.veriler.com/?s=gsPYtHhNC&p=1) manual and procedural shapes
 
-wireframe style
-[ShapeToLines](https://coordocs.veriler.com/?s=iSyJ2lMJN&p=1)
+[ShapeToLines](https://coordocs.veriler.com/?s=iSyJ2lMJN&p=1) wireframe style
 
-fog effect
-[fog](https://coordocs.veriler.com/?s=qa2aDkhV1&p=1)
+[fog](https://coordocs.veriler.com/?s=qa2aDkhV1&p=1) fog effect
 
-importing / exporting shape formats
-[importing / exporting](https://coordocs.veriler.com/?s=BBJwWA1Qk&p=1)
+[importing / exporting](https://coordocs.veriler.com/?s=BBJwWA1Qk&p=1) importing / exporting shape formats
 
-custom shaders
-[custom shaders](https://coordocs.veriler.com/?s=CTUkAzdCv&p=1)
+[custom shaders](https://coordocs.veriler.com/?s=CTUkAzdCv&p=1) custom shaders
 
-curves
-[b-spline curves](https://coordocs.veriler.com/?s=EYfM5WaWU&p=1)
+[b-spline curves](https://coordocs.veriler.com/?s=EYfM5WaWU&p=1) curves
 
-data / procedural textures
-[Data Array Textures](https://coordocs.veriler.com/?s=FJmQL8Vzl&p=1)
+[Data Array Textures](https://coordocs.veriler.com/?s=FJmQL8Vzl&p=1) data / procedural textures
 
-curve to, between point pairs
-[curveTo](https://coordocs.veriler.com/?s=FJUgbKoZe&p=1)
+[curveTo](https://coordocs.veriler.com/?s=FJUgbKoZe&p=1) curve to, between point pairs
 
 ---
 
@@ -113,6 +104,7 @@ for quick reference, a sample of boilerplate...
   </body>
 </html>
 ```
+
 
 
 
