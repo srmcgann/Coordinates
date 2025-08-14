@@ -545,7 +545,11 @@ const Renderer = async options => {
             
             dset.optionalUniforms.map((uniform) => {
               if(typeof uniform?.loc === 'object'){
-                ctx[uniform.dataType](uniform.loc,      uniform.value)
+                if(uniform.dataType == 'uniform4f'){
+                  ctx[uniform.dataType](uniform.loc, ...uniform.value)
+                }else{
+                  ctx[uniform.dataType](uniform.loc, uniform.value)
+                }
                 ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
                 switch(uniform.name){
                   case 'fog':
@@ -4395,7 +4399,12 @@ const BasicShader = async (renderer, options=[]) => {
               gl.uniform1f(uniform.locFlatShading , uniform.flatShading ? 1.0 : 0.0)
               
               uniform.loc = gl.getUniformLocation(dset.program, uniform.name)
-              gl[uniform.dataType](uniform.loc, uniform.value)
+              console.log(uniform)
+              if(uniform.dataType == 'uniform4f'){
+                gl[uniform.dataType](uniform.loc, ...uniform.value)
+              }else{
+                gl[uniform.dataType](uniform.loc, uniform.value)
+              }
             })
           }
           dset.locColor = gl.getUniformLocation(dset.program, "color")
