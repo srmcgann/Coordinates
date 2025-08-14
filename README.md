@@ -13,7 +13,37 @@ Check back for updated links. The documentation is under active development at t
 - [Main overview](https://coordocs.veriler.com/?s=IRjVAGs0Y&p=1)
 
 ### Method specific sections
-... in progress. check back soon
+general documentation, introduction
+[main docs](https://coordocs.veriler.com/?s=IRjVAGs0Y&p=1)
+
+# other methods
+
+speed / grouping
+[ShapeFromArray](https://coordocs.veriler.com/?s=fqAGEVGSC&p=1)
+
+manual and procedural shapes
+[raw shapes](https://coordocs.veriler.com/?s=gsPYtHhNC&p=1)
+
+wireframe style
+[ShapeToLines](https://coordocs.veriler.com/?s=iSyJ2lMJN&p=1)
+
+fog effect
+[fog](https://coordocs.veriler.com/?s=qa2aDkhV1&p=1)
+
+importing / exporting shape formats
+[importing / exporting](https://coordocs.veriler.com/?s=BBJwWA1Qk&p=1)
+
+custom shaders
+[custom shaders](https://coordocs.veriler.com/?s=CTUkAzdCv&p=1)
+
+curves
+[b-spline curves](https://coordocs.veriler.com/?s=EYfM5WaWU&p=1)
+
+data / procedural textures
+[Data Array Textures](https://coordocs.veriler.com/?s=FJmQL8Vzl&p=1)
+
+curve to, between point pairs
+[curveTo](https://coordocs.veriler.com/?s=FJUgbKoZe&p=1)
 
 ---
 
@@ -87,5 +117,6 @@ for quick reference, a sample of boilerplate...
   </body>
 </html>
 ```
+
 
 
