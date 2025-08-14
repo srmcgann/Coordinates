@@ -6312,8 +6312,8 @@ const CurveTo = async (renderer, geoOptions) => {
       Z4 = (Z1 + Z2) / 2
     }
     geoOptions.geometryData = [
-      [X1,Y1,Z1],[X3,Y3,Z3],
-      [X4,Y4,Z4],[X2,Y2,Z2],
+      [X1,-Y1,Z1],[X3,-Y3,Z3],
+      [X4,-Y4,Z4],[X2,-Y2,Z2],
     ]
     await BSpline(renderer, geoOptions).then(res => {
       ret.push(...res.curve)
