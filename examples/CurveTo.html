@@ -4,7 +4,7 @@
     <title>Coordinates boilerplate example</title>
     <style>
       body, html{
-        background: #333;
+        background: #000;
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
@@ -33,7 +33,7 @@
       var geoOptions = {
         shapeType: 'particles',
         geometryData,
-        size: 5,
+        size: 3,
         color: 0x00ff88,
         alpha: 1,
         penumbra: .3
@@ -46,7 +46,7 @@
       var geoOptions = {
         shapeType: 'curveto',
         geometryData: [geometryData],
-        size: 3,
+        size: 11.2,
         alpha: 1,
         alignment: 'vertical',
         penumbra: .3,
@@ -54,6 +54,7 @@
         color: 0xff0000,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        geometry.size = 3
         shapes.push(geometry)
       })
       
