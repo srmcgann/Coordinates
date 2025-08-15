@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var rendererOptions = {
+        ambientLight: .75,
+        fov: 1500
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .25
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      const DivideShape = (geometry, cols, rows, bars) => {
+        var minx, maxx, miny, maxy, minz, maxz, quadx, quady, quadz
+        var idx, d, x, y, z, v, a, ret = []
+        v = geometry.vertices
+        for(var i = 0; i < v.length; i+=3){
+          x = v[i+0]
+          y = v[i+1]
+          z = v[i+2]
+          if(x < minx) minx = x
+          if(y < miny) minx = y
+          if(z < minz) minx = z
+          if(x > maxx) maxx = x
+          if(y > maxy) maxx = y
+          if(z > maxz) maxx = z
+        }
+        var width  = maxx-minx
+        var height = maxy-miny
+        var depth  = maxz-minz
+        var quadrants = Array(rows*cols*bars).fill().map(v => [])
+        var centers = Array(rows*cols*bars).fill().map((v, i) => {
+          x = ((i%cols)-cols/2 + .5) * width / cols
+          y = (((i/cols|0)%rows)-rows/2 + .5) * height / rows
+          z = ((i/cols/rows|0)-bars/2 + .5) * depth / bars
+          return [x, y, z]
+        })
+        
+        // polys
+        for(var i = 0; i < v.length; i+=9){
+          a = [0,0,0]
+          for(var m = 0; m < 3; m++){
+            x = v[i+0+m]
+            y = v[i+1+m]
+            z = v[i+2+m]
+            a[0] += x
+            a[1] += x
+            a[2] += x
+          }
+          a[0] /= 3
+          a[1] /= 3
+          a[2] /= 3
+          quadx = ((a[0] - minx) / width | 0) * cols
+          quady = ((a[1] - miny) / height | 0) * rows
+          quadz = ((a[2] - minz) / depth | 0) * bars
+          idx = quadx + quady*cols + quadz*rows*cols
+          ret[i/9] = idx
+          quadrants[idx].push(i/9)
+          return { centers, membership: ret, quadrants }
+        }
+      }
+
+      var shapes = []
+      var shapeData
+      var geoOptions = {
+        shapeType: 'obj',
+        name: 'terrain',
+        showNormals: false,
+        url: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.obj?3',
+        map: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.jpg',
+        colorMix: 0,
+        scaleX: 100,
+        scaleY: 100,
+        scaleZ: 100,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        shapeData = DivideShape(geometry, 5, 1, 5)
+        await shader.ConnectGeometry(geometry)
+      })  
+      
+      renderer.z = 10
+      renderer.y = -20
+      Coordinates.LoadFPSControls(renderer, {flyMode: true, showCrosshair: false})
+      window.Draw = () => {
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'terrain':
+              
+              renderer.Draw(shape)
+            break
+          }
+        })
+      }
+      
+    </script>
+  </body>
+</html>
