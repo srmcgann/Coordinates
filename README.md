@@ -10,10 +10,27 @@ As a stand-alone module, <b>Coordinates</b> may be included in an HTML5 project,
 Check back for updated links. The documentation is under active development at this time.
 
 ## Documentation
+### general documentation, introduction
 - [Main overview](https://coordocs.veriler.com/?s=IRjVAGs0Y&p=1)
 
-### Method specific sections
-... in progress. check back soon
+## other sections
+[ShapeFromArray](https://coordocs.veriler.com/?s=fqAGEVGSC&p=1) speed / grouping
+
+[raw shapes](https://coordocs.veriler.com/?s=gsPYtHhNC&p=1) manual and procedural shapes
+
+[ShapeToLines](https://coordocs.veriler.com/?s=iSyJ2lMJN&p=1) wireframe style
+
+[fog](https://coordocs.veriler.com/?s=qa2aDkhV1&p=1) fog effect
+
+[importing / exporting](https://coordocs.veriler.com/?s=BBJwWA1Qk&p=1) importing / exporting shape formats
+
+[custom shaders](https://coordocs.veriler.com/?s=CTUkAzdCv&p=1) custom shaders
+
+[b-spline curves](https://coordocs.veriler.com/?s=EYfM5WaWU&p=1) curves
+
+[Data Array Textures](https://coordocs.veriler.com/?s=FJmQL8Vzl&p=1) data / procedural textures
+
+[curveTo](https://coordocs.veriler.com/?s=FJUgbKoZe&p=1) curve to, between point pairs
 
 ---
 
@@ -87,5 +104,8 @@ for quick reference, a sample of boilerplate...
   </body>
 </html>
 ```
+
+
+
 
 
