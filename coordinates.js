@@ -4399,7 +4399,6 @@ const BasicShader = async (renderer, options=[]) => {
               gl.uniform1f(uniform.locFlatShading , uniform.flatShading ? 1.0 : 0.0)
               
               uniform.loc = gl.getUniformLocation(dset.program, uniform.name)
-              console.log(uniform)
               if(uniform.dataType == 'uniform4f'){
                 gl[uniform.dataType](uniform.loc, ...uniform.value)
               }else{
@@ -6931,6 +6930,28 @@ const HSVFromRGB = (R, G, B) => {
   return [hue, sat, val]
 }
 
+const ShiftArray = (ar, dir, width) => {
+  var ret = Array(ar.length).fill()
+  for(var i = 0; i < ar.length; i++){
+    var x = i%width
+    var y = i/width |0
+    switch(dir){
+      case 'left': x--; break
+      case 'up': y++; break
+      case 'right': x++; break
+      case 'down': y--; break
+    }
+    if(x < 0) x = width - 1
+    if(y < 0) y += ar.length / width | 0
+    x %= width
+    y %= ar.length / width | 0
+    var nidx = x + y * width
+    ret[i] = ar[nidx]
+  }
+  for(var i = 0; i < ar.length; i++) ar[i] = ret[i]
+  return ret
+}
+
 const IsArray = ar => typeof ar.length != 'undefined' && typeof ar.forEach != 'undefined'
 
 const HSVToHex = (H, S, V) => HexFromHSV(H, S, V)
@@ -7235,6 +7256,7 @@ export {
   BSpline,
   Quat,
   CurveTo,
+  ShiftArray,
   ImageToPo2,
   LoadOBJ,
   IsPowerOf2,
