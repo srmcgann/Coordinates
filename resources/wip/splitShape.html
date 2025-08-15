@@ -4,7 +4,7 @@
     <title>Coordinates boilerplate example</title>
     <style>
       body, html{
-        background: #333333;
+        background: #000;
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
@@ -19,10 +19,12 @@
       //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
       var rendererOptions = {
-        ambientLight: .5,
-        fov: 1e3
+        ambientLight: 1,
+        fov: 1e3, margin: 0,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
       
       var S = Math.sin
       var C = Math.cos
@@ -33,12 +35,17 @@
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: .3
+          value: .2
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          value: .2
         } },
         { uniform: {
           type: 'fog',
-          color: 0x333333,
-          value: 2
+          color: 0x000000,
+          value: 1
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
@@ -97,45 +104,6 @@
         return { centers, membership, quadrants, width, height, depth }
       }
 
-      var shapes = []
-      var p, baseQuad
-      var geoOptions = {
-        shapeType: 'dynamic',
-        
-        subs: -1,
-        //alpha: .25,
-        name: 'quad',
-        color: 0xffffff,
-        
-        
-        geometryData: [Array(4).fill().map((v, i) => {
-          var x1 = S(p=Math.PI*2/4*i + Math.PI/4)
-          var y1 = 0
-          var z1 = C(p)
-          var x2 = S(p=Math.PI*2/4*(i+1) + Math.PI/4)
-          var y2 = 0
-          var z2 = C(p)
-          return  [x1, y1, z1] //, x2, y2, z2]
-        })],
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        /* Coordinates.ShapeToLines(geometry, {
-          alpha: .75,
-          closePaths: false,
-          penumbra: 0,
-          color: 0x00ff44,
-          size: 20,
-          name: 'quad',
-        }).then(res => {
-          baseQuad = structuredClone(res.shape.vertices)
-          shapes.push(res.shape)
-        }) */
-        baseQuad = structuredClone(geometry.vertices)
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-        
-      })
-      
       var shapeData, quadSize, terrainShape
       var baseTerrainVerts
       var baseTerrainNormals
@@ -145,13 +113,17 @@
         shapeType: 'obj',
         name: 'terrain',
         showNormals: false,
-        url: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.obj?3',
-        map: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.jpg',
+        //url: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.obj?3',
+        //map: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.png',
+        //url: 'https://srmcgann.github.io/objs/mountain/mountain_hipoly.obj',
+        //map: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
+        url: 'https://srmcgann.github.io/objs/composite1/composite1_hipoly.obj',
+        map: 'https://srmcgann.github.io/objs/composite1/composite1.jpg',
         colorMix: 0,
         color: 0xffffff,
-        scaleX: 100,
-        scaleY: 100,
-        scaleZ: 100,
+        scaleX: 200,
+        scaleY: 200,
+        scaleZ: 200,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         terrainShape = geometry
@@ -160,15 +132,7 @@
         baseTerrainNormalVecs = structuredClone(geometry.normalVecs)
         baseTerrainUVs = structuredClone(geometry.uvs)
         shapeData = DivideShape(geometry, cols, rows, bars)
-        quadSize = shapeData.width / 5
-        var ls = quadSize / 2 * 2**.5
-        var shape = shapes.filter(v=>v.name == 'quad')[0]
-        for(var i = 0; i < shape.vertices.length; i += 3){
-          shape.vertices[i+0] = baseQuad[i+0] * ls
-          shape.vertices[i+1] = baseQuad[i+1] * ls
-          shape.vertices[i+2] = baseQuad[i+2] * ls
-        }
-
+        quadSize = shapeData.width / cols
         await shader.ConnectGeometry(geometry)
       })
 
@@ -228,14 +192,14 @@
               var idx = quadrant[j]
               for(var m = 0; m < 3; m++) {
               
-                /*
-                terrainShape.normals[ctv*2+0] = baseTerrainNormals[idx*2+m*6+0] - tx + shapeData.centers[qidx][0]
-                terrainShape.normals[ctv*2+1] = baseTerrainNormals[idx*2+m*6+1] - ty + shapeData.centers[qidx][1]
-                terrainShape.normals[ctv*2+2] = baseTerrainNormals[idx*2+m*6+2] - tz + shapeData.centers[qidx][2]
-                terrainShape.normals[ctv*2+3] = baseTerrainNormals[idx*2+m*6+3] - tx + shapeData.centers[qidx][0]
-                terrainShape.normals[ctv*2+4] = baseTerrainNormals[idx*2+m*6+4] - ty + shapeData.centers[qidx][1]
-                terrainShape.normals[ctv*2+5] = baseTerrainNormals[idx*2+m*6+5] - tz + shapeData.centers[qidx][2]
-                */
+                if(terrainShape.showNormals){
+                  terrainShape.normals[ctv*2+0] = baseTerrainNormals[idx*2+m*6+0] - tx + shapeData.centers[qidx][0]
+                  terrainShape.normals[ctv*2+1] = baseTerrainNormals[idx*2+m*6+1] - ty + shapeData.centers[qidx][1]
+                  terrainShape.normals[ctv*2+2] = baseTerrainNormals[idx*2+m*6+2] - tz + shapeData.centers[qidx][2]
+                  terrainShape.normals[ctv*2+3] = baseTerrainNormals[idx*2+m*6+3] - tx + shapeData.centers[qidx][0]
+                  terrainShape.normals[ctv*2+4] = baseTerrainNormals[idx*2+m*6+4] - ty + shapeData.centers[qidx][1]
+                  terrainShape.normals[ctv*2+5] = baseTerrainNormals[idx*2+m*6+5] - tz + shapeData.centers[qidx][2]
+                }
                 
                 terrainShape.normalVecs[ctv+0] = baseTerrainNormalVecs[idx+m*3+0]
                 terrainShape.normalVecs[ctv+1] = baseTerrainNormalVecs[idx+m*3+1]
