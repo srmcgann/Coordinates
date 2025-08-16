@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://boss.veriler.com/coordinates.js?2"
+      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var rendererOptions = {
+        ambientLight: 1, clearColor: 0x040810,
+        fov: 1e3, margin: 0,
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      var heightmap = 'https://srmcgann.github.io/Coordinates/resources/rd3_po2_small.mp4'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
+      
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .2
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          value: .1
+        } },
+        { uniform: {
+          type: 'fog',
+          color: 0x040810,
+          value: .3
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: 1.25}
+        },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+        { uniform: {
+          type: 'fog',
+          color: 0x040810,
+          value: .3
+        } }
+      ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var scrollVertical = true
+      var showBackground = true
+      var idx, d, x, y, z, v, a
+      var cols = 5
+      var rows = 5
+      var bars = 5
+      const DivideShape = (geometry, cols, rows, bars) => {
+        var membership = []
+        var minx=6e6, maxx=-6e6
+        var miny=6e6, maxy=-6e6
+        var minz=6e6, maxz=-6e6
+        var quadx, quady, quadz
+        v = geometry.vertices
+        for(var i = 0; i < v.length; i+=3){
+          x = v[i+0]
+          y = v[i+1]
+          z = v[i+2]
+          if(x < minx) minx = x
+          if(y < miny) miny = y
+          if(z < minz) minz = z
+          if(x > maxx) maxx = x
+          if(y > maxy) maxy = y
+          if(z > maxz) maxz = z
+        }
+        var width  = maxx-minx
+        var height = maxy-miny
+        var depth  = maxz-minz
+        var quadrants = Array(rows*cols*bars).fill().map(v => [])
+        var centers = Array(rows*cols*bars).fill().map((v, i) => {
+          x = ((i%cols)-cols/2 + .5) * width / cols
+          y = (((i/cols|0)%rows)-rows/2 + .5) * height / rows
+          z = ((i/cols/rows|0)-bars/2 + .5) * depth / bars
+          return [x, y, z]
+        })
+        
+        // polys
+        for(var i = 0; i < v.length; i+=9){
+          a = [0,0,0]
+          for(var m = 0; m < 3; m++){
+            a[0] += v[i+0+m*3]
+            a[1] += v[i+1+m*3]
+            a[2] += v[i+2+m*3]
+          }
+          a[0] /= 3
+          a[1] /= 3
+          a[2] /= 3
+          quadx = ((a[0] - minx) / width) * cols | 0
+          quady = ((a[1] - miny) / height) * rows | 0
+          quadz = ((a[2] - minz) / depth)  * bars | 0
+          idx = quadx + quady*cols + quadz*rows*cols
+          membership[i/9] = idx
+          quadrants[idx].push(i)
+        }
+        return { centers, membership, quadrants, width, height, depth }
+      }
+      
+      var backgroundShape
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        subs: 3,
+        map: refTexture,
+        size: 1e4,
+        colorMix: 0,
+      }
+      if(showBackground) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        backgroundShape = geometry
+        await backgroundShader.ConnectGeometry(geometry)
+      })        
+
+      var shapeData, quadWidth, quadHeight, quadDepth, terrainShape
+      var baseTerrainVerts
+      var baseTerrainNormals
+      var baseTerrainNormalVecs
+      var baseTerrainUVs
+      var cl = 1
+      var rw = 1
+      var br = 1
+      var sp = 242
+      var pointArray = Array(cl*rw*br).fill().map((v, i) => [
+        ((i%cl) -cl/2 + .5) * sp,
+        (((i/cl|0)%rw) -rw/2 + .5) * sp,
+        ((i/cl/rw|0) -br/2 + .5) * sp,
+      ])
+      var geoOptions = {
+        shapeType: 'obj',
+        //sphereize: -.5,
+        //subs: 0,
+        //averageNormals: true,
+        //name: 'terrain',
+        url: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.obj?3',
+        map: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.jpg',
+        //url: 'https://srmcgann.github.io/objs/mountain/mountain_lowpoly.obj',
+        //map: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
+        //url: 'https://srmcgann.github.io/objs/composite1/composite1_hipoly.obj',
+        //map: 'https://srmcgann.github.io/objs/composite1/composite1.jpg',
+        //colorMix: .1,
+        //color: 0x44ff88,
+        //equirectangular: true,
+        //equirectangularHeightmap: true,
+        //flipNormals: true,
+        //scaleUVX: 2,
+        //scaleUVY: 2,
+        //playbackSpeed: 2,
+        colorMix: 0,
+        //url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_ultrahighpoly_xz.json',
+        //map: heightmap,
+        //heightmap,
+        //heightmapIntensity: 30,
+        //maxHeightMap: 10,
+        scaleX: 1e3,
+        scaleY: 1e3,
+        scaleZ: 1e3,
+        showNormals: false
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        Coordinates.ShapeFromArray(geometry, pointArray).then(async res => {
+          geometry = res
+          terrainShape = geometry
+          baseTerrainVerts = structuredClone(geometry.vertices)
+          baseTerrainNormals = structuredClone(geometry.normals)
+          baseTerrainNormalVecs = structuredClone(geometry.normalVecs)
+          baseTerrainUVs = structuredClone(geometry.uvs)
+          shapeData = DivideShape(geometry, cols, rows, bars)
+          quadWidth = shapeData.width / cols
+          quadHeight = shapeData.height / rows
+          quadDepth = shapeData.depth / bars
+          await shader.ConnectGeometry(geometry)
+        })
+      })
+
+
+      renderer.z = 0
+      //renderer.x = 100
+      renderer.y = -100
+      //renderer.pitch = Math.PI/2
+      //renderer.yaw = Math.PI
+      if(1) Coordinates.LoadFPSControls(renderer, {
+        flyMode: true,
+        mSpeed: 5,
+        crosshairSize: .25,
+        crosshairSel: 2,
+        showCrosshair: true
+      })
+      window.Draw = () => {
+        renderer.Clear()
+        var t = renderer.t
+        //renderer.x -= C(t/2) * 2
+        //renderer.z -= C(t*2) * 1
+        var mod = false
+        var ox=0, oy=0, oz=0
+        shapeData.centers.map((v, i) => {
+          var cx = v[0]
+          var cy = v[1]
+          var cz = v[2]
+          if(cx + renderer.x > shapeData.width / 2) {
+            ox = -shapeData.width
+            cx = v[0] += ox
+            Coordinates.ShiftArray3D(shapeData.quadrants, mod='right', cols, rows)
+          }
+          if(cx + renderer.x < -shapeData.width / 2) {
+            ox = shapeData.width
+            cx = v[0] += ox
+            Coordinates.ShiftArray3D(shapeData.quadrants, mod='left', cols, rows)
+          }
+          if(scrollVertical){
+            if(cy + renderer.y > shapeData.height / 2) {
+              oy = -shapeData.height
+              cy = v[1] += oy
+              Coordinates.ShiftArray3D(shapeData.quadrants, mod='forward', cols, rows)
+            }
+            if(cy + renderer.y < -shapeData.height / 2) {
+              oy = shapeData.height
+              cy = v[1] += oy
+              Coordinates.ShiftArray3D(shapeData.quadrants, mod='backward', cols, rows)
+            }
+          }
+          if(cz + renderer.z > shapeData.depth / 2) {
+            oz = -shapeData.depth
+            cz = v[2] += oz
+            Coordinates.ShiftArray3D(shapeData.quadrants, mod='up', cols, rows)
+          }
+          if(cz + renderer.z < -shapeData.depth / 2) {
+            oz = shapeData.depth
+            cz = v[2] += oz
+            Coordinates.ShiftArray3D(shapeData.quadrants, mod='down', cols, rows)
+          }
+        })
+        if(mod){
+          var ctv = 0, ctu = 0
+          shapeData.quadrants.forEach((quadrant, qidx) => {
+            var tx = ((qidx%cols) -cols/2 + .5) * quadWidth
+            var ty = (((qidx/cols|0)%rows) -rows/2 + .5) * quadHeight
+            var tz = ((qidx/cols/rows|0) -bars/2 + .5) * quadDepth
+            for(var j = 0; j < quadrant.length; j++) {
+              var idx = quadrant[j]
+              for(var m = 0; m < 3; m++) {
+              
+                if(terrainShape.showNormals){
+                  terrainShape.normals[ctv*2+0] = baseTerrainNormals[idx*2+m*6+0] - tx + shapeData.centers[qidx][0]
+                  terrainShape.normals[ctv*2+1] = baseTerrainNormals[idx*2+m*6+1] - ty + shapeData.centers[qidx][1]
+                  terrainShape.normals[ctv*2+2] = baseTerrainNormals[idx*2+m*6+2] - tz + shapeData.centers[qidx][2]
+                  terrainShape.normals[ctv*2+3] = baseTerrainNormals[idx*2+m*6+3] - tx + shapeData.centers[qidx][0]
+                  terrainShape.normals[ctv*2+4] = baseTerrainNormals[idx*2+m*6+4] - ty + shapeData.centers[qidx][1]
+                  terrainShape.normals[ctv*2+5] = baseTerrainNormals[idx*2+m*6+5] - tz + shapeData.centers[qidx][2]
+                }
+                
+                terrainShape.normalVecs[ctv+0] = baseTerrainNormalVecs[idx+m*3+0]
+                terrainShape.normalVecs[ctv+1] = baseTerrainNormalVecs[idx+m*3+1]
+                terrainShape.normalVecs[ctv+2] = baseTerrainNormalVecs[idx+m*3+2]
+                
+                terrainShape.vertices[ctv+0] = baseTerrainVerts[idx+m*3+0] - tx + shapeData.centers[qidx][0]
+                terrainShape.vertices[ctv+1] = baseTerrainVerts[idx+m*3+1] - ty + shapeData.centers[qidx][1]
+                terrainShape.vertices[ctv+2] = baseTerrainVerts[idx+m*3+2] - tz + shapeData.centers[qidx][2]
+                
+                terrainShape.uvs[ctu+0] = baseTerrainUVs[idx/3*2+m*2+0] 
+                terrainShape.uvs[ctu+1] = baseTerrainUVs[idx/3*2+m*2+1] 
+                ctv += 3
+                ctu += 2
+              }
+            }
+          })
+        }
+        renderer.Draw(terrainShape)
+        if(showBackground) renderer.Draw(backgroundShape)
+      }
+      
+    </script>
+  </body>
+</html>
