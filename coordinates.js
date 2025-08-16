@@ -6930,7 +6930,24 @@ const HSVFromRGB = (R, G, B) => {
   return [hue, sat, val]
 }
 
-const ShiftArray = (ar, dir, width) => {
+const ShiftArray = (ar, dir) => {
+  var ret = Array(ar.length).fill()
+  for(var i = 0; i < ar.length; i++){
+    var x = i%ar.length
+    switch(dir){
+      case 'left': x--; break
+      case 'right': x++; break
+    }
+    if(x < 0) x = width - 1
+    x %= width
+    var nidx = x
+    ret[i] = ar[nidx]
+  }
+  for(var i = 0; i < ar.length; i++) ar[i] = ret[i]
+  return ret
+}
+
+const ShiftArray2D = (ar, dir, width) => {
   var ret = Array(ar.length).fill()
   for(var i = 0; i < ar.length; i++){
     var x = i%width
@@ -6946,6 +6963,33 @@ const ShiftArray = (ar, dir, width) => {
     x %= width
     y %= ar.length / width | 0
     var nidx = x + y * width
+    ret[i] = ar[nidx]
+  }
+  for(var i = 0; i < ar.length; i++) ar[i] = ret[i]
+  return ret
+}
+
+const ShiftArray3D = (ar, dir, width, height) => {
+  var ret = Array(ar.length).fill()
+  for(var i = 0; i < ar.length; i++){
+    var x = i%width
+    var y = (i/width |0) % height
+    var z = i/width/height |0
+    switch(dir){
+      case 'left': x--; break
+      case 'up': y++; break
+      case 'right': x++; break
+      case 'down': y--; break
+      case 'forward': z++; break
+      case 'backward': z--; break
+    }
+    if(x < 0) x = width - 1
+    if(y < 0) y += height
+    if(z < 0) z += ar.length / width / height | 0
+    x %= width
+    y %= height
+    z %= ar.length / width / height | 0
+    var nidx = x + y * width + z * width * height
     ret[i] = ar[nidx]
   }
   for(var i = 0; i < ar.length; i++) ar[i] = ret[i]
@@ -7257,6 +7301,8 @@ export {
   Quat,
   CurveTo,
   ShiftArray,
+  ShiftArray2D,
+  ShiftArray3D,
   ImageToPo2,
   LoadOBJ,
   IsPowerOf2,
