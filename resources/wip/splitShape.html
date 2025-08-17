@@ -18,15 +18,15 @@
       "https://boss.veriler.com/coordinates.js?2"
       //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
-      var fogColor = 0x628db6
+      var fogColor = 0x000000
       var rendererOptions = {
-        ambientLight: .5, clearColor: fogColor,
+        ambientLight: 1, clearColor: fogColor,
         fov: 1e3, margin: 0,
         plugins: [
           {
             type: 'post processing',
             value: 'equirectangular',
-            enabled: true,
+            enabled: false,
           }
         ],
       }
@@ -34,14 +34,16 @@
       
       var heightmap = 'https://srmcgann.github.io/Coordinates/resources/rd3_po2_small.mp4'
       //var refTexture = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/citrus_orchard_road_puresky.jpg'
-      var refTexture = 'https://bosstools.mooo.com/assets/uploads/1wp5aT.jpeg'
-      //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/ultracloudsbase.jpg'
+      //var refTexture = 'https://bosstools.mooo.com/assets/uploads/1wp5aT.jpeg'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2_lowres.jpg'
       
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
       
       Coordinates.AnimationLoop(renderer, 'Draw')
+      
+      var playbackSpeed = 2
 
       var shaderOptions = [
         { uniform: {
@@ -51,18 +53,19 @@
         { uniform: {
           type: 'reflection',
           map: refTexture,
-          value: .4
+          value: .05,
+          playbackSpeed,
         } },
-        //{ uniform: {
-        //  type: 'fog',
-        //  color: fogColor,
-        //  value: .05
-        //} }
+        { uniform: {
+          type: 'fog',
+          color: fogColor,
+          value: .1
+        } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: 1.5}
+        { lighting: {type: 'ambientLight', value: 2}
         },
         { uniform: {
           type: 'phong',
@@ -77,7 +80,8 @@
       var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var scrollVertical = true
-      var showBackground = true 
+      var showBackground = true
+      
       var idx, d, x, y, z, v, a
       var cols = 10
       var rows = 10
@@ -137,6 +141,7 @@
         shapeType: 'dodecahedron',
         subs: 2,
         map: refTexture,
+        playbackSpeed,
         size: 1e4,
         colorMix: 0,
       }
@@ -151,7 +156,7 @@
       var baseTerrainNormalVecs
       var baseTerrainUVs
       var cl = 1
-      var rw = 1
+      var rw = 2
       var br = 1
       var sp = 2e3
       var pointArray = Array(cl*rw*br).fill().map((v, i) => [
@@ -166,40 +171,43 @@
         //subs: 0,
         //averageNormals: true,
         //name: 'terrain',
-        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7B',
+        //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7B',
         //map: 'https://srmcgann.github.io/objs/clouds.jpg',
         //url: 'https://srmcgann.github.io/objs/basic terrain/basic terrain.obj',
         //map: 'https://bosstools.mooo.com/assets/uploads/1I791M.jpeg',
+        url: 'https://boss.veriler.com/catface.obj?2',
+        map: 'https://bosstools.mooo.com/assets/uploads/1EqcDi.jpeg',
         //url: 'https://srmcgann.github.io/objs/mountain/mountain_lowpoly.obj',
         //map: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
         //url: 'https://srmcgann.github.io/objs/composite1/composite1_hipoly.obj',
         //map: 'https://srmcgann.github.io/objs/composite1/composite1.jpg',
+        //url: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.obj',
+        //map: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.png',
         colorMix: 0,
         //color: 0x44ff88,
         //equirectangular: true,
         //equirectangularHeightmap: true,
         //flipNormals: true,
-        //scaleUVX: 2,
-        //scaleUVY: 2,
-        //playbackSpeed: 2,
+        scaleUVX: 1,
+        scaleUVY: 1,
+        playbackSpeed: 2,
         color: 0x628db6,
-        colorMix: .25,
+        colorMix: 0,
         //url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_ultrahighpoly_xz.json',
         //map: heightmap,
         //heightmap,
-        //heightmapIntensity: 30,
-        //maxHeightMap: 10,
-        scaleX: 1e3,
-        scaleY: 2e3,
-        scaleZ: 1e3,
-        showNormals: true
+        //heightmapIntensity: 80,
+        //maxHeightMap: 60,
+        scaleX: 1500,
+        scaleY: 1500,
+        scaleZ: 1500,
+        showNormals: false
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         Coordinates.ShapeFromArray(geometry, pointArray).then(async res => {
           geometry = res
           terrainShape = geometry
-          baseTerrainVerts = []
-          structuredClone(geometry.vertices)
+          baseTerrainVerts = structuredClone(geometry.vertices)
           baseTerrainNormals = structuredClone(geometry.normals)
           baseTerrainNormalVecs = structuredClone(geometry.normalVecs)
           baseTerrainUVs = structuredClone(geometry.uvs)
@@ -222,7 +230,7 @@
         mSpeed: 15,
         crosshairSize: .25,
         crosshairSel: 2,
-        showCrosshair: false
+        showCrosshair: true
       })
       window.Draw = () => {
         //renderer.Clear()
@@ -288,7 +296,6 @@
                 terrainShape.normalVecs[ctv+0] = baseTerrainNormalVecs[idx+m*3+0]
                 terrainShape.normalVecs[ctv+1] = baseTerrainNormalVecs[idx+m*3+1]
                 terrainShape.normalVecs[ctv+2] = baseTerrainNormalVecs[idx+m*3+2]
-                
                 terrainShape.vertices[ctv+0] = baseTerrainVerts[idx+m*3+0] - tx + shapeData.centers[qidx][0]
                 terrainShape.vertices[ctv+1] = baseTerrainVerts[idx+m*3+1] - ty + shapeData.centers[qidx][1]
                 terrainShape.vertices[ctv+2] = baseTerrainVerts[idx+m*3+2] - tz + shapeData.centers[qidx][2]
