@@ -221,7 +221,7 @@ const Renderer = async options => {
        ) {
       ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE)
       ctx.enable(ctx.BLEND)
-      //ctx.disable(ctx.DEPTH_TEST)
+      ctx.disable(ctx.DEPTH_TEST)
       ctx.enable(ctx.CULL_FACE)
       ctx.cullFace(ctx.FRONT)
     }else{
@@ -289,6 +289,7 @@ const Renderer = async options => {
             size: geometry.size,
             shapeType: geometry.shapeType,
             vertices: structuredClone(geometry.vertices),
+            //vertices: structuredClone(geometry.vertices),
             geometry
           }, ...renderer[queueType]]
         }
@@ -412,7 +413,6 @@ const Renderer = async options => {
                     tvertices.push(nx, -ny, nz)
                   }
                 }
-                
                 tvertices = new Float32Array(tvertices)
 
                 // vertics, indices
@@ -690,6 +690,7 @@ const Renderer = async options => {
               
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
               if(equirectangularPlugin){
+                /*
                 var verts =  []
                 for(var i=0; i<geometry.vertices; i+=9){
                   var X1 = geometry.vertices[i+0]
@@ -701,9 +702,9 @@ const Renderer = async options => {
                   var X3 = geometry.vertices[i+6]
                   var Y3 = geometry.vertices[i+7]
                   var Z4 = geometry.vertices[i+8]
-                  
                 }
                 ctx.bufferData(ctx.ARRAY_BUFFER, verts, ctx.STATIC_DRAW)
+                */
               }else{
                 ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
               }
