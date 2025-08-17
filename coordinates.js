@@ -631,7 +631,6 @@ const Renderer = async options => {
               }
             })
 
-            
             // other uniforms
             ctx.uniform1f(dset.locT,               renderer.t)
             ctx.uniform1f(dset.locIsParticle,      geometry.isParticle)
@@ -686,50 +685,32 @@ const Renderer = async options => {
             
 
             // vertices
+            
             if(geometry?.vertices?.length){
               
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-              if(equirectangularPlugin){
-                /*
-                var verts =  []
-                for(var i=0; i<geometry.vertices; i+=9){
-                  var X1 = geometry.vertices[i+0]
-                  var Y1 = geometry.vertices[i+1]
-                  var Z1 = geometry.vertices[i+2]
-                  var X2 = geometry.vertices[i+3]
-                  var Y2 = geometry.vertices[i+4]
-                  var Z2 = geometry.vertices[i+5]
-                  var X3 = geometry.vertices[i+6]
-                  var Y3 = geometry.vertices[i+7]
-                  var Z4 = geometry.vertices[i+8]
-                }
-                ctx.bufferData(ctx.ARRAY_BUFFER, verts, ctx.STATIC_DRAW)
-                */
-              }else{
-                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
-              }
               
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
               ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-              dset.locPosition = ctx.getAttribLocation(dset.program, "position")
+              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
               ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
               ctx.enableVertexAttribArray(dset.locPosition)
+              dset.locNormal = ctx.getAttribLocation(dset.program, "position")
               ctx.drawElements(geometry.wireframe ? ctx.LINE_STRIP :
                                   ctx.TRIANGLES,
                                 geometry.vertices.length/3|0,
                                 ctx.UNSIGNED_INT,0)
-
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
               ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+
             }
 
             // normals lines drawn, optionally
             ctx.uniform1f(dset.locRenderNormals, geometry.showNormals ? 1 : 0)
             if(geometry.showNormals && geometry?.normals?.length){
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
-              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
+              //ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
               ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
               ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, false, 0, 0)
