@@ -15,54 +15,59 @@
     <script type="module">
     
       import * as Coordinates from
-      "https://boss.veriler.com/coordinates.js?2"
+      "https://boss.veriler.com/coordinates.js?3"
       //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
-      var fogColor = 0x628db6
+      var fogColor = 0x440000
       var rendererOptions = {
         ambientLight: .5, clearColor: fogColor,
-        fov: 1e3, margin: 0,
+        fov: 600, margin: 0,
         plugins: [
           {
             type: 'post processing',
             value: 'equirectangular',
-            enabled: true,
+            enabled: false,
           }
         ],
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
       var heightmap = 'https://srmcgann.github.io/Coordinates/resources/rd3_po2_small.mp4'
-      //var refTexture = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/citrus_orchard_road_puresky.jpg'
-      var refTexture = 'https://bosstools.mooo.com/assets/uploads/1wp5aT.jpeg'
-      //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/ultracloudsbase.jpg'
+      //var refTexture = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/clouds_equirectangular.mp4'
+      //var refTexture = 'https://bosstools.mooo.com/assets/uploads/1wp5aT.jpeg'
+      //var refTexture = 'https://i.imgur.com/ztYVnB6.mp4'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/doommaze_light.jpg'
       
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
       
       Coordinates.AnimationLoop(renderer, 'Draw')
+      
+      var playbackSpeed = 2
 
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: .1
+          value: .75
         } },
         { uniform: {
           type: 'reflection',
           map: refTexture,
-          value: .4
+          enabled: true,
+          value: .5,
+          playbackSpeed,
         } },
-        //{ uniform: {
-        //  type: 'fog',
-        //  color: fogColor,
-        //  value: .05
-        //} }
+        { uniform: {
+          type: 'fog',
+          color: fogColor,
+          value: .02
+        } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: 1.5}
+        { lighting: {type: 'ambientLight', value: 1}
         },
         { uniform: {
           type: 'phong',
@@ -77,13 +82,14 @@
       var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var scrollVertical = true
-      var showBackground = true 
+      var showBackground = true
+      
       var idx, d, x, y, z, v, a
-      var cols = 10
-      var rows = 10
-      var bars = 10
+      var cols = 5
+      var rows = 5
+      var bars = 5
       const DivideShape = (geometry, cols, rows, bars) => {
-        var membership = []
+        //var membership = []
         var minx=6e6, maxx=-6e6
         var miny=6e6, maxy=-6e6
         var minz=6e6, maxz=-6e6
@@ -126,18 +132,20 @@
           quady = ((a[1] - miny) / height) * rows | 0
           quadz = ((a[2] - minz) / depth)  * bars | 0
           idx = quadx + quady*cols + quadz*rows*cols
-          membership[i/9] = idx
+          //membership[i/9] = idx
           quadrants[idx].push(i)
         }
-        return { centers, membership, quadrants, width, height, depth }
+        return { centers, quadrants, width, height, depth }
       }
       
       var backgroundShape
       var geoOptions = {
         shapeType: 'dodecahedron',
-        subs: 2,
+        subs: 3,
         map: refTexture,
-        size: 1e4,
+        playbackSpeed,
+        size: 7e3,
+        sphereize: 1,
         colorMix: 0,
       }
       if(showBackground) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -150,10 +158,10 @@
       var baseTerrainNormals
       var baseTerrainNormalVecs
       var baseTerrainUVs
-      var cl = 1
-      var rw = 1
-      var br = 1
-      var sp = 2e3
+      var cl = 4
+      var rw = 4
+      var br = 4
+      var sp = 1938.1 * 2
       var pointArray = Array(cl*rw*br).fill().map((v, i) => [
         ((i%cl) -cl/2 + .5) * sp,
         (((i/cl|0)%rw) -rw/2 + .5) * sp,
@@ -166,40 +174,43 @@
         //subs: 0,
         //averageNormals: true,
         //name: 'terrain',
-        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7B',
+        //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7B',
         //map: 'https://srmcgann.github.io/objs/clouds.jpg',
         //url: 'https://srmcgann.github.io/objs/basic terrain/basic terrain.obj',
         //map: 'https://bosstools.mooo.com/assets/uploads/1I791M.jpeg',
+        //url: 'https://boss.veriler.com/catface.obj?2',
+        //map: 'https://bosstools.mooo.com/assets/uploads/1EqcDi.jpeg',
+        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7E',
+        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
         //url: 'https://srmcgann.github.io/objs/mountain/mountain_lowpoly.obj',
         //map: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
-        //url: 'https://srmcgann.github.io/objs/composite1/composite1_hipoly.obj',
+        //url: 'https://srmcgann.github.io/objs/composite1/composite1_medpoly.obj',
         //map: 'https://srmcgann.github.io/objs/composite1/composite1.jpg',
+        //url: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.obj',
+        //map: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.png',
         colorMix: 0,
-        //color: 0x44ff88,
-        //equirectangular: true,
-        //equirectangularHeightmap: true,
-        //flipNormals: true,
-        //scaleUVX: 2,
-        //scaleUVY: 2,
-        //playbackSpeed: 2,
-        color: 0x628db6,
-        colorMix: .25,
+        color: 0x888888,
+        equirectangular: true,
+        equirectangularHeightmap: true,
+        flipNormals: true,
+        scaleUVX: 1,
+        scaleUVY: 1,
+        playbackSpeed,
         //url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_ultrahighpoly_xz.json',
-        //map: heightmap,
-        //heightmap,
-        //heightmapIntensity: 30,
-        //maxHeightMap: 10,
-        scaleX: 1e3,
+        map: refTexture,
+        heightmap,
+        heightmapIntensity: 1e3,
+        maxHeightMap: 800,
+        scaleX: 2e3,
         scaleY: 2e3,
-        scaleZ: 1e3,
-        showNormals: true
+        scaleZ: 2e3,
+        showNormals: false
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         Coordinates.ShapeFromArray(geometry, pointArray).then(async res => {
           geometry = res
           terrainShape = geometry
-          baseTerrainVerts = []
-          structuredClone(geometry.vertices)
+          baseTerrainVerts = structuredClone(geometry.vertices)
           baseTerrainNormals = structuredClone(geometry.normals)
           baseTerrainNormalVecs = structuredClone(geometry.normalVecs)
           baseTerrainUVs = structuredClone(geometry.uvs)
@@ -212,20 +223,20 @@
       })
 
 
+      renderer.x = 0
+      renderer.y = 0
       renderer.z = 0
-      //renderer.x = 100
-      renderer.y = -60
       //renderer.pitch = Math.PI/2
       //renderer.yaw = Math.PI
       if(1) Coordinates.LoadFPSControls(renderer, {
         flyMode: true,
-        mSpeed: 15,
+        mSpeed: 100,
         crosshairSize: .25,
         crosshairSel: 2,
-        showCrosshair: false
+        showCrosshair: true
       })
       window.Draw = () => {
-        //renderer.Clear()
+        renderer.Clear()
         var t = renderer.t
         //renderer.x -= C(t/2) * 2
         //renderer.z -= C(t*2) * 1
@@ -277,7 +288,7 @@
             for(var j = 0; j < quadrant.length; j++) {
               var idx = quadrant[j]
               for(var m = 0; m < 3; m++) {
-                if(1&&terrainShape.showNormals){
+                if(terrainShape.showNormals){
                   terrainShape.normals[ctv*2+0] = baseTerrainNormals[idx*2+m*6+0] - tx + shapeData.centers[qidx][0]
                   terrainShape.normals[ctv*2+1] = baseTerrainNormals[idx*2+m*6+1] - ty + shapeData.centers[qidx][1]
                   terrainShape.normals[ctv*2+2] = baseTerrainNormals[idx*2+m*6+2] - tz + shapeData.centers[qidx][2]
@@ -288,7 +299,6 @@
                 terrainShape.normalVecs[ctv+0] = baseTerrainNormalVecs[idx+m*3+0]
                 terrainShape.normalVecs[ctv+1] = baseTerrainNormalVecs[idx+m*3+1]
                 terrainShape.normalVecs[ctv+2] = baseTerrainNormalVecs[idx+m*3+2]
-                
                 terrainShape.vertices[ctv+0] = baseTerrainVerts[idx+m*3+0] - tx + shapeData.centers[qidx][0]
                 terrainShape.vertices[ctv+1] = baseTerrainVerts[idx+m*3+1] - ty + shapeData.centers[qidx][1]
                 terrainShape.vertices[ctv+2] = baseTerrainVerts[idx+m*3+2] - tz + shapeData.centers[qidx][2]
