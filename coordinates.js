@@ -764,6 +764,8 @@ const ResizeRenderer = (renderer, width, height) => {
     break
     default:
       renderer.ctx.viewport(0, 0, renderer.c.width, renderer.c.height)
+      renderer.Overlay.c.width = renderer.c.width
+      renderer.Overlay.c.height = renderer.c.height
     break
   }
 }
@@ -1034,6 +1036,25 @@ const R_rpy = (X,Y,Z, cam, m=false) => {
   Y = S(p=A(Y,Z)+Pt)*(d=H(Y,Z))
   Z = C(p)*d
   X = S(p=A(X,Z)+Yw)*(d=H(X,Z))
+  Z = C(p)*d
+  if(m){
+    var oX = cam.x, oY = cam.y, oZ = cam.z
+    X += oX
+    Y += oY
+    Z += oZ
+  }
+  return [X, Y, Z]
+}
+
+const R_ryp = (X,Y,Z, cam, m=false) => {
+  var M = Math, p, d
+  var H=M.hypot, A=M.atan2
+  var Rl = cam.roll, Pt = cam.pitch, Yw = cam.yaw
+  X = S(p=A(X,Y)+Rl)*(d=H(X,Y))
+  Y = C(p)*d
+  X = S(p=A(X,Z)+Yw)*(d=H(X,Z))
+  Z = C(p)*d
+  Y = S(p=A(Y,Z)+Pt)*(d=H(Y,Z))
   Z = C(p)*d
   if(m){
     var oX = cam.x, oY = cam.y, oZ = cam.z
@@ -2722,14 +2743,14 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   
   vy *= -1
   
-  ar = R_ypr(vx, vy, vz, {
+  ar = R_ryp(vx, vy, vz, {
     roll:  -geometry.roll + .0001,
-    pitch: -geometry.pitch,
-    yaw:   geometry.yaw,
+    pitch: geometry.pitch,
+    yaw:   -geometry.yaw,
   }, false)
   vx = ar[0]
   vy = ar[1]
-  vz = ar[2]
+  vz = -ar[2]
 
   if(geometry.isLight){
     ar = R_rpy(vx, vy, vz, {
@@ -2743,39 +2764,39 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   }
 
   var cpx = renderer.x
-  var cpy = -renderer.y
+  var cpy = renderer.y
   var cpz = renderer.z
 
-  vx += geometry.x
+  vx += -geometry.x
   vy += geometry.y
-  vz += geometry.z
+  vz += -geometry.z
   var posx, posy, posz
   if(renderer.cameraMode.toLowerCase() == 'fps'){
-    vx += cpx
+    vx += -cpx
     vy += cpy
-    vz += cpz
+    vz += -cpz
     
     ar = R_ypr(vx, vy, vz, {
-      roll: -renderer.roll,
+      roll: renderer.roll,
       pitch: -renderer.pitch,
       yaw: renderer.yaw,
     }, false)
-    vx = ar[0]
-    vy = ar[1]
-    vz = ar[2]
+    vx = -ar[0]
+    vy = -ar[1]
+    vz = -ar[2]
 
     cpx = 0
     cpy = 0
     cpz = 0
   }else{
-    ar = R_ypr(vx, vy, vz, {
+    ar = R_ryp(vx, vy, vz, {
       roll: -renderer.roll,
-      pitch: -renderer.pitch,
+      pitch: renderer.pitch,
       yaw: renderer.yaw,
     }, false)
-    vx = ar[0]
-    vy = ar[1]
-    vz = ar[2]
+    vx = -ar[0]
+    vy = -ar[1]
+    vz = -ar[2]
   }
   
   posx = vx
@@ -2872,7 +2893,7 @@ const ShowBounding = (shape, renderer, draw=true,
     })
     
     if(tidx == -9) return
-    if(draw) pts.push(...ar[tidx])
+    if(draw) pts.push(ar[tidx])
     recurse(ar, tidx, oidx, maxp)
   }
 
