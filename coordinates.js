@@ -258,7 +258,7 @@ const Renderer = async options => {
       if(!sortedPass && (geometry.isSprite || (geometry.isLight && geometry.showSource))) {
         var queueType
         switch(geometry.shapeType){
-          case 'sprite'    : case 'point light': queueType = 'alphaQueue'; break
+          case 'sprite'  : case 'point light': queueType = 'alphaQueue'; break
         }
         renderer[queueType] = [{
           x: geometry.x,
@@ -2858,7 +2858,8 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
 
 const ShowBounding = (shape, renderer, draw=true,
                       equirectangularPlugin=-1,
-                      omitSplitCheck=true, splitCheckPass=0) => {
+                      omitSplitCheck=true, splitCheckPass=0,
+                      lw = 10) => {
                         
   if(equirectangularPlugin == -1){
     equirectangularPlugin = renderer.equirectangularPlugin
@@ -3014,7 +3015,7 @@ const ShowBounding = (shape, renderer, draw=true,
       Overlay.ctx.globalAlpha = 1
       Overlay.ctx.beginPath()
       pts.map((v, i) => {
-        Overlay.ctx.lineWidth = 10
+        Overlay.ctx.lineWidth = lw
         var lx1 = pts[i][0]
         var ly1 = pts[i][1]
         var lx2 = pts[l=(i+1)%pts.length][0]
@@ -6843,14 +6844,7 @@ const AnimationLoop = (renderer, func) => {
                                     renderer.y + vec[1],
                                     renderer.z + vec[2]) })
         })
-        switch(renderer.cameraMode){
-          case 'fps':
-            forSort.sort((a, b) => b.z - a.z)
-          break
-          case 'fps':
-            forSort.sort((a, b) => a.z - b.z)
-          break
-        }
+        forSort.sort((a, b) => b.z - a.z)
         renderer[queueType].map(async (alphaShape, idx) => {
 
 
