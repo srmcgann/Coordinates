@@ -764,8 +764,8 @@ const ResizeRenderer = (renderer, width, height) => {
     break
     default:
       renderer.ctx.viewport(0, 0, renderer.c.width, renderer.c.height)
-      renderer.Overlay.c.width = renderer.c.width
-      renderer.Overlay.c.height = renderer.c.height
+      //Overlay.c.width = renderer.c.width
+      //Overlay.c.height = renderer.c.height
     break
   }
 }
@@ -2790,13 +2790,13 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
     cpz = 0
   }else{
     ar = R_ryp(vx, vy, vz, {
-      roll: -renderer.roll,
-      pitch: renderer.pitch,
-      yaw: renderer.yaw,
+      roll: -renderer.roll * (geometry.isParticle ? -1: 1),
+      pitch: renderer.pitch, //* (geometry.isParticle ? -1: 1),
+      yaw: renderer.yaw * (geometry.isParticle ? -1: 1),
     }, false)
-    vx = -ar[0]
-    vy = -ar[1]
-    vz = -ar[2]
+    vx = -ar[0] * (geometry.isParticle ? -1: 1)
+    vy = -ar[1] //* (geometry.isParticle ? -1: 1)
+    vz = -ar[2] //* (geometry.isParticle ? -1: 1)
   }
   
   posx = vx
@@ -2942,7 +2942,7 @@ const ShowBounding = (shape, renderer, draw=true,
          (!shape.isLine && (shape.isParticle || i%9 == 6))){
         ax /= sd
         ay /= sd
-        if(Math.hypot(ax-ox, ay-oy) > 10){
+        if(Math.hypot(ax-ox, ay-oy) > 2){
           ox = ax
           oy = ay
           a.push( b )
