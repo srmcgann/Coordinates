@@ -3021,7 +3021,7 @@ const ShowBounding = (shape, renderer, draw=true,
         var lx2 = pts[l=(i+1)%pts.length][0]
         var ly2 = pts[l][1]
         if(omitSplitCheck){
-          Overlay.ctx.moveTo(lx1, ly1)
+          //Overlay.ctx.moveTo(lx1, ly1)
           Overlay.ctx.lineTo(lx2, ly2)
         }else{
           if(splitCheckPass == 0){
@@ -3043,6 +3043,7 @@ const ShowBounding = (shape, renderer, draw=true,
           }
         }
       })
+      Overlay.ctx.closePath()
       Overlay.ctx.stroke()
     }
   }
