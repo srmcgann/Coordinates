@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #333;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var rendererOptions = {
+        ambientLight: 1,
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      renderer.z = 10
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: 1
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var bug, dodec, geoOptions
+
+      geoOptions = {
+        shapeType: 'dodecahedron',
+        size: 3.3,
+        subs: 1,
+        sphereize: -2,
+        averageNormals: true,
+        boundingColor: 0xff0000,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        dodec = geometry
+        await shader.ConnectGeometry(geometry)
+      })  
+
+      geoOptions = {
+        shapeType: 'custom shape',
+        url: 'https://srmcgann.github.io/Coordinates/custom shapes/ladybug.json',
+        map: 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.png',
+        scaleX: 5,
+        scaleY: 5,
+        scaleZ: 5,
+        yaw: Math.PI,
+        y: -4,
+        flipNormals: true,
+        equirectangular: true,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        bug = geometry
+        await shader.ConnectGeometry(geometry)
+      })
+
+
+      renderer.z = 16
+      renderer.y = 3
+
+      window.Draw = () => {
+        var t = renderer.t
+        renderer.pitch = Math.cos(t)/4 - .5
+        renderer.yaw = t/2
+        
+        var cl = 3  // columns
+        var rw = 1  // rows
+        var br = 3  // 'bars?'
+        var sp = 9  // spacing
+        
+        for(var i=0; i<cl*rw*br; i++){
+        
+          var shape = i == 4 ? bug : dodec
+          shape.yaw = -t*2
+          shape.x = ((i%cl)-cl/2 + .5) * sp
+          shape.y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+          shape.z = ((i/cl/rw|0)-br/2 + .5) * sp
+          renderer.Draw(shape)
+          
+          // check if mouse cursor is inside a bounding poly. draw if so.
+          // note: this does no automatic depth checking. that is up to you.
+          
+          var poly = Coordinates.ShowBounding(shape, renderer, false)
+          if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, poly)){
+            Coordinates.ShowBounding(shape, renderer, true)
+          }
+        }
+      }
+
+    </script>
+  </body>
+</html>
