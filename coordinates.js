@@ -1327,6 +1327,12 @@ const DownloadCustomShape = geo => {
       hvz = geo.vertices[i+2]
       d   = Math.hypot(hvx, hvy, hvz) + .0001
       p   = Math.atan2(hvx, hvz)
+      for(var m = 0; m < (i%9)/3|0; m++){
+        var test = uvs[(i/3|0)*2-(2+m*2)] * 2 * Math.PI
+        if(Math.abs(test - p) > Math.PI) {
+          p += (p < test ? 1 : -1) * Math.PI*2
+        }
+      }
       p1  = p / Math.PI / 2
       p2  = Math.acos(hvy / d) / Math.PI
       p1 = Math.round(p1*1e3)/1e3
@@ -2234,6 +2240,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
         hvz = geometry.vertices[i+2]
         d   = Math.hypot(hvx, hvy, hvz) + .0001
         p   = Math.atan2(hvx, hvz)
+        for(var m = 0; m < (i%9)/3|0; m++){
+          var test = uvs[(i/3|0)*2-(2+m*2)] * 2 * Math.PI
+          if(Math.abs(test - p) > Math.PI) {
+            p += (p < test ? 1 : -1) * Math.PI*2
+          }
+        }
         p1  = p / Math.PI / 2
         p2  = Math.acos(hvy / d) / Math.PI
         p1 = Math.round(p1*1e3)/1e3
