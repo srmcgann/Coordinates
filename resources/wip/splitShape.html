@@ -15,12 +15,12 @@
     <script type="module">
     
       import * as Coordinates from
-      "https://boss.veriler.com/coordinates.js?3"
+      "https://boss.veriler.com/coordinates.js?2"
       //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
-      var fogColor = 0x440000
+      var fogColor = 0x000000
       var rendererOptions = {
-        ambientLight: .5, clearColor: fogColor,
+        ambientLight: .25, clearColor: fogColor,
         fov: 600, margin: 0,
         plugins: [
           {
@@ -32,11 +32,11 @@
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
-      var heightmap = 'https://srmcgann.github.io/Coordinates/resources/rd3_po2_small.mp4'
+      var heightmap = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
       //var refTexture = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/clouds_equirectangular.mp4'
       //var refTexture = 'https://bosstools.mooo.com/assets/uploads/1wp5aT.jpeg'
       //var refTexture = 'https://i.imgur.com/ztYVnB6.mp4'
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/doommaze_light.jpg'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/rd4_po2_small.mp4'
       
       var S = Math.sin
       var C = Math.cos
@@ -44,24 +44,24 @@
       
       Coordinates.AnimationLoop(renderer, 'Draw')
       
-      var playbackSpeed = 2
+      var playbackSpeed = .5
 
       var shaderOptions = [
         { uniform: {
           type: 'phong',
-          value: .75
+          value: .5
         } },
         { uniform: {
           type: 'reflection',
           map: refTexture,
-          enabled: true,
-          value: .5,
+          enabled: false,
+          value: 1,
           playbackSpeed,
         } },
         { uniform: {
           type: 'fog',
           color: fogColor,
-          value: .02
+          value: .03
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
@@ -85,9 +85,10 @@
       var showBackground = true
       
       var idx, d, x, y, z, v, a
-      var cols = 5
-      var rows = 5
-      var bars = 5
+      var cols = 10
+      var rows = 10
+      var bars = 10
+      var margin = 500
       const DivideShape = (geometry, cols, rows, bars) => {
         //var membership = []
         var minx=6e6, maxx=-6e6
@@ -106,9 +107,9 @@
           if(y > maxy) maxy = y
           if(z > maxz) maxz = z
         }
-        var width  = maxx-minx
-        var height = maxy-miny
-        var depth  = maxz-minz
+        var width  = (maxx-minx)+margin
+        var height = (maxy-miny)+margin
+        var depth  = (maxz-minz)+margin
         var quadrants = Array(rows*cols*bars).fill().map(v => [])
         var centers = Array(rows*cols*bars).fill().map((v, i) => {
           x = ((i%cols)-cols/2 + .5) * width / cols
@@ -132,7 +133,6 @@
           quady = ((a[1] - miny) / height) * rows | 0
           quadz = ((a[2] - minz) / depth)  * bars | 0
           idx = quadx + quady*cols + quadz*rows*cols
-          //membership[i/9] = idx
           quadrants[idx].push(i)
         }
         return { centers, quadrants, width, height, depth }
@@ -141,10 +141,10 @@
       var backgroundShape
       var geoOptions = {
         shapeType: 'dodecahedron',
-        subs: 3,
+        subs: 2,
         map: refTexture,
         playbackSpeed,
-        size: 7e3,
+        size: 1e4,
         sphereize: 1,
         colorMix: 0,
       }
@@ -158,17 +158,18 @@
       var baseTerrainNormals
       var baseTerrainNormalVecs
       var baseTerrainUVs
-      var cl = 4
-      var rw = 4
-      var br = 4
-      var sp = 1938.1 * 2
+      var cl = 2
+      var rw = 2
+      var br = 2
+      var sp = 1938.1
       var pointArray = Array(cl*rw*br).fill().map((v, i) => [
         ((i%cl) -cl/2 + .5) * sp,
         (((i/cl|0)%rw) -rw/2 + .5) * sp,
         ((i/cl/rw|0) -br/2 + .5) * sp,
       ])
       var geoOptions = {
-        shapeType: 'obj',
+        shapeType: 'custom shape',
+        //subs: 1,
         //alpha: .1,
         //sphereize: -.5,
         //subs: 0,
@@ -180,31 +181,31 @@
         //map: 'https://bosstools.mooo.com/assets/uploads/1I791M.jpeg',
         //url: 'https://boss.veriler.com/catface.obj?2',
         //map: 'https://bosstools.mooo.com/assets/uploads/1EqcDi.jpeg',
-        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7E',
-        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+        //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7E',
+        //map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
         //url: 'https://srmcgann.github.io/objs/mountain/mountain_lowpoly.obj',
         //map: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
-        //url: 'https://srmcgann.github.io/objs/composite1/composite1_medpoly.obj',
+        //url: 'https://srmcgann.github.io/objs/composite1/composite1_hipoly.obj',
         //map: 'https://srmcgann.github.io/objs/composite1/composite1.jpg',
         //url: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.obj',
         //map: 'https://srmcgann.github.io/objs/big tile 1/big tile 1.png',
         colorMix: 0,
         color: 0x888888,
-        equirectangular: true,
-        equirectangularHeightmap: true,
-        flipNormals: true,
+        //equirectangular: true,
+        //equirectangularHeightmap: true,
+        //flipNormals: true,
         scaleUVX: 1,
         scaleUVY: 1,
         playbackSpeed,
-        //url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_ultrahighpoly_xz.json',
-        map: refTexture,
-        heightmap,
-        heightmapIntensity: 1e3,
-        maxHeightMap: 800,
-        scaleX: 2e3,
-        scaleY: 2e3,
-        scaleZ: 2e3,
-        showNormals: false
+        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7F',
+        map: heightmap,
+        //heightmap,
+        //heightmapIntensity: 50,
+        //maxHeightMap: 40,
+        scaleX: 1e3,
+        scaleY: 1e3,
+        scaleZ: 1e3,
+        //showNormals: true
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         Coordinates.ShapeFromArray(geometry, pointArray).then(async res => {
@@ -224,13 +225,13 @@
 
 
       renderer.x = 0
-      renderer.y = 0
+      renderer.y = -500
       renderer.z = 0
       //renderer.pitch = Math.PI/2
       //renderer.yaw = Math.PI
       if(1) Coordinates.LoadFPSControls(renderer, {
         flyMode: true,
-        mSpeed: 100,
+        mSpeed: 150,
         crosshairSize: .25,
         crosshairSel: 2,
         showCrosshair: true
