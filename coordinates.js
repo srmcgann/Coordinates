@@ -1319,8 +1319,24 @@ const DownloadCustomShape = geo => {
   for(var i = 0; i< geo.vertices.length; i++)
     vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
 
-  for(var i = 0; i< geo.uvs.length; i++)
-    uvs.push(Math.round(geo.uvs[i]*1e3)/1e3)
+  if(geo.equirectangular){
+    var d, p, p1, p2, hvx, hvy, hvz
+    for(var i = 0; i< geo.vertices.length; i+=3){
+      hvx = geo.vertices[i+0]
+      hvy = geo.vertices[i+1]
+      hvz = geo.vertices[i+2]
+      d   = Math.hypot(hvx, hvy, hvz) + .0001
+      p   = Math.atan2(hvx, hvz)
+      p1  = p / Math.PI / 2
+      p2  = Math.acos(hvy / d) / Math.PI
+      p1 = Math.round(p1*1e3)/1e3
+      p2 = Math.round(p2*1e3)/1e3
+      uvs.push(p1, p2)
+    }
+  } else {
+    for(var i = 0; i< geo.uvs.length; i++)
+      uvs.push(Math.round(geo.uvs[i]*1e3)/1e3)
+  }
 
   for(var i = 0; i< geo.normals.length; i++)
     normals.push(Math.round(geo.normals[i]*1e3)/1e3)
@@ -1644,7 +1660,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
              ){
             resolved = true;
             url = `${ModuleBase}/new%20shapes/`
-            fileURL = `${url}${hint}.json?3`
+            fileURL = `${url}${hint}.json?4`
             if(involveCache && (cacheItem = cache.geometry.filter(v=>v.url==fileURL)).length){
               console.log(`found geometry (${hint}) in cache... using it`)
               var data          = cacheItem[0].data
@@ -2211,7 +2227,22 @@ const LoadGeometry = async (renderer, geoOptions) => {
     for(var i = 0; i < normalVecs.length; i++){
       processedOutput.normalVecs.push((flipNormals ? 11 : 1) * Math.round(normalVecs[i]*1e3) / 1e3)
     }
-    uvs.map(v => processedOutput.uvs.push(Math.round(v*1e3) / 1e3))
+    if(geometry.equirectangular){
+      for(var i = 0; i< geometry.vertices.length; i+=3){
+        hvx = geometry.vertices[i+0]
+        hvy = geometry.vertices[i+1]
+        hvz = geometry.vertices[i+2]
+        d   = Math.hypot(hvx, hvy, hvz) + .0001
+        p   = Math.atan2(hvx, hvz)
+        p1  = p / Math.PI / 2
+        p2  = Math.acos(hvy / d) / Math.PI
+        p1 = Math.round(p1*1e3)/1e3
+        p2 = Math.round(p2*1e3)/1e3
+        uvs.push(p1, p2)
+      }
+    }else{
+      uvs.map(v => processedOutput.uvs.push(Math.round(v*1e3) / 1e3))
+    }
     output.innerHTML = JSON.stringify(processedOutput)
     document.body.appendChild(popup)
   }
