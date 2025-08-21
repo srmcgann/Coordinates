@@ -2913,7 +2913,7 @@ const ShowBounding = (shape, renderer, draw=true,
   var X, Y, Z
   
   var X1, Y1, X2, Y2, X3, Y3, X4, Y4
-  var p, d, a, b, maxp, tidx, tpart, mind
+  var p, d, a, b, maxp, tidx, tpart, mind, p3
   var memo=[]
   var pts = []
   const recurse = (ar, idx, oidx=-1, op=9) => {
@@ -2927,11 +2927,13 @@ const ShowBounding = (shape, renderer, draw=true,
     maxp = tidx = -9
     ar.map((v, i) =>{
       if(i!=idx){
-        X2 = ar[i][0]
-        Y2 = ar[i][1]
-        if((p = Math.atan2(Y2-Y1-.00001, X1-X2)) >= maxp && p <= op){
-          maxp = p
-          tidx = i
+        for(var m = 4; m--; ){
+          X2 = ar[i][0] + S(p3=Math.PI*2/4*m+Math.PI/4) * .001
+          Y2 = ar[i][1] + C(p3) * .001
+          if((p = Math.atan2(Y2-Y1, X1-X2)) > maxp && p < op){
+            maxp = p
+            tidx = i
+          }
         }
       }
     })
@@ -2942,7 +2944,7 @@ const ShowBounding = (shape, renderer, draw=true,
   }
 
   var a     = [], b, p, ox=-1, oy=1e6, ax, ay, nx, ny, nz, uvx, uvy
-  var sd    = 3
+  var sd    = 3 //shape.isLine ? 6 : 3
   var dset  = shape.shader.datasets[shape.datasetIdx]
 
   if(shape.heightMap){
@@ -2958,8 +2960,8 @@ const ShowBounding = (shape, renderer, draw=true,
   }
   
   for(var i=0; i<shape.vertices.length; i+=sd){
-    if(shape.isLine && !(i%2) ||
-      (!shape.isLine && (shape.isParticle || !(i%9)))){
+    if(shape.isLine ||
+      (!shape.isLine && (shape.isParticle || !((i/sd|0)%3)))){
       ax = ay = 0
       //Overlay.ctx.beginPath()
       b = []
@@ -2982,15 +2984,15 @@ const ShowBounding = (shape, renderer, draw=true,
       ax += ar[0]
       ay += ar[1]
       
-      if(shape.isLine && i%9 == 3 ||
-         (!shape.isLine && (shape.isParticle || i%9 == 6))){
+      if(1||shape.isLine ||
+         (!shape.isLine && (shape.isParticle || (i/sd|0)%3 == 2))){
         ax /= sd
         ay /= sd
-        if(Math.hypot(ax-ox, ay-oy) > 2){
+        //if(Math.hypot(ax-ox, ay-oy) > 10){
           ox = ax
           oy = ay
           a.push( b )
-        }
+        //}
       }
       //if(ar.length){
         //Overlay.ctx.lineTo(...ar)
