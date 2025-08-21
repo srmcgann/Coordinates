@@ -15,21 +15,25 @@
     <script type="module">
     
       import * as Coordinates from
-      "https://boss.veriler.com/coordinates.js?2"
+      "https://boss.veriler.com/coordinates.js?3"
       //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/moped_girl_po2.jpg'
     
       var rendererOptions = {
         ambientLight: .9,
-        fov: 1500,
+        fov: 1200,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
 
       var rendererOptions = {
         ambientLight: .55,
-        fov: 1500,
-        width: 1920, height: 1080,
+        fov: 1200,
+        width: 1e3, height: 1e3,
         attachToBody: false,
-        z: 50,
       }
       var camera = await Coordinates.Renderer(rendererOptions)
       
@@ -46,9 +50,6 @@
       var cameraShader = await Coordinates.BasicShader(camera, shaderOptions)
 
       var shapes = []
-      var S = Math.sin
-      var C = Math.cos
-      var Rn = Math.random
       
       var iPc = 1e4, iPv = .5, G = 250
       var geometryData = Array(iPc).fill().map(v=>[
@@ -75,14 +76,15 @@
       })
       
       var geoOptions = {
-        shapeType: 'cube',
-        subs: 4,
+        shapeType: 'dodecahedron',
+        subs: 3,
+        yaw: Math.PI/2,
         equirectangular: true,
         sphereize: 0,
         scaleUVX: 2,
         scaleUVY: 2,
         playbackSpeed: 10,
-        map: 'https://srmcgann.github.io/Coordinates/resources/rd1_po2.mp4',
+        map: refTexture,
         size: 1e3,
         colorMix: 0,
         color: 0xffffff,
@@ -96,44 +98,137 @@
         await cameraShader.ConnectGeometry(geometry)
       })
       
+      var basePortalUVs
       var geoOptions = {
-        shapeType: 'cube',
+        shapeType: 'rectangle',
         name: 'portal',
-        subs: 3,
+        wireframe: false,
+        subs: 2,
         canvasTexture: camera.c,
         pitch: Math.PI,
-        scaleX: renderer.c.width/renderer.c.height,
-        scaleZ: .5,
-        //map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
-        //equirectangular: true,
+        //scaleY  : renderer.c.width/renderer.c.height,
         size: 30,
         colorMix: 0,
         color: 0xffffff,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        if(0) Coordinates.ShapeToLines(geometry, {
+          size: 10,
+          name: 'portal',
+          color: 0x4400ff,
+          alpha: .5,          // opacity, 0.0 - 1.0
+          penumbra: .1,       // "glow" amount, 0.0 - 1.0, relative to alpha
+          closePaths: true,  // optional - close polygons. default = true
+        }).then(res => {
+          shapes.push(res.shape)
+        })
+        basePortalUVs = structuredClone(geometry.uvs)
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
       })  
       
       Coordinates.LoadFPSControls(renderer, {
         flyMode: true,
-        mSpeed: 25,
+        mSpeed: 2,
+        rSpeed: .5,
         crosshairSel: 2,
         crosshairSize: .5,
       })
       
-      renderer.z = 5
-      
+      var x, y, z, d, p, q
+      renderer.z = 50
       window.Draw = () => {
         var t = renderer.t
+        //renderer.x = S(t*4) * 100
+        //renderer.y = S(t) * 40
+        //renderer.z = 150 + C(t*2) * 100
+
         shapes.forEach(shape => {
           switch(shape.name){
             case 'particles':
-              for(var i = 0; i < shape.vertices.length; i+=3){
-                shape.vertices[i+2] -= iPv
-                if(shape.vertices[i+2] > G / 2) shape.vertices[i+2] -= G
-                if(shape.vertices[i+2] < -G / 2) shape.vertices[i+2] += G
+              if(0) {
+                for(var i = 0; i < shape.vertices.length; i+=3){
+                  shape.vertices[i+2] -= iPv
+                  if(shape.vertices[i+2] > G / 2) shape.vertices[i+2] -= G
+                  if(shape.vertices[i+2] < -G / 2) shape.vertices[i+2] += G
+                }
+                renderer.Draw(shape)
               }
+            break
+            case 'portal':
+            
+              camera.x = renderer.x
+              camera.y = renderer.y
+              camera.z = renderer.z
+              camera.roll = renderer.roll
+              camera.pitch = (-Math.acos(renderer.y / Math.hypot(renderer.x, renderer.y, renderer.z)) + Math.PI/2)
+              camera.yaw = -Math.atan2(renderer.x,renderer.z)
+              var w = camera.c.width
+              var h = camera.c.height
+              var bounding = Coordinates.ShowBounding(shape, renderer, true)
+              var quad = Array(4).fill().map(v=>[0,0,0])
+              var ax = 0, ay = 0, az = 0, ct = 0
+              for(var i = 0; i < shape.vertices.length; i+=3){
+                ax += shape.vertices[i+0]
+                ay += shape.vertices[i+1]
+                az += shape.vertices[i+2]
+                ct++
+              }
+              ax /= ct
+              ay /= ct
+              az /= ct
+              ax += shape.x
+              ay += shape.y
+              az += shape.z
+
+              for(var m = 4; m--;){
+                var maxd = -6e6
+                for(var i = 0; i < shape.vertices.length; i+=3){
+                  x = shape.vertices[i+0]
+                  y = shape.vertices[i+1]
+                  z = shape.vertices[i+2]
+                  if(!quad.filter(q=>q[0]==x&&q[1]==y&&q[2]==z).length){
+                    if((d = Math.hypot(x-ax, y-ay, z-az)) > maxd){
+                      maxd = d
+                      quad[m][0] = x
+                      quad[m][1] = y
+                      quad[m][2] = z
+                    }
+                  }
+                }
+              }
+              quad=quad.map(v=>Coordinates.GetShaderCoord(...v,shape,renderer))
+              if(!quad.filter(v=>v===false).length){
+                Coordinates.Overlay.ctx.beginPath()
+                quad.map(v => Coordinates.Overlay.ctx.lineTo(...v))
+                Coordinates.Overlay.ctx.lineWidth = 2
+                Coordinates.Overlay.ctx.strokeStyle = '#f00'
+                Coordinates.Overlay.ctx.closePath()
+                Coordinates.Overlay.ctx.stroke()
+                ax = ay = 0
+                quad.map(v => {
+                  ax += v[0]
+                  ay += v[1]
+                })
+                ax /= quad.length
+                ay /= quad.length
+                var j, uvx, uvy, ipx1, ipy1, ipx2, ipy2
+                for(var i = 0; i < shape.uvs.length; i+=2){
+                  d = Math.max(
+                    1, Math.hypot(
+                    renderer.x - shape.x,
+                    renderer.y - shape.y,
+                    renderer.z - shape.z
+                  ) / 25)
+                  shape.uvs[i+0] = (basePortalUVs[i+0] - .5) /d + .5
+                  shape.uvs[i+1] = (basePortalUVs[i+1] - .5) /d + .5
+                }
+              }
+              shape.z = -.5
+              shape.yaw = 0
+              renderer.Draw(shape)
+              shape.z = .5
+              shape.yaw = Math.PI
               renderer.Draw(shape)
             break
             default:
@@ -141,25 +236,22 @@
             break
           }
         })
-        camera.x = renderer.x
-        camera.y = renderer.y
-        camera.z = renderer.z
-        camera.roll = -renderer.roll
-        camera.pitch = -renderer.pitch
-        camera.yaw = -renderer.yaw
         cameraShapes.forEach(cameraShape => {
           switch(cameraShape.name){
             case 'particles':
-              for(var i = 0; i < cameraShape.vertices.length; i+=3){
-                cameraShape.vertices[i+2] -= iPv
-                if(cameraShape.vertices[i+2] > G / 2) cameraShape.vertices[i+2] -= G
-                if(cameraShape.vertices[i+2] < -G / 2) cameraShape.vertices[i+2] += G
+              if(0) {
+                for(var i = 0; i < cameraShape.vertices.length; i+=3){
+                  cameraShape.vertices[i+2] -= iPv
+                  if(cameraShape.vertices[i+2] > G / 2) cameraShape.vertices[i+2] -= G
+                  if(cameraShape.vertices[i+2] < -G / 2) cameraShape.vertices[i+2] += G
+                }
+                camera.Draw(cameraShape)
               }
             break
             default:
+              camera.Draw(cameraShape)
             break
           }
-          camera.Draw(cameraShape)
         })
       }
       
