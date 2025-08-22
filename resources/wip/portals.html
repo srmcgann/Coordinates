@@ -15,13 +15,13 @@
     <script type="module">
     
       import * as Coordinates from
-      "https://boss.veriler.com/coordinates.js?3"
+      "https://boss.veriler.com/coordinates.js?4"
       //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
       
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/moped_girl_po2.jpg'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
     
       var rendererOptions = {
         ambientLight: .9,
@@ -78,7 +78,7 @@
       var geoOptions = {
         shapeType: 'dodecahedron',
         subs: 3,
-        yaw: Math.PI/2,
+        yaw: Math.PI,
         equirectangular: true,
         sphereize: 0,
         scaleUVX: 2,
@@ -156,80 +156,102 @@
               }
             break
             case 'portal':
-            
-              camera.x = renderer.x
-              camera.y = renderer.y
-              camera.z = renderer.z
-              camera.roll = renderer.roll
-              camera.pitch = (-Math.acos(renderer.y / Math.hypot(renderer.x, renderer.y, renderer.z)) + Math.PI/2)
-              camera.yaw = -Math.atan2(renderer.x,renderer.z)
-              var w = camera.c.width
-              var h = camera.c.height
-              var bounding = Coordinates.ShowBounding(shape, renderer, true)
-              var quad = Array(4).fill().map(v=>[0,0,0])
-              var ax = 0, ay = 0, az = 0, ct = 0
-              for(var i = 0; i < shape.vertices.length; i+=3){
-                ax += shape.vertices[i+0]
-                ay += shape.vertices[i+1]
-                az += shape.vertices[i+2]
-                ct++
-              }
-              ax /= ct
-              ay /= ct
-              az /= ct
-              ax += shape.x
-              ay += shape.y
-              az += shape.z
+              var sd = 1, ls = 0
+              for(var k = 0; k < sd; k++){
+                camera.x = renderer.x
+                camera.y = renderer.y
+                camera.z = renderer.z
+                camera.roll = renderer.roll
+                
+                shape.x = S(p=Math.PI*2/sd*k) * ls
+                shape.y = 0
+                shape.z = C(p) * ls
+                
+                var ox = shape.x
+                var oz = shape.z
+                for(m=2; m--;){
+                  d = Math.hypot(ox, oz) + m / 2
+                  p = Math.atan2(ox, oz) //+ t / 2
+                  shape.yaw = -p - Math.PI * m
+                  shape.x = S(p) * d
+                  shape.z = C(p) * d
+                  renderer.Draw(shape)
+                }
 
-              for(var m = 4; m--;){
-                var maxd = -6e6
+                camera.pitch = -Math.acos((renderer.y-shape.y) / Math.hypot(
+                  shape.x - renderer.x,
+                  shape.y - renderer.y,
+                  shape.z - renderer.z)) + Math.PI/2
+                camera.yaw = -Math.atan2(renderer.x-shape.x,renderer.z-shape.z)
+                var w = camera.c.width
+                var h = camera.c.height
+                var bounding = Coordinates.ShowBounding(shape, renderer, false)
+                var quad = Array(4).fill().map(v=>[0,0,0])
+                var ax = 0, ay = 0, az = 0, ct = 0
                 for(var i = 0; i < shape.vertices.length; i+=3){
-                  x = shape.vertices[i+0]
-                  y = shape.vertices[i+1]
-                  z = shape.vertices[i+2]
-                  if(!quad.filter(q=>q[0]==x&&q[1]==y&&q[2]==z).length){
-                    if((d = Math.hypot(x-ax, y-ay, z-az)) > maxd){
-                      maxd = d
-                      quad[m][0] = x
-                      quad[m][1] = y
-                      quad[m][2] = z
+                  ax += shape.vertices[i+0]
+                  ay += shape.vertices[i+1]
+                  az += shape.vertices[i+2]
+                  ct++
+                }
+                ax /= ct
+                ay /= ct
+                az /= ct
+                ax += shape.x
+                ay += shape.y
+                az += shape.z
+
+                for(var m = 4; m--;){
+                  var maxd = -6e6
+                  for(var i = 0; i < shape.vertices.length; i+=3){
+                    x = shape.vertices[i+0]
+                    y = shape.vertices[i+1]
+                    z = shape.vertices[i+2]
+                    if(!quad.filter(q=>q[0]==x&&q[1]==y&&q[2]==z).length){
+                      if((d = Math.hypot(x-ax, y-ay, z-az)) > maxd){
+                        maxd = d
+                        quad[m][0] = x
+                        quad[m][1] = y
+                        quad[m][2] = z
+                      }
                     }
                   }
                 }
-              }
-              quad=quad.map(v=>Coordinates.GetShaderCoord(...v,shape,renderer))
-              if(!quad.filter(v=>v===false).length){
-                Coordinates.Overlay.ctx.beginPath()
-                quad.map(v => Coordinates.Overlay.ctx.lineTo(...v))
-                Coordinates.Overlay.ctx.lineWidth = 2
-                Coordinates.Overlay.ctx.strokeStyle = '#f00'
-                Coordinates.Overlay.ctx.closePath()
-                Coordinates.Overlay.ctx.stroke()
-                ax = ay = 0
-                quad.map(v => {
-                  ax += v[0]
-                  ay += v[1]
-                })
-                ax /= quad.length
-                ay /= quad.length
-                var j, uvx, uvy, ipx1, ipy1, ipx2, ipy2
-                for(var i = 0; i < shape.uvs.length; i+=2){
-                  d = Math.max(
-                    1, Math.hypot(
-                    renderer.x - shape.x,
-                    renderer.y - shape.y,
-                    renderer.z - shape.z
-                  ) / 25)
-                  shape.uvs[i+0] = (basePortalUVs[i+0] - .5) /d + .5
-                  shape.uvs[i+1] = (basePortalUVs[i+1] - .5) /d + .5
+                quad=quad.map(v=>Coordinates.GetShaderCoord(...v,shape,renderer))
+                if(!quad.filter(v=>v===false).length){
+                  quad.map(v => {
+                    v[0] += shape.x
+                    v[1] += shape.y
+                    v[2] += shape.z
+                  })
+                  if(0){
+                    Coordinates.Overlay.ctx.beginPath()
+                    quad.map(v => Coordinates.Overlay.ctx.lineTo(...v))
+                    Coordinates.Overlay.ctx.lineWidth = 2
+                    Coordinates.Overlay.ctx.strokeStyle = '#f00'
+                    Coordinates.Overlay.ctx.closePath()
+                    Coordinates.Overlay.ctx.stroke()
+                  }
+                  ax = ay = 0
+                  quad.map(v => {
+                    ax += v[0]
+                    ay += v[1]
+                  })
+                  ax /= quad.length
+                  ay /= quad.length
+                  var j, uvx, uvy, ipx1, ipy1, ipx2, ipy2
+                  for(var i = 0; i < shape.uvs.length; i+=2){
+                    d = Math.max(
+                      1, Math.hypot(
+                      renderer.x + shape.x,
+                      renderer.y + shape.y,
+                      renderer.z + shape.z
+                    ) / 25)
+                    shape.uvs[i+0] = (basePortalUVs[i+0] - .5) /d + .5
+                    shape.uvs[i+1] = (basePortalUVs[i+1] - .5) /d + .5
+                  }
                 }
               }
-              shape.z = -.5
-              shape.yaw = 0
-              renderer.Draw(shape)
-              shape.z = .5
-              shape.yaw = Math.PI
-              renderer.Draw(shape)
             break
             default:
               renderer.Draw(shape)
