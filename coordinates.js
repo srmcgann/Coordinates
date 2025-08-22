@@ -570,6 +570,7 @@ const Renderer = async options => {
                     }
                     ctx.activeTexture(ctx.TEXTURE1)
                     ctx.uniform1i(uniform.locRefTexture, 1)
+                    ctx.uniform1f(uniform.locRefTheta, uniform.theta)
                     ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
                     
                     ctx.uniform1f(uniform.locRefOmitEquirectangular,
@@ -3277,8 +3278,8 @@ const BasicShader = async (renderer, options=[]) => {
                                          .5 : option[key].value,
                   flatShading:         typeof option[key].flatShading == 'undefined' ?
                                          false : option[key].flatShading,
-                  flipReflections:     typeof option[key].flipReflections == 'undefined' ?
-                                         0 : option[key].flipReflections,
+                  flipReflections:     typeof option[key].flipReflections == 'undefined' ? 0 : option[key].flipReflections,
+                  theta:               typeof option[key].theta == 'undefined' ?0:option[key].theta,
                   flatShadingUniform:  'refFlatShading',
                   dataType:            'uniform1f',
                   vertDeclaration:     `
@@ -3288,6 +3289,7 @@ const BasicShader = async (renderer, options=[]) => {
                   fragDeclaration:     `
                     uniform float reflection;
                     uniform float refFlatShading;
+                    uniform float refTheta;
                     uniform float refOmitEquirectangular;
                     uniform float refFlipRefs;
                     uniform sampler2D reflectionMap;
@@ -3310,8 +3312,8 @@ const BasicShader = async (renderer, options=[]) => {
                       refP2 = vUv.y;
                     }
                     
-                    vec2 refCoords = vec2(1.0 - refP1 * 2.0, refP2);
-                    vec4 refCol = vec4(texture2D(reflectionMap, vec2(refCoords.x, refCoords.y)).rgb * 1.25, reflection / 1.0);
+                    vec2 refCoords = vec2(1.0 - refP1 * 2.0 + refTheta, refP2);
+                    vec4 refCol = vec4(texture2D(reflectionMap, refCoords).rgb * 1.25, reflection / 1.0);
                     mixColor = merge(mixColor, refCol);
                     baseColorIp = 1.0 - reflection; //min(1.0, 2.0 - reflection);
                     //light += reflection / 4.0;
@@ -4181,6 +4183,7 @@ const BasicShader = async (renderer, options=[]) => {
                     let l
                     let suffix = (l=url.split('.'))[l.length-1].toLowerCase()
                     uniform.refTexture = gl.createTexture()
+                    uniform.locRefTheta = gl.getUniformLocation(dset.program, "refTheta")
                     switch(suffix){
                       case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
                         uniform.textureMode = 'video'
