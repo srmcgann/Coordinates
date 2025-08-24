@@ -4827,6 +4827,9 @@ const ProcessShapeArray = shape => {
       data[shpIdx].mx = data[shpIdx].x
       data[shpIdx].my = data[shpIdx].y
       data[shpIdx].mz = data[shpIdx].z
+      data[shpIdx].wx = data[shpIdx].x + data[shpIdx].ox
+      data[shpIdx].wy = data[shpIdx].y + data[shpIdx].oy 
+      data[shpIdx].wz = data[shpIdx].z + data[shpIdx].oz
       data[shpIdx].mroll  = data[shpIdx].roll
       data[shpIdx].mpitch = data[shpIdx].pitch
       data[shpIdx].myaw   = data[shpIdx].yaw
@@ -4858,6 +4861,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     }
     shapeData.push({
       ox: tx, oy: ty, oz: tz,
+      wx: tx, wy: ty, wz: tz,
       x:    0, y: 0,     z: 0,
       roll: 0, pitch: 0, yaw: 0,
       mx: tx, my: ty, mz: tz,
