@@ -3845,7 +3845,7 @@ const BasicShader = async (renderer, options=[]) => {
       #define M_PI 3.14159265358979323
       ${uFragDeclaration}
       uniform float t;
-      uniform float factor;
+      //uniform float factor;
       uniform vec2 resolution;
       uniform float plugin;
       uniform float flatShading;
@@ -3974,12 +3974,11 @@ const BasicShader = async (renderer, options=[]) => {
           rgba.g += ret * pointLightCol[i].g;
           rgba.b += ret * pointLightCol[i].b;
         }
-        
         return pointLightCount > 0 ? vec4(rgba.rgb + ambientLight, 1.0) : vec4(ambientLight, ambientLight, ambientLight, 1.0);
       }
 
       void main() {
-
+        float factor = 1.0;
         rgeoPos = geoPos / factor;
         rheightMapIntensity = heightMapIntensity / factor;
         rmaxHeightmap = maxHeightmap / factor;
@@ -4775,7 +4774,7 @@ const ProcessShapeArray = shape => {
       ty = data[shpIdx].oy
       tz = data[shpIdx].oz
       for(var k = 0; k < shape.stride; k+=3){
-        for(var m = 2; m--;){
+        for(var m = 2; m-->0;){
           var l = m ? 'vstate' : 'nvstate'
           x = shape[l][i + k + 0] - tx * m
           y = shape[l][i + k + 1] - ty * m
