@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      "https://boss.veriler.com/coordinates.js"
+    
+      var rendererOptions = {
+        ambientLight: 1,
+        fov: 2500
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+      
+      var x, y, z, d, p, q
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: 1
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shapes = []
+      var cl = 10
+      var rw = 5
+      var br = 10
+      var sp = 4
+      var ct = 0
+      var teams = 3
+      var iPc = cl*rw*br
+      var gridShapes = []
+      var pointArrays = Array(teams).fill().map(v=>[])
+      Array(iPc).fill().map((v, i) => {
+        x = ((i%cl) - cl/2 + .5) * sp
+        y = (((i/cl|0)%rw) - rw/2 + .5) * sp
+        z = ((i/cl/rw|0) - br/2 + .5) * sp
+        if(Math.hypot(x, y, z) <= Math.hypot(cl,rw,br)*sp/4){
+          pointArrays[ct%teams].push([x, y, z])
+          ct++
+        }
+      })
+      pointArrays.map(v=>{
+        for(var i = 0; i<cl*rw*br; i++) v.push([1e4,0,0])
+      })
+      pointArrays.forEach(async (pointArray, idx) => {
+        var geoOptions = {
+          shapeType: 'cube',
+          name: `grid ${idx}`,
+          subs: 0,
+          sphereize: 1,
+          averageNormals: true,
+          size: .5,
+          color: Coordinates.HSVToHex(180+360/teams*idx, 1, 1),
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          Coordinates.ShapeFromArray(geometry, pointArray).then(async shape => {
+            gridShapes.push(shape)
+            await shader.ConnectGeometry(shape)
+          })
+        })
+      })
+      
+      var mind, tid1, tid2, iPv = .2
+      var vx, vy, vz, nid1, nid2, nid3, nid4
+      var x1, y1, z1, x2, y2, z2
+      window.Draw = async () => {
+        var t = renderer.t
+        renderer.z = 16
+        renderer.y = 5
+        renderer.pitch = -.5
+        renderer.yaw = t
+        
+        if(gridShapes.length == teams){
+          for(var i = 0; i < gridShapes.length; i++){
+            for(var k = 0; k < gridShapes[i].shapeData.length; k++){
+              if(gridShapes[i].shapeData[k].wx < 1e3) {
+                x1 = gridShapes[i].shapeData[k].wx
+                y1 = gridShapes[i].shapeData[k].wy
+                z1 = gridShapes[i].shapeData[k].wz
+                mind = 6e6
+                for(var j = 0; j < gridShapes.length; j++){
+                  if(j != i) { // if 'other team' 
+                    for(var m = 0; m < gridShapes[j].shapeData.length; m++){
+                      if(gridShapes[j].shapeData[m].wx < 1e3) {
+                        x2 = gridShapes[j].shapeData[m].wx
+                        y2 = gridShapes[j].shapeData[m].wy
+                        z2 = gridShapes[j].shapeData[m].wz
+                        if((d=Math.hypot(x2-x1, y2-y1, z2-z1))<mind){
+                          mind = d
+                          tid1 = j
+                          tid2 = m
+                        }
+                      }
+                    }
+                  }else{
+                    for(var k2 = 0; k2 < gridShapes[i].shapeData.length; k2++){
+                      if(k2 != k){
+                        vx = gridShapes[i].shapeData[k].wx-gridShapes[i].shapeData[k2].wx
+                        vy = gridShapes[i].shapeData[k].wy-gridShapes[i].shapeData[k2].wy
+                        vz = gridShapes[i].shapeData[k].wz-gridShapes[i].shapeData[k2].wz
+                        d = Math.hypot(vx, vy, vz)
+                        if(d < 1){
+                          d*=2
+                          vx /= d
+                          vy /= d
+                          vz /= d
+                          gridShapes[i].shapeData[k].x  -= vx
+                          gridShapes[i].shapeData[k].y  -= vy
+                          gridShapes[i].shapeData[k].z  -= vz
+                          gridShapes[i].shapeData[k2].x  += vx
+                          gridShapes[i].shapeData[k2].y  += vy
+                          gridShapes[i].shapeData[k2].z  += vz
+                        }
+                      }
+                    }
+                  }
+                }
+                if(mind != 6e6){  // if game is still going
+                  if(mind < 1){
+                    if(Rn()<.5){
+                      nid1 = i
+                      nid2 = k
+                      nid3 = tid1
+                      nid4 = tid2
+                    }else{
+                      nid1 = tid1
+                      nid2 = tid2
+                      nid3 = i
+                      nid4 = k
+                    }
+                    var nextSpareIdx = -1
+                    gridShapes[nid1].shapeData.forEach((v, idx) => {
+                      if(v.wx > 1e3 && nextSpareIdx == -1)  nextSpareIdx = idx
+                    })
+                    var nextSpare = gridShapes[nid1].shapeData[nextSpareIdx]
+                    nextSpare.x += gridShapes[nid3].shapeData[nid4].wx - nextSpare.wx
+                    nextSpare.y += gridShapes[nid3].shapeData[nid4].wy - nextSpare.wy
+                    nextSpare.z += gridShapes[nid3].shapeData[nid4].wz - nextSpare.wz
+                    nextSpare.wx = gridShapes[nid3].shapeData[nid4].wx
+                    nextSpare.wy = gridShapes[nid3].shapeData[nid4].wy
+                    nextSpare.wz = gridShapes[nid3].shapeData[nid4].wz
+
+                    gridShapes[nid3].shapeData[nid4].x  += 1e4
+                    gridShapes[nid3].shapeData[nid4].wx  += 1e4
+                  }else{
+                    vx = gridShapes[tid1].shapeData[tid2].wx-gridShapes[i].shapeData[k].wx
+                    vy = gridShapes[tid1].shapeData[tid2].wy-gridShapes[i].shapeData[k].wy
+                    vz = gridShapes[tid1].shapeData[tid2].wz-gridShapes[i].shapeData[k].wz
+                    d = Math.hypot(vx, vy, vz)+.0001
+                    vx = vx / d * iPv
+                    vy = vy / d * iPv
+                    vz = vz / d * iPv
+                    gridShapes[i].shapeData[k].x += vx
+                    gridShapes[i].shapeData[k].y += vy
+                    gridShapes[i].shapeData[k].z += vz
+                  }
+                }
+              }
+            }
+              
+            
+            gridShapes[i].yaw = C(t/4) / 4
+            await renderer.Draw(gridShapes[i])
+          }
+        }
+          
+        shapes.forEach(shape => {
+          switch(shape.name){
+            default:
+              renderer.Draw(shape)
+            break
+          }
+        })
+      }
+      
+    </script>
+  </body>
+</html>
