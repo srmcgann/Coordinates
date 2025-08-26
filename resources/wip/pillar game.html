@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://boss.veriler.com/coordinates.js?3"
+      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/volcanoes_lowres.jpg'
+    
+      var fogColor = 0x110022
+      var rendererOptions = {
+        clearColor: fogColor,
+        ambientLight: 1, margin: 0,
+        //fov: 1200, width: 1920, height: 1080
+        fov: 500, width: 960, height: 540
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .2
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          enabled: true,
+          value: .5
+        } },
+        {
+          uniform: {
+            type: 'fog',
+            color: fogColor,
+            value: 20,
+          }
+        }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var x, y, z, S, C, d, p, q
+      var x1, y1, z1, x2, y2, z2
+
+      var shapes = []
+      var cl = 2
+      var rw = 1
+      var br = 2
+      var sp = 22
+      var pointArray = Array(cl*rw*br).fill().map((v, i) => {
+        x = ((i%cl)-cl/2 + .5) * sp
+        y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+        z = ((i/cl/rw|0)-br/2 + .5) * sp
+        return [x, y, z]
+      })
+      var floorShape
+      var geoOptions = {
+        shapeType: 'obj',
+        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7k',
+        map: 'https://bosstools.mooo.com/assets/uploads/1DsJvZ.jpeg',
+        scaleX: 16,
+        scaleY: 8,
+        scaleZ: 16,
+        color: 0x441111,
+        colorMix: .25,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        Coordinates.ShapeFromArray(geometry, pointArray).then(async res=>{
+          floorShape = res
+          await shader.ConnectGeometry(res)
+        })
+      })
+      
+      var geoOptions = {
+        shapeType: 'point light',
+        name: 'my point light',
+        x: 0,
+        y: 0,
+        z: 0,
+        color: 0xffffff,
+        lum: 1,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      
+      
+      if(1) Coordinates.LoadFPSControls(renderer,{
+        flyMode: true,
+        crosshairSel: 2,
+        mSpeed: .25,
+        rSpeed: .75,
+        crosshairSize: .5,
+      })
+      
+      renderer.z = 5.5
+      
+      window.Draw = () => {
+        renderer.Clear()
+        if(typeof floorShape?.shapeData != 'undefined'){
+          x1 = -renderer.x
+          y1 = -renderer.y
+          z1 = -renderer.z
+          floorShape.shapeData.map(v => {
+            x2 = v.wx
+            y2 = v.wy
+            z2 = v.wz
+            while(x2-x1 > cl*sp/2) {
+              x2 = v.wx -= cl*sp
+              v.x -= cl*sp
+            }
+            while(x2-x1 < -cl*sp/2) {
+              x2 = v.wx += cl*sp
+              v.x += cl*sp
+            }
+            while(y2-y1 > rw*sp/2) {
+              y2 = v.wy -= rw*sp
+              v.y -= rw*sp
+            }
+            while(y2-y1 < -rw*sp/2) {
+              y2 = v.wy += rw*sp
+              v.y += rw*sp
+            }
+            while(z2-z1 > br*sp/2) {
+              z2 = v.wz -= br*sp
+              v.z -= br*sp
+            }
+            while(z2-z1 < -br*sp/2) {
+              z2 = v.wz += br*sp
+              v.z += br*sp
+            }
+          })
+          renderer.Draw(floorShape)
+        }
+        shapes.forEach(shape => {
+          
+        })
+      }
+      
+    </script>
+  </body>
+</html>

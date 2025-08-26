@@ -270,6 +270,7 @@ const Renderer = async options => {
           size: geometry.size,
           shapeType: geometry.shapeType,
           vertices: structuredClone(geometry.vertices),
+          offsets: structuredClone(geometry.offsets),
           geometry
         }, ...renderer[queueType]]
         
@@ -291,7 +292,7 @@ const Renderer = async options => {
             size: geometry.size,
             shapeType: geometry.shapeType,
             vertices: structuredClone(geometry.vertices),
-            //vertices: structuredClone(geometry.vertices),
+            offsets: structuredClone(geometry.offsets),
             geometry
           }, ...renderer[queueType]]
         }
@@ -357,7 +358,7 @@ const Renderer = async options => {
             ctx.uniform1f(dset.locRenderNormals,   0)
 
             // vertices
-            if(geometry?.vertices?.length){
+            if(geometry?.vertices?.length) {
               var tvib, tgvb, tgvi, tvertices
               var p, p1, p2, d, nx, ny, nz
               var X1, Y1, Z1, X2, Y2, Z2
@@ -434,7 +435,6 @@ const Renderer = async options => {
                 tgvi = geometry.vIndices
               }
               
-              
               ctx.bindBuffer(ctx.ARRAY_BUFFER, tgvb)
               ctx.bufferData(ctx.ARRAY_BUFFER, tvertices, ctx.STATIC_DRAW)
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, tvib)
@@ -445,7 +445,16 @@ const Renderer = async options => {
               ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
               ctx.enableVertexAttribArray(dset.locPosition)
 
-              if(geometry.isLine){
+              // offsets
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.offset_buffer)
+              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.offsets, ctx.STATIC_DRAW)
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Offset_Index_Buffer)
+              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.oIndices, ctx.STATIC_DRAW)
+              dset.locOffset = ctx.getAttribLocation(dset.program, "offset")
+              ctx.vertexAttribPointer(dset.locOffset, 3, ctx.FLOAT, false, 0, 0)
+              ctx.enableVertexAttribArray(dset.locOffset)
+
+              if(geometry.isLine){  // draw lines or particles
                 ctx.drawElements(ctx.TRIANGLES, tvertices.length/3|0, ctx.UNSIGNED_INT,0)
               }else{
                 ctx.drawElements(ctx.POINTS, geometry.vertices.length/3|0, ctx.UNSIGNED_INT,0)
@@ -700,6 +709,16 @@ const Renderer = async options => {
               ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
               ctx.enableVertexAttribArray(dset.locPosition)
               dset.locNormal = ctx.getAttribLocation(dset.program, "position")
+
+              // offsets
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.offset_buffer)
+              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.offsets, ctx.STATIC_DRAW)
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Offset_Index_Buffer)
+              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.oIndices, ctx.STATIC_DRAW)
+              dset.locOffset = ctx.getAttribLocation(dset.program, "offset")
+              ctx.vertexAttribPointer(dset.locOffset, 3, ctx.FLOAT, false, 0, 0)
+              ctx.enableVertexAttribArray(dset.locOffset)
+
               ctx.drawElements(geometry.wireframe ? ctx.LINE_STRIP :
                                   ctx.TRIANGLES,
                                 geometry.vertices.length/3|0,
@@ -950,7 +969,7 @@ const OBJFinishing = (ret, tx=0, ty=0, tz=0, rl=0, pt=0, yw=0) => {
 }
 
 const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involveCache=true) => {
-  var ret = { vertices: [], normals: [], uvs: [] }
+  var ret = { vertices: [], normals: [], uvs: []}
   
   var a, X, Y, Z
   if(involveCache && (cacheItem = cache.objFiles.filter(v=>v.url == url)).length){
@@ -1382,10 +1401,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
 
   var objX, objY, objZ, objRoll, objPitch, objYaw
   var vertex_buffer, Vertex_Index_Buffer
+  var offset_buffer, Offset_Index_Buffer
   var normal_buffer, Normal_Index_Buffer, video
   var normalVec_buffer, NormalVec_Index_Buffer
   var uv_buffer, UV_Index_Buffer, name, shapeType
-  var vIndices, nIndices, nVecIndices, uvIndices
+  var vIndices, nIndices, nVecIndices, uvIndices, oIndices
   var canvasTexture, canvasTextureMix, showBounding
   var boundingColor, normalAssocs
   const gl = renderer.gl
@@ -1399,6 +1419,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var scaleX=1, scaleY=1, scaleZ=1
   var scaleUVX  = 1, scaleUVY  = 1
   var offsetUVX = 0, offsetUVY = 0
+  var offsetX = 0, offsetY = 0, offsetZ = 0
   var rebindTextures           = false
   var rows             = 16
   var cols             = 40
@@ -1490,6 +1511,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'equirectangularheightmap' : equirectangularHeightmap = !!geoOptions[key]; break
       case 'flipnormals'        : flipNormals = !!geoOptions[key]; break
       case 'shownormals'        : showNormals = !!geoOptions[key]; break
+      case 'offsetx'            : offsetX = geoOptions[key]; break
+      case 'offsety'            : offsetY = geoOptions[key]; break
+      case 'offsetz'            : offsetZ = geoOptions[key]; break
       case 'sphereize'          : sphereize = geoOptions[key]; break
       case 'rotationmode'       : rotationMode = geoOptions[key]; break
       case 'rebindtextures'     : rebindTextures = !!geoOptions[key]; break
@@ -1605,6 +1629,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var uvs               = []
   var normals           = []
   var vertices          = []
+  var offsets           = []
   var normalVecs        = []
 
   var fileURL, hint
@@ -2356,6 +2381,28 @@ const LoadGeometry = async (renderer, geoOptions) => {
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, vIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
 
+
+  if(offsetX || offsetY || offsetZ){
+    var a = []
+    for(var i = 0; i < vertices.length; i+=3){
+      a.push(offsetX, offsetY, offsetZ)
+    }
+    offsets = new Float32Array(a)
+  }else{
+    offsets = new Float32Array(Array(vertices.length).fill(0))
+  }
+  //offsets, indices
+  offset_buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, offset_buffer)
+  gl.bufferData(gl.ARRAY_BUFFER, offsets, gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  oIndices = new Uint32Array( Array(offsets.length/3).fill().map((v,i)=>i) )
+  Offset_Index_Buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Offset_Index_Buffer)
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, oIndices, gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+
+  
   //normals, indices
   normalVec_buffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, normalVec_buffer)
@@ -2400,12 +2447,13 @@ const LoadGeometry = async (renderer, geoOptions) => {
     shapeType: isParticle ? 'particles' :
       (isLine ? 'lines' : shapeType), normalAssocs,
     sphereize, equirectangular, flipNormals,
-    vertices, normals, normalVecs, uvs,
+    vertices, normals, normalVecs, uvs, offsets,
+    offset_buffer, Offset_Index_Buffer,
     vertex_buffer, Vertex_Index_Buffer,
     normal_buffer, Normal_Index_Buffer, muted,
     normalVec_buffer, NormalVec_Index_Buffer,
     nVecIndices, uv_buffer, UV_Index_Buffer,
-    vIndices, nIndices, uvIndices, map, video,
+    oIndices, vIndices, nIndices, uvIndices, map, video,
     textureMode, isSprite, isLight, playbackSpeed,
     disableDepthTest, lum, alpha, involveCache,
     renderer, isParticle, isLine, penumbra, wireframe,
@@ -3536,6 +3584,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float useHeightMap;
       uniform float heightMapIntensity;
       uniform sampler2D heightMap;
+      attribute vec3 offset;
       attribute vec3 position;
       attribute vec3 normal;
       attribute vec3 normalVec;
@@ -3672,9 +3721,9 @@ const BasicShader = async (renderer, options=[]) => {
           cy = normal.y;
           cz = normal.z;
         }else{
-          cx = position.x;
-          cy = position.y;
-          cz = position.z;
+          cx = position.x + offset.x;
+          cy = position.y + offset.y;
+          cz = position.z + offset.z;
         }
         
         if(useHeightMap != 0.0 && renderNormals == 0.0){
@@ -3777,9 +3826,9 @@ const BasicShader = async (renderer, options=[]) => {
         if((isLine != 0.0 || isParticle != 0.0) &&
           penumbraPass != 0.0) Z += .001;
         if(isLine != 0.0){
-          X = position.x / resolution.x * fov;
-          Y = position.y / resolution.y * fov;
-          Z = position.z;
+          X = (position.x + offset.x) / resolution.x * fov;
+          Y = (position.y + offset.y) / resolution.y * fov;
+          Z = position.z + offset.z;
           gl_Position = vec4(X, Y, Z/10000.0, 1.0);
           depth = pow(1.0 + sqrt(X*X + Y*Y + Z*Z), 1.0) / 100.0;
           skip = 0.0;
@@ -4152,6 +4201,12 @@ const BasicShader = async (renderer, options=[]) => {
         dset.locPosition = gl.getAttribLocation(dset.program, "position")
         gl.vertexAttribPointer(dset.locPosition, 3, gl.FLOAT, false, 0, 0)
         gl.enableVertexAttribArray(dset.locPosition)
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, geometry.offset_buffer)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.Offset_Index_Buffer)
+        dset.locOffset = gl.getAttribLocation(dset.program, "offset")
+        gl.vertexAttribPointer(dset.locOffset, 3, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(dset.locOffset)
 
         gl.bindBuffer(gl.ARRAY_BUFFER, geometry.uv_buffer)
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
