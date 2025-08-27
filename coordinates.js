@@ -4815,10 +4815,37 @@ const BasicShader = async (renderer, options=[]) => {
 
 const ProcessShapeArray = shape => {
   var data = shape.shapeData
-  var nAr = Array(data.length).fill().map(v=>structuredClone(window.Coord_shpArray_memo))
   var tx, ty, tz, x, y, z, p, d
+  
+  const SyncShapeData = shpIdx => {
+    data[shpIdx].mx = data[shpIdx].x
+    data[shpIdx].my = data[shpIdx].y
+    data[shpIdx].mz = data[shpIdx].z
+    data[shpIdx].wx = data[shpIdx].x + data[shpIdx].ox + data[shpIdx].offsetx
+    data[shpIdx].wy = data[shpIdx].y + data[shpIdx].oy + data[shpIdx].offsety 
+    data[shpIdx].wz = data[shpIdx].z + data[shpIdx].oz + data[shpIdx].offsetz
+    data[shpIdx].mroll  = data[shpIdx].roll
+    data[shpIdx].mpitch = data[shpIdx].pitch
+    data[shpIdx].myaw   = data[shpIdx].yaw
+  }
   for(var i = 0; i < shape.vertices.length; i += shape.stride){
     var shpIdx = i/shape.stride
+    if(data[shpIdx].moffsetx != data[shpIdx].offsetx ||
+       data[shpIdx].moffsety != data[shpIdx].offsety ||
+       data[shpIdx].moffsetz != data[shpIdx].offsetz){
+      tx = data[shpIdx].offsetx
+      ty = data[shpIdx].offsety
+      tz = data[shpIdx].offsetz
+      for(var k = 0; k < shape.stride; k+=3){
+        shape.offsets[i + k + 0] = tx
+        shape.offsets[i + k + 1] = ty
+        shape.offsets[i + k + 2] = tz
+      }
+      data[shpIdx].moffsetx = data[shpIdx].offsetx
+      data[shpIdx].moffsety = data[shpIdx].offsety
+      data[shpIdx].moffsetz = data[shpIdx].offsetz
+      SyncShapeData(shpIdx)
+    }
     if(data[shpIdx].mx != data[shpIdx].x ||
        data[shpIdx].my != data[shpIdx].y ||
        data[shpIdx].mz != data[shpIdx].z ||
@@ -4878,15 +4905,7 @@ const ProcessShapeArray = shape => {
           }
         }
       }
-      data[shpIdx].mx = data[shpIdx].x
-      data[shpIdx].my = data[shpIdx].y
-      data[shpIdx].mz = data[shpIdx].z
-      data[shpIdx].wx = data[shpIdx].x + data[shpIdx].ox
-      data[shpIdx].wy = data[shpIdx].y + data[shpIdx].oy 
-      data[shpIdx].wz = data[shpIdx].z + data[shpIdx].oz
-      data[shpIdx].mroll  = data[shpIdx].roll
-      data[shpIdx].mpitch = data[shpIdx].pitch
-      data[shpIdx].myaw   = data[shpIdx].yaw
+      SyncShapeData(shpIdx)
     }
   }
 }
@@ -4920,6 +4939,8 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
       roll: 0, pitch: 0, yaw: 0,
       mx: tx, my: ty, mz: tz,
       mroll: 0, mpitch: 0, myaw: 0,
+      moffsetx: 0, moffsety: 0, moffsetz: 0,
+      offsetx: 0, offsety: 0, offsetz: 0,
     })
   })
   if(typeof options?.shapeData != 'undefined') {
@@ -6743,8 +6764,8 @@ const LoadFPSControls = async (renderer, options) => {
     var pvy = 0
     var pvz = 0
     var accel = 1
-    var rdrag = 1.66
-    var pdrag = 1.2
+    renderer.rdrag = 1.66
+    renderer.pdrag = 1.2
     var mbutton = false
     renderer.keys = Array(256).fill().map((v, i) => false)
     renderer.keyTimers = Array(256).fill(0)
@@ -6795,16 +6816,16 @@ const LoadFPSControls = async (renderer, options) => {
       renderer.yaw += rvx
       renderer.pitch += rvy
       renderer.pitch = Math.min(Math.PI/2, Math.max(-Math.PI/2, renderer.pitch))
-      rvx /= rdrag
-      rvy /= rdrag
+      rvx /= renderer.rdrag
+      rvy /= renderer.rdrag
       
       renderer.x += pvx
       renderer.y += pvy
       renderer.z += pvz
       if(document.activeElement.nodeName == 'CANVAS' && (renderer.hasTraction || renderer.flyMode)){
-        pvx /= pdrag
-        pvy /= pdrag
-        pvz /= pdrag
+        pvx /= renderer.pdrag
+        pvy /= renderer.pdrag
+        pvz /= renderer.pdrag
       }
 
       if(renderer.flyMode && document.activeElement.nodeName == 'CANVAS'){
