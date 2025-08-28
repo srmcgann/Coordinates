@@ -435,6 +435,21 @@ const Renderer = async options => {
                 tgvi = geometry.vIndices
               }
               
+              var toffsets = []
+              for(var i = 0; i < geometry.vertices.length; i+=3){
+                toffsets.push(geometry.offsets[i+0],
+                              geometry.offsets[i+1],
+                              geometry.offsets[i+2])
+                toffsets.push(geometry.offsets[i+0],
+                              geometry.offsets[i+1],
+                              geometry.offsets[i+2])
+                toffsets.push(geometry.offsets[i+0],
+                              geometry.offsets[i+1],
+                              geometry.offsets[i+2])
+              }
+              toffsets = new Float32Array(toffsets)
+              var toIndices = new Uint32Array( Array(toffsets.length/3).fill().map((v,i)=>i) )
+              
               ctx.bindBuffer(ctx.ARRAY_BUFFER, tgvb)
               ctx.bufferData(ctx.ARRAY_BUFFER, tvertices, ctx.STATIC_DRAW)
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, tvib)
@@ -445,14 +460,15 @@ const Renderer = async options => {
               ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
               ctx.enableVertexAttribArray(dset.locPosition)
 
-              // offsets
-              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.offset_buffer)
-              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.offsets, ctx.STATIC_DRAW)
-              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Offset_Index_Buffer)
-              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.oIndices, ctx.STATIC_DRAW)
-              dset.locOffset = ctx.getAttribLocation(dset.program, "offset")
-              ctx.vertexAttribPointer(dset.locOffset, 3, ctx.FLOAT, false, 0, 0)
-              ctx.enableVertexAttribArray(dset.locOffset)
+              if(!geometry.isLine){  // to be removed in order to enable line offsets
+                ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.offset_buffer)
+                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.toffsets, ctx.STATIC_DRAW)
+                ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Offset_Index_Buffer)
+                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.toIndices, ctx.STATIC_DRAW)
+                dset.locOffset = ctx.getAttribLocation(dset.program, "offset")
+                ctx.vertexAttribPointer(dset.locOffset, 3, ctx.FLOAT, false, 0, 0)
+                ctx.enableVertexAttribArray(dset.locOffset)
+              }
 
               if(geometry.isLine){  // draw lines or particles
                 ctx.drawElements(ctx.TRIANGLES, tvertices.length/3|0, ctx.UNSIGNED_INT,0)
