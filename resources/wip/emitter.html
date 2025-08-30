@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var rendererOptions = {
+        ambientLight: .5,
+        fov: 1e3, margin: 0,
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/ultracloudsbase.jpg'
+      
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .25
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          value: .2,
+          theta: Math.PI,
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: 1.25}},
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+      ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+      var shapes = []
+      var geoOptions = {
+        name: 'dish',
+        shapeType: 'obj',
+        url: 'https://srmcgann.github.io/objs/dish/dish.obj?2',
+        map: 'https://srmcgann.github.io/objs/dish/dish.png',
+        scaleX: 50,
+        scaleY: 50,
+        scaleZ: 50,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })  
+      var geoOptions = {
+        shapeType: 'obj',
+        name: 'emitter',
+        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7N',
+        scaleX: 25,
+        scaleY: 25,
+        scaleZ: 25,
+        rotationMode: 2,
+        pitch: Math.PI/2,
+        averageNormals: true,
+        color: 0x888888,
+        colorMix: .1,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        
+        await shader.ConnectGeometry(geometry)
+      })  
+      var geoOptions = {
+        subs: 2,
+        shapeType: 'cube',
+        equirectangular: true,
+        averageNormals: true,
+        sphereize: 1,
+        name: 'floor',
+        scaleY: .1,
+        y: -3.75*2,
+        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+        size: 80,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })  
+      
+      var x, y, z, vx, vy, vz, q, p, d
+      var cl = 50
+      var rw = 50
+      var br = 1
+      var sp = 1.75 / 2
+      var iPc = rw*cl*br
+      var iPv = .1
+      var particleData = Array(iPc).fill().map((v, i) => {
+        x = ((i%cl)-cl/2+.5)*sp
+        y = (((i/cl|0)%rw)-rw/2+.5)*sp / (16/9)
+        z = ((i/cl/rw|0)-br/2+.5)*sp
+        vx = 0
+        vy = 0
+        vz = 0
+        return {x, y, z, vx, vy, vz, life: 1}
+      })
+      var oPart = structuredClone(particleData)
+      var geometryData = Array(iPc).fill().map((v,i)=>[
+        particleData[i].x,
+        particleData[i].y,
+        particleData[i].z,
+      ])
+      var geoOptions = {
+        shapeType: 'particles',
+        name: 'particles',
+        rotationMode: 2,
+        geometryData,
+        size: 1.5,
+        penumbra: .4,
+        color: 0xff0000,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+      })  
+
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        subs: 2,
+        map: refTexture,
+        name: 'background',
+        size: 1e4,
+        colorMix: 0,
+      }
+      if(0)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await backgroundShader.ConnectGeometry(geometry)
+      })  
+
+
+      if(1) {
+        renderer.z = 150
+        renderer.y = -60
+        renderer.pitch = .1
+        Coordinates.LoadFPSControls(renderer, {
+          flyMode: true,
+          mSpeed: 2,
+          crosshairSel: 2,
+          crosshairSize: .5,
+        })
+      }
+      window.Draw = () => {
+        var t = renderer.t
+        //renderer.z = 100
+        //renderer.y = -20
+        //renderer.yaw = t / 8
+        //renderer.pitch = -.25
+        var n = 0
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'background':
+              renderer.Draw(shape)
+            break
+            case 'particles':
+              var p = Math.min(Math.PI*2.5, Math.max(0, (.3-C(t/2*n))*8))
+              var ls = -69.75
+              shape.yaw = p
+              shape.x = S(p) * ls
+              shape.y = 90
+              shape.z = C(p) * ls
+              shape.pitch = -.8 + .02
+              if(!((t*60|0)%240)){
+                particleData.map((v, i) => {
+                  /*
+                  v.x = oPart[i].x
+                  v.y = oPart[i].y
+                  v.z = oPart[i].z + ls
+                  v.vx = oPart[i].vx
+                  v.vy = oPart[i].vy
+                  v.vz = oPart[i].vz
+                  p = Math.atan2(v.y, v.z) //+ p1
+                  d = Math.hypot(v.y, v.z)
+                  v.y = S(p) * d
+                  v.z = C(p) * d
+                  p = Math.atan2(0, 1) + (-.8 + .02)
+                  d = iPv 
+                  v.vx = 0
+                  v.vy = S(p) * d
+                  v.vz = C(p) * d
+                  */
+                })
+              }
+              //for(var i = 0; i < shape.vertices.length; i+=3){
+              //  var j = i/3
+              //  shape.vertices[i+0] = particleData[j].x += particleData[j].vx
+              //  shape.vertices[i+1] = particleData[j].y += particleData[j].vy
+              //  shape.vertices[i+2] = particleData[j].z += particleData[j].vz
+              //}
+              renderer.Draw(shape)
+            break
+            case 'emitter':
+              Math.pitch = Math.PI/2
+              var ls = -70
+              var p = Math.min(Math.PI*2.5, Math.max(0, (.3-C(t/2*n))*8))
+              shape.yaw = p
+              shape.x = S(p) * ls
+              shape.y = 90
+              shape.z = C(p) * ls
+              shape.pitch = .8
+              renderer.Draw(shape)
+            break
+            default:
+              shape.yaw = Math.min(Math.PI*2.5, Math.max(0, (.3-C(t/2*n))*8))
+              renderer.Draw(shape)
+            break
+          }
+        })
+      }
+      
+    </script>
+  </body>
+</html>
