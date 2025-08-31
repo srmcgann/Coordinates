@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+f<!DOCTYPE html>
 <html>
   <head>
     <title>Coordinates boilerplate example</title>
@@ -12,475 +12,510 @@
     </style>
   </head>
   <body>
-    <script type="module">
-    
-      import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
-    
-      var rendererOptions = {
-        ambientLight: .5,
-        fov: 1e3, margin: 0,
-      }
-      var renderer = await Coordinates.Renderer(rendererOptions)
-      
-      var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/skymaze.jpg'
-      
-      var S = Math.sin
-      var C = Math.cos
-      var Rn = Math.random
-      
-      Coordinates.AnimationLoop(renderer, 'Draw')
+<script type="module">
 
-      var shaderOptions = [
-        { uniform: {
-          type: 'phong',
-          value: .25
-        } },
-        { uniform: {
-          type: 'reflection',
-          map: refTexture,
-          enabled: true,
-          value: .1,
-          theta: Math.PI,
-        } }
-      ]
-      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
 
-      var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: .2}},
-        { uniform: {
-          type: 'phong',
-          value: 0
-        } },
-      ]
-      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+  var rendererOptions = {
+    ambientLight: .5,
+    fov: 1e3, margin: 0,
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
 
-      var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: 1}},
-        { uniform: {
-          type: 'phong',
-          value: .5
-        } },
-      ]
-      var nullShader = await Coordinates.BasicShader(renderer, shaderOptions)
+  var shaderOptions = [
+    { uniform: {
+      type: 'phong',
+      value: .25
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      enabled: true,
+      value: .2,
+      theta: Math.PI,
+    } }
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+  var shaderOptions = [
+    { lighting: {type: 'ambientLight', value: .1}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } },
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-      var shapes = []
-      var baseDish
-      var geoOptions = {
-        name: 'dish',
-        shapeType: 'obj',
-        url: 'https://srmcgann.github.io/objs/dish/dish.obj?2',
-        map: 'https://srmcgann.github.io/objs/dish/dish.png',
-        scaleX: 50,
-        scaleY: 50,
-        scaleZ: 50,
-        colorMix: 0,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })  
-      var geoOptions = {
-        shapeType: 'obj',
-        name: 'emitter',
-        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7N',
-        scaleX: 75 / (16/9),
-        scaleY: 15,
-        scaleZ: 75,
-        rotationMode: 2,
-        pitch: Math.PI/2,
-        //averageNormals: true,
-        color: 0x882222,
-        colorMix: .5,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        baseDish = geometry.vertices
-        await nullShader.ConnectGeometry(geometry)
-      })  
-      var geoOptions = {
-        subs: 2,
-        shapeType: 'cube',
-        equirectangular: 0,
-        sphereize: .25,
-        averageNormals: false,
-        sphereize: 0,
-        name: 'floor',
-        scaleX: 2,
-        scaleY: .1,
-        scaleZ: 2,
-        y: -3.5,
-        z: 32,
-        //map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
-        color: 0x222288,
-        size: 60,
-        colorMix: .5,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await nullShader.ConnectGeometry(geometry)
-      })  
-      
-      var x, y, z, vx, vy, vz, q, p, d
-      var cl = 25
-      var rw = 25
-      var br = 1
-      var sp = 3
-      var iPc = rw*cl*br
-      var iPv = 1.5
-      var particleData = Array(iPc).fill().map((v, i) => {
-        x = ((i%cl)-cl/2+.5)*sp
-        y = (((i/cl|0)%rw)-rw/2+.5)*sp // (16/9)
-        z = ((i/cl/rw|0)-br/2+.5)*sp
-        vx = 0
-        vy = 0
-        vz = 0
-        return {x, y, z, vx, vy, vz, life: 0, prime: false}
-      })
-      var oPart = structuredClone(particleData)
-      var geometryData = Array(iPc).fill().map((v,i)=>[
-        particleData[i].x,
-        particleData[i].y,
-        particleData[i].z,
-      ])
-      for(var i = 8; i--;){
-        for(var j = 0; j<iPc; j++){
-          particleData.push({x:1e5, y:0, z:0, vx:0, vy:0, vz:0, life:0, prime: false})
-          geometryData.push([1e5, 0, 0])
-        }
-      }
-      var geoOptions = {
-        shapeType: 'particles',
-        name: 'particles',
-        rotationMode: 2,
-        geometryData,
-        size: 3,
-        alpha: .33,
-        penumbra: 0,
-        color: 0x00ff88,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-      })  
-
-      var iSparkc = 3e3
-      var sparkShape
-      var geoOptions = {
-        shapeType: 'particles',
-        name: 'sparks',
-        rotationMode: 2,
-        geometryData: Array(iSparkc).fill().map(v=>[1e5,0,0]),
-        size: 3,
-        alpha: .5,
-        penumbra: .2,
-        color: 0xff8800,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        sparkShape = geometry
-      })  
-
-      var geoOptions = {
-        shapeType: 'icosahedron',
-        subs: 2,
-        map: refTexture,
-        name: 'background',
-        size: 1e4,
-        colorMix: 0,
-      }
-      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await backgroundShader.ConnectGeometry(geometry)
-      })  
-
-      geometryData = []
-      var rad = 32
-      var scl = 16
-      var srw = 12
-      var sphereCenterX
-      var sphereCenterY
-      var sphereCenterZ
-      for(var i = scl*(srw-1); i--;){
-        x = S(p=Math.PI*2/scl*i) * S(q=Math.PI/srw*((i/scl|0)%srw)) * rad
-        y = C(q) * rad + 45
-        z = C(p) * S(q) * rad - 20
-        geometryData.push([x,y,z])
-        x = S(p=Math.PI*2/scl*(i+1)) * S(q=Math.PI/srw*((i/scl|0)%srw)) * rad
-        y = C(q) * rad + 45
-        z = C(p) * S(q) * rad - 20
-        geometryData.push([x,y,z])
-        x = S(p=Math.PI*2/scl*i) * S(q=Math.PI/srw*((i/scl|0)%srw)) * rad
-        y = C(q) * rad + 45
-        z = C(p) * S(q) * rad - 20
-        geometryData.push([x,y,z])
-        x = S(p=Math.PI*2/scl*i) * S(q=Math.PI/srw*((1+(i/scl|0))%srw)) * rad
-        y = C(q) * rad + 45
-        z = C(p) * S(q) * rad - 20
-        geometryData.push([x,y,z])
-      }
-      var geoOptions = {
-        shapeType: 'lines',
-        name: 'wire sphere',
-        geometryData,
-        size: 6,
-        alpha: .4,
-        penumbra: 0,
-        color: 0x4400ff,
-      }
-      sphereCenterX = sphereCenterY = sphereCenterZ = 0
-      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        for(var i = (scl*2+srw*1)*12; i < geometry.vertices.length; i+=3){
-          sphereCenterX += geometry.vertices[i+0]
-          sphereCenterY += geometry.vertices[i+1]
-          sphereCenterZ += geometry.vertices[i+2]
-        }
-        sphereCenterX /= geometry.vertices.length/3
-        sphereCenterY /= geometry.vertices.length/3
-        sphereCenterZ /= geometry.vertices.length/3
-        shapes.push(geometry)
-      })
-      console.log(sphereCenterX,sphereCenterY,sphereCenterZ)
-      var geoOptions = {
-        shapeType: 'sprite',
-        name: 'sphere center marker',
-        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
-        size: 10,
-      }
-      if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-      })  
+  var shaderOptions = [
+    { lighting: {type: 'ambientLight', value: 1}},
+    { uniform: {
+      type: 'phong',
+      value: .5
+    } },
+  ]
+  var nullShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
 
-      if(0) {
-        renderer.z = 150
-        renderer.y = -60
-        renderer.pitch = .1
-        Coordinates.LoadFPSControls(renderer, {
-          flyMode: true,
-          mSpeed: 5,
-          crosshairSel: 2,
-          crosshairSize: .5,
-        })
-      }
-      
-      var sparks = []
-      const spawnSparks = (x, y, z) => {
-        var ret = {
-          size: 1,
-          positions: [],
-        }
-        var iSparkv = .08
-        for(var m = 2; m--;){
-          var vx = S(p=Math.PI*2*Rn()) * S(q=Rn()<1?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * iSparkv
-          var vy = C(q) * iSparkv
-          var vz = C(p) * S(q) * iSparkv
-          ret.positions.push([x, y, z, vx, vy, vz])
-        }
-        sparks.push(ret)
-      }
-      
-      var a, ax, ay, az, nx, ny, nz, rx, ry, rz, cx, cy, cz
-      var active = true
-      window.Draw = () => {
-        var t = renderer.t
-        renderer.z = Math.min(200, Math.max(100, (.3+C(t/2))*300))
-        renderer.y = -20
-        renderer.yaw = t / 8
-        renderer.pitch = -.25
-        var n = 0 //t/2
-        shapes.forEach(shape => {
-          var p1 = Math.min(Math.PI*2.5, Math.max(0, (.3-C(n))*8))  //+ Math.PI/2
-          switch(shape.name){
-            case 'background':
-              renderer.Draw(shape)
-            break
-            case 'particles':
-              if(((t*60|0)%120)<6){
-                var ct = 0
-                var ls = -69.75
-                particleData.map((v, i) => {
-                  if(v.life <= 0 && ct < iPc){
-                    v.prime = false
-                    v.x = oPart[ct].x
-                    v.y = oPart[ct].y
-                    v.z = oPart[ct].z
-                    p = Math.atan2(v.y, v.z) - .78
-                    d = Math.hypot(v.y, v.z)
-                    v.y = S(p) * d + 93.5
-                    v.z = C(p) * d + ls
-                    p = Math.atan2(v.x, v.z) + p1
-                    d = Math.hypot(v.x, v.z)
-                    v.x = S(p) * d
-                    v.z = C(p) * d
-                    vx = 0
-                    vy = 0
-                    vz = iPv
-                    p = -.78
-                    d = iPv
-                    vx = 0
-                    vy = 0
-                    vz = iPv
-                    p = Math.atan2(vy, vz) - .78
-                    d = Math.hypot(vy, vz)
-                    vy = S(p) * d
-                    vz = C(p) * d
-                    p = Math.atan2(vx, vz) + p1
-                    d = Math.hypot(vx, vz)
-                    vx = S(p) * d
-                    vz = C(p) * d
-                    v.vx = vx
-                    v.vy = vy
-                    v.vz = vz
-                    v.life = 1
-                    ct++
-                  }
-                })
+  var shapes = []
+  var baseDish
+  var geoOptions = {
+    name: 'dish',
+    shapeType: 'obj',
+    url: 'https://srmcgann.github.io/objs/dish/dish.obj?2',
+    map: 'https://srmcgann.github.io/objs/dish/dish.png',
+    scaleX: 50,
+    scaleY: 50,
+    scaleZ: 50,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+  var geoOptions = {
+    shapeType: 'obj',
+    name: 'emitter',
+    url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7N',
+    scaleX: 75 / (16/9),
+    scaleY: 15,
+    scaleZ: 75,
+    rotationMode: 2,
+    pitch: Math.PI/2,
+    //averageNormals: true,
+    color: 0x222222,
+    colorMix: .5,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    baseDish = geometry.vertices
+    await nullShader.ConnectGeometry(geometry)
+  })
+
+  var geoOptions = {
+    subs: 2,
+    shapeType: 'cube',
+    equirectangular: false,
+    sphereize: .5,
+    averageNormals: false,
+    name: 'floor',
+    scaleX: 2,
+    scaleY: .1,
+    scaleZ: 2,
+    scaleUVX: 2,
+    scaleUVY: 2,
+    y: -4,
+    z: 0,
+    //map: 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.jpg',
+    color: 0x111111,
+    size: 60,
+    colorMix: .5,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await nullShader.ConnectGeometry(geometry)
+  })  
+  
+  var geoOptions = {
+    subs: 3,
+    shapeType: 'cube',
+    equirectangular: 0,
+    sphereize: .5,
+    averageNormals: false,
+    name: 'floor2',
+    scaleX: 2.5,
+    scaleY: .15,
+    scaleZ: 2.5,
+    y: -16,
+    z: 0,
+    //map: 'https://srmcgann.github.io/Coordinates/custom shapes/LADYBUG.jpg',
+    color: 0x4400ff,
+    size: 60,
+    colorMix: .2,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await nullShader.ConnectGeometry(geometry)
+  })  
+  
+  var x, y, z, vx, vy, vz, q, p, d
+  var cl = 32
+  var rw = 32
+  var br = 1
+  var sp = 1.5  / 32 * 50
+  var iPc = rw*cl*br
+  var iPv = 1
+  var particleData = Array(iPc).fill().map((v, i) => {
+    x = ((i%cl)-cl/2+.5)*sp
+    y = (((i/cl|0)%rw)-rw/2+.5)*sp // (16/9)
+    z = ((i/cl/rw|0)-br/2+.5)*sp
+    vx = 0
+    vy = 0
+    vz = 0
+    return {x, y, z, vx, vy, vz, life: 0, prime: false}
+  })
+  var oPart = structuredClone(particleData)
+  var geometryData = Array(iPc).fill().map((v,i)=>[
+    particleData[i].x,
+    particleData[i].y,
+    particleData[i].z,
+  ])
+  for(var i = 12; i--;){
+    for(var j = 0; j<iPc; j++){
+      particleData.push({x:1e5, y:0, z:0, vx:0, vy:0, vz:0, life:0, prime: false})
+      geometryData.push([1e5, 0, 0])
+    }
+  }
+  var geoOptions = {
+    shapeType: 'particles',
+    name: 'particles',
+    rotationMode: 2,
+    geometryData,
+    size: 1.25,
+    alpha: .5,
+    penumbra: .25,
+    color: 0x22ff44,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+  })  
+
+  var iSparkc = 5e3
+  var sparkShape
+  var geoOptions = {
+    shapeType: 'particles',
+    name: 'sparks',
+    rotationMode: 2,
+    geometryData: Array(iSparkc).fill().map(v=>[1e5,0,0]),
+    size: 1,
+    alpha: .75,
+    penumbra: .4,
+    color: 0xff8800,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    sparkShape = geometry
+  })  
+
+  var geoOptions = {
+    shapeType: 'icosahedron',
+    subs: 2,
+    map: refTexture,
+    name: 'background',
+    size: 1e4,
+    colorMix: 0,
+  }
+  if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+
+  geometryData = []
+  var rad = 32
+  var scl = 17
+  var srw = 13
+  var sphereCenterX
+  var sphereCenterY
+  var sphereCenterZ
+  for(var i = scl*(srw-0); i--;){
+    x = S(p=Math.PI*2/scl*i) * S(q=Math.PI/srw*((i/scl|0)%srw)) * rad
+    y = C(q) * rad + 45
+    z = C(p) * S(q) * rad - 20
+    geometryData.push([x,y,z])
+    x = S(p=Math.PI*2/scl*(i+1)) * S(q=Math.PI/srw*((i/scl|0)%srw)) * rad
+    y = C(q) * rad + 45
+    z = C(p) * S(q) * rad - 20
+    geometryData.push([x,y,z])
+    x = S(p=Math.PI*2/scl*i) * S(q=Math.PI/srw*((i/scl|0)%srw)) * rad
+    y = C(q) * rad + 45
+    z = C(p) * S(q) * rad - 20
+    geometryData.push([x,y,z])
+    x = S(p=Math.PI*2/scl*i) * S(q=Math.PI/srw*((.95+(i/scl|0))%srw)) * rad
+    y = C(q) * rad + 45
+    z = C(p) * S(q) * rad - 20
+    geometryData.push([x,y,z])
+  }
+  var geoOptions = {
+    shapeType: 'lines',
+    name: 'wire sphere',
+    geometryData,
+    size: 4,
+    alpha: .3,
+    penumbra: .5,
+    color: 0x4400ff,
+  }
+  sphereCenterX = sphereCenterY = sphereCenterZ = 0
+  if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    for(var i = (scl*2+srw*1)*12; i < geometry.vertices.length; i+=3){
+      sphereCenterX += geometry.vertices[i+0]
+      sphereCenterY += geometry.vertices[i+1]
+      sphereCenterZ += geometry.vertices[i+2]
+    }
+    sphereCenterX /= geometry.vertices.length/3
+    sphereCenterY /= geometry.vertices.length/3
+    sphereCenterZ /= geometry.vertices.length/3
+    shapes.push(geometry)
+  })
+  console.log(sphereCenterX,sphereCenterY,sphereCenterZ)
+  var geoOptions = {
+    shapeType: 'sprite',
+    name: 'sphere center marker',
+    map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+    size: 16,
+  }
+  if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+  })  
+
+
+  if(0) {
+    renderer.z = 150
+    renderer.y = -60
+    renderer.pitch = .1
+    Coordinates.LoadFPSControls(renderer, {
+      flyMode: true,
+      mSpeed: 5,
+      crosshairSel: 2,
+      crosshairSize: .5,
+    })
+  }
+  
+  var sparks = []
+  const spawnSparks = (x, y, z) => {
+    var ret = {
+      size: 1,
+      positions: [],
+    }
+    var iSparkv = .05
+    for(var m = 1; m--;){
+      var vx = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * iSparkv
+      var vy = C(q) * iSparkv + iSparkv
+      var vz = C(p) * S(q) * iSparkv
+      ret.positions.push([x, y, z, vx, vy, vz])
+    }
+    sparks.push(ret)
+  }
+  
+  var a, ax, ay, az, nx, ny, nz, rx, ry, rz, cx, cy, cz
+  var active = true
+  window.Draw = () => {
+    var t = renderer.t
+    renderer.z = Math.min(200, Math.max(100, (.3+C(t/1.5))*200))
+    renderer.y = -20
+    renderer.yaw = t / 8 - Math.PI * 1.25
+    renderer.pitch = Math.min(-.1, Math.max(-Math.PI/4, (-.3+C(t))*Math.PI/2))
+    var n = t/3
+    shapes.forEach(shape => {
+      var p1 = Math.min(Math.PI*1.5, Math.max(0, (.3+C(n))*8))  + Math.PI
+      switch(shape.name){
+        case 'background':
+          renderer.Draw(shape)
+        break
+        case 'particles':
+          if(((t*60|0)%60)<3){
+            var ct = 0
+            var ls = -69.75
+            particleData.map((v, i) => {
+              if(v.life <= 0 && ct < iPc){
+                v.prime = false
+                v.x = oPart[ct].x
+                v.y = oPart[ct].y
+                v.z = oPart[ct].z
+                p = Math.atan2(v.y, v.z) - .78
+                d = Math.hypot(v.y, v.z)
+                v.y = S(p) * d + 93.5
+                v.z = C(p) * d + ls
+                p = Math.atan2(v.x, v.z) + p1
+                d = Math.hypot(v.x, v.z)
+                v.x = S(p) * d
+                v.z = C(p) * d
+                vx = 0
+                vy = 0
+                vz = iPv
+                p = -.78
+                d = iPv
+                vx = 0
+                vy = 0
+                vz = iPv
+                p = Math.atan2(vy, vz) - .78
+                d = Math.hypot(vy, vz)
+                vy = S(p) * d
+                vz = C(p) * d
+                p = Math.atan2(vx, vz) + p1
+                d = Math.hypot(vx, vz)
+                vx = S(p) * d
+                vz = C(p) * d
+                v.vx = vx
+                v.vy = vy
+                v.vz = vz
+                v.life = 1
+                ct++
               }
-              
-              x = 0
-              y = 93.5/2.1
-              z = -70/3.5
-              p = Math.atan2(x, z) + p1
-              d = Math.hypot(x, z)
-              cx = S(p) * d
-              cy = y
-              cz = C(p) * d
-              
-              particleData.map((v, i) => {
-                if(v.life <= 0){
-                  v.x = 1e5, v.y = 0, v.z = 0
-                  v.vx = v.vy = v.vz = 0
-                  v.life = 0, v.prime = false
-                }
-                if(v.life>0){
-                  
-                  if(v.y+v.vy < 0) {
-                    if(Rn() < .1) spawnSparks(v.x, v.y, v.z)
-                    v.x = 1e5, v.y = 0, v.z = 0
-                    v.vx = v.vy = v.vz = 0
-                    v.life = 0, v.prime = false
-                  }else{
-                  
-                    nx = v.x
-                    ny = v.y
-                    nz = v.z
-                    p = Math.atan2(nx, nz) + p1
-                    d = Math.hypot(nx, nz)
-                    nx = S(p)*d
-                    nz = C(p)*d
-                    d = Math.hypot(nx=v.x-cx, ny=v.y-cy, nz=v.z-cz)
-                    p = Math.atan2(ny, nz) + Math.PI/2 + Math.PI/4
-                    d = Math.hypot(ny, nz)
-                    rx = nx
-                    ry = S(p) * d
-                    rz = C(p) * d
-                    //p=Math.atan2(rx, rz)
-                    //d=Math.hypot(rx, rz)
-                    //rx = S(p) * d
-                    //rz = C(p) * d
-                    q = Math.acos(ry/Math.hypot(rx, ry, rz))
-                    d = Math.hypot(nx, ny, nz)
-                    if(q < Math.PI/4 && Math.abs(d-rad) < iPv){
-                      d = -Math.hypot(nx, ny, nz)
-                      nx /= d
-                      ny /= d
-                      nz /= d
-                      p = Math.atan2(nx, nz) + p1
-                      d = Math.hypot(nx, nz)
-                      v.vx = S(p) * d * iPv
-                      v.vy = ny * iPv
-                      v.vz = C(p) * d * iPv
-                      if(Rn() < .1) spawnSparks(v.x, v.y, v.z)
-                    }
-                    v.x += v.vx
-                    v.y += v.vy
-                    v.z += v.vz
-                    v.life -= .0025
-                    
-                    if(0) for(var j = 0; j < baseDish.length; j+=9){
-                      ax = ay = az = 0
-                      a = []
-                      for(var m=3; m--;){
-                        x = baseDish[j+0+m*3]
-                        y = baseDish[j+1+m*3]
-                        z = baseDish[j+2+m*3]
-                        a.push([x, y, z])
-                        ax += x
-                        ay += y
-                        az += z
-                      }
-                      ax /= 3
-                      ay /= 3
-                      az /= 3
-                      if((d = Math.hypot(v.x - ax, v.y - ay, v.z - az)) < 1){
-                        
-                      }
-                    }
-                  }
-                }
-              })
-              var nav = particleData.length
-              for(var i = 0; i < shape.vertices.length; i+=3){
-                var j = i/3
-                shape.vertices[i+0] = particleData[j].x
-                shape.vertices[i+1] = particleData[j].y
-                shape.vertices[i+2] = particleData[j].z
-              }
-              renderer.Draw(shape)
-              
-              sparks = sparks.filter(sparkCluster => sparkCluster.size > 0)
-              var ct = 0
-              for(var i = 0; i < sparkShape.vertices.length; i +=3){
-                sparkShape.vertices[i+0] = 1e5
-                sparkShape.vertices[i+1] = 0
-                sparkShape.vertices[i+2] = 0
-              }
-              sparks.map((sparkCluster, idx) => {
-                sparkCluster.positions.forEach((pos, i) =>{
-                  if(ct<sparkShape.vertices.length-4){
-                    sparkShape.vertices[ct+0] = pos[0] += pos[3]
-                    sparkShape.vertices[ct+1] = pos[1] += pos[4]
-                    sparkShape.vertices[ct+2] = pos[2] += pos[5]
-                  }
-                  ct+=3
-                })
-                //sparkShape.size = 
-                sparkCluster.size -= .01
-              })
-              renderer.Draw(sparkShape)
-            break
-            case 'emitter':
-              var ls = -70
-              shape.yaw = p1
-              shape.x = S(p1) * ls
-              shape.y = 93.5
-              shape.z = C(p1) * ls
-              shape.pitch = .8
-              renderer.Draw(shape)
-            break
-            case 'sphere center marker':
-              x = 0
-              y = 93.5/2.1
-              z = -70/3.5
-              p = Math.atan2(x, z) + p1
-              d = Math.hypot(x, z)
-              shape.x = S(p) * d
-              shape.y = y
-              shape.z = C(p) * d
-              renderer.Draw(shape)
-            break
-            case 'wire sphere':
-              shape.yaw = p1
-              renderer.Draw(shape)
-            break
-            default:
-              shape.yaw = p1
-              renderer.Draw(shape)
-            break
+            })
           }
-        })
+          
+          x = 0
+          y = 93.5/2.1
+          z = -70/3.5
+          p = Math.atan2(x, z) + p1
+          d = Math.hypot(x, z)
+          cx = S(p) * d
+          cy = y
+          cz = C(p) * d
+          
+          particleData.map((v, i) => {
+            if(v.life <= 0){
+              v.x = 1e5, v.y = 0, v.z = 0
+              v.vx = v.vy = v.vz = 0
+              v.life = 0, v.prime = false
+            }
+            if(v.life>0){
+              
+              if(v.y+v.vy < 0) {
+                if(Rn() < .5) spawnSparks(v.x, v.y, v.z)
+                v.x = 1e5, v.y = 0, v.z = 0
+                v.vx = v.vy = v.vz = 0
+                v.life = 0, v.prime = false
+              }else{
+              
+                nx = v.x
+                ny = v.y
+                nz = v.z
+                
+                d = Math.hypot(nx-cx, ny-cy, nz-cz)
+                if(d < rad){
+                  vx = nx - cx
+                  vy = ny - cy
+                  vz = nz - cz
+                  
+                  p = Math.atan2(vx, vz) - p1
+                  d = Math.hypot(vx, vz)
+                  vx = S(p) * d
+                  vz = C(p) * d
+                  
+                  p = Math.atan2(vy, vz) - Math.PI/4// + Math.PI
+                  d = Math.hypot(vy, vz)
+                  vy = S(p) * d
+                  vz = C(p) * d
+                  
+                  d = Math.hypot(vx, vy, vz)
+                  q = Math.acos(-vy/d)
+                  
+                  if(q < Math.PI *.25 && Math.abs(d - rad) < iPv){
+                    vx = nx - cx
+                    vy = ny - cy
+                    vz = nz - cz
+                    d = Math.hypot(vx, vy, vz)
+                    vx /= -d
+                    vy /= -d
+                    vz /= -d
+                    v.vx = vx *= iPv
+                    v.vy = vy *= iPv
+                    v.vz = vz *= iPv
+                    if(Rn() < .5) spawnSparks(v.x, v.y, v.z)
+                  }
+                }
+                
+                v.x += v.vx
+                v.y += v.vy
+                v.z += v.vz
+                v.life -= .0033
+                
+                if(0) for(var j = 0; j < baseDish.length; j+=9){
+                  ax = ay = az = 0
+                  a = []
+                  for(var m=3; m--;){
+                    x = baseDish[j+0+m*3]
+                    y = baseDish[j+1+m*3]
+                    z = baseDish[j+2+m*3]
+                    a.push([x, y, z])
+                    ax += x
+                    ay += y
+                    az += z
+                  }
+                  ax /= 3
+                  ay /= 3
+                  az /= 3
+                  if((d = Math.hypot(v.x - ax, v.y - ay, v.z - az)) < 1){
+                    
+                  }
+                }
+              }
+            }
+          })
+          var nav = particleData.length
+          for(var i = 0; i < shape.vertices.length; i+=3){
+            var j = i/3
+            shape.vertices[i+0] = particleData[j].x
+            shape.vertices[i+1] = particleData[j].y
+            shape.vertices[i+2] = particleData[j].z
+          }
+          renderer.Draw(shape)
+          
+          sparks = sparks.filter(sparkCluster => sparkCluster.size > 0)
+          var ct = 0
+          for(var i = 0; i < sparkShape.vertices.length; i +=3){
+            sparkShape.vertices[i+0] = 1e5
+            sparkShape.vertices[i+1] = 0
+            sparkShape.vertices[i+2] = 0
+          }
+          sparks.map((sparkCluster, idx) => {
+            sparkCluster.positions.forEach((pos, i) =>{
+              if(ct<sparkShape.vertices.length-4){
+                sparkShape.vertices[ct+0] = pos[0] += pos[3]
+                sparkShape.vertices[ct+1] = pos[1] += pos[4]
+                sparkShape.vertices[ct+2] = pos[2] += pos[5]
+              }
+              ct+=3
+            })
+            //sparkShape.size = 
+            sparkCluster.size -= .015
+          })
+          renderer.Draw(sparkShape)
+        break
+        case 'emitter':
+          var ls = -70
+          shape.yaw = p1
+          shape.x = S(p1) * ls
+          shape.y = 93.5
+          shape.z = C(p1) * ls
+          shape.pitch = .8
+          renderer.Draw(shape)
+        break
+        case 'sphere center marker':
+          x = 0
+          y = 93.5/2.1
+          z = -70/3.5
+          p = Math.atan2(x, z) + p1
+          d = Math.hypot(x, z)
+          shape.x = S(p) * d
+          shape.y = y
+          shape.z = C(p) * d
+          renderer.Draw(shape)
+        break
+        case 'wire sphere':
+          shape.yaw = p1
+          renderer.Draw(shape)
+        break
+        case 'floor2':
+          shape.color = Coordinates.HSVToHex(t*100,1,.1)
+          renderer.Draw(shape)
+        break
+        default:
+          shape.yaw = p1
+          renderer.Draw(shape)
+        break
       }
-      
-    </script>
+    })
+  }
+  
+</script>
   </body>
 </html>
