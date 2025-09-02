@@ -1864,9 +1864,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'lines':
         isLine = 1.0
         for(var i = 0; i < geometryData.length; i++){
-          vertices.push(-geometryData[i][0])
-          vertices.push(geometryData[i][1])
-          vertices.push(geometryData[i][2])
+          for(var m = 0; m<geometryData[i].length; m++){
+            vertices.push(geometryData[i][m] * (m%3?1:-1))
+          }
         }
       break
       case 'bspline':
