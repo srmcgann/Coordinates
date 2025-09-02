@@ -391,28 +391,28 @@ const Renderer = async options => {
                     
                     nz = p1[2]
                     nx = p1[0] + S(p) * s / nz
-                    ny = (p1[1] + C(p) * s / nz)
+                    ny = p1[1] + C(p) * s / nz
                     tvertices.push(nx, -ny, nz)
                     nz = p1[2]
                     nx = p1[0] - S(p) * s / nz
-                    ny = (p1[1] - C(p) * s / nz)
+                    ny = p1[1] - C(p) * s / nz
                     tvertices.push(nx, -ny, nz)
                     nz = p2[2]
                     nx = p2[0] - S(p) * s / nz
-                    ny = (p2[1] - C(p) * s / nz)
+                    ny = p2[1] - C(p) * s / nz
                     tvertices.push(nx, -ny, nz)
                     
                     nz = p2[2]
                     nx = p2[0] - S(p) * s / nz
-                    ny = (p2[1] - C(p) * s / nz)
+                    ny = p2[1] - C(p) * s / nz
                     tvertices.push(nx, -ny, nz)
                     nz = p2[2]
                     nx = p2[0] + S(p) * s / nz
-                    ny = (p2[1] + C(p) * s / nz)
+                    ny = p2[1] + C(p) * s / nz
                     tvertices.push(nx, -ny, nz)
                     nz = p1[2]
                     nx = p1[0] + S(p) * s / nz
-                    ny = (p1[1] + C(p) * s / nz)
+                    ny = p1[1] + C(p) * s / nz
                     tvertices.push(nx, -ny, nz)
                   }
                 }
@@ -1863,9 +1863,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'lines':
         isLine = 1.0
-        geometryData.map(v => {
-          vertices.push(...v)
-        })
+        for(var i = 0; i < geometryData.length; i++){
+          vertices.push(-geometryData[i][0])
+          vertices.push(geometryData[i][1])
+          vertices.push(geometryData[i][2])
+        }
       break
       case 'bspline':
         isLine = 1.0
