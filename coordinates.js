@@ -984,7 +984,7 @@ const OBJFinishing = (ret, tx=0, ty=0, tz=0, rl=0, pt=0, yw=0) => {
   }
 }
 
-const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=true, involveCache=true) => {
+const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=false, involveCache=true) => {
   var ret = { vertices: [], normals: [], uvs: []}
   
   var a, X, Y, Z
@@ -1865,6 +1865,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         isLine = 1.0
         for(var i = 0; i < geometryData.length; i++){
           for(var m = 0; m<geometryData[i].length; m++){
+            //vertices.push(geometryData[i][m] * (m%3?1:-1))
             vertices.push(geometryData[i][m] * (m%3?1:-1))
           }
         }
@@ -1915,9 +1916,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
       case 'particles':
         isParticle = 1.0
-        geometryData.map(v => {
-          vertices.push(...v)
-        })
+        for(var i = 0; i < geometryData.length; i++){
+          for(var m = 0; m<geometryData[i].length; m++){
+            //vertices.push(geometryData[i][m] * (m%3?1:-1))
+            vertices.push(geometryData[i][m] * (m%3?1:1))
+          }
+        }
       break
       case 'point light':
         isLight = true
@@ -1947,7 +1951,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
           uvs         = ret.uvs
           resolved    = true
         }else{
-          shape = await LoadOBJ(url, size, 0,0,0,0,0,0, true, true)
+          shape = await LoadOBJ(url, size, 0,0,0,0,0,0, false, true)
           vertices = shape.vertices
           normals  = shape.normals
           uvs      = shape.uvs
@@ -2854,13 +2858,13 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   vy *= -1
   
   ar = R_ryp(vx, vy, vz, {
-    roll:  -geometry.roll + .0001,
-    pitch: geometry.pitch,
-    yaw:   -geometry.yaw,
+    roll:  -geometry.roll * (geometry.isParticle ? -1: 1) + .0001,
+    pitch: geometry.pitch * (geometry.isParticle ? 1: 1),
+    yaw:   -geometry.yaw * (geometry.isParticle ? -1: 1),
   }, false)
   vx = ar[0]
   vy = ar[1]
-  vz = -ar[2]
+  vz = -ar[2]  * (geometry.isParticle ? -1: 1)
 
   if(geometry.isLight){
     ar = R_rpy(vx, vy, vz, {
@@ -2879,7 +2883,7 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
 
   vx += -geometry.x
   vy += geometry.y
-  vz += -geometry.z
+  vz += -geometry.z * (geometry.isParticle ? -1: 1)
   var posx, posy, posz
   if(renderer.cameraMode.toLowerCase() == 'fps'){
     vx += -cpx
@@ -2901,12 +2905,12 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   }else{
     ar = R_ryp(vx, vy, vz, {
       roll: -renderer.roll * (geometry.isParticle ? -1: 1),
-      pitch: renderer.pitch, //* (geometry.isParticle ? -1: 1),
-      yaw: renderer.yaw * (geometry.isParticle ? -1: 1),
+      pitch: renderer.pitch * (geometry.isParticle ? -1: 1),
+      yaw: renderer.yaw * (geometry.isParticle ? 1: 1),
     }, false)
     vx = -ar[0] * (geometry.isParticle ? -1: 1)
-    vy = -ar[1] //* (geometry.isParticle ? -1: 1)
-    vz = -ar[2] //* (geometry.isParticle ? -1: 1)
+    vy = -ar[1] * (geometry.isParticle ? 1: 1)
+    vz = -ar[2] * (geometry.isParticle ? -1: 1)
   }
   
   posx = vx
