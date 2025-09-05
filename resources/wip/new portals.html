@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var rendererOptions = {
+        ambientLight: .75,
+        fov: 900
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      var portalCamera = await Coordinates.Renderer(rendererOptions)
+      
+
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+      
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var x, y, z, p, q, d, roll, pitch, yaw
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .25
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          value: .25,
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: .25}
+        },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+      ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: 1}
+        },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+      ]
+      var portalShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+      var iPc = 2
+      var G = 20
+      var portalData = []
+      var portals = []
+      Array(iPc).fill().map(v => {
+        x = (Rn() - .5) * G
+        y = (Rn() - .5) * G
+        z = (Rn() - .5) * G
+        //roll = Rn() * Math.PI * 2
+        roll = 0
+        pitch = Rn() * Math.PI * 2
+        yaw = Rn() * Math.PI * 2
+        portalData.push({
+          x, y, z, roll, pitch, yaw
+        })
+        portals.push([0,0,0])
+      })
+
+      var shapes = []
+      
+      
+      
+      var geoOptions = {
+        shapeType: 'custom shape',
+        name: 'portal viewport',
+        rotationMode: 1,
+        //map: 'https://srmcgann.github.io/objs/new arrow/new arrow.png',
+        url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_hipoly.json',
+        canvasTexture: portalCamera.c,
+        size: 8,
+        //scaleX: 9/16,
+        subs: 3,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        for(var i = 0; i < geometry.vertices.length; i+=3){
+          x = geometry.vertices[i+0]
+          y = geometry.vertices[i+1]
+          z = geometry.vertices[i+2]
+          p = Math.atan2(y,z) + Math.PI/2
+          d = Math.hypot(y,z)
+          geometry.vertices[i+0] = x
+          geometry.vertices[i+1] = S(p) * d-.25
+          geometry.vertices[i+2] = C(p) * d
+          x = geometry.normalVecs[i+0]
+          y = geometry.normalVecs[i+1]
+          z = geometry.normalVecs[i+2]
+          p = Math.atan2(y,z) + Math.PI/2
+          d = Math.hypot(y,z)
+          geometry.normalVecs[i+0] = x
+          geometry.normalVecs[i+1] = S(p) * d-.25
+          geometry.normalVecs[i+2] = C(p) * d
+        }
+        shapes.push(geometry)
+        await portalShader.ConnectGeometry(geometry)
+      })  
+      
+      
+      var geoOptions = {
+        shapeType: 'obj',
+        name: 'portals',
+        url: 'https://srmcgann.github.io/objs/new arrow/new arrow.obj',
+        map: 'https://srmcgann.github.io/objs/new arrow/new arrow.png',
+        size: 5,
+        //roll: Math.PI/2,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        Coordinates.ShapeFromArray(geometry, portals).then(async res => {
+          shapes.push(res)
+          await shader.ConnectGeometry(res)
+        })
+      })  
+      
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        size: 5e3,
+        subs: 3,
+        sphereize: 1,
+        name: 'background',
+        map: refTexture,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await backgroundShader.ConnectGeometry(geometry)
+      })  
+      
+      Coordinates.LoadFPSControls(renderer, {
+        flyMode: true,
+        mSpeed: 1,
+      })
+      
+      const Render = (shape, pcamx, pcamy, pcamz) => {
+        renderer.Draw(shape)
+        portalCamera.x = renderer.x
+        portalCamera.y = renderer.y
+        portalCamera.z = renderer.z
+        portalCamera.roll = renderer.roll
+        portalCamera.pitch = renderer.pitch
+        portalCamera.yaw = renderer.yaw
+        portalCamera.Draw(shape)
+      }
+      
+      renderer.z = 20
+      
+      window.Draw = () => {
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'portals':
+              shape.shapeData.map((shape, idx) => {
+                shape.x     = portalData[idx].x
+                shape.y     = portalData[idx].y
+                shape.z     = portalData[idx].z
+                shape.roll  = portalData[idx].roll
+                shape.pitch = portalData[idx].pitch
+                shape.yaw   = portalData[idx].yaw
+              })
+              Render(shape)
+            break
+            case 'portal viewport':
+              portalData.forEach(portal => {
+                shape.x     = portal.x
+                shape.y     = portal.y
+                shape.z     = portal.z
+                shape.roll  = portal.roll
+                shape.pitch = portal.pitch
+                shape.yaw   = portal.yaw
+                Render(shape)
+              })
+            break
+            case 'background':
+              Render(shape)
+            break
+            default:
+              Render(shape)
+            break
+          }
+        })
+      }
+      
+    </script>
+  </body>
+</html>
