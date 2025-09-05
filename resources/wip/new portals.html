@@ -15,51 +15,73 @@
     <script type="module">
     
       import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      "https://boss.veriler.com/coordinates.js"
+      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
       var rendererOptions = {
-        ambientLight: .75,
-        fov: 900
+        ambientLight: .6, margin: 0, clearColor: 0xcccccc,
+        //fov: 800, width: 1920, height: 1080,
+        fov: 800/2, width: 960, height: 540,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
-      var portalCamera = await Coordinates.Renderer(rendererOptions)
       
 
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/moped_girl_po2.png'
       
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var x, y, z, p, q, d, roll, pitch, yaw
+      var ls = 200, sd = 3
+      var cidx = 0
+      var ridx = 0
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
 
-      var shaderOptions = [
-        { uniform: {
-          type: 'phong',
-          value: .25
-        } },
-        { uniform: {
-          type: 'reflection',
-          map: refTexture,
-          value: .25,
-        } }
-      ]
-      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+      const GenShaders = async (renderer, base = false) => {
+        var ret = {}
+        var shaderOptions = [
+          {lighting: {type: 'ambientLight', value: base ? .1 : .2}},
+          { uniform: {
+            type: 'phong',
+            value: base ? .5 : 0
+          } },
+          { uniform: {
+            type: 'reflection',
+            map: refTexture,
+            value: .5,
+          } }
+        ]
+        var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+        ret.shader = shader
+
+        var shaderOptions = [
+          { lighting: {type: 'ambientLight', value: 1}
+          },
+          { uniform: {
+            type: 'phong',
+            value: 0
+          } },
+        ]
+        var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+        ret.backgroundShader = backgroundShader
+
+        var shaderOptions = [
+          { lighting: {type: 'ambientLight', value: 1}
+          },
+          { uniform: {
+            type: 'phong',
+            value: 0
+          } },
+        ]
+        var portal2Shader = await Coordinates.BasicShader(renderer, shaderOptions)
+        ret.portal2Shader = portal2Shader
+        return ret
+      }
 
       var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: .25}
-        },
-        { uniform: {
-          type: 'phong',
-          value: 0
-        } },
-      ]
-      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: 1}
+        { lighting: {type: 'ambientLight', value: .5}
         },
         { uniform: {
           type: 'phong',
@@ -67,147 +89,279 @@
         } },
       ]
       var portalShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-
-      var iPc = 2
-      var G = 20
+      var shaders = await GenShaders(renderer, 1)
+      var mshaders = shaders
+      
+      var iPc = sd
+      var G = 25
+      var recentTeleport = false
       var portalData = []
       var portals = []
-      Array(iPc).fill().map(v => {
-        x = (Rn() - .5) * G
-        y = (Rn() - .5) * G
-        z = (Rn() - .5) * G
+      var spriteShape
+      rendererOptions.attachToBody = false
+      rendererOptions.height = rendererOptions.width /= 2
+      
+      rendererOptions.plugins = [
+        {
+          type: 'post processing',
+          value: 'equirectangular',
+          enabled: true,
+        }
+      ]
+  
+      Array(iPc).fill().map(async (v, i) => {
+        var cam = Coordinates.Renderer(rendererOptions)
+        cam.x = -S(p=Math.PI*2/sd * i) * ls
+        cam.y = 0
+        cam.z = -C(p) * ls
         //roll = Rn() * Math.PI * 2
-        roll = 0
-        pitch = Rn() * Math.PI * 2
-        yaw = Rn() * Math.PI * 2
-        portalData.push({
-          x, y, z, roll, pitch, yaw
-        })
+        cam.roll = 0
+        cam.pitch = 0// Rn() * Math.PI * 2
+        cam.yaw = 0//Rn() * Math.PI * 2
+        portalData.push({ cam, shape: {} })
         portals.push([0,0,0])
       })
 
       var shapes = []
-      
-      
-      
+      var portalShapes = []
+
       var geoOptions = {
-        shapeType: 'custom shape',
-        name: 'portal viewport',
-        rotationMode: 1,
-        //map: 'https://srmcgann.github.io/objs/new arrow/new arrow.png',
-        url: 'https://srmcgann.github.io/Coordinates/custom shapes/rectangle_hipoly.json',
-        canvasTexture: portalCamera.c,
-        size: 8,
-        //scaleX: 9/16,
-        subs: 3,
-        colorMix: 0,
+        shapeType: 'sprite',
+        name: 'sprite',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star.png',
+        size: 25,
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        for(var i = 0; i < geometry.vertices.length; i+=3){
-          x = geometry.vertices[i+0]
-          y = geometry.vertices[i+1]
-          z = geometry.vertices[i+2]
-          p = Math.atan2(y,z) + Math.PI/2
-          d = Math.hypot(y,z)
-          geometry.vertices[i+0] = x
-          geometry.vertices[i+1] = S(p) * d-.25
-          geometry.vertices[i+2] = C(p) * d
-          x = geometry.normalVecs[i+0]
-          y = geometry.normalVecs[i+1]
-          z = geometry.normalVecs[i+2]
-          p = Math.atan2(y,z) + Math.PI/2
-          d = Math.hypot(y,z)
-          geometry.normalVecs[i+0] = x
-          geometry.normalVecs[i+1] = S(p) * d-.25
-          geometry.normalVecs[i+2] = C(p) * d
+      if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        spriteShape = geometry
+      })
+      
+      const Shapes = (renderer, shaders, shapes) => {
+        var geoOptions = {
+          shapeType: 'obj',
+          name: 'portals',
+          url: 'https://srmcgann.github.io/objs/new arrow/new arrow.obj?3',
+          map: 'https://srmcgann.github.io/objs/new arrow/new arrow.png',
+          size: 5,
+          scaleY: -1,
+          //roll: Math.PI/2,
+          colorMix: 0,
         }
-        shapes.push(geometry)
-        await portalShader.ConnectGeometry(geometry)
-      })  
-      
-      
-      var geoOptions = {
-        shapeType: 'obj',
-        name: 'portals',
-        url: 'https://srmcgann.github.io/objs/new arrow/new arrow.obj',
-        map: 'https://srmcgann.github.io/objs/new arrow/new arrow.png',
-        size: 5,
-        //roll: Math.PI/2,
-        colorMix: 0,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        Coordinates.ShapeFromArray(geometry, portals).then(async res => {
-          shapes.push(res)
-          await shader.ConnectGeometry(res)
+        if(0) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          Coordinates.ShapeFromArray(geometry, portals).then(async res => {
+            shapes.push(res)
+            await shaders.shader.ConnectGeometry(res)
+          })
         })
-      })  
-      
-      var geoOptions = {
-        shapeType: 'dodecahedron',
-        size: 5e3,
-        subs: 3,
-        sphereize: 1,
-        name: 'background',
-        map: refTexture,
-        colorMix: 0,
+        
+        var geoOptions = {
+          shapeType: 'obj',
+          name: 'cubes',
+          //averageNormals:true,
+          //size: 50,
+          //map: 'https://srmcgann.github.io/Coordinates/resources/spectrum_test.jpg',
+          //map: 'https://srmcgann.github.io/objs/brownstone/combined.jpg',
+          url: 'https://srmcgann.github.io/objs/lowpoly_rounded_cube/lowpoly_rounded_cube.obj',
+          equirectangular: true,
+          scaleX: 100,
+          scaleY: 100,
+          scaleZ: 100,
+          //subs: 2,
+          //sphereize: .5,
+          colorMix: .6,
+        }
+        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await shaders.shader.ConnectGeometry(geometry)
+        })
+
+        var geoOptions = {
+          shapeType: 'dodecahedron',
+          size: 5e3,
+          subs: 3,
+          sphereize: 1,
+          name: 'background',
+          map: refTexture,
+          colorMix: 0,
+        }
+        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await shaders.backgroundShader.ConnectGeometry(geometry)
+        })
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await backgroundShader.ConnectGeometry(geometry)
-      })  
+      await Shapes(renderer, shaders, shapes)
+      portalData.map(async (portal, idx) => {
+        portal.shapes = []
+        var shaders = await GenShaders(portal.cam)
+        var geoOptions = {
+          shapeType: 'obj',
+          name: 'portal viewport',
+          //averageNormals: true,
+          rotationMode: 1,
+          //map: 'https://srmcgann.github.io/objs/new arrow/new arrow.png',
+          //url: 'https://srmcgann.github.io/objs/new arrow/new arrow.obj',
+          url: 'https://srmcgann.github.io/objs/lowpoly_rounded_cube/lowpoly_rounded_cube.obj',
+          //showBounding: true,
+          canvasTexture: portal.cam.c,
+          scaleX: 8,
+          scaleY: 8,
+          scaleZ: 8,
+          //offsetz: -1,
+          equirectangular: true,
+          //scaleX: 90/16,
+          //scaleY: -10,
+          //scaleZ: 10,
+          //sphereize: -1,
+          //subs: 2,
+          colorMix: 0,
+        }
+        Coordinates.LoadFPSControls(portal.cam, {
+          flyMode: true,
+          useKeys: false,
+        })
+        for(var m=2;m--;) {
+          await Coordinates.LoadGeometry(m ? renderer : portal.cam,
+                                           geoOptions).then((geometry) => {
+            /*
+            for(var i = 0; i < geometry.vertices.length; i+=3){
+              x = geometry.vertices[i+0]
+              y = geometry.vertices[i+1]
+              z = geometry.vertices[i+2]
+              p = Math.atan2(y,z) + Math.PI/2 + (m ? Math.PI : 0)
+              d = Math.hypot(y,z)
+              geometry.vertices[i+0] = x
+              geometry.vertices[i+1] = S(p) * d-.25
+              geometry.vertices[i+2] = C(p) * d
+              x = geometry.normalVecs[i+0]
+              y = geometry.normalVecs[i+1]
+              z = geometry.normalVecs[i+2]
+              p = Math.atan2(y,z) + Math.PI/2 + (m ? Math.PI : 0)
+              d = Math.hypot(y,z)
+              geometry.normalVecs[i+0] = x
+              geometry.normalVecs[i+1] = S(p) * d-.25
+              geometry.normalVecs[i+2] = C(p) * d
+            }
+            */
+            if(m){
+              portalShapes.push(geometry)
+              mshaders.portal2Shader.ConnectGeometry(geometry)
+            }else{
+              Shapes(portal.cam, shaders, portal.shapes)
+              portalData[idx].shape = geometry
+            }
+        })
+      }
+      })
       
       Coordinates.LoadFPSControls(renderer, {
         flyMode: true,
-        mSpeed: 1,
+        mSpeed: 10,
       })
       
-      const Render = (shape, pcamx, pcamy, pcamz) => {
-        renderer.Draw(shape)
-        portalCamera.x = renderer.x
-        portalCamera.y = renderer.y
-        portalCamera.z = renderer.z
-        portalCamera.roll = renderer.roll
-        portalCamera.pitch = renderer.pitch
-        portalCamera.yaw = renderer.yaw
-        portalCamera.Draw(shape)
-      }
+      const BasicDraw = (cam, shapes, drawArrows = false) => {
+        if(!shapes) return
+          shapes.forEach(shape => {
+            switch(shape.name){
+              case 'portals':
+                if(drawArrows){
+                  shape.shapeData.map((shape, idx) => {
+                    shape.x     = -portalData[idx].cam.x
+                    shape.y     = -portalData[idx].cam.y
+                    shape.z     = -portalData[idx].cam.z
+                    shape.roll  = -portalData[idx].cam.roll
+                    shape.pitch = -portalData[idx].cam.pitch //+ Math.PI
+                    shape.yaw   = -portalData[idx].cam.yaw
+                  })
+                  cam.Draw(shape)
+                }
+              break
+              case 'cubes':
+                shape.yaw += .01
+                shape.pitch += .02
+                for(var i = sd; i--;){
+                  shape.x = S(p=Math.PI*2/sd * i) * ls
+                  shape.y = 0
+                  shape.z = C(p) * ls
+                  shape.color = Coordinates.HSVToHex(360/sd*(i+(i%2?(0)|0:0)),1,1)
+                  cam.Draw(shape)
+                }
+              break
+              case 'portal viewport':
+                if(drawArrows){
+                  portalData.forEach(portal => {
+                    shape.x     = -portal.cam.x
+                    shape.y     = -portal.cam.y
+                    shape.z     = -portal.cam.z
+                    shape.roll  = -portal.cam.roll
+                    shape.pitch = -portal.cam.pitch
+                    shape.yaw   = -portal.cam.yaw
+                    cam.x *= -1
+                    cam.y *= -1
+                    cam.z *= -1
+                    cam.roll *= -1
+                    //cam.pitch *= -1
+                    cam.yaw *= -1
+                    cam.Draw(shape)
+                    cam.x *= -1
+                    cam.y *= -1
+                    cam.z *= -1
+                    cam.roll *= -1
+                    //cam.pitch *= -1
+                    cam.yaw *= -1
+                  })
+                }
+              break
+              case 'background':
+                cam.Draw(shape)
+              break
+              default:
+                cam.Draw(shape)
+              break
+            }
+          })
+        }
       
-      renderer.z = 20
-      
+      renderer.z = 250
       window.Draw = () => {
-        shapes.forEach(shape => {
-          switch(shape.name){
-            case 'portals':
-              shape.shapeData.map((shape, idx) => {
-                shape.x     = portalData[idx].x
-                shape.y     = portalData[idx].y
-                shape.z     = portalData[idx].z
-                shape.roll  = portalData[idx].roll
-                shape.pitch = portalData[idx].pitch
-                shape.yaw   = portalData[idx].yaw
-              })
-              Render(shape)
-            break
-            case 'portal viewport':
-              portalData.forEach(portal => {
-                shape.x     = portal.x
-                shape.y     = portal.y
-                shape.z     = portal.z
-                shape.roll  = portal.roll
-                shape.pitch = portal.pitch
-                shape.yaw   = portal.yaw
-                Render(shape)
-              })
-            break
-            case 'background':
-              Render(shape)
-            break
-            default:
-              Render(shape)
-            break
+        var t = renderer.t
+        renderer.Clear()
+        portalData.forEach((ptl, idx) => {
+          var l = (idx+1)%portalData.length
+          var portal = portalData[l]
+          BasicDraw(portal.cam, portal.shapes)
+          if(typeof ptl.shape?.x != 'undefined' && portalShapes[l]) {
+            x = spriteShape.x = portalShapes[l].x = -ptl.cam.x
+            y = spriteShape.y = portalShapes[l].y = -ptl.cam.y
+            z = spriteShape.z = portalShapes[l].z = -ptl.cam.z
+            //portalShapes[l].roll = -ptl.cam.roll
+            //portalShapes[l].pitch = -(ptl.cam.pitch += .005)
+            //portalShapes[l].yaw = -(ptl.cam.yaw += .005)
+            ptl.cam.roll = (portalShapes[l].roll = 0)
+            ptl.cam.pitch = (portalShapes[l].pitch += .02) + Math.PI
+            ptl.cam.yaw = (portalShapes[l].yaw += .1)
+            renderer.Draw(spriteShape)
+            renderer.Draw(portalShapes[l])
+            d = Math.hypot(x+renderer.x, y+renderer.y, z+renderer.z)
+            if(d < 5){
+              if(!recentTeleport){
+                recentTeleport = true
+                cidx = idx
+                ridx = l
+                renderer.x = portal.cam.x
+                renderer.y = portal.cam.y
+                renderer.z = portal.cam.z
+                renderer.roll = portal.cam.roll
+                renderer.pitch = portal.cam.pitch
+                renderer.yaw = portal.cam.yaw
+                console.log('teleporting to: ', l)
+              }
+            }
+            if(d > 10 && idx == ridx){
+              //cidx = -1
+              recentTeleport = false
+            }
           }
         })
+        BasicDraw(renderer, shapes, true)
       }
       
     </script>
