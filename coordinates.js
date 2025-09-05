@@ -36,7 +36,7 @@ const cache = {
   texImages    : []
 }
 
-const Renderer = async options => {
+const Renderer = options => {
 
   var x=0, y=0, z=0
   var width = 1920, height = 1080
@@ -768,11 +768,13 @@ const Renderer = async options => {
   }
   renderer['Draw'] = Draw
 
-  renderer.nullShader = await BasicShader(renderer, [
+  BasicShader(renderer, [
     {uniform: {type: 'phong', value: 0} }
-  ] )
+  ] ).then(res => {
+    renderer.nullShader = res
+  })
         
-  renderer.alphaShader = await BasicShader(renderer, [] )
+  renderer.alphaShader = BasicShader(renderer, [] )
   
   window.addEventListener('mousemove', e => {
     var rect = renderer.c.getBoundingClientRect()
@@ -3059,11 +3061,11 @@ const ShowBounding = (shape, renderer, draw=true,
          (!shape.isLine && (shape.isParticle || (i/sd|0)%3 == 2))){
         ax /= sd
         ay /= sd
-        //if(Math.hypot(ax-ox, ay-oy) > 10){
+        if(Math.hypot(ax-ox, ay-oy) > 3){
           ox = ax
           oy = ay
           a.push( b )
-        //}
+        }
       }
       //if(ar.length){
         //Overlay.ctx.lineTo(...ar)
