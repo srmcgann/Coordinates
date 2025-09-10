@@ -13,268 +13,403 @@
   </head>
   <body>
     <script type="module">
-    
+
       import * as Coordinates from
-      "https://boss.veriler.com/coordinates.js?4"
-      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
-      
-      var S = Math.sin
-      var C = Math.cos
-      var Rn = Math.random
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
-    
-      var rendererOptions = {
-        ambientLight: .9,
-        fov: 1200,
-      }
-      var renderer = await Coordinates.Renderer(rendererOptions)
+      //"https://boss.veriler.com/coordinates.js"
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
 
       var rendererOptions = {
-        ambientLight: .55,
-        fov: 1200,
-        width: 1e3, height: 1e3,
-        attachToBody: false,
+        ambientLight: .6, margin: 0, clearColor: 0xcccccc,
+        //fov: 800, width: 1920, height: 1080,
+        fov: 800/2, width: 960, height: 540,
       }
-      var camera = await Coordinates.Renderer(rendererOptions)
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
       
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
+      var x, y, z, p, q, d, roll, pitch, yaw
+      var ls = 2000, sd = 2
+      var cidx = 0
+      var ridx = 0
+      var falloffDistance = 4e3
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+
+      const GenShaders = async (renderer, base = false) => {
+        var ret = {}
+        var shaderOptions = [
+          {lighting: {type: 'ambientLight', value: base ? .1 : .2}},
+          { uniform: {
+            type: 'phong',
+            value: base ? .5 : 0
+          } },
+          { uniform: {
+            type: 'reflection',
+            map: refTexture,
+            value: .5,
+          } }
+        ]
+        var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+        ret.shader = shader
+
+        var shaderOptions = [
+          { lighting: {type: 'ambientLight', value: .5}
+          },
+          { uniform: {
+            type: 'phong',
+            value: 0
+          } },
+        ]
+        var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+        ret.backgroundShader = backgroundShader
+
+        var shaderOptions = [
+          { lighting: {type: 'ambientLight', value: 1}
+          },
+          { uniform: {
+            type: 'phong',
+            value: 0
+          } },
+        ]
+        var portal2Shader = await Coordinates.BasicShader(renderer, shaderOptions)
+        ret.portal2Shader = portal2Shader
+        return ret
+      }
+
       var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: .5}
+        },
         { uniform: {
           type: 'phong',
           value: 0
-        } }
+        } },
       ]
-      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-      var cameraShader = await Coordinates.BasicShader(camera, shaderOptions)
+      var portalShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      var shaders = await GenShaders(renderer, 1)
+      var mshaders = shaders
+      
+      var iPc = sd
+      var G = 25
+      var recentTeleport = false
+      var portalData = []
+      var portals = []
+      var spriteShape
+      rendererOptions.attachToBody = false
+      rendererOptions.height = rendererOptions.width /= 2
+      
+      rendererOptions.plugins = [
+        {
+          type: 'post processing',
+          value: 'equirectangular',
+          enabled: false,
+        }
+      ]
+
+      Array(iPc).fill().map(async (v, i) => {
+        var cam = Coordinates.Renderer(rendererOptions)
+        cam.x = -S(p=Math.PI*2/sd * i + Math.PI/sd) * ls
+        cam.y = 0
+        cam.z = -C(p) * ls
+        //roll = Rn() * Math.PI * 2
+        cam.roll = 0
+        cam.pitch = 0// Rn() * Math.PI * 2
+        cam.yaw = 0//Rn() * Math.PI * 2
+        portalData.push({ cam, shape: {} })
+        portals.push([0,0,0])
+      })
 
       var shapes = []
-      
-      var iPc = 1e4, iPv = .5, G = 250
-      var geometryData = Array(iPc).fill().map(v=>[
-        (Rn()-.5) * G/6 * (19/9),
-        (Rn()-.5) * G/6,
-        (Rn()-.5) * G,
-      ])
-      
-      var cameraShapes = []
+      var portalShapes = []
+
       var geoOptions = {
-        shapeType: 'particles',
-        name: 'particles',
-        geometryData,
-        size: 2,
-        color: 0xff0000,
-        alpha: 1,
-        penumbra: .4,
+        shapeType: 'sprite',
+        name: 'sprite',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star.png',
+        size: 25,
       }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-      })
-      await Coordinates.LoadGeometry(camera, geoOptions).then(async (geometry) => {
-        cameraShapes.push(geometry)
+      if(0) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        spriteShape = geometry
       })
       
-      var geoOptions = {
-        shapeType: 'dodecahedron',
-        subs: 3,
-        yaw: Math.PI,
-        equirectangular: true,
-        sphereize: 0,
-        scaleUVX: 2,
-        scaleUVY: 2,
-        playbackSpeed: 10,
-        map: refTexture,
-        size: 1e3,
-        colorMix: 0,
-        color: 0xffffff,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })
-      await Coordinates.LoadGeometry(camera, geoOptions).then(async (geometry) => {
-        cameraShapes.push(geometry)
-        await cameraShader.ConnectGeometry(geometry)
-      })
-      
-      var basePortalUVs
-      var geoOptions = {
-        shapeType: 'rectangle',
-        name: 'portal',
-        wireframe: false,
-        subs: 2,
-        canvasTexture: camera.c,
-        pitch: Math.PI,
-        //scaleY  : renderer.c.width/renderer.c.height,
-        size: 30,
-        colorMix: 0,
-        color: 0xffffff,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        if(0) Coordinates.ShapeToLines(geometry, {
-          size: 10,
-          name: 'portal',
-          color: 0x4400ff,
-          alpha: .5,          // opacity, 0.0 - 1.0
-          penumbra: .1,       // "glow" amount, 0.0 - 1.0, relative to alpha
-          closePaths: true,  // optional - close polygons. default = true
-        }).then(res => {
-          shapes.push(res.shape)
+      const Shapes = (renderer, shaders, shapes) => {
+        var geoOptions = {
+          shapeType: 'obj',
+          name: 'portals',
+          url: 'https://srmcgann.github.io/objs/new arrow/new arrow.obj?3',
+          map: 'https://srmcgann.github.io/objs/new arrow/new arrow.png',
+          size: 5,
+          scaleY: -1,
+          //roll: Math.PI/2,
+          colorMix: 0,
+        }
+        if(0) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          Coordinates.ShapeFromArray(geometry, portals).then(async res => {
+            shapes.push(res)
+            await shaders.shader.ConnectGeometry(res)
+          })
         })
-        basePortalUVs = structuredClone(geometry.uvs)
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })  
+        
+        var geoOptions = {
+          shapeType: 'obj',
+          name: 'cubes',
+          //averageNormals:true,
+          //size: 50,
+          //map: 'https://srmcgann.github.io/Coordinates/resources/spectrum_test.jpg',
+          //map: 'https://srmcgann.github.io/objs/brownstone/combined.jpg',
+          url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7O',
+          equirectangular: true,
+          scaleX: 100,
+          scaleY: 100,
+          scaleZ: 100,
+          //subs: 2,
+          //sphereize: .5,
+          colorMix: .6,
+        }
+        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await shaders.shader.ConnectGeometry(geometry)
+        })
+
+        var geoOptions = {
+          shapeType: 'dodecahedron',
+          size: 5e3,
+          subs: 2,
+          sphereize: 1,
+          name: 'background',
+          map: refTexture,
+          colorMix: 0,
+        }
+        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await shaders.backgroundShader.ConnectGeometry(geometry)
+        })
+      }
+      
+      var portalFrameShape
+      var geoOptions = {
+        shapeType: 'obj',
+        name: 'portalFrame',
+        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7s',
+        scaleX: 11,
+        scaleY: 11,
+        scaleZ: 11,
+        name: 'portal frame',
+        map: 'https://bosstools.mooo.com/assets/uploads/1pZQLY.png',
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        portalFrameShape = geometry
+        await shaders.shader.ConnectGeometry(geometry)
+      })
+
+      await Shapes(renderer, shaders, shapes)
+      portalData.map(async (portal, idx) => {
+        portal.shapes = []
+        var shaders = await GenShaders(portal.cam)
+        var geoOptions = {
+          shapeType: 'rectangle',
+          name: 'portal viewport',
+          //averageNormals: true,
+          rotationMode: 1,
+          //map: 'https://srmcgann.github.io/objs/new arrow/new arrow.png',
+          //url: 'https://srmcgann.github.io/objs/new arrow/new arrow.obj',
+          //url: 'https://srmcgann.github.io/objs/lowpoly_rounded_cube/lowpoly_rounded_cube.obj',
+          //showBounding: true,
+          canvasTexture: portal.cam.c,
+          scaleX: 8,
+          scaleY: 8,
+          scaleZ: 8,
+          //offsetz: -1,
+          //equirectangular: true,
+          //scaleX: 90/16,
+          //scaleY: -10,
+          //scaleZ: 10,
+          //sphereize: -1,
+          //subs: 2,
+          colorMix: 0,
+        }
+        Coordinates.LoadFPSControls(portal.cam, {
+          flyMode: true,
+          useKeys: false,
+        })
+        for(var m=2;m--;) {
+          await Coordinates.LoadGeometry(m ? renderer : portal.cam,
+                                           geoOptions).then((geometry) => {
+            /*
+            for(var i = 0; i < geometry.vertices.length; i+=3){
+              x = geometry.vertices[i+0]
+              y = geometry.vertices[i+1]
+              z = geometry.vertices[i+2]
+              p = Math.atan2(y,z) + Math.PI/2 + (m ? Math.PI : 0)
+              d = Math.hypot(y,z)
+              geometry.vertices[i+0] = x
+              geometry.vertices[i+1] = S(p) * d-.25
+              geometry.vertices[i+2] = C(p) * d
+              x = geometry.normalVecs[i+0]
+              y = geometry.normalVecs[i+1]
+              z = geometry.normalVecs[i+2]
+              p = Math.atan2(y,z) + Math.PI/2 + (m ? Math.PI : 0)
+              d = Math.hypot(y,z)
+              geometry.normalVecs[i+0] = x
+              geometry.normalVecs[i+1] = S(p) * d-.25
+              geometry.normalVecs[i+2] = C(p) * d
+            }
+            */
+            if(m){
+              portalShapes.push(geometry)
+              mshaders.portal2Shader.ConnectGeometry(geometry)
+            }else{
+              Shapes(portal.cam, shaders, portal.shapes)
+              portalData[idx].shape = geometry
+            }
+        })
+      }
+      })
       
       Coordinates.LoadFPSControls(renderer, {
         flyMode: true,
-        mSpeed: 2,
-        rSpeed: .5,
         crosshairSel: 2,
         crosshairSize: .5,
+        mSpeed: 10,
       })
       
-      var x, y, z, d, p, q
-      renderer.z = 50
+      const BasicDraw = (cam, shapes, drawArrows = false) => {
+        if(!shapes) return
+          shapes.forEach(shape => {
+            switch(shape.name){
+              case 'portals':
+                if(drawArrows){
+                  shape.shapeData.map((shape, idx) => {
+                    shape.x     = -portalData[idx].cam.x
+                    shape.y     = -portalData[idx].cam.y
+                    shape.z     = -portalData[idx].cam.z
+                    shape.roll  = -portalData[idx].cam.roll
+                    shape.pitch = -portalData[idx].cam.pitch //+ Math.PI
+                    shape.yaw   = -portalData[idx].cam.yaw
+                  })
+                  if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<falloffDistance){
+                    cam.Draw(shape)
+                  }
+                }
+              break
+              case 'cubes':
+                shape.yaw += .04
+                shape.pitch += .02
+                for(var i = sd; i--;){
+                  shape.x = S(p=Math.PI*2/sd * i + Math.PI/sd) * ls
+                  shape.y = 0
+                  shape.z = C(p) * ls
+                  if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<falloffDistance){
+                    shape.color = Coordinates.HSVToHex(360/sd*(i+(i%2?(0)|0:0)),1,1)
+                    cam.Draw(shape)
+                  }
+                }
+              break
+              case 'portal viewport':
+                if(drawArrows){
+                  portalData.forEach(portal => {
+                    shape.x     = -portal.cam.x
+                    shape.y     = -portal.cam.y
+                    shape.z     = -portal.cam.z
+                    if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<falloffDistance){
+                      shape.roll  = -portal.cam.roll
+                      shape.pitch = -portal.cam.A
+                      shape.yaw   = -portal.cam.yaw
+                      cam.x *= -1
+                      cam.y *= -1
+                      cam.z *= -1
+                      cam.roll *= -1
+                      //cam.pitch *= -1
+                      cam.yaw *= -1
+                      cam.Draw(shape)
+                      cam.x *= -1
+                      cam.y *= -1
+                      cam.z *= -1
+                      cam.roll *= -1
+                      //cam.pitch *= -1
+                      cam.yaw *= -1
+                    }
+                  })
+                }
+              break
+              case 'background':
+                if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<1e4){
+                  shape.x = -cam.x
+                  shape.y = -cam.y
+                  shape.z = -cam.z
+                  cam.Draw(shape)
+                }
+              break
+              default:
+                if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<falloffDistance){
+                  cam.Draw(shape)
+                }
+              break
+            }
+          })
+        }
+      
+      renderer.z = falloffDistance / 3
       window.Draw = () => {
         var t = renderer.t
-        //renderer.x = S(t*4) * 100
-        //renderer.y = S(t) * 40
-        //renderer.z = 150 + C(t*2) * 100
-
-        shapes.forEach(shape => {
-          switch(shape.name){
-            case 'particles':
-              if(0) {
-                for(var i = 0; i < shape.vertices.length; i+=3){
-                  shape.vertices[i+2] -= iPv
-                  if(shape.vertices[i+2] > G / 2) shape.vertices[i+2] -= G
-                  if(shape.vertices[i+2] < -G / 2) shape.vertices[i+2] += G
-                }
-                renderer.Draw(shape)
+        renderer.Clear()
+        portalData.forEach((ptl, idx) => {
+          var l = (idx+1)%portalData.length
+          var portal = portalData[l]
+          BasicDraw(portal.cam, portal.shapes)
+          if(typeof ptl.shape?.x != 'undefined' && portalShapes[l]) {
+            x = portalShapes[l].x = -ptl.cam.x
+            y = portalShapes[l].y = -ptl.cam.y
+            z = portalShapes[l].z = -ptl.cam.z
+            if(typeof spriteShape != 'undefined'){
+              spriteShape.x = portalShapes[l].x
+              spriteShape.y = portalShapes[l].y
+              spriteShape.z = portalShapes[l].z
+              //portalShapes[l].roll = -ptl.cam.roll
+              //portalShapes[l].pitch = -(ptl.cam.pitch += .005)
+              //portalShapes[l].yaw = -(ptl.cam.yaw += .005)
+              renderer.Draw(spriteShape)
+            }
+            ptl.cam.roll = (portalShapes[l].roll = 0)
+            ptl.cam.pitch = (portalShapes[l].pitch = .0) + Math.PI
+            ptl.cam.yaw = (portalShapes[l].yaw += .03)
+            renderer.Draw(portalShapes[l])
+            d = Math.hypot(x+renderer.x, y+renderer.y, z+renderer.z)
+            if(d<falloffDistance){
+              portalFrameShape.x = portalShapes[l].x
+              portalFrameShape.y = portalShapes[l].y
+              portalFrameShape.z = portalShapes[l].z
+              portalFrameShape.roll = portalShapes[l].roll
+              portalFrameShape.pitch = portalShapes[l].pitch
+              portalFrameShape.yaw = portalShapes[l].yaw
+              renderer.Draw(portalFrameShape)
+            }
+            if(d < 5){
+              if(!recentTeleport){
+                recentTeleport = true
+                cidx = idx
+                ridx = l
+                renderer.x = portal.cam.x
+                renderer.y = portal.cam.y
+                renderer.z = portal.cam.z
+                renderer.roll = 0 //portal.cam.roll
+                renderer.pitch = 0 //portal.cam.pitch
+                renderer.yaw = 0 //portal.cam.yaw
+                console.log('teleporting to: ', l)
               }
-            break
-            case 'portal':
-              var sd = 1, ls = 0
-              for(var k = 0; k < sd; k++){
-                camera.x = renderer.x
-                camera.y = renderer.y
-                camera.z = renderer.z
-                camera.roll = renderer.roll
-                
-                shape.x = S(p=Math.PI*2/sd*k) * ls
-                shape.y = 0
-                shape.z = C(p) * ls
-                
-                var ox = shape.x
-                var oz = shape.z
-                for(m=2; m--;){
-                  d = Math.hypot(ox, oz) + m / 2
-                  p = Math.atan2(ox, oz) //+ t / 2
-                  shape.yaw = -p - Math.PI * m
-                  shape.x = S(p) * d
-                  shape.z = C(p) * d
-                  renderer.Draw(shape)
-                }
-
-                camera.pitch = -Math.acos((renderer.y-shape.y) / Math.hypot(
-                  shape.x - renderer.x,
-                  shape.y - renderer.y,
-                  shape.z - renderer.z)) + Math.PI/2
-                camera.yaw = -Math.atan2(renderer.x-shape.x,renderer.z-shape.z)
-                var w = camera.c.width
-                var h = camera.c.height
-                var bounding = Coordinates.ShowBounding(shape, renderer, false)
-                var quad = Array(4).fill().map(v=>[0,0,0])
-                var ax = 0, ay = 0, az = 0, ct = 0
-                for(var i = 0; i < shape.vertices.length; i+=3){
-                  ax += shape.vertices[i+0]
-                  ay += shape.vertices[i+1]
-                  az += shape.vertices[i+2]
-                  ct++
-                }
-                ax /= ct
-                ay /= ct
-                az /= ct
-                ax += shape.x
-                ay += shape.y
-                az += shape.z
-
-                for(var m = 4; m--;){
-                  var maxd = -6e6
-                  for(var i = 0; i < shape.vertices.length; i+=3){
-                    x = shape.vertices[i+0]
-                    y = shape.vertices[i+1]
-                    z = shape.vertices[i+2]
-                    if(!quad.filter(q=>q[0]==x&&q[1]==y&&q[2]==z).length){
-                      if((d = Math.hypot(x-ax, y-ay, z-az)) > maxd){
-                        maxd = d
-                        quad[m][0] = x
-                        quad[m][1] = y
-                        quad[m][2] = z
-                      }
-                    }
-                  }
-                }
-                quad=quad.map(v=>Coordinates.GetShaderCoord(...v,shape,renderer))
-                if(!quad.filter(v=>v===false).length){
-                  quad.map(v => {
-                    v[0] += shape.x
-                    v[1] += shape.y
-                    v[2] += shape.z
-                  })
-                  if(0){
-                    Coordinates.Overlay.ctx.beginPath()
-                    quad.map(v => Coordinates.Overlay.ctx.lineTo(...v))
-                    Coordinates.Overlay.ctx.lineWidth = 2
-                    Coordinates.Overlay.ctx.strokeStyle = '#f00'
-                    Coordinates.Overlay.ctx.closePath()
-                    Coordinates.Overlay.ctx.stroke()
-                  }
-                  ax = ay = 0
-                  quad.map(v => {
-                    ax += v[0]
-                    ay += v[1]
-                  })
-                  ax /= quad.length
-                  ay /= quad.length
-                  var j, uvx, uvy, ipx1, ipy1, ipx2, ipy2
-                  for(var i = 0; i < shape.uvs.length; i+=2){
-                    d = Math.max(
-                      1, Math.hypot(
-                      renderer.x + shape.x,
-                      renderer.y + shape.y,
-                      renderer.z + shape.z
-                    ) / 25)
-                    shape.uvs[i+0] = (basePortalUVs[i+0] - .5) /d + .5
-                    shape.uvs[i+1] = (basePortalUVs[i+1] - .5) /d + .5
-                  }
-                }
-              }
-            break
-            default:
-              renderer.Draw(shape)
-            break
+            }
+            if(d > 10 && idx == ridx){
+              //cidx = -1
+              recentTeleport = false
+            }
           }
         })
-        cameraShapes.forEach(cameraShape => {
-          switch(cameraShape.name){
-            case 'particles':
-              if(0) {
-                for(var i = 0; i < cameraShape.vertices.length; i+=3){
-                  cameraShape.vertices[i+2] -= iPv
-                  if(cameraShape.vertices[i+2] > G / 2) cameraShape.vertices[i+2] -= G
-                  if(cameraShape.vertices[i+2] < -G / 2) cameraShape.vertices[i+2] += G
-                }
-                camera.Draw(cameraShape)
-              }
-            break
-            default:
-              camera.Draw(cameraShape)
-            break
-          }
-        })
+        BasicDraw(renderer, shapes, true)
       }
       
     </script>
