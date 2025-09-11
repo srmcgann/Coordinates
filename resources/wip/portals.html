@@ -31,8 +31,10 @@
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
+      var fogColor = 0x4400ff
+      var x1, y1, z1, x2, y2, z2
       var x, y, z, p, q, d, roll, pitch, yaw
-      var ls = 2000, sd = 2
+      var ls = 500, sd = 3
       var cidx = 0
       var ridx = 0
       var falloffDistance = 4e3
@@ -43,16 +45,23 @@
       const GenShaders = async (renderer, base = false) => {
         var ret = {}
         var shaderOptions = [
-          {lighting: {type: 'ambientLight', value: base ? .1 : .2}},
+          {lighting: {type: 'ambientLight', value: base ? .4 : .8}},
           { uniform: {
             type: 'phong',
-            value: base ? .5 : 0
+            value: base ? .25 : 0
           } },
           { uniform: {
             type: 'reflection',
             map: refTexture,
             value: .5,
-          } }
+          } },
+          {
+            uniform: {
+              type: 'fog',
+              color: fogColor,
+              value: 1.25 / 8,
+            }
+          }
         ]
         var shader = await Coordinates.BasicShader(renderer, shaderOptions)
         ret.shader = shader
@@ -64,6 +73,13 @@
             type: 'phong',
             value: 0
           } },
+          {
+            uniform: {
+              type: 'fog',
+              color: fogColor,
+              value: 1.25 / 8,
+            }
+          }
         ]
         var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
         ret.backgroundShader = backgroundShader
@@ -75,6 +91,13 @@
             type: 'phong',
             value: 0
           } },
+          {
+            uniform: {
+              type: 'fog',
+              color: fogColor,
+              value: 1.25 / 8,
+            }
+          }
         ]
         var portal2Shader = await Coordinates.BasicShader(renderer, shaderOptions)
         ret.portal2Shader = portal2Shader
@@ -90,6 +113,7 @@
         } },
       ]
       var portalShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      var scrollVertical = false, floorShape
       var shaders = await GenShaders(renderer, 1)
       var mshaders = shaders
       
@@ -136,7 +160,55 @@
         spriteShape = geometry
       })
       
+      var cl = 3
+      var rw = 1
+      var br = 3
+      var sp = 1.4142135623730951 * 23.75 * 16 //- 1.6
       const Shapes = (renderer, shaders, shapes) => {
+
+        var pointArray = Array(cl*rw*br).fill().map((v, i) => {
+          x = ((i%cl)-cl/2 + .5) * sp
+          y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+          z = ((i/cl/rw|0)-br/2 + .5) * sp
+          return [x, y, z]
+        })
+        var geoOptions = {
+          shapeType: 'obj',
+          name: 'floor shape',
+          //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7k',
+          //map: 'https://bosstools.mooo.com/assets/uploads/1DsJvZ.jpeg',
+          //map: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
+          //url: 'https://srmcgann.github.io/objs/mountain/mountain_lowpoly.obj',
+          
+          //url: 'https://srmcgann.github.io/objs/floor/floor_medpoly.obj',
+          //map: 'https://srmcgann.github.io/objs/floor/floor.jpg',
+          
+          //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7K',
+          //map: 'https://bosstools.mooo.com/assets/uploads/1Zf2vA.jpeg',
+          
+          //url: 'https://srmcgann.github.io/objs/terrains/terrain2/terrain2.obj',
+          //map: 'https://srmcgann.github.io/objs/terrains/terrain2/terrain2.jpg',
+          
+          //map: 'https://srmcgann.github.io/objs/mountain2/mountain2.jpg',
+          //url: 'https://srmcgann.github.io/objs/mountain2/mountain2.obj',
+
+          url: 'https://srmcgann.github.io/objs/magma_floor/magma_lowpoly.obj',
+          map: 'https://srmcgann.github.io/objs/magma_floor/magma.png',
+          scaleX: 23.75*16,
+          scaleY: -23.75*3,
+          scaleZ: 23.75*16,
+          z: 0,
+          color: 0x00ff88,
+          colorMix: 0,
+        }
+        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          Coordinates.ShapeFromArray(geometry, pointArray).then(async res=>{
+            if(typeof floorShape == 'undefined') floorShape = res
+            shapes.push(res)
+            await shaders.shader.ConnectGeometry(res)
+          })
+        })
+
         var geoOptions = {
           shapeType: 'obj',
           name: 'portals',
@@ -161,7 +233,7 @@
           //size: 50,
           //map: 'https://srmcgann.github.io/Coordinates/resources/spectrum_test.jpg',
           //map: 'https://srmcgann.github.io/objs/brownstone/combined.jpg',
-          url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7O',
+          url: 'https://srmcgann.github.io/objs/testcube.obj',
           equirectangular: true,
           scaleX: 100,
           scaleY: 100,
@@ -194,12 +266,13 @@
       var geoOptions = {
         shapeType: 'obj',
         name: 'portalFrame',
-        url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7s',
+        url: 'https://srmcgann.github.io/objs/frame_weighted_normals.obj',
         scaleX: 11,
         scaleY: 11,
+        rotationMode: 1,
         scaleZ: 11,
         name: 'portal frame',
-        map: 'https://bosstools.mooo.com/assets/uploads/1pZQLY.png',
+        map: 'https://srmcgann.github.io/objs/frame_monochrome.png',
         colorMix: 0,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -271,26 +344,68 @@
       }
       })
       
-      Coordinates.LoadFPSControls(renderer, {
-        flyMode: true,
+      if(1) Coordinates.LoadFPSControls(renderer,{
+        flyMode: false,
         crosshairSel: 2,
+        mSpeed: 8 ,
+        rSpeed: .75,
         crosshairSize: .5,
-        mSpeed: 10,
       })
       
       const BasicDraw = (cam, shapes, drawArrows = false) => {
         if(!shapes) return
+        
           shapes.forEach(shape => {
             switch(shape.name){
+              case 'floor shape':
+                if(1 || drawArrows){
+                  x1 = -cam.x
+                  y1 = -cam.y
+                  z1 = -cam.z
+                  shape.shapeData.map(v => {
+                    x2 = v.wx
+                    y2 = v.wy
+                    z2 = v.wz
+                    while(x2-x1 > cl*sp/2) {
+                      x2 = v.wx -= cl*sp
+                      v.offsetx -= cl*sp
+                    }
+                    while(x2-x1 < -cl*sp/2) {
+                      x2 = v.wx += cl*sp
+                      v.offsetx += cl*sp
+                    }
+                    if(scrollVertical){
+                      while(y2-y1 > rw*sp/2) {
+                        y2 = v.wy -= rw*sp
+                        v.offsety -= rw*sp
+                      }
+                      while(y2-y1 < -rw*sp/2) {
+                        y2 = v.wy += rw*sp
+                        v.offsety += rw*sp
+                      }
+                    }
+                    while(z2-z1 > br*sp/2) {
+                      z2 = v.wz -= br*sp
+                      v.offsetz -= br*sp
+                    }
+                    while(z2-z1 < -br*sp/2) {
+                      z2 = v.wz += br*sp
+                      v.offsetz += br*sp
+                    }
+                  })
+                  shape.y = -125
+                  cam.Draw(shape)
+                }
+              break
               case 'portals':
                 if(drawArrows){
                   shape.shapeData.map((shape, idx) => {
                     shape.x     = -portalData[idx].cam.x
                     shape.y     = -portalData[idx].cam.y
                     shape.z     = -portalData[idx].cam.z
-                    shape.roll  = -portalData[idx].cam.roll
-                    shape.pitch = -portalData[idx].cam.pitch //+ Math.PI
-                    shape.yaw   = -portalData[idx].cam.yaw
+                    //shape.roll  = -portalData[idx].cam.roll
+                    //shape.pitch = -portalData[idx].cam.pitch //+ Math.PI
+                    //shape.yaw   = -portalData[idx].cam.yaw
                   })
                   if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<falloffDistance){
                     cam.Draw(shape)
@@ -298,8 +413,8 @@
                 }
               break
               case 'cubes':
-                shape.yaw += .04
-                shape.pitch += .02
+                //shape.yaw += .04
+                //shape.pitch += .02
                 for(var i = sd; i--;){
                   shape.x = S(p=Math.PI*2/sd * i + Math.PI/sd) * ls
                   shape.y = 0
@@ -313,12 +428,13 @@
               case 'portal viewport':
                 if(drawArrows){
                   portalData.forEach(portal => {
+                    portal.y = Floor(portal.cam.x, portal.cam.y)
                     shape.x     = -portal.cam.x
                     shape.y     = -portal.cam.y
                     shape.z     = -portal.cam.z
                     if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<falloffDistance){
                       shape.roll  = -portal.cam.roll
-                      shape.pitch = -portal.cam.A
+                      shape.pitch = -portal.cam.pitch
                       shape.yaw   = -portal.cam.yaw
                       cam.x *= -1
                       cam.y *= -1
@@ -354,64 +470,128 @@
           })
         }
       
-      renderer.z = falloffDistance / 3
+      renderer.z = falloffDistance / 32
+      const Floor = floorShape => {
+        var ax = 0, ay = 0, az = 0, ret = 0, a = []
+        for(var i = 0; i < floorShape.vertices.length; i += 3){
+          ax += x = floorShape.vertices[i+0] + floorShape.offsets[i+0]
+          ay += y = floorShape.vertices[i+1] + floorShape.offsets[i+1]
+          az += z = floorShape.vertices[i+2] + floorShape.offsets[i+2]
+          a.push([x, z])
+          if((i/3|0)%3 == 2){
+            ax /= 3
+            ay /= 3
+            az /= 3
+            //if(Math.hypot(ax, az) < 1){
+              if(Coordinates.PointInPoly2D(-renderer.x, -renderer.z, a)){
+                ret = ay
+              }
+              ax = ay = az = 0
+              a = []
+            //}
+          }
+        }
+        return -ret
+      }
+      
+      var oply, jumpHeight = 10
+      var gravity = .2, mbutton = false
+      var player = {
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        x: 0,
+        y: 0,
+        z: 0,
+      }
+      
+      window.onmousedown = e => {
+        if(e.button == 2) mbutton = true
+      }
+      window.onmouseup = e => {
+        if(e.button == 2) mbutton = false
+      }
       window.Draw = () => {
         var t = renderer.t
         renderer.Clear()
-        portalData.forEach((ptl, idx) => {
-          var l = (idx+1)%portalData.length
-          var portal = portalData[l]
-          BasicDraw(portal.cam, portal.shapes)
-          if(typeof ptl.shape?.x != 'undefined' && portalShapes[l]) {
-            x = portalShapes[l].x = -ptl.cam.x
-            y = portalShapes[l].y = -ptl.cam.y
-            z = portalShapes[l].z = -ptl.cam.z
-            if(typeof spriteShape != 'undefined'){
-              spriteShape.x = portalShapes[l].x
-              spriteShape.y = portalShapes[l].y
-              spriteShape.z = portalShapes[l].z
-              //portalShapes[l].roll = -ptl.cam.roll
-              //portalShapes[l].pitch = -(ptl.cam.pitch += .005)
-              //portalShapes[l].yaw = -(ptl.cam.yaw += .005)
-              renderer.Draw(spriteShape)
+        if(mbutton && renderer.hasTraction) {
+          player.vy -= jumpHeight
+          renderer.hasTraction = false
+          player.y += player.vy
+        }
+        if(typeof floorShape?.shapeData != 'undefined'){
+          var fl = Floor(floorShape) + 10
+          player.vy = mbutton ? player.vy : Math.max(-2, player.y-oply)
+          if(renderer.hasTraction = fl - player.y < jumpHeight + 5){
+            player.vy = 0
+          }
+          oply = player.y
+          player.y += player.vy += gravity * (renderer.hasTraction ? 0 : 1)
+          player.y = Math.min(player.y, fl)
+          renderer.y += (player.y - renderer.y) / 2
+          var mind = 6e6, nx, ny, nz
+          portalData.forEach((ptl, idx) => {
+            if((d=Math.hypot(ptl.cam.x+renderer.x, ptl.cam.y+renderer.y, ptl.cam.z+renderer.z)<mind)){
+              nx = ptl.cam.x
+              ny = ptl.cam.y
+              nz = ptl.cam.z
+              mind = d
             }
-            ptl.cam.roll = (portalShapes[l].roll = 0)
-            ptl.cam.pitch = (portalShapes[l].pitch = .0) + Math.PI
-            ptl.cam.yaw = (portalShapes[l].yaw += .03)
-            renderer.Draw(portalShapes[l])
-            d = Math.hypot(x+renderer.x, y+renderer.y, z+renderer.z)
-            if(d<falloffDistance){
-              portalFrameShape.x = portalShapes[l].x
-              portalFrameShape.y = portalShapes[l].y
-              portalFrameShape.z = portalShapes[l].z
-              portalFrameShape.roll = portalShapes[l].roll
-              portalFrameShape.pitch = portalShapes[l].pitch
-              portalFrameShape.yaw = portalShapes[l].yaw
-              renderer.Draw(portalFrameShape)
-            }
-            if(d < 5){
-              if(!recentTeleport){
-                recentTeleport = true
-                cidx = idx
-                ridx = l
-                renderer.x = portal.cam.x
-                renderer.y = portal.cam.y
-                renderer.z = portal.cam.z
-                renderer.roll = 0 //portal.cam.roll
-                renderer.pitch = 0 //portal.cam.pitch
-                renderer.yaw = 0 //portal.cam.yaw
-                console.log('teleporting to: ', l)
+          })
+          portalData.forEach((ptl, idx) => {
+            var l = (idx+1)%portalData.length
+            var portal = portalData[l]
+            if(typeof ptl.shape?.x != 'undefined' && portalShapes[l]) {
+              x = portalShapes[l].x = -ptl.cam.x
+              y = portalShapes[l].y = -ptl.cam.y
+              z = portalShapes[l].z = -ptl.cam.z
+              if(typeof spriteShape != 'undefined'){
+                spriteShape.x = portalShapes[l].x
+                spriteShape.y = portalShapes[l].y
+                spriteShape.z = portalShapes[l].z
+                //portalShapes[l].roll = -ptl.cam.roll
+                //portalShapes[l].pitch = -(ptl.cam.pitch += .005)
+                //portalShapes[l].yaw = -(ptl.cam.yaw += .005)
+                renderer.Draw(spriteShape)
+              }
+              ptl.cam.roll = (portalShapes[l].roll = 0)
+              ptl.cam.pitch = -(portalShapes[l].pitch = -Math.acos((ny-renderer.y)/Math.hypot(nx-renderer.x,ny-renderer.y,nz-renderer.z))+Math.PI/2)
+              ptl.cam.yaw = (portalShapes[l].yaw = Math.atan2(nx-renderer.x, nz-renderer.z))
+              renderer.Draw(portalShapes[l])
+              d = Math.hypot(x+renderer.x, y+renderer.y, z+renderer.z)
+              if(d<falloffDistance/4){
+                portalFrameShape.x = portalShapes[l].x
+                portalFrameShape.y = portalShapes[l].y
+                portalFrameShape.z = portalShapes[l].z
+                portalFrameShape.roll = portalShapes[l].roll
+                portalFrameShape.pitch = portalShapes[l].pitch
+                portalFrameShape.yaw = portalShapes[l].yaw
+                renderer.Draw(portalFrameShape)
+              }
+              if(d < 5){
+                if(!recentTeleport){
+                  recentTeleport = true
+                  cidx = idx
+                  ridx = l
+                  renderer.x = portal.cam.x
+                  renderer.y = portal.cam.y
+                  renderer.z = portal.cam.z
+                  renderer.roll = 0 //portal.cam.roll
+                  renderer.pitch = portal.cam.pitch
+                  renderer.yaw = 0//-portal.cam.yaw
+                  console.log('teleporting to: ', l)
+                }
+              }
+              if(d > 10 && idx == ridx){
+                //cidx = -1
+                recentTeleport = false
               }
             }
-            if(d > 10 && idx == ridx){
-              //cidx = -1
-              recentTeleport = false
-            }
-          }
-        })
-        BasicDraw(renderer, shapes, true)
+            BasicDraw(portal.cam, portal.shapes)
+          })
+          BasicDraw(renderer, shapes, true)
+        }
       }
-      
     </script>
   </body>
 </html>
