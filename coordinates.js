@@ -36,7 +36,7 @@ const cache = {
   texImages    : []
 }
 
-const Renderer = options => {
+const Renderer = async options => {
 
   var x=0, y=0, z=0
   var width = 1920, height = 1080
@@ -221,7 +221,7 @@ const Renderer = options => {
        ) {
       ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE)
       ctx.enable(ctx.BLEND)
-      ctx.enable(ctx.CULL_FACE)
+      //ctx.enable(ctx.CULL_FACE)
       if(geometry.alpha == 1) {
         ctx.disable(ctx.DEPTH_TEST)
         ctx.cullFace(ctx.FRONT)
@@ -774,7 +774,7 @@ const Renderer = options => {
     renderer.nullShader = res
   })
         
-  renderer.alphaShader = BasicShader(renderer, [] )
+  renderer.alphaShader = await BasicShader(renderer, [] )
   
   window.addEventListener('mousemove', e => {
     var rect = renderer.c.getBoundingClientRect()
@@ -2143,7 +2143,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  if(!resolved && shapeType != 'custom shape' &&
+  if(!resolved && (1 || shapeType != 'custom shape') &&
     !isParticle && !isLine && !averageNormals &&
      (!resolvedFromCache || !resolved)){
     normalVecs    = []
@@ -7470,6 +7470,7 @@ export {
   GeoSphere,
   ModuleBase,
   LoadFPSControls,
+  GeometryFromRaw,
   Overlay,
   GenHash,
   IsArray,
