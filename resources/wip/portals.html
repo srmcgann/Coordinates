@@ -15,7 +15,8 @@
     <script type="module">
 
       import * as Coordinates from
-      "https://boss.veriler.com/coordinates.js"
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      //"https://boss.veriler.com/coordinates.js"
 
       var rendererOptions = {
         ambientLight: .6, margin: 0, clearColor: 0xcccccc,
@@ -33,7 +34,7 @@
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var fogColor = 0x000000
-      var fogIntensity = .1
+      var fogIntensity = 0
       var playbackSpeed = 2
       var x1, y1, z1, x2, y2, z2
       var x, y, z, p, q, d, roll, pitch, yaw
@@ -189,16 +190,16 @@
         spriteShape = geometry
       })
       
-      var cl = 3
-      var rw = 1
-      var br = 3
-      var sp = (1.4142135623730951 * 23.75 - 0)* 32
+      var cl_ = 3
+      var rw_ = 1
+      var br_ = 3
+      var sp_ = (1.4142135623730951 * 23.75 - 0)* 32
       const Shapes = (renderer, shaders, shapes) => {
 
-        var pointArray = Array(cl*rw*br).fill().map((v, i) => {
-          x = ((i%cl)-cl/2 + .5) * sp
-          y = (((i/cl|0)%rw)-rw/2 + .5) * sp
-          z = ((i/cl/rw|0)-br/2 + .5) * sp
+        var pointArray = Array(cl_*rw_*br_).fill().map((v, i) => {
+          x = ((i%cl_)-cl_/2 + .5) * sp_
+          y = (((i/cl_|0)%rw_)-rw_/2 + .5) * sp_
+          z = ((i/cl_/rw_|0)-br_/2 + .5) * sp_
           return [x, y, z]
         })
         var geoOptions = {
@@ -238,6 +239,113 @@
           })
         })
 
+
+        var gData = []
+        var x1, y1, z1, x2, y2, z2
+        var cl = 10
+        var rw = 10
+        var br = 1
+        var iPc = rw * cl * br
+        var sp = 50
+        var j
+        var density = .5
+        Array(iPc).fill().map((v, i) => {
+          if(Rn() < density && i%cl < cl-1){
+            x1 = ((i%cl)-cl/2 + .5) * sp
+            y1 = (((i/cl|0)%rw)-rw/2 + .5) * sp
+            z1 = ((i/cl/rw|0)-br/2 + .5) * sp
+            j = i + 1
+            x2 = ((j%cl)-cl/2 + .5) * sp
+            y2 = (((j/cl|0)%rw)-rw/2 + .5) * sp
+            z2 = ((j/cl/rw|0)-br/2 + .5) * sp
+            gData.push([x1,y1,z1],[x2,y2,z2])
+          }
+
+          if(Rn() < density && i<cl*rw-cl){
+            x1 = ((i%cl)-cl/2 + .5) * sp
+            y1 = (((i/cl|0)%rw)-rw/2 + .5) * sp
+            z1 = ((i/cl/rw|0)-br/2 + .5) * sp
+            j = i + cl
+            x2 = ((j%cl)-cl/2 + .5) * sp
+            y2 = (((j/cl|0)%rw)-rw/2 + .5) * sp
+            z2 = ((j/cl/rw|0)-br/2 + .5) * sp
+            gData.push([x1,y1,z1],[x2,y2,z2])
+          }
+        })
+        
+        var tvertices = []
+        var p, p1, p2, d, nx, ny, nz
+        var X1, Y1, Z1, X2, Y2, Z2
+        var s = sp / 4
+        var a
+        for(var i = 0; i<gData.length; i+=2){
+          X1 = gData[i][0]
+          Y1 = gData[i][1]
+          Z1 = 0
+          X2 = gData[i+1][0]
+          Y2 = gData[i+1][1]
+          Z2 = 0
+          
+          p1 = [X1, Y1, Z1]
+          p2 = [X2, Y2, Z2]
+          p = Math.atan2(p2[0]-p1[0], p2[1]-p1[1]) + Math.PI / 2
+
+          a = []
+          ny = p1[2]
+          nx = p1[0] + S(p) * s
+          nz = p1[1] + C(p) * s
+          a.push([nx, -ny, nz])
+          ny = p1[2]
+          nx = p1[0] - S(p) * s
+          nz = p1[1] - C(p) * s
+          a.push([nx, -ny, nz])
+          ny = p2[2]
+          nx = p2[0] - S(p) * s
+          nz = p2[1] - C(p) * s
+          a.push([nx, -ny, nz])
+          tvertices.push(a)
+          
+          a = []
+          ny = p2[2]
+          nx = p2[0] - S(p) * s
+          nz = p2[1] - C(p) * s
+          a.push([nx, -ny, nz])
+          ny = p2[2]
+          nx = p2[0] + S(p) * s
+          nz = p2[1] + C(p) * s
+          a.push([nx, -ny, nz])
+          ny = p1[2]
+          nx = p1[0] + S(p) * s
+          nz = p1[1] + C(p) * s
+          a.push([nx, -ny, nz])
+          tvertices.push(a)
+        }
+        var raw = [], a = []
+        Coordinates.GeometryFromRaw(tvertices, [], 1, 2,
+                           0, 0, false, 'custom shape').geometry.forEach((vert, idx) => {
+          a.push(...vert.position)
+          if(idx%3==2){
+            raw.push(...a)
+            a = []
+          }
+        })
+        var geoOptions = {
+          shapeType: 'custom shape',
+          name: 'path',
+          geometryData: {vertices: raw},
+          y: -50,
+          showNormals: false,
+          colorMix: 1,
+          color: 0x4400ff,
+        }
+        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          Coordinates.ShapeFromArray(geometry, pointArray).then(async shp=>{
+            shapes.push(shp)
+            await shaders.backgroundShader.ConnectGeometry(shp)
+          })
+        })
+
+
         var geoOptions = {
           shapeType: 'obj',
           name: 'portals',
@@ -261,8 +369,8 @@
           //averageNormals:true,
           //size: 50,
           //map: 'https://srmcgann.github.io/Coordinates/resources/spectrum_test.jpg',
-          map: 'https://srmcgann.github.io/objs/portalCube_monochrome.png',
-          url: 'https://srmcgann.github.io/objs/portalCube.obj?5',
+          map: 'https://srmcgann.github.io/objs/portalCube/portalCube_monochrome.png',
+          url: 'https://srmcgann.github.io/objs/portalCube/portalCube.obj?5',
           equirectangular: true,
           scaleX: 100,
           scaleY: 100,
@@ -397,31 +505,31 @@
                     x2 = v.wx
                     y2 = v.wy
                     z2 = v.wz
-                    while(x2-x1 > cl*sp/2) {
-                      x2 = v.wx -= cl*sp
-                      v.offsetx -= cl*sp
+                    while(x2-x1 > cl_*sp_/2) {
+                      x2 = v.wx -= cl_*sp_
+                      v.offsetx -= cl_*sp_
                     }
-                    while(x2-x1 < -cl*sp/2) {
-                      x2 = v.wx += cl*sp
-                      v.offsetx += cl*sp
+                    while(x2-x1 < -cl_*sp_/2) {
+                      x2 = v.wx += cl_*sp_
+                      v.offsetx += cl_*sp_
                     }
                     if(scrollVertical){
-                      while(y2-y1 > rw*sp/2) {
-                        y2 = v.wy -= rw*sp
-                        v.offsety -= rw*sp
+                      while(y2-y1 > rw_*sp_/2) {
+                        y2 = v.wy -= rw_*sp_
+                        v.offsety -= rw_*sp_
                       }
-                      while(y2-y1 < -rw*sp/2) {
-                        y2 = v.wy += rw*sp
-                        v.offsety += rw*sp
+                      while(y2-y1 < -rw_*sp_/2) {
+                        y2 = v.wy += rw_*sp_
+                        v.offsety += rw_*sp_
                       }
                     }
-                    while(z2-z1 > br*sp/2) {
-                      z2 = v.wz -= br*sp
-                      v.offsetz -= br*sp
+                    while(z2-z1 > br_*sp_/2) {
+                      z2 = v.wz -= br_*sp_
+                      v.offsetz -= br_*sp_
                     }
-                    while(z2-z1 < -br*sp/2) {
-                      z2 = v.wz += br*sp
-                      v.offsetz += br*sp
+                    while(z2-z1 < -br_*sp_/2) {
+                      z2 = v.wz += br_*sp_
+                      v.offsetz += br_*sp_
                     }
                   })
                   shape.y = -1e3
@@ -491,6 +599,9 @@
                   shape.z = -cam.z
                   cam.Draw(shape)
                 }
+              break
+              case 'path':
+                cam.Draw(shape)
               break
               default:
                 if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<falloffDistance){
