@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      //"https://boss.veriler.com/coordinates.js"
+
+      var rendererOptions = {
+        ambientLight: .6, margin: 0, clearColor: 0xcccccc,
+        fov: 600, width: 1920, height: 1080,
+        //fov: 600/2, width: 960, height: 540,
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+
+      var refTexture = 
+      'https://srmcgann.github.io/skyboxes2/HDRI/stars.jpg'
+      //'https://srmcgann.github.io/Coordinates/resources/'
+      
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var fogColor = 0x000000
+      var fogIntensity = 0
+      var playbackSpeed = 2
+      var x1, y1, z1, x2, y2, z2
+      var x, y, z, p, q, d, roll, pitch, yaw
+      var ls = 1e3, sd = 2
+      var cidx = 0
+      var ridx = 0
+      var falloffDistance = ls 
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+
+      const GenShaders = async (renderer, base = false) => {
+        var ret = {}
+        var shaderOptions = [
+          {lighting: {type: 'ambientLight', value: base ? .7 : .35}},
+          { uniform: {
+            type: 'phong',
+            value: base ? .25 : .125
+          } },
+          { uniform: {
+            type: 'reflection',
+            map: refTexture,
+            playbackSpeed,
+            value: .3,
+          } },
+          {
+            uniform: {
+              type: 'fog',
+              color: fogColor,
+              value: fogIntensity,
+            }
+          }
+        ]
+        var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+        ret.shader = shader
+        
+        var shaderOptions = [
+          {lighting: {type: 'ambientLight', value: base ? 1.25 : 1.25 / 2}},
+          { uniform: {
+            type: 'phong',
+            value: base ? .05 : 0
+          } },
+          { uniform: {
+            type: 'reflection',
+            map: refTexture,
+            playbackSpeed,
+            value: .05,
+          } },
+          {
+            uniform: {
+              type: 'fog',
+              color: fogColor,
+              value: fogIntensity,
+            }
+          }
+        ]
+        var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+        ret.floorShader = shader
+
+        var shaderOptions = [
+          { lighting: {type: 'ambientLight', value: .66}
+          },
+          { uniform: {
+            type: 'phong',
+            value: 0
+          } },
+          {
+            uniform: {
+              type: 'fog',
+              color: fogColor,
+              value: 0,
+              //value: fogIntensity,
+            }
+          }
+        ]
+        var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+        ret.backgroundShader = backgroundShader
+
+        var shaderOptions = [
+          { lighting: {type: 'ambientLight', value: 1}
+          },
+          { uniform: {
+            type: 'phong',
+            value: 0
+          } },
+          {
+            uniform: {
+              type: 'fog',
+              color: fogColor,
+              value: fogIntensity,
+            }
+          }
+        ]
+        var portal2Shader = await Coordinates.BasicShader(renderer, shaderOptions)
+        ret.portal2Shader = portal2Shader
+        return ret
+      }
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: .5}
+        },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+      ]
+      var portalShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      var scrollVertical = false, floorShape
+      var shaders = await GenShaders(renderer, 1)
+      var mshaders = shaders
+      
+      var iPc = sd
+      var G = 25
+      var recentTeleport = false
+      var portalData = []
+      var portals = []
+      var spriteShape
+      rendererOptions.attachToBody = false
+      rendererOptions.fov = renderer.fov * 2
+      rendererOptions.height = rendererOptions.width /= 2
+      
+      rendererOptions.plugins = [
+        {
+          type: 'post processing',
+          value: 'equirectangular',
+          enabled: false,
+        }
+      ]
+
+      Array(iPc).fill().map(async (v, i) => {
+        var cam = await Coordinates.Renderer(rendererOptions)
+        cam.x = -S(p=Math.PI*2/sd * i) * ls
+        cam.y = 0
+        cam.z = -C(p) * ls
+        //roll = Rn() * Math.PI * 2
+        cam.roll = 0
+        cam.pitch = 0// Rn() * Math.PI * 2
+        cam.yaw = 0//Rn() * Math.PI * 2
+        portalData.push({ cam, shape: {} })
+        portals.push([0,0,0])
+      })
+
+      var shapes = []
+      var portalShapes = []
+
+      var geoOptions = {
+        shapeType: 'sprite',
+        name: 'sprite',
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star.png',
+        size: 25,
+      }
+      if(0) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        spriteShape = geometry
+      })
+      
+      var cl_ = 3
+      var rw_ = 1
+      var br_ = 3
+      var sp_ = (1.4142135623730951 * 23.75 - 0)* 32
+      const Shapes = (renderer, shaders, shapes) => {
+
+        var pointArray = Array(cl_*rw_*br_).fill().map((v, i) => {
+          x = ((i%cl_)-cl_/2 + .5) * sp_
+          y = (((i/cl_|0)%rw_)-rw_/2 + .5) * sp_
+          z = ((i/cl_/rw_|0)-br_/2 + .5) * sp_
+          return [x, y, z]
+        })
+        var geoOptions = {
+          shapeType: 'obj',
+          name: 'floor shape',
+          //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7k',
+          //map: 'https://bosstools.mooo.com/assets/uploads/1DsJvZ.jpeg',
+          //map: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
+          //url: 'https://srmcgann.github.io/objs/mountain/mountain_lowpoly.obj',
+          
+          //url: 'https://srmcgann.github.io/objs/floor/floor_medpoly.obj',
+          //map: 'https://srmcgann.github.io/objs/floor/floor.jpg',
+          
+          //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7K',
+          //map: 'https://bosstools.mooo.com/assets/uploads/1Zf2vA.jpeg',
+          
+          //url: 'https://srmcgann.github.io/objs/terrains/terrain2/terrain2.obj',
+          //map: 'https://srmcgann.github.io/objs/terrains/terrain2/terrain2.jpg',
+          
+          //map: 'https://srmcgann.github.io/objs/mountain2/mountain2.jpg',
+          //url: 'https://srmcgann.github.io/objs/mountain2/mountain2.obj',
+
+          url: 'https://srmcgann.github.io/objs/magma_floor/magma_lowpoly.obj',
+          map: 'https://srmcgann.github.io/objs/magma_floor/magma.png',
+          scaleX: 23.75*32,
+          scaleY: 23.75*32/2,
+          scaleZ: 23.75*32,
+          z: 0,
+          color: 0x00ff88,
+          colorMix: 0,
+        }
+        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          Coordinates.ShapeFromArray(geometry, pointArray).then(async res=>{
+            if(typeof floorShape == 'undefined') floorShape = res
+            shapes.push(res)
+            await shaders.floorShader.ConnectGeometry(res)
+          })
+        })
+
+
+        var gData = []
+        var x1, y1, z1, x2, y2, z2
+        var cl = 20
+        var rw = 20
+        var br = 1
+        var iPc = rw * cl * br
+        var sp = 112 / 2
+        var j
+        var density = .4
+        Array(iPc).fill().map((v, i) => {
+          if(Rn() < density && i%cl < cl-1){
+            x1 = ((i%cl)-cl/2 + .5) * sp
+            y1 = (((i/cl|0)%rw)-rw/2 + .5) * sp
+            z1 = ((i/cl/rw|0)-br/2 + .5) * sp
+            j = i + 1
+            x2 = ((j%cl)-cl/2 + .5) * sp
+            y2 = (((j/cl|0)%rw)-rw/2 + .5) * sp
+            z2 = ((j/cl/rw|0)-br/2 + .5) * sp
+            gData.push([x1,y1,z1],[x2,y2,z2])
+          }
+
+          if(Rn() < density && i<cl*rw-cl){
+            x1 = ((i%cl)-cl/2 + .5) * sp
+            y1 = (((i/cl|0)%rw)-rw/2 + .5) * sp
+            z1 = ((i/cl/rw|0)-br/2 + .5) * sp
+            j = i + cl
+            x2 = ((j%cl)-cl/2 + .5) * sp
+            y2 = (((j/cl|0)%rw)-rw/2 + .5) * sp
+            z2 = ((j/cl/rw|0)-br/2 + .5) * sp
+            gData.push([x1,y1,z1],[x2,y2,z2])
+          }
+        })
+        
+        var tvertices = []
+        var p, p1, p2, d, nx, ny, nz
+        var X1, Y1, Z1, X2, Y2, Z2
+        var s = sp / 4
+        var a
+        for(var i = 0; i<gData.length; i+=2){
+          X1 = gData[i][0]
+          Y1 = gData[i][1]
+          Z1 = 0
+          X2 = gData[i+1][0]
+          Y2 = gData[i+1][1]
+          Z2 = 0
+          
+          p1 = [X1, Y1, Z1]
+          p2 = [X2, Y2, Z2]
+          p = Math.atan2(p2[0]-p1[0], p2[1]-p1[1]) + Math.PI / 2
+
+          a = []
+          ny = p1[2]
+          nx = p1[0] + S(p) * s
+          nz = p1[1] + C(p) * s
+          a.push([nx, -ny, nz])
+          ny = p1[2]
+          nx = p1[0] - S(p) * s
+          nz = p1[1] - C(p) * s
+          a.push([nx, -ny, nz])
+          ny = p2[2]
+          nx = p2[0] - S(p) * s
+          nz = p2[1] - C(p) * s
+          a.push([nx, -ny, nz])
+          tvertices.push(a)
+          
+          a = []
+          ny = p2[2]
+          nx = p2[0] - S(p) * s
+          nz = p2[1] - C(p) * s
+          a.push([nx, -ny, nz])
+          ny = p2[2]
+          nx = p2[0] + S(p) * s
+          nz = p2[1] + C(p) * s
+          a.push([nx, -ny, nz])
+          ny = p1[2]
+          nx = p1[0] + S(p) * s
+          nz = p1[1] + C(p) * s
+          a.push([nx, -ny, nz])
+          tvertices.push(a)
+        }
+        var raw = [], a = []
+        Coordinates.GeometryFromRaw(tvertices, [], 1, 2,
+                           0, 0, false, 'custom shape').geometry.forEach((vert, idx) => {
+          a.push(...vert.position)
+          if(idx%3==2){
+            raw.push(...a)
+            a = []
+          }
+        })
+        var geoOptions = {
+          shapeType: 'custom shape',
+          name: 'path',
+          geometryData: {
+            vertices: raw,
+            normals: Array(raw.length*2).fill(0),
+            normalVecs: Array(raw.length).fill(0),
+            uvs: Array(raw.length/3*2).fill(0),
+          },
+          y: -50,
+          showNormals: false,
+          colorMix: 1,
+          color: 0xff0000,
+        }
+        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          Coordinates.ShapeFromArray(geometry, pointArray).then(async shp=>{
+            shapes.push(shp)
+            await shaders.backgroundShader.ConnectGeometry(shp)
+          })
+        })
+
+        var geoOptions = {
+          shapeType: 'obj',
+          name: 'portals',
+          url: 'https://srmcgann.github.io/objs/new arrow/new arrow.obj?3',
+          map: 'https://srmcgann.github.io/objs/new arrow/new arrow.png',
+          size: 5,
+          scaleY: -1,
+          //roll: Math.PI/2,
+          colorMix: 0,
+        }
+        if(0) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          Coordinates.ShapeFromArray(geometry, portals).then(async res => {
+            shapes.push(res)
+            await shaders.shader.ConnectGeometry(res)
+          })
+        })
+        
+        var geoOptions = {
+          shapeType: 'obj',
+          name: 'cubes',
+          //averageNormals:true,
+          //size: 50,
+          //map: 'https://srmcgann.github.io/Coordinates/resources/spectrum_test.jpg',
+          map: 'https://srmcgann.github.io/objs/portalCube/portalCube_monochrome.png',
+          url: 'https://srmcgann.github.io/objs/portalCube/portalCube.obj?5',
+          equirectangular: true,
+          scaleX: 100,
+          scaleY: 100,
+          scaleZ: 100,
+          //subs: 2,
+          //sphereize: .5,
+          colorMix: .75,
+        }
+        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await shaders.shader.ConnectGeometry(geometry)
+        })
+
+        var geoOptions = {
+          shapeType: 'dodecahedron',
+          size: 5e3,
+          subs: 3,
+          sphereize: 1,
+          name: 'background',
+          map: refTexture,
+          playbackSpeed,
+          colorMix: 0,
+        }
+        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await shaders.backgroundShader.ConnectGeometry(geometry)
+        })
+      }
+      
+      var portalFrameShape
+      var geoOptions = {
+        shapeType: 'obj',
+        name: 'portalFrame',
+        url: 'https://srmcgann.github.io/objs/frame_weighted_normals.obj',
+        scaleX: 44,
+        scaleY: 44,
+        rotationMode: 1,
+        scaleZ: 44,
+        name: 'portal frame',
+        map: 'https://srmcgann.github.io/objs/frame_monochrome.png',
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        portalFrameShape = geometry
+        await shaders.shader.ConnectGeometry(geometry)
+      })
+
+      await Shapes(renderer, shaders, shapes)
+      portalData.map(async (portal, idx) => {
+        portal.shapes = []
+        var shaders = await GenShaders(portal.cam)
+        var geoOptions = {
+          shapeType: 'rectangle',
+          name: 'portal viewport',
+          subs: 3,
+          //averageNormals: true,
+          rotationMode: 1,
+          //map: 'https://srmcgann.github.io/objs/new arrow/new arrow.png',
+          //url: 'https://srmcgann.github.io/objs/new arrow/new arrow.obj',
+          //url: 'https://srmcgann.github.io/objs/lowpoly_rounded_cube/lowpoly_rounded_cube.obj',
+          //showBounding: true,
+          canvasTexture: portal.cam.c,
+          scaleX: 32,
+          scaleY: 32,
+          scaleZ: 32,
+          //offsetz: -1,
+          //equirectangular: true,
+          //scaleX: 90/16,
+          //scaleY: -10,
+          //scaleZ: 10,
+          //sphereize: -1,
+          //subs: 2,
+          colorMix: 0,
+        }
+        Coordinates.LoadFPSControls(portal.cam, {
+          flyMode: true,
+          useKeys: false,
+        })
+        for(var m=2;m--;) {
+          await Coordinates.LoadGeometry(m ? renderer : portal.cam,
+                                           geoOptions).then((geometry) => {
+            /*
+            for(var i = 0; i < geometry.vertices.length; i+=3){
+              x = geometry.vertices[i+0]
+              y = geometry.vertices[i+1]
+              z = geometry.vertices[i+2]
+              p = Math.atan2(y,z) + Math.PI/2 + (m ? Math.PI : 0)
+              d = Math.hypot(y,z)
+              geometry.vertices[i+0] = x
+              geometry.vertices[i+1] = S(p) * d-.25
+              geometry.vertices[i+2] = C(p) * d
+              x = geometry.normalVecs[i+0]
+              y = geometry.normalVecs[i+1]
+              z = geometry.normalVecs[i+2]
+              p = Math.atan2(y,z) + Math.PI/2 + (m ? Math.PI : 0)
+              d = Math.hypot(y,z)
+              geometry.normalVecs[i+0] = x
+              geometry.normalVecs[i+1] = S(p) * d-.25
+              geometry.normalVecs[i+2] = C(p) * d
+            }
+            */
+            if(m){
+              portalShapes.push(geometry)
+              mshaders.portal2Shader.ConnectGeometry(geometry)
+            }else{
+              Shapes(portal.cam, shaders, portal.shapes)
+              portalData[idx].shape = geometry
+            }
+        })
+      }
+      })
+      
+      if(1) Coordinates.LoadFPSControls(renderer,{
+        flyMode: false,
+        crosshairSel: 2,
+        mSpeed: 60,
+        rSpeed: .85,
+        crosshairSize: .5,
+      })
+      
+      const BasicDraw = (cam, shapes, drawArrows = false) => {
+        if(!shapes) return
+        
+          shapes.forEach(shape => {
+            switch(shape.name){
+              case 'floor shape': case 'path':
+                if(1 || drawArrows){
+                  x1 = -cam.x
+                  y1 = -cam.y
+                  z1 = -cam.z
+                  shape.shapeData.map(v => {
+                    x2 = v.wx
+                    y2 = v.wy
+                    z2 = v.wz
+                    while(x2-x1 > cl_*sp_/2) {
+                      x2 = v.wx -= cl_*sp_
+                      v.offsetx -= cl_*sp_
+                    }
+                    while(x2-x1 < -cl_*sp_/2) {
+                      x2 = v.wx += cl_*sp_
+                      v.offsetx += cl_*sp_
+                    }
+                    if(scrollVertical){
+                      while(y2-y1 > rw_*sp_/2) {
+                        y2 = v.wy -= rw_*sp_
+                        v.offsety -= rw_*sp_
+                      }
+                      while(y2-y1 < -rw_*sp_/2) {
+                        y2 = v.wy += rw_*sp_
+                        v.offsety += rw_*sp_
+                      }
+                    }
+                    while(z2-z1 > br_*sp_/2) {
+                      z2 = v.wz -= br_*sp_
+                      v.offsetz -= br_*sp_
+                    }
+                    while(z2-z1 < -br_*sp_/2) {
+                      z2 = v.wz += br_*sp_
+                      v.offsetz += br_*sp_
+                    }
+                  })
+                  shape.y = shape.name == 'path' ? shape.y : -1e3
+                  cam.Draw(shape)
+                }
+              break
+              case 'portals':
+                if(drawArrows){
+                  shape.shapeData.map((shape, idx) => {
+                    shape.x     = -portalData[idx].cam.x
+                    shape.y     = -portalData[idx].cam.y
+                    shape.z     = -portalData[idx].cam.z
+                    //shape.roll  = -portalData[idx].cam.roll
+                    //shape.pitch = -portalData[idx].cam.pitch //+ Math.PI
+                    //shape.yaw   = -portalData[idx].cam.yaw
+                  })
+                  if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<falloffDistance){
+                    cam.Draw(shape)
+                  }
+                }
+              break
+              case 'cubes':
+                shape.yaw = renderer.t * 2
+                shape.pitch = renderer.t * 1
+                for(var i = sd; i--;){
+                  shape.x = S(p=Math.PI*2/sd * i) * ls
+                  shape.y = 0
+                  shape.z = C(p) * ls
+                  if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<falloffDistance){
+                    shape.color = Coordinates.HSVToHex(360/sd*(i+(i%2?(0)|0:0)),1,1)
+                    cam.Draw(shape)
+                  }
+                }
+              break
+              case 'portal viewport':
+                if(drawArrows){
+                  portalData.forEach(portal => {
+                    portal.y = Floor(portal.cam.x, portal.cam.y)
+                    shape.x     = -portal.cam.x
+                    shape.y     = -portal.cam.y
+                    shape.z     = -portal.cam.z
+                    if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<falloffDistance){
+                      shape.roll  = -portal.cam.roll
+                      shape.pitch = -portal.cam.pitch
+                      shape.yaw   = -portal.cam.yaw
+                      cam.x *= -1
+                      cam.y *= -1
+                      cam.z *= -1
+                      cam.roll *= -1
+                      //cam.pitch *= -1
+                      cam.yaw *= -1
+                      cam.Draw(shape)
+                      cam.x *= -1
+                      cam.y *= -1
+                      cam.z *= -1
+                      cam.roll *= -1
+                      //cam.pitch *= -1
+                      cam.yaw *= -1
+                    }
+                  })
+                }
+              break
+              case 'background':
+                if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<1e4){
+                  shape.x = -cam.x
+                  shape.y = -cam.y
+                  shape.z = -cam.z
+                  cam.Draw(shape)
+                }
+              break
+              default:
+                if(Math.hypot(cam.x + shape.x, cam.y + shape.y, cam.z + shape.z)<falloffDistance){
+                  cam.Draw(shape)
+                }
+              break
+            }
+          })
+        }
+      
+      const Floor = floorShape => {
+        var ax = 0, ay = 0, az = 0, ret = -1e3, a = []
+        for(var i = 0; i < floorShape.vertices.length; i += 3){
+          ax += x = floorShape.vertices[i+0] + floorShape.offsets[i+0] + floorShape.x
+          ay += y = floorShape.vertices[i+1] + floorShape.offsets[i+1] + floorShape.y
+          az += z = floorShape.vertices[i+2] + floorShape.offsets[i+2] + floorShape.z
+          a.push([x, z])
+          if((i/3|0)%3 == 2){
+            ax /= 3
+            ay /= 3
+            az /= 3
+            if(Coordinates.PointInPoly2D(-renderer.x, -renderer.z, a)){
+              ret = ay
+            }
+            ax = ay = az = 0
+            a = []
+          }
+        }
+        return -ret
+      }
+      
+      renderer.z = falloffDistance / 3
+      var oply, jumpHeight = 40
+      var gravity = 1.5, mbutton = false
+      var player = {
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        x: 0,
+        y: 0,
+        z: 0,
+      }
+      
+      window.onmousedown = e => {
+        if(e.button == 2) mbutton = true
+      }
+      window.onmouseup = e => {
+        if(e.button == 2) mbutton = false
+      }
+      window.Draw = () => {
+        var t = renderer.t
+        renderer.Clear()
+        if(typeof floorShape?.shapeData != 'undefined'){
+          var fl = Floor(floorShape) - 132 * 1.5 -800
+          player.vy = mbutton ? player.vy : Math.max(-2, player.y-oply)
+          if(renderer.hasTraction = fl - player.y < jumpHeight){
+            player.vy = 0
+          }
+          if(mbutton && renderer.hasTraction) {
+            player.vy -= jumpHeight
+            renderer.hasTraction = false
+            player.y += player.vy
+          }
+          oply = player.y
+          player.y += player.vy += gravity * (renderer.hasTraction ? 0 : 1)
+          player.y = Math.min(player.y, fl)
+          renderer.y += (player.y - renderer.y) / 2
+          portalData.forEach((ptl, idx) => {
+            var l = (idx+1)%portalData.length
+            var portal = portalData[l]
+            if(typeof ptl.shape?.x != 'undefined' && portalShapes[l]) {
+              x = portalShapes[l].x = -ptl.cam.x
+              y = portalShapes[l].y = -ptl.cam.y
+              z = portalShapes[l].z = -ptl.cam.z
+              if(typeof spriteShape != 'undefined'){
+                spriteShape.x = portalShapes[l].x
+                spriteShape.y = portalShapes[l].y
+                spriteShape.z = portalShapes[l].z
+                renderer.Draw(spriteShape)
+              }
+              //portalShapes[l].roll = -ptl.cam.roll
+              //portalShapes[l].pitch = -(ptl.cam.pitch += .005)
+              portalShapes[l].yaw = -(ptl.cam.yaw += .005)
+              var nx = ptl.cam.x
+              var ny = ptl.cam.y
+              var nz = ptl.cam.z
+              portal.cam.roll = (portalShapes[l].roll = 0)
+              portal.cam.pitch = -(portalShapes[l].pitch = -Math.acos((ny-renderer.y)/Math.hypot(nx-renderer.x,ny-renderer.y,nz-renderer.z))+Math.PI/2) + Math.PI
+              p = Math.atan2(nx-renderer.x, nz-renderer.z)
+              portal.cam.yaw = -(portalShapes[l].yaw = p)
+              d = Math.hypot(x+renderer.x, y+renderer.y, z+renderer.z)
+              if(d<falloffDistance){
+                renderer.Draw(portalShapes[l])
+                portalFrameShape.x = portalShapes[l].x
+                portalFrameShape.y = portalShapes[l].y
+                portalFrameShape.z = portalShapes[l].z
+                portalFrameShape.roll = portalShapes[l].roll
+                portalFrameShape.pitch = -portalShapes[l].pitch
+                portalFrameShape.yaw = portalShapes[l].yaw + Math.PI
+                renderer.Draw(portalFrameShape)
+              }
+              if(d < 24){
+                if(!recentTeleport){
+                  recentTeleport = true
+                  cidx = idx
+                  ridx = l
+                  renderer.x = portal.cam.x
+                  renderer.y = portal.cam.y
+                  renderer.z = portal.cam.z
+                  renderer.roll = 0 //portal.cam.roll
+                  renderer.pitch = 0 //portal.cam.pitch + Math.PI/2
+                  renderer.yaw = portal.cam.yaw
+                  console.log('teleporting to: ', l)
+                }
+              }
+              if(d > 32 && idx == ridx){
+                //cidx = -1
+                recentTeleport = false
+              }
+            }
+            BasicDraw(portal.cam, portal.shapes)
+          })
+          BasicDraw(renderer, shapes, true)
+        }
+      }
+    </script>
+  </body>
+</html>
