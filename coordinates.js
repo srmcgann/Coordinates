@@ -3898,7 +3898,10 @@ const BasicShader = async (renderer, options=[]) => {
             if(Z > 0.0) {
               gl_PointSize = 100.0 * pointSize / Z;
               gl_Position = vec4(X, Y, Z/10000.0, 1.0);
-              depth = pow(1.0 + sqrt(X*X + Y*Y + Z*Z), 1.25) / 500.0;
+              float nx = pos.x + cpx + geo.x;
+              float ny = pos.y + cpy + geo.y;
+              float nz = pos.z + cpz + geo.z;
+              depth = sqrt(nx*nx + ny*ny + nz*nz) / 200.0;
               skip = 0.0;
               vUv = uv;
             }else{
