@@ -462,9 +462,9 @@ const Renderer = async options => {
 
               if(!geometry.isLine){  // to be removed in order to enable line offsets
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.offset_buffer)
-                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.toffsets, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ARRAY_BUFFER, toffsets, ctx.STATIC_DRAW)
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Offset_Index_Buffer)
-                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.toIndices, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, toIndices, ctx.STATIC_DRAW)
                 dset.locOffset = ctx.getAttribLocation(dset.program, "offset")
                 ctx.vertexAttribPointer(dset.locOffset, 3, ctx.FLOAT, false, 0, 0)
                 ctx.enableVertexAttribArray(dset.locOffset)
