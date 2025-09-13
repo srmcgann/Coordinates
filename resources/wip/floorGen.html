@@ -44,13 +44,13 @@
       var shapes = []
       var geometryData = []
       var x1, y1, z1, x2, y2, z2
-      var cl = 1e3
-      var rw = 1e3
+      var cl = 16
+      var rw = 16
       var br = 1
       var iPc = rw * cl * br
-      var sp = 3
+      var sp = 6
       var j
-      var density = .1
+      var density = .5
       Array(iPc).fill().map((v, i) => {
         if(Rn() < density && i%cl < cl-1){
           x1 = ((i%cl)-cl/2 + .5) * sp
@@ -78,30 +78,20 @@
       var tvertices = []
       var p, p1, p2, d, nx, ny, nz
       var X1, Y1, Z1, X2, Y2, Z2
-      var s = sp / 1 // geometry.size * (penumbraPass ? 4 : 1) / 50
+      var s = sp / 4
       var a
       for(var i = 0; i<geometryData.length; i+=2){
         X1 = geometryData[i][0]
         Y1 = geometryData[i][1]
-        Z1 = 0 //geometryData[i][2]
+        Z1 = 0
         X2 = geometryData[i+1][0]
         Y2 = geometryData[i+1][1]
-        Z2 = 0 //geometryData[i+1][2]
+        Z2 = 0
         
-        p1 = [X1, Y1, Z1] //GetShaderCoord(X1, Y1, Z1, geometry, renderer)
-        p2 = [X2, Y2, Z2] //GetShaderCoord(X2, Y2, Z2, geometry, renderer)
+        p1 = [X1, Y1, Z1]
+        p2 = [X2, Y2, Z2]
         p = Math.atan2(p2[0]-p1[0], p2[1]-p1[1]) + Math.PI / 2
 
-        //p1[0] -= renderer.width / 2
-        //p1[1] -= renderer.height / 2
-        //p2[0] -= renderer.width / 2
-        //p2[1] -= renderer.height / 2
-        
-        //p1[0] /= d / 2
-        //p1[1] /= d / 2
-        //p2[0] /= d / 2
-        //p2[1] /= d / 2
-        
         a = []
         ny = p1[2]
         nx = p1[0] + S(p) * s
@@ -141,42 +131,30 @@
           a = []
         }
       })
-      console.log(raw)
       var geoOptions = {
         shapeType: 'custom shape',
         geometryData: {vertices: raw},
         size: 8,
-        //penumbra: .25,
-        alpha: .5,
         color: 0xff9900,
         showNormals: false,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        /*
-        Coordinates.ShapeToLines(geometry, {
-          size: .25,
-          //scaleZ: -1,
-          y: .1,
-        }).then(res => {
-          shapes.push(res.shape)
-        })
-        */
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
-      })  
+      })
       
       if(1) Coordinates.LoadFPSControls(renderer, {
         flyMode: true,
-        mSpeed: 5,
+        mSpeed: 1,
         crosshairSel: 2,
         rSpeed: .85,
         crosshairSize: .5,
       })
       
-      renderer.z = 8
+      renderer.z = 0
       renderer.pitch = -Math.PI/2
-      renderer.y = -10
-      //renderer.pitch = Math.PI
+      renderer.y = -30
+      renderer.pitch = Math.PI
       window.Draw = () => {
         var t = renderer.t
         //renderer.yaw = t/ 4
