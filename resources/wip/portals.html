@@ -15,26 +15,26 @@
     <script type="module">
 
       import * as Coordinates from
-      //"https://srmcgann.github.io/Coordinates/coordinates.js"
-      "https://boss.veriler.com/coordinates.js"
+      "https://srmcgann.github.io/Coordinates/coordinates.js"
+      //"https://boss.veriler.com/coordinates.js"
 
       var rendererOptions = {
         ambientLight: .6, margin: 0, clearColor: 0xcccccc,
-        fov: 800, width: 1920, height: 1080,
-        //fov: 600/2, width: 960, height: 540,
+        //fov: 600, width: 1920, height: 1080,
+        fov: 600/2, width: 960, height: 540,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
 
       var refTexture = 
-      //'https://srmcgann.github.io/skyboxes2/HDRI/stars.jpg'
-      'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
+      'https://srmcgann.github.io/skyboxes/HDRI/28.jpg'
+      //'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg'
       
       
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var fogColor = 0x000000
-      var fogIntensity = .15
+      var fogIntensity = .05
       var playbackSpeed = 2
       var x1, y1, z1, x2, y2, z2
       var floorShape, pathShape
@@ -74,7 +74,7 @@
         ret.shader = shader
         
         var shaderOptions = [
-          {lighting: {type: 'ambientLight', value: base ? 2 : 2}},
+          {lighting: {type: 'ambientLight', value: base ? 2 : 1.5}},
           { uniform: {
             type: 'phong',
             value: base ? .05 : 0
@@ -83,7 +83,7 @@
             type: 'reflection',
             map: refTexture,
             playbackSpeed,
-            value: .05,
+            value: .3,
           } },
           {
             uniform: {
@@ -97,7 +97,7 @@
         ret.floorShader = shader
 
         var shaderOptions = [
-          { lighting: {type: 'ambientLight', value: 1.25}
+          { lighting: {type: 'ambientLight', value: base ? 1.5 : 1}
           },
           { uniform: {
             type: 'phong',
@@ -116,7 +116,7 @@
         ret.backgroundShader = backgroundShader
 
         var shaderOptions = [
-          { lighting: {type: 'ambientLight', value: 1}
+          { lighting: {type: 'ambientLight', value: base ? 1 : .75}
           },
           { uniform: {
             type: 'phong',
@@ -192,10 +192,10 @@
         spriteShape = geometry
       })
       
-      var cl_ = 3
+      var cl_ = 5
       var rw_ = 1
-      var br_ = 3
-      var sp_ = (1.4142135623730951 * 23.75 - 0) * 25.6
+      var br_ = 5
+      var sp_ = (1.4142135623730951 * 23.75 - .05) * 25.6 * 2
       const Shapes = async (renderer, shaders, shapes) => {
 
         var pointArray = Array(cl_*rw_*br_).fill().map((v, i) => {
@@ -210,7 +210,7 @@
           //url: 'https://bosstools.mooo.com/c/raw.php?slug=2w7k',
           //map: 'https://bosstools.mooo.com/assets/uploads/1DsJvZ.jpeg',
           //map: 'https://srmcgann.github.io/objs/mountain/mountain.jpg',
-          //url: 'https://srmcgann.github.io/objs/mountain/mountain_lowpoly.obj',
+          //url: 'https://srmcgann.github.io/objs/mountain/mountain_medpoly.obj',
           
           //url: 'https://srmcgann.github.io/objs/floor/floor_medpoly.obj',
           //map: 'https://srmcgann.github.io/objs/floor/floor.jpg',
@@ -226,9 +226,9 @@
 
           url: 'https://srmcgann.github.io/objs/magma_floor/magma_lowpoly.obj',
           map: 'https://srmcgann.github.io/objs/magma_floor/magma.png',
-          scaleX: 23.75*25.6,
-          scaleY: 23.75*25.6,
-          scaleZ: 23.75*25.6,
+          scaleX: 23.75*25.6 * 2,
+          scaleY: 23.75*25.6 * 3,
+          scaleZ: 23.75*25.6 * 2,
           z: 0,
           color: 0x00ff88,
           colorMix: 0,
@@ -244,13 +244,13 @@
 
         var gData = []
         var x1, y1, z1, x2, y2, z2
-        cl = 5
-        rw = 5
+        cl = 10
+        rw = 10
         br = 1
         var iPc = rw * cl * br
-        sp = 172 / 1
+        sp = 172 * 1
         var j
-        var density = .5
+        var density = .25
         Array(iPc).fill().map((v, i) => {
           if(Rn() < density && i%cl < cl-1){
             x1 = ((i%cl)-cl/2 + .5) * sp
@@ -347,7 +347,7 @@
           //map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
           //heightMap:'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
           //heightMapIntensity: 20,
-          color: 0x440010,
+          color: 0x113344,
         }
         Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
           Coordinates.ShapeFromArray(geometry, pointArray).then(async shp=>{
@@ -419,7 +419,7 @@
           playbackSpeed,
           colorMix: 0,
         }
-        Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        if(1)Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
           shapes.push(geometry)
           await shaders.backgroundShader.ConnectGeometry(geometry)
         })
@@ -511,7 +511,7 @@
       if(1) Coordinates.LoadFPSControls(renderer,{
         flyMode: false,
         crosshairSel: 2,
-        mSpeed: 80,
+        mSpeed: 120,
         rSpeed: 1,
         crosshairSize: .5,
       })
@@ -723,7 +723,7 @@
       renderer.z = 0 // sp / 2  //falloffDistance / 3
       renderer.y = -500
       renderer.x = 0 // sp / 2
-      var oply, jumpHeight = 24
+      var oply, jumpHeight = 40
       var gravity = .66, mbutton = false
       var player = {
         vx: 0,
@@ -746,7 +746,7 @@
         renderer.pdrag = 2
         if(typeof floorShape?.shapeData != 'undefined' &&
            typeof pathShape?.shapeData != 'undefined'){
-          var fl = -Floor(-renderer.x, -renderer.z) - 150
+          var fl = -Floor(-renderer.x, -renderer.z) - 130
           player.vy = mbutton ? player.vy : Math.max(-2, player.y-oply)
           if(mbutton && renderer.hasTraction) {
             player.vy -= jumpHeight
@@ -794,7 +794,7 @@
                 portalFrameShape.yaw = portalShapes[l].yaw + Math.PI
                 renderer.Draw(portalFrameShape)
               }
-              if(d < 24){
+              if(d < 32){
                 if(!recentTeleport){
                   recentTeleport = true
                   cidx = idx
@@ -808,7 +808,7 @@
                   console.log('teleporting to: ', l)
                 }
               }
-              if(d > 32 && idx == ridx){
+              if(d > 40 && idx == ridx){
                 //cidx = -1
                 recentTeleport = false
               }
