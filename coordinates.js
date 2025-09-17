@@ -1562,7 +1562,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'heightmapisdataarray' : heightmapIsDataArray = !!geoOptions[key]; break
       case 'heightmapdataarraywidth' : heightmapDataArrayWidth = +geoOptions[key]; break
       case 'heightmapdataarrayheight' : heightmapDataArrayHeight = +geoOptions[key]; break
-      case 'heightpamdataarrayformat' : heightmapDataArrayFormat = geoOptions[key]; break
+      case 'heightmapdataarrayformat' : heightmapDataArrayFormat = geoOptions[key]; break
       case 'exportshape'        : exportShape = !!geoOptions[key]; break
       case 'downloadshape'      : downloadShape = !!geoOptions[key]; break
       case 'exportasobj'        : exportAsOBJ = !!geoOptions[key]; break
