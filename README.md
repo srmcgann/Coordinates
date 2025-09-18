@@ -11,26 +11,26 @@ Check back for updated links. The documentation is under active development at t
 
 ## Documentation
 ### general documentation, introduction
-- [Main overview](https://coordocs.veriler.com/?s=IRjVAGs0Y&p=1)
+- [Main overview](https://whr.rf.gd/coordocs/?s=IRjVAGs0Y&p=1)
 
 ## other sections
-[ShapeFromArray](https://coordocs.veriler.com/?s=fqAGEVGSC&p=1) speed / grouping
+[ShapeFromArray](https://whr.rf.gd/coordocs/?s=fqAGEVGSC&p=1) speed / grouping
 
-[raw shapes](https://coordocs.veriler.com/?s=gsPYtHhNC&p=1) manual and procedural shapes
+[raw shapes](https://whr.rf.gd/coordocs/?s=gsPYtHhNC&p=1) manual and procedural shapes
 
-[ShapeToLines](https://coordocs.veriler.com/?s=iSyJ2lMJN&p=1) wireframe style
+[ShapeToLines](https://whr.rf.gd/coordocs/?s=iSyJ2lMJN&p=1) wireframe style
 
-[fog](https://coordocs.veriler.com/?s=qa2aDkhV1&p=1) fog effect
+[fog](https://whr.rf.gd/coordocs/?s=qa2aDkhV1&p=1) fog effect
 
-[importing / exporting](https://coordocs.veriler.com/?s=BBJwWA1Qk&p=1) importing / exporting shape formats
+[importing / exporting](https://whr.rf.gd/coordocs/?s=BBJwWA1Qk&p=1) importing / exporting shape formats
 
-[custom shaders](https://coordocs.veriler.com/?s=CTUkAzdCv&p=1) custom shaders
+[custom shaders](https://whr.rf.gd/coordocs/?s=CTUkAzdCv&p=1) custom shaders
 
-[b-spline curves](https://coordocs.veriler.com/?s=EYfM5WaWU&p=1) curves
+[b-spline curves](https://whr.rf.gd/coordocs/?s=EYfM5WaWU&p=1) curves
 
-[Data Array Textures](https://coordocs.veriler.com/?s=FJmQL8Vzl&p=1) data / procedural textures
+[Data Array Textures](https://whr.rf.gd/coordocs/?s=FJmQL8Vzl&p=1) data / procedural textures
 
-[curveTo](https://coordocs.veriler.com/?s=FJUgbKoZe&p=1) curve to, between point pairs
+[curveTo](https://whr.rf.gd/coordocs/?s=FJUgbKoZe&p=1) curve to, between point pairs
 
 ---
 
@@ -104,6 +104,7 @@ for quick reference, a sample of boilerplate...
   </body>
 </html>
 ```
+
 
 
 
