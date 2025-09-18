@@ -222,10 +222,11 @@ const Renderer = async options => {
       ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE)
       ctx.enable(ctx.BLEND)
       //ctx.enable(ctx.CULL_FACE)
-      if(geometry.alpha == 1) {
-        ctx.disable(ctx.DEPTH_TEST)
-        ctx.cullFace(ctx.FRONT)
-      }
+      //if(geometry.alpha == 1) {
+      //  ctx.disable(ctx.DEPTH_TEST)
+      //  ctx.cullFace(ctx.FRONT)
+      //}
+        ctx.cullFace(ctx.BACK)
     }else{
       ctx.disable(ctx.CULL_FACE)
       //ctx.disable(ctx.BLEND)
