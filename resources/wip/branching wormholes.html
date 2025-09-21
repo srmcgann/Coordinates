@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js?4"
+  var rendererOptions = {
+    ambientLight: .65,
+    fov: 1e3, width: 1920, height: 1080,
+    //fov: 1e3/2, width: 960, height: 540,
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+
+  var shaderOptions = [
+    { lighting: {type: 'ambientLight', value: .25}
+    },
+    { uniform: {
+      type: 'phong',
+      value: .5
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      value: .33,
+      enabled: true,
+    } }
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: {type: 'ambientLight', value: .5}
+    },
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shapes = []
+  var x, y, z, p, d, q, ls, sd
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  var geometryData = {
+    vertices: [],
+    normals: [],
+    normalVecs: [],
+    uvs: [],
+  }
+  var cl  = 6
+  var rw  = 2 //cl / 1.5 |0
+  var spw = .25
+  var sph = .1 //* (2**.5)
+  var l1, l2, a, uvx, uvy
+  var useWireFrame = false
+  
+  Array(cl*rw).fill().map((v, i) => {
+    a = []
+    l1 = i+0
+    l2 = (i/cl|0)+0-rw/2+.5
+    x = S(p=Math.PI*2/cl*l1+Math.PI/cl) * spw
+    y = C(p) * spw
+    z = l2 * sph - sph/2
+    a.push(x, y, z)
+    uvx = p/Math.PI/2
+    uvy = l2/rw-.5-.5/(rw-.5)
+    geometryData.uvs.push(uvx, uvy)
+    l1 = i+0
+    l2 = (i/cl|0)+1-rw/2+.5
+    x = S(p=Math.PI*2/cl*l1+Math.PI/cl) * spw
+    y = C(p) * spw
+    z = l2 * sph - sph/2
+    a.push(x, y, z)
+    uvx = p/Math.PI/2
+    uvy = l2/rw-.5-.5/(rw-.5)
+    geometryData.uvs.push(uvx, uvy)
+    l1 = i+1
+    l2 = (i/cl|0)+1-rw/2+.5
+    x = S(p=Math.PI*2/cl*l1+Math.PI/cl) * spw
+    y = C(p) * spw
+    z = l2 * sph - sph/2
+    a.push(x, y, z)
+    uvx = p/Math.PI/2
+    uvy = l2/rw-.5-.5/(rw-.5)
+    geometryData.uvs.push(uvx, uvy)
+    l1 = i+1
+    l2 = (i/cl|0)+1-rw/2+.5
+    x = S(p=Math.PI*2/cl*l1+Math.PI/cl) * spw
+    y = C(p) * spw
+    z = l2 * sph - sph/2
+    a.push(x, y, z)
+    uvx = p/Math.PI/2
+    uvy = l2/rw-.5-.5/(rw-.5)
+    geometryData.uvs.push(uvx, uvy)
+    l1 = i+1
+    l2 = (i/cl|0)+0-rw/2+.5
+    x = S(p=Math.PI*2/cl*l1+Math.PI/cl) * spw
+    y = C(p) * spw
+    z = l2 * sph - sph/2
+    a.push(x, y, z)
+    uvx = p/Math.PI/2
+    uvy = l2/rw-.5-.5/(rw-.5)
+    geometryData.uvs.push(uvx, uvy)
+    l1 = i+0
+    l2 = (i/cl|0)+0-rw/2+.5
+    x = S(p=Math.PI*2/cl*l1+Math.PI/cl) * spw
+    y = C(p) * spw
+    z = l2 * sph - sph/2
+    a.push(x, y, z)
+    uvx = p/Math.PI/2
+    uvy = l2/rw-.5-.5/(rw-.5)
+    
+    for(var j = 0; j < a.length; j +=3){
+      x=a[j+0]
+      y=a[j+1]
+      z=a[j+2]
+      p = Math.atan2(x, z) + Math.PI/2
+      d = Math.hypot(x, z)
+      x = S(p) * d
+      z = C(p) * d
+      a[j+0] = x
+      a[j+1] = y
+      a[j+2] = z
+    }
+    
+    geometryData.uvs.push(uvx, uvy)
+    geometryData.vertices.push(...a)
+    geometryData.normals.push(...a,...a,)
+    geometryData.normalVecs.push(...a)
+  })
+  
+  
+  var baseShape, iPc = 2
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    yaw: Math.PI/2,
+    size: 5e3,
+    name: 'background',
+    map: refTexture,
+    colorMix: 0,
+    subs: 3,
+    sphereize: 1,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })
+
+  var geoOptions = {
+    shapeType: 'custom shape',
+    size: 5,
+    name: 'segment',
+    //map: 'https://srmcgann.github.io/Coordinates/resources/spectrum_test_tile.jpg',
+    //map: 'https://srmcgann.github.io/Coordinates/resources/floorCircuitry3.jpg',
+    playbackSpeed: 4,
+    geometryData,
+    equirectangular: false,
+    color: 0xffffff,
+    colorMix: .25,
+    scaleUVX: 1,
+    scaleUVY: 1,
+    showNormals: false,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    if(useWireFrame){
+      Coordinates.ShapeToLines(geometry,{
+        alpha: .5,
+        penumbra: 0,
+        size: .25,
+        color: 0x00ff88,
+        name: 'segment',
+        closePaths: true,
+      }).then(res => {
+        shapes.push(res.shape)
+        baseShape = structuredClone(res.shape.vertices)
+      })
+    }else{
+      shapes.push(geometry)
+      baseShape = structuredClone(geometry.vertices)
+      await shader.ConnectGeometry(geometry)
+    }
+  })
+
+  var cursor = 0
+  var shifted = false
+  const Shift = shape => {
+    //shifted = true
+    var ofx, ofy, ofz
+    for(var j = 0; j < shape.vertices.length; j+=3){
+      ofz = 0 //C(renderer.t/4)/20
+      if(j>=cursor && j < cursor + cl*2*3*3){
+        if((j/9|0)%2){
+          switch((j/3|0)%3){
+            case 0: ofx = rw*sph; break
+            case 1: ofx = shape.vertices[shape.vertices.length - cl*2*3*3+9 + (j%(cl*2*3*3-9))]-shape.vertices[j+0]; break
+            case 2: ofx = shape.vertices[shape.vertices.length - cl*2*3*3+9 + (j%(cl*2*3*3-18))]-shape.vertices[j+0]; break
+          }
+        }else{
+          switch((j/3|0)%3){
+            case 0: ofx = shape.vertices[shape.vertices.length - cl*2*3*3+9 + (j%(cl*2*3*3-18))]-shape.vertices[j+0]; break
+            case 1: ofx = rw*sph; break
+            case 2: ofx = rw*sph; break
+          }
+        }
+        x = shape.vertices[j+0] += ofx * (useWireFrame ? -1: 1)
+        y = shape.vertices[j+1]
+        z = shape.vertices[j+2] += ofz
+      }
+    }
+    cursor += cl*2*3*3
+    cursor%=shape.vertices.length
+  }
+  
+  renderer.z = 1
+  window.Draw = () => {
+    var t = renderer.t
+    renderer.pitch = -Math.PI/2.5
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'segment':
+          if(0)for(var i = 0; i < shape.vertices.length; i+=3){
+            x = baseShape[i+0]
+            y = baseShape[i+1]
+            z = baseShape[i+2]
+            d = Math.hypot(x, y) //+ (C(z/(sph*rw)*Math.PI*2 + t*1)** 6 * spw / 12) * 1 - sph*16
+            p = Math.atan2(x, y)
+            x = S(p) * d
+            y = C(p) * d
+            shape.vertices[i+0] = x
+            shape.vertices[i+1] = y
+            shape.vertices[i+2] = z
+          }
+          
+          if(!shifted) if(!((t*60|0)%100)) Shift(shape)
+          
+          //shape.roll  = -t/4
+          shape.pitch = Math.PI/2 + t
+          //shape.yaw = Math.PI/2 + t
+          Coordinates.SyncNormals(shape, false, false, true)
+          renderer.Draw(shape)
+        break
+        default: 
+          renderer.Draw(shape)
+        break
+      }
+    })
+  }
+  
+</script>
+  </body>
+</html>

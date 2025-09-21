@@ -2771,6 +2771,20 @@ const SyncNormals = (shape, averageNormals=false, flipNormals=false,
                        autoFlip=true, cx = 0, cy = 0, cz = 0) => {
   var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, n
   var nrms = []
+  // populate normals/normalVecs/uvs if needed
+  if(typeof shape.normals == 'undefined' ||
+       shape.normals.length != shape.vertices.length * 2) {
+    shape.normals = Array(shape.vertices.length*2).fill(0)
+  }
+  if(typeof shape.normalVecs == 'undefined' ||
+       shape.normalVecs.length != shape.vertices.length) {
+    shape.normalVecs = Array(shape.vertices.length).fill(0)
+  }
+  if(typeof shape.uvs == 'undefined' ||
+       shape.uvs.length != shape.vertices.length/3*2) {
+    shape.uvs = Array(shape.vertices.length/3*2).fill(0)
+  }
+  //////
   for(var i = 0; i < shape.vertices.length; i+=9){
     X1 = shape.vertices[i+0]
     Y1 = shape.vertices[i+1]
