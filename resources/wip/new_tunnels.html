@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js?3"
+    
+      var rendererOptions = {
+        ambientLight: .5,
+        fov: 1e3, width: 1920, height: 1080,
+        //fov: 1e3/2, width: 960, height: 540,
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .75
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          value: .75,
+          enabled: false,
+          
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shapes = []
+      
+      var iPc = 100
+      var seg = iPc / 2 | 0
+      var pos = 0
+      var mPos = 0
+      var spd = .5
+      
+      var x, y, z, p, q, d, ls, l
+      var x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4
+      var ax1, ay1, az1, ax2, ay2, az2, p_, p2_
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+      var baseLine = []
+      var tunnelSection
+      var geometryData = []
+      var iPv = .25
+      var cl = 16,  latVar1 = 0, latVar2 = 0
+      const Update = () => {
+        tunnelSection = {
+          vertices: [],
+          normals: [],
+          normalVecs: [],
+          uvs: [],
+        }
+        ls = 1
+        baseLine = []
+        x = -iPc/2 * iPv
+        y = 0
+        z = 0
+        //for(var m = 0; m < mPos; m++) {
+        //  //mPos --
+        //  x -= iPv
+        //  y -= S(p=Math.PI*4/iPc*(m+mPos)+renderer.t*0) * iPv * C(q=Math.PI*2/iPc*(m+mPos)) / 2
+        //  z -= C(p) * iPv * C(q) / 2
+        //}
+        var i = 0
+        var ct = 0
+        do{
+          if(i>=mPos) {
+            baseLine.push([x, y, z])
+            ct++
+          }
+          latVar1 /= 1.005
+          latVar1 += (((((i+mPos)*9)**3.1)%1)-.5) / 10
+          latVar2 /= 1.005
+          latVar2 += (((((i+mPos)*9)**2.4)%1)-.5) / 5
+          x -= iPv
+          y -= S(latVar1) * iPv //* C(q=Math.PI*2/iPc*i) / 2
+          z -= C(latVar2) * iPv //* C(q) / 2
+          if(i>=mPos) {
+            baseLine.push([x, y, z])
+            ct++
+          }
+        }while(i++ < 1e4 && ct < iPc);
+        
+        for(var i = 0; i<baseLine.length-2; i+=2){
+          for(var j = 0; j < cl; j++){
+          
+            ax1 = baseLine[i][0]
+            ay1 = baseLine[i][1]
+            az1 = baseLine[i][2]
+            ax2 = baseLine[i+1][0]
+            ay2 = baseLine[i+1][1]
+            az2 = baseLine[i+1][2]
+            p_  = Math.atan2(ax2-ax1, ay2-ay1) + Math.PI/2
+            p2_ = Math.atan2(ax2-ax1, az2-az1) + Math.PI/2
+            
+            l = i
+            x = 0
+            y = S(p=Math.PI*2/cl*j) * ls 
+            z = C(p) * ls
+            p = Math.atan2(x, z) + p2_
+            d = Math.hypot(x, z)
+            x = S(p) * d
+            z = C(p) * d
+            p = Math.atan2(x, y) + p_
+            d = Math.hypot(x, y)
+            x = S(p) * d
+            y = C(p) * d
+            x1 = baseLine[l][0] + x
+            y1 = baseLine[l][1] + y
+            z1 = baseLine[l][2] + z
+            
+            l = i
+            x = 0
+            y = S(p=Math.PI*2/cl*(j+1)) * ls 
+            z = C(p) * ls
+            p = Math.atan2(x, z) + p2_
+            d = Math.hypot(x, z)
+            x = S(p) * d
+            z = C(p) * d
+            p = Math.atan2(x, y) + p_
+            d = Math.hypot(x, y)
+            x = S(p) * d
+            y = C(p) * d
+            x2 = baseLine[l][0] + x
+            y2 = baseLine[l][1] + y
+            z2 = baseLine[l][2] + z
+          
+            ax1 = baseLine[i+2][0]
+            ay1 = baseLine[i+2][1]
+            az1 = baseLine[i+2][2]
+            ax2 = baseLine[i+3][0]
+            ay2 = baseLine[i+3][1]
+            az2 = baseLine[i+3][2]
+            p_  = Math.atan2(ax2-ax1, ay2-ay1) + Math.PI/2
+            p2_ = Math.atan2(ax2-ax1, az2-az1) + Math.PI/2
+            
+            l = i+1
+            x = 0
+            y = S(p=Math.PI*2/cl*(j+1)) * ls 
+            z = C(p) * ls
+            p = Math.atan2(x, z) + p2_
+            d = Math.hypot(x, z)
+            x = S(p) * d
+            z = C(p) * d
+            p = Math.atan2(x, y) + p_
+            d = Math.hypot(x, y)
+            x = S(p) * d
+            y = C(p) * d
+            x3 = baseLine[l][0] + x
+            y3 = baseLine[l][1] + y
+            z3 = baseLine[l][2] + z
+            
+            l = i+1
+            x = 0
+            y = S(p=Math.PI*2/cl*j) * ls 
+            z = C(p) * ls
+            p = Math.atan2(x, z) + p2_
+            d = Math.hypot(x, z)
+            x = S(p) * d
+            z = C(p) * d
+            p = Math.atan2(x, y) + p_
+            d = Math.hypot(x, y)
+            x = S(p) * d
+            y = C(p) * d
+            x4 = baseLine[l][0] + x
+            y4 = baseLine[l][1] + y
+            z4 = baseLine[l][2] + z
+            
+            tunnelSection.vertices.push(x1,y1,z1)
+            tunnelSection.vertices.push(x2,y2,z2)
+            tunnelSection.vertices.push(x3,y3,z3)
+            tunnelSection.vertices.push(x3,y3,z3)
+            tunnelSection.vertices.push(x4,y4,z4)
+            tunnelSection.vertices.push(x1,y1,z1) // triangulate
+            for(var m = 6; m--;){
+              tunnelSection.normals.push(0,0,0,0,0,0)
+              tunnelSection.normalVecs.push(0,0,0)
+              tunnelSection.uvs.push(0,0)
+            }
+          }
+        }
+      }
+      Update()
+      
+      var geoOptions = {
+        shapeType: 'lines',
+        name: 'base line',
+        geometryData: baseLine,
+        size: 2,
+        alpha: .75,
+        penumbra: .25,
+        color: 0x4400ff,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        //await shader.ConnectGeometry(geometry)
+      })
+      
+      var geoOptions = {
+        shapeType: 'custom shape',
+        name: 'tunnel section',
+        geometryData: tunnelSection,
+        color: 0xffffff,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        Coordinates.SyncNormals(geometry, true, true)
+        //Coordinates.ShapeToLines(geometry).then(res => {
+        //  shapes.push(res.shape)
+        //})
+        await shader.ConnectGeometry(geometry)
+        shapes.push(geometry)
+      })
+      
+      
+      /*
+      var geoOptions = {
+        shapeType: 'cube',
+        name: 'cube',
+        size: 2,
+        color: 0xffffff,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      */
+      
+      renderer.x = 10
+      renderer.yaw = Math.PI/2
+      if(1) Coordinates.LoadFPSControls(renderer, {
+        flyMode: true,
+        crosshairSize: .25,
+        mSpeed: .1,
+      })
+      
+      window.Draw = () => {
+        var t = renderer.t
+        pos += spd
+        while(pos >= 1) {
+          //seg++
+          pos -= 1
+          mPos += 1
+        }
+        while(pos < 0) {
+          //seg--
+          pos += 1
+          mPos -= 1
+        }
+        while(seg >= baseLine.length/2) seg -= baseLine.length/2
+        while(seg < 0) seg += baseLine.length/2
+        Update()
+        
+        x1 = -baseLine[seg*2][0]
+        y1 = -baseLine[seg*2][1]
+        z1 = -baseLine[seg*2][2]
+        x2 = -baseLine[seg*2+1][0]
+        y2 = -baseLine[seg*2+1][1]
+        z2 = -baseLine[seg*2+1][2]
+        renderer.x = x1 + (x2-x1) * pos
+        renderer.y = y1 + (y2-y1) * pos
+        renderer.z = z1 + (z2-z1) * pos
+        ax1 = -baseLine[seg*2+0][0]
+        ay1 = -baseLine[seg*2+0][1]
+        az1 = -baseLine[seg*2+0][2]
+        ax2 = -baseLine[seg*2+1][0]
+        ay2 = -baseLine[seg*2+1][1]
+        az2 = -baseLine[seg*2+1][2]
+        renderer.pitch += (-Math.acos((ay2-ay1) / Math.hypot(ax2-ax1, ay2-ay1, az2-az1)) +Math.PI/2 - renderer.pitch) / 16
+        renderer.yaw   += (-Math.atan2(ax2-ax1, az2-az1) + Math.PI - renderer.yaw) / 16
+        
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'tunnel section':
+              for(var i = 0; i < tunnelSection.vertices.length; i+=3){
+                x = tunnelSection.vertices[i+0]
+                y = tunnelSection.vertices[i+1]
+                z = tunnelSection.vertices[i+2]
+                shape.vertices[i+0] = x
+                shape.vertices[i+1] = y
+                shape.vertices[i+2] = z
+              }
+              Coordinates.SyncNormals(shape, true, true, false)
+              renderer.Draw(shape)
+            break
+            case 'cube':
+              shape.yaw += .005
+              shape.pitch += .005
+              renderer.Draw(shape)
+            break
+            case 'base line':
+              for(var i = 0; i < shape.vertices.length; i+=3){
+                x = shape.vertices[i+0]
+                y = shape.vertices[i+1]
+                z = shape.vertices[i+2]
+                var j = i/3
+                x = -baseLine[j][0]
+                y = baseLine[j][1]
+                z = baseLine[j][2]
+                shape.vertices[i+0] = x
+                shape.vertices[i+1] = y
+                shape.vertices[i+2] = z
+              }
+              //renderer.Draw(shape)
+            break
+            default:
+              renderer.Draw(shape)
+            break
+          }
+        })
+      }
+      
+    </script>
+  </body>
+</html>
