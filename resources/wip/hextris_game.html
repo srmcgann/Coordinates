@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #222;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var rendererOptions = {
+        ambientLight: 1, margin : 0,
+        width: 1920, height: 1080, fov: 1e3,
+        //width: 960, height: 540, fov: 500,
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      var base = 6
+      var pieces
+      switch(base){
+        case 3:
+          pieces = [[[0,2,0],[0,0,0],[2,0,0]],[[4,0,0],[2,0,0],[0,0,0]]]
+        break
+        case 4:
+          pieces = [[[2,4,0],[2,2,0],[0,2,0],[0,0,0]],[[4,0,0],[2,0,0],[0,0,0],[0,2,0]],[[0,0,0],[0,2,0],[2,2,0],[2,0,0]],[[0,0,0],[0,2,0],[0,4,0],[0,6,0]],[[2,0,0],[2,2,0],[4,0,0],[0,0,0]],[[0,2,0],[2,2,0],[0,4,0],[2,0,0]],[[4,0,0],[2,0,0],[4,2,0],[0,0,0]]]
+        break
+        case 5:
+          pieces = [[[2,0,0],[0,0,0],[4,0,0],[4,2,0],[6,2,0]],[[2,2,0],[4,2,0],[2,4,0],[0,2,0],[2,0,0]],[[2,0,0],[4,0,0],[6,0,0],[2,2,0],[0,2,0]],[[2,2,0],[0,2,0],[0,4,0],[2,0,0],[2,4,0]],[[0,2,0],[0,4,0],[2,4,0],[2,2,0],[0,0,0]],[[0,2,0],[0,0,0],[2,0,0],[0,4,0],[0,6,0]],[[0,2,0],[0,0,0],[2,0,0],[4,0,0],[6,0,0]],[[4,0,0],[2,0,0],[0,0,0],[2,2,0],[2,4,0]],[[4,2,0],[2,2,0],[0,2,0],[0,4,0],[2,0,0]],[[0,2,0],[2,2,0],[0,4,0],[0,0,0],[0,6,0]],[[2,4,0],[2,2,0],[2,6,0],[0,2,0],[2,0,0]],[[2,2,0],[2,0,0],[4,2,0],[4,4,0],[0,2,0]],[[0,4,0],[2,4,0],[0,2,0],[0,0,0],[2,0,0]],[[2,2,0],[4,2,0],[0,2,0],[4,4,0],[0,0,0]],[[2,0,0],[0,0,0],[0,2,0],[4,0,0],[0,4,0]],[[0,2,0],[0,4,0],[0,6,0],[0,0,0],[0,8,0]],[[2,0,0],[2,2,0],[4,2,0],[4,4,0],[0,0,0]],[[2,4,0],[4,4,0],[2,2,0],[2,0,0],[0,0,0]]]
+        break
+        case 6:
+          pieces = [[[4,6,0],[4,4,0],[2,4,0],[2,2,0],[2,0,0],[0,0,0]],[[2,2,0],[0,2,0],[0,0,0],[2,4,0],[2,6,0],[2,8,0]],[[2,0,0],[2,2,0],[2,4,0],[0,0,0],[0,4,0],[4,2,0]],[[2,0,0],[2,2,0],[2,4,0],[2,6,0],[0,4,0],[0,6,0]],[[0,2,0],[2,2,0],[2,4,0],[0,4,0],[0,6,0],[0,0,0]],[[2,4,0],[2,2,0],[2,0,0],[4,4,0],[4,6,0],[0,4,0]],[[2,0,0],[2,2,0],[4,2,0],[4,0,0],[0,2,0],[4,4,0]],[[4,0,0],[2,0,0],[4,2,0],[0,0,0],[4,4,0],[2,2,0]],[[4,2,0],[4,0,0],[2,0,0],[2,2,0],[0,0,0],[0,2,0]],[[2,4,0],[2,2,0],[2,0,0],[4,0,0],[4,2,0],[0,4,0]],[[4,4,0],[2,4,0],[6,4,0],[2,2,0],[2,0,0],[0,4,0]],[[2,2,0],[2,4,0],[0,2,0],[2,0,0],[0,0,0],[4,2,0]],[[4,2,0],[2,2,0],[0,2,0],[0,4,0],[4,4,0],[4,0,0]],[[2,2,0],[2,0,0],[4,0,0],[0,0,0],[0,2,0],[6,0,0]],[[0,6,0],[0,4,0],[0,8,0],[0,2,0],[0,0,0],[0,10,0]],[[0,2,0],[2,2,0],[4,2,0],[0,4,0],[4,0,0],[2,4,0]],[[4,0,0],[4,2,0],[2,2,0],[2,4,0],[0,2,0],[6,0,0]],[[0,6,0],[0,4,0],[0,2,0],[0,0,0],[2,2,0],[2,6,0]],[[2,2,0],[4,2,0],[2,0,0],[0,0,0],[4,4,0],[6,4,0]],[[2,4,0],[0,4,0],[2,2,0],[0,2,0],[2,0,0],[0,6,0]],[[0,2,0],[2,2,0],[4,2,0],[6,2,0],[6,0,0],[4,4,0]],[[2,4,0],[2,2,0],[4,2,0],[2,0,0],[0,4,0],[0,6,0]],[[2,4,0],[4,4,0],[2,6,0],[2,2,0],[2,0,0],[0,6,0]],[[0,4,0],[0,2,0],[2,4,0],[2,2,0],[4,4,0],[2,0,0]],[[0,4,0],[2,4,0],[2,2,0],[2,6,0],[4,2,0],[2,0,0]],[[2,2,0],[2,4,0],[0,2,0],[2,6,0],[2,0,0],[2,8,0]],[[2,2,0],[2,4,0],[2,6,0],[2,0,0],[4,2,0],[0,2,0]],[[4,2,0],[2,2,0],[4,0,0],[2,4,0],[0,2,0],[6,2,0]],[[2,2,0],[2,0,0],[4,2,0],[0,0,0],[6,2,0],[8,2,0]],[[2,0,0],[2,2,0],[2,4,0],[0,4,0],[0,0,0],[4,0,0]],[[4,6,0],[4,4,0],[2,4,0],[2,2,0],[0,2,0],[0,0,0]],[[2,0,0],[0,0,0],[0,2,0],[4,0,0],[0,4,0],[0,6,0]],[[4,4,0],[2,4,0],[0,4,0],[2,6,0],[4,2,0],[4,0,0]],[[2,0,0],[4,0,0],[2,2,0],[6,0,0],[0,2,0],[4,2,0]],[[4,2,0],[6,2,0],[2,2,0],[0,2,0],[4,0,0],[8,2,0]],[[2,0,0],[4,0,0],[2,2,0],[0,2,0],[6,0,0],[6,2,0]],[[2,4,0],[4,4,0],[0,4,0],[0,2,0],[4,2,0],[0,0,0]],[[2,2,0],[0,2,0],[2,4,0],[0,0,0],[4,4,0],[6,4,0]],[[2,2,0],[2,4,0],[4,2,0],[4,0,0],[2,6,0],[0,6,0]],[[2,0,0],[2,2,0],[2,4,0],[0,0,0],[2,6,0],[0,6,0]],[[0,2,0],[0,0,0],[0,4,0],[0,6,0],[2,4,0],[2,0,0]],[[4,2,0],[4,0,0],[4,4,0],[4,6,0],[2,2,0],[0,2,0]],[[2,2,0],[2,4,0],[2,0,0],[0,0,0],[4,4,0],[6,4,0]],[[2,0,0],[2,2,0],[4,2,0],[2,4,0],[2,6,0],[0,6,0]],[[2,2,0],[2,4,0],[2,0,0],[0,4,0],[0,6,0],[0,0,0]],[[2,0,0],[2,2,0],[4,0,0],[0,2,0],[6,0,0],[0,4,0]],[[2,6,0],[0,6,0],[2,4,0],[2,2,0],[2,0,0],[2,8,0]],[[2,0,0],[2,2,0],[0,2,0],[2,4,0],[4,0,0],[6,0,0]],[[4,0,0],[6,0,0],[2,0,0],[0,0,0],[0,2,0],[0,4,0]],[[2,2,0],[2,4,0],[2,0,0],[0,0,0],[4,2,0],[6,2,0]],[[4,0,0],[4,2,0],[6,2,0],[8,2,0],[2,0,0],[0,0,0]],[[4,2,0],[4,0,0],[2,2,0],[6,2,0],[0,2,0],[0,4,0]],[[2,4,0],[0,4,0],[4,4,0],[0,2,0],[0,0,0],[4,6,0]],[[8,0,0],[8,2,0],[6,0,0],[4,0,0],[2,0,0],[0,0,0]],[[4,2,0],[6,2,0],[6,4,0],[2,2,0],[0,2,0],[0,0,0]],[[0,2,0],[0,0,0],[2,0,0],[4,0,0],[6,0,0],[8,0,0]],[[2,2,0],[4,2,0],[0,2,0],[0,0,0],[0,4,0],[6,2,0]],[[4,2,0],[2,2,0],[4,0,0],[0,2,0],[6,0,0],[8,0,0]],[[4,2,0],[6,2,0],[2,2,0],[0,2,0],[0,4,0],[6,0,0]],[[0,2,0],[0,0,0],[2,0,0],[4,0,0],[0,4,0],[4,2,0]]]
+        break
+        case 7:
+        break
+      }
+
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+      var x, y, z, s, q, v, ls
+
+      var boardCL = base*16
+      var pieceSize = 81 / boardCL
+      var margin = 0
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { lighting: { type: 'ambientLight', value: 1}},
+        { uniform: {
+          type: 'phong',
+          value: .25
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: { type: 'ambientLight', value: 1}},
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shapes = []
+      var baseShapes = []
+      var baseRectangle
+      var geoOptions = {
+        shapeType: 'rectangle',
+        name: 'piece',
+        subs: -1,
+        size: (2**.5/2-margin)*pieceSize,
+        color: 0xffffff,
+        colorMix: .5
+      }
+      Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        var maxx = -6e6
+        var maxy = -6e6
+        pieces.forEach(pointArray => {
+          pointArray.map((q, j) => {
+            if(q[0] > maxx) maxx = q[0]
+            if(q[1] > maxy) maxy = q[1]
+          })
+          pointArray.map((q, j) => {
+            q[0] -= (maxx/2 | 0) + (maxx%4?3:0) + 1
+            q[1] -= (maxy/2 | 0) + (maxy%4?3:0) + 1
+            q[0] *= pieceSize / 2
+            q[1] *= pieceSize / 2
+            q[2] *= pieceSize / 2
+          })
+          Coordinates.ShapeFromArray(geometry, pointArray).then(res=>{
+            baseShapes.push(res)
+            shader.ConnectGeometry(res)
+          })
+        })
+        baseRectangle = geometry
+        shader.ConnectGeometry(geometry)
+      })
+      
+      var geoOptions = {
+        shapeType: 'obj',
+        name: 'border',
+        url: 'https://srmcgann.github.io/objs/hextris_frame.obj?3',
+        scaleX: 102.5,
+        scaleY: 102.5,
+        scaleZ: 102.5/4,
+        color: 0x888888,
+        colorMix: .5,
+      }
+      Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        shader.ConnectGeometry(geometry)
+      })
+      
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        subs: 3,
+        size: 5e3,
+        name: 'background',
+        map: 'https://srmcgann.github.io/skyboxes3/HDRI/pano2.jpg',
+        colorMix: 0,
+      }
+      Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        backgroundShader.ConnectGeometry(geometry)
+      })
+      
+      var geoOptions = {
+        shapeType: 'sprite',
+        size: 3,
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
+        z: -.1
+      }
+      if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+      })
+      
+      var pieceSel = pieces.length * Rn() | 0
+
+      renderer.z = 100
+      
+      Coordinates.LoadFPSControls(renderer, {
+        flyMode: true,
+        mSpeed: 2,
+        crosshairSel: 2,
+        crosshairSize: .5,
+      })
+      var mag = pieceSize
+      window.Draw = () => {
+        var t = renderer.t
+        renderer.Clear()
+        //renderer.yaw = t/4
+        var ct = 0
+        if(0)for(var j=boardCL*2; j--;)for(var i = 0; i<boardCL; i++){
+          ct++
+          baseRectangle.x = (i - boardCL/2+.5) * mag
+          baseRectangle.y = (-boardCL+j+.5) * mag
+          baseRectangle.z = 0
+          baseRectangle.color = 0xff0000
+          baseRectangle.color = Coordinates.HSVToHex(360/boardCL/2/boardCL*ct,1,1)
+          if(((i+j*boardCL)**3.1)%1<.1)renderer.Draw(baseRectangle)
+          //if((i+(j%2))%2)renderer.Draw(baseRectangle)
+        }
+        var s = (C(t)/2+.5) * 20
+        var l = (s|0)*100
+        if(1) for(var i = Math.max(10, pieces.length); i--;){
+          var r1 = ((i+20+l)**2.4)%1
+          var r2 = ((i+200+l)**3.1)%1
+          var r3 = ((i+20+l)**3.4)%1
+          x = boardCL/2 +1+ (r3-.5) * (boardCL - base)  |0
+          y = r2 * boardCL*2 |0
+          var bsl = r1*baseShapes.length|0
+          baseShapes[bsl].x = (x - boardCL/2 + 1) * mag
+          baseShapes[bsl].y = (y - boardCL + base-1) * mag
+          baseShapes[bsl].z = 0
+          baseShapes[bsl].color = Coordinates.HSVToHex(360/baseShapes.length*i + 180,1,1)
+          renderer.Draw(baseShapes[bsl])
+        }
+        if(1)shapes.forEach(shape => {
+          switch(shape.name){
+            case 'rectangle':
+            break
+            case 'piece':
+              renderer.Draw(shape)
+            break
+            default:
+              renderer.Draw(shape)
+            break
+          }
+        })
+      }
+      
+    </script>
+  </body>
+</html>
