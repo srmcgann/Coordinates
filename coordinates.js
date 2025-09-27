@@ -136,7 +136,7 @@ const Renderer = async options => {
 
   if(context.mode != '2d'){
     console.log(`GLSL version: ${ctx.getParameter(ctx.SHADING_LANGUAGE_VERSION)}`)
-    ctx.pixelStorei(ctx.UNPACK_ALIGNMENT, 1)
+    ctx.pixelStorei(ctx.UNPACK_ALIGNMENT, 4)
   }
   if(exportGPUSpecs) getParams(ctx)
   
@@ -723,9 +723,9 @@ const Renderer = async options => {
               ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
               ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
+              dset.locPosition = ctx.getAttribLocation(dset.program, "position")
               ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
               ctx.enableVertexAttribArray(dset.locPosition)
-              dset.locNormal = ctx.getAttribLocation(dset.program, "position")
 
               // offsets
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.offset_buffer)
@@ -752,8 +752,8 @@ const Renderer = async options => {
               //ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
               ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
-              ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, false, 0, 0)
               dset.locNormal = ctx.getAttribLocation(dset.program, "normal")
+              ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, false, 0, 0)
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
               ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
               ctx.enableVertexAttribArray(dset.locNormal)
@@ -2661,11 +2661,11 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
     break
     case 'dataArray':
       texImage = geometry.map
-      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
     break
     case 'heightmapDataArray':
       texImage = geometry.heightMap
-      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
     break
     case 'video':
       if(involveCache && (cacheItem=cache.texImages.filter(v=>v.url==geometry.map && tval != -1 && v.tVal == tval)).length){
@@ -7219,8 +7219,9 @@ const HexToRGB = val => {
 
 
 const getParams = ctx => {
-  var paramNames = ['COPY_READ_BUFFER_BINDING','COPY_WRITE_BUFFER_BINDING','DRAW_BUFFERi','DRAW_FRAMEBUFFER_BINDING','FRAGMENT_SHADER_DERIVATIVE_HINT','MAX_3D_TEXTURE_SIZE','MAX_ARRAY_TEXTURE_LAYERS','MAX_CLIENT_WAIT_TIMEOUT_WEBGL','MAX_COLOR_ATTACHMENTS','MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS','MAX_COMBINED_UNIFORM_BLOCKS','MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS','MAX_DRAW_BUFFERS','MAX_ELEMENT_INDEX','MAX_ELEMENTS_INDICES','MAX_ELEMENTS_VERTICES','MAX_FRAGMENT_INPUT_COMPONENTS','MAX_FRAGMENT_UNIFORM_BLOCKS','MAX_FRAGMENT_UNIFORM_COMPONENTS','MAX_PROGRAM_TEXEL_OFFSET','MAX_SAMPLES','MAX_SERVER_WAIT_TIMEOUT','MAX_TEXTURE_LOD_BIAS','MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS','MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS','MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS','MAX_UNIFORM_BLOCK_SIZE','MAX_UNIFORM_BUFFER_BINDINGS','MAX_VARYING_COMPONENTS','MAX_VERTEX_OUTPUT_COMPONENTS','MAX_VERTEX_UNIFORM_BLOCKS','MAX_VERTEX_UNIFORM_COMPONENTS','MIN_PROGRAM_TEXEL_OFFSET','PACK_ROW_LENGTH','PACK_SKIP_PIXELS','PACK_SKIP_ROWS','PIXEL_PACK_BUFFER_BINDING','PIXEL_UNPACK_BUFFER_BINDING','RASTERIZER_DISCARD','READ_BUFFER','READ_FRAMEBUFFER_BINDING','SAMPLE_ALPHA_TO_COVERAGE','SAMPLE_COVERAGE','SAMPLER_BINDING','TEXTURE_BINDING_2D_ARRAY','TEXTURE_BINDING_3D','TRANSFORM_FEEDBACK_ACTIVE','TRANSFORM_FEEDBACK_BINDING','TRANSFORM_FEEDBACK_BUFFER_BINDING','TRANSFORM_FEEDBACK_PAUSED','UNIFORM_BUFFER_BINDING','UNIFORM_BUFFER_OFFSET_ALIGNMENT','UNPACK_IMAGE_HEIGHT','UNPACK_ROW_LENGTH','UNPACK_SKIP_IMAGES','UNPACK_SKIP_PIXELS','UNPACK_SKIP_ROWS','VERTEX_ARRAY_BINDING']
-  
+  var paramNames = Object.keys(Object.getPrototypeOf(ctx))
+  paramNames.sort()
+
   var params = []
   paramNames.map(name => {
     params.push({ name, val: ctx.getParameter(ctx[name]) })

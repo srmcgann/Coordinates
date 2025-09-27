@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+  var rendererOptions = {
+    ambientLight: .5,
+    fov: 50000, margin: 0,
+    width: 1920*.75, height: 1080*.75,
+    //width: 960, height: 540,
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  
+  //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/rd2_po2_small.mp4'
+  var refTexture = 'https://srmcgann.github.io/skyboxes/videos/starfield.mp4'
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var x, y, z, p, d
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  var playbackSpeed = 1
+
+  var shaderOptions = [
+    { lighting: {
+      type: 'ambientLight',
+      value: -2
+    } },
+    { uniform: {
+      type: 'phong',
+      value: .05
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      playbackSpeed,
+      value: .5,
+      enabled: true
+    } }
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: {
+      type: 'ambientLight',
+      value: 2
+    } },
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } },
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+  var shapes = []
+  var geoOptions = {
+    shapeType: 'obj',
+    name: 'cyndi',
+    url: 'https://srmcgann.github.io/objs/cyndi/cyndi_lowpoly.obj',
+    map: 'https://srmcgann.github.io/objs/cyndi/cyndi.jpg',
+    scaleX: 5,
+    scaleY: 6,
+    scaleZ: 5,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    for(var i = 0; i < geometry.vertices.length; i += 3){
+      x = geometry.vertices[i+0]
+      y = geometry.vertices[i+1]
+      z = geometry.vertices[i+2]
+      p = Math.atan2(y, z) - Math.PI/2
+      d = Math.hypot(y, z)
+      y = S(p) * d
+      z = C(p) * d
+      geometry.vertices[i+0] = x
+      geometry.vertices[i+1] = y
+      geometry.vertices[i+2] = z
+    }
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+  
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    sphereize: 1,
+    subs: 3,
+    map: refTexture,
+    playbackSpeed,
+    size: 500,
+    colorMix: 0,
+  }
+  if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+  
+  var pointlights = []
+  var iPointlightc = 3
+  for(var m = iPointlightc; m--;){
+    var staridx
+    switch(m){
+      case 0: staridx = 7; break
+      case 1: staridx = 4; break
+      case 2: staridx = 0; break
+    }
+    var geoOptions = {
+      shapeType: 'point light',
+      name: 'point light',
+      map: `https://srmcgann.github.io/Coordinates/resources/stars/star${staridx}.png`,
+      size: 2,
+      z: 0,
+      lum: .133,
+      showSource: true,
+    }
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      pointlights.push(geometry)
+    })  
+  }
+
+  window.Draw = () => {
+    var t = renderer.t
+    renderer.yaw = t/2
+    renderer.z = Math.min(8, Math.max(3.3333333333333, (.95-C(t/2))*6)) * 1.5
+    pointlights.map((pointlight, idx) => {
+      pointlight.color = Coordinates.HSVToHex(360 / pointlights.length * idx, .66, 1)
+      p = Math.PI * 2 / pointlights.length * idx + t * 2
+      d = 4
+      x = S(p) * d
+      y = 0
+      z = C(p) * d
+      p = Math.atan2(y, z) + C(t) / 1.5
+      d = Math.hypot(y, z)
+      pointlight.x = x
+      pointlight.y = S(p) * d
+      pointlight.z = C(p) * d
+      renderer.Draw(pointlight)
+    })
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+          shape.x = -renderer.x
+          shape.y = -renderer.y
+          shape.z = -renderer.z
+          renderer.Draw(shape)
+        break
+        case 'cyndi':
+          //shape.pitch = -Math.PI/2
+           shape.yaw = Math.min(Math.PI*2, Math.max(0, (.5+C(t/4))*Math.PI*1.5)) - t / 2
+          shape.pitch = Math.min(Math.PI*2, Math.max(0, (.5+C(t/4))*Math.PI*1.5))
+          renderer.fov = 700 + Math.min(1, Math.max(0, (.8+C(t/2))*.5))**2 * 80000
+          renderer.Draw(shape)
+        break
+        default:
+          renderer.Draw(shape)
+        break
+      }
+    })
+  }
+  
+</script>
+
+  </body>
+</html>
