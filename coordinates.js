@@ -4159,8 +4159,10 @@ const BasicShader = async (renderer, options=[]) => {
               }
               
               
-              ${uFragCode}
               vec2 coords = Coords(0.0, nVi);
+              
+              ${uFragCode}
+              
               vec4 texel = texture2D( baseTexture, coords);
               texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
               float fv;
