@@ -646,12 +646,15 @@ const Renderer = async options => {
                   break
                   case 'custom':
                     if(uniform.uniformName){
-                      uniform.locCustomUniform =
-                         ctx.getUniformLocation(dset.program, uniform.uniformName)
                       var ar = uniform.value
                       if(IsArray(ar)){
-                        ctx[uniform.dataType](uniform.locCustomUniform, ...uniform.value)
+                        uniform.locCustomUniform =
+                           ctx.getUniformLocation(dset.program, uniform.uniformName)
+                           console.log('1', uniform)
+                        ctx[uniform.dataType](uniform.locCustomUniform, uniform.value)
                       }else{
+                        uniform.locCustomUniform =
+                           ctx.getUniformLocation(dset.program, uniform.uniformName)
                         ctx[uniform.dataType](uniform.locCustomUniform, uniform.value)
                       }
                     }
