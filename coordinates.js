@@ -52,8 +52,9 @@ const Renderer = async options => {
       alpha                   : true,
       antialias               : false,
       desynchronized          : true,
-      premultipliedAlpha      : false
-     }
+      premultipliedAlpha      : false,
+      preserveDrawingBuffer   : true,
+    }
   }
   
   var alphaQueue      = []
@@ -229,7 +230,9 @@ const Renderer = async options => {
         ctx.cullFace(ctx.BACK)
     }else{
       ctx.disable(ctx.CULL_FACE)
-      ctx.disable(ctx.BLEND)
+      if(geometry.shapeType != 'sprite' ||
+         (geometry.shapeType != 'point light' && geometry.showSource) ||
+          geometry.alpha != 1) ctx.disable(ctx.BLEND)
     }
 
     var equirectangularPlugin, omitSplitCheck
