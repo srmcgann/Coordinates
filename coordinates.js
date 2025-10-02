@@ -229,7 +229,7 @@ const Renderer = async options => {
         ctx.cullFace(ctx.BACK)
     }else{
       ctx.disable(ctx.CULL_FACE)
-      //ctx.disable(ctx.BLEND)
+      ctx.disable(ctx.BLEND)
     }
 
     var equirectangularPlugin, omitSplitCheck
