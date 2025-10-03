@@ -200,8 +200,6 @@ for a slightly more full-featured boilerplate example, the below may be used
     scaleUVX:1,
     scaleUVY:.5,
     scaleY:2.5,
-    //equirectangular: true,
-    //equirectangularHeightmap: true,
     size: 6,
     colorMix: 0,
   }
@@ -219,7 +217,7 @@ for a slightly more full-featured boilerplate example, the below may be used
   })
   */
   
-  //uncomment abover to enable mouse/keyboard controls
+  //uncomment above to enable mouse/keyboard controls
   
   renderer.z = renderer.width > 1e3 ? 10 : 20
   
