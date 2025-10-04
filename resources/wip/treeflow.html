@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+  var rendererOptions = {
+    ambientLight: .5, margin: 0,
+    fov: 800, width: 1920, height: 1080,
+    //fov: 800/2, width: 1920/2, height: 1080/2,
+    // uncomment above for lower-res, higher-performance canvas
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  var playbackSpeed = 2
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+  //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg'
+  //var refTexture = 'https://srmcgann.github.io/skyboxes3/HDRI/alices.jpg'
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  var x, y, z, p, q, d
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .6}},
+    { uniform: {
+      type: 'phong',
+      value: 1.2
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      playbackSpeed: 4,
+      value: .15,
+      enabled: true, 
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .5}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+  var shapes = []
+  var geometryData = Array(2e4).fill().map((v, i) => [1e5, 1e5, 1e5])
+  var particleShape
+  var geoOptions = {
+    shapeType: 'particles',
+    name: 'projectiles',
+    geometryData,
+    alpha: .5,
+    penumbra: .33,
+    size: 4,
+    color: 0x4488ff,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    particleShape = geometry
+  })
+  
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    sphereize: 1,
+    //rotationMode: 3,
+    subs: 4,
+    //pitch: Math.PI/2,
+    map: refTexture,
+    playbackSpeed: 4,
+    size: 5e3,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })
+  
+  var cl = 3
+  var rw = 3
+  var br = 3
+  var sp = 70
+  var pointArray = []
+  Array(cl*rw*br).fill().map((v, i) => {
+    x = ((i%cl)-cl/2 + .5) * sp
+    y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    z = ((i/cl/rw|0)-br/2 + .5) * sp
+    if(Math.hypot(x, y, z) < Math.hypot(cl*sp, rw*sp, br*sp) / 3.5) pointArray.push([x, y, z])
+  })
+  
+  var geoOptions = {
+    shapeType: 'obj',
+    url: 'https://srmcgann.github.io/objs/tree/tree base.obj',
+    map: 'https://srmcgann.github.io/objs/tree/tree base purple.png',
+    name: 'base',
+    //equirectangular: true,
+    //sphereize: 2,
+    //subs: 2,
+    //size: 20,
+    scaleX: 16,
+    scaleY: 40,
+    scaleZ: 16,
+    //scaleUVX: .25,
+    //scaleUVY: .25,
+    //averageNormals: true,
+    //y: -6,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    for(var i = 0; i < geometry.vertices.length; i += 3){
+      geometry.vertices[i+1] -= 4
+      geometry.normals[i*2+1] -= 4
+      geometry.normals[i*2+4] -= 4
+    }
+    Coordinates.ShapeFromArray(geometry, pointArray, {
+      //flipNormals: true,
+      showNormals: false,
+    }).then(async res => {
+      res.colorMix = -.25
+      //res.color = 0x220044
+      shapes.push(res)
+      await shader.ConnectGeometry(res)
+    })
+  })
+
+  var geoOptions = {
+    shapeType: 'sprite',
+    map: 'https://srmcgann.github.io/Coordinates/resources/sphere_green.png',
+    scaleY: -1,
+    name: 'sphere sprite',
+    size: 50,
+    y: 0
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })
+
+  var geoOptions = {
+    shapeType: 'obj',
+    url: 'https://srmcgann.github.io/objs/tree/tree.obj',
+    map: 'https://srmcgann.github.io/objs/tree/bark1.jpg',
+    name: 'tree',
+    //scaleX: 14,
+    //scaleY: 14,
+    //scaleZ: 14,
+    //y: -6,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    Coordinates.ShapeFromArray(geometry, pointArray, {
+      //flipNormals: true,
+      showNormals: false,
+    }).then(async res => {
+      shapes.push(res)
+      await shader.ConnectGeometry(res)
+    })
+  })
+
+  var geoOptions = {
+    shapeType: 'obj',
+    url: 'https://srmcgann.github.io/objs/tree/leaves.obj',
+    map: 'https://srmcgann.github.io/objs/tree/leaf_texture.png',
+    name: 'leaves',
+    //scaleX: 14,
+    //scaleY: 14,
+    //scaleZ: 14,
+    //y: -6,
+    //objY: -6,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    Coordinates.ShapeFromArray(geometry, pointArray, {
+      //flipNormals: true,
+      showNormals: false,
+    }).then(async res => {
+      shapes.push(res)
+      await shader.ConnectGeometry(res)
+    })
+  })
+  
+  
+  
+  var projectiles = []
+  var iPv = 3
+  var iVar = 20
+  var projectileFrequency = 0
+  
+  const SpawnProjectile = (x, y, z, tgtIdx) => {
+    for(var m = 10; m--;){
+      var varx = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * iVar / 1.5
+      var vary = C(q) * iVar
+      var varz = C(p) * S(q) * iVar / 1.5
+      var vx = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * iPv
+      var vy = C(q) * iPv
+      var vz = C(p) * S(q) * iPv
+      projectiles.push({
+        x: x + varx,
+        y: y+10 + vary,
+        z: z + varz,
+        vx, vy, vz,
+        life: 1, tgtIdx
+      })
+    }
+  }
+  
+  
+  
+  
+  Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+    mSpeed: 4,
+    crossharSel: 2,
+    crosshairSize: .5,
+  })
+  
+  
+  
+  
+  
+  //uncomment abover to enable mouse/keyboard controls
+  
+  var far = renderer.width > 1e3 ? 120 : 240
+  var near = far / 3.25
+  renderer.z = far
+  
+  var toggleLat = false, sn
+  
+  window.Draw = () => {
+    var t = renderer.t
+    renderer.Clear()
+    if(!((t*60|0)%240)){
+      toggleLat = !toggleLat
+    }
+    
+    
+    if(renderer.cameraMode != 'fps'){
+      renderer.pitch = Math.min(-.2, Math.max(-1, (-.3 + C(t/3))))
+      renderer.z = Math.min(far, Math.max(near, (.3+C(t/2))*far*1.33))
+    }
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+          shape.yaw += (toggleLat ? S(t) * .01 + .0025: .0025) + .0025
+          shape.pitch = Math.min(Math.PI * .5, Math.max(-Math.PI*.5, (.3+C(t/4))*Math.PI)) + Math.PI/4
+          renderer.Draw(shape)
+          shader.datasets.filter(v=>typeof v?.optionalUniforms != 'undefined').map(v=>v.optionalUniforms.filter(v => v.name == 'reflection').map(v=>v.theta = shape.yaw/4))
+        break
+        case 'sphere sprite':
+          renderer.Draw(shape)
+        break
+        case 'tree': case 'leaves': case 'base':
+          sn = shape
+          if(1)shape.shapeData.map((shape, i) => {
+            if(1|| i == 2){
+              var tgtIdx = (((i+1)*9)**3.1|0)%sn.shapeData.length
+              //shape.yaw = t
+              if(sn.name == 'tree'){
+                if(!((t*60|0)%projectileFrequency)){
+                  x = sn.x + shape.wx
+                  y = sn.y + shape.wy
+                  z = sn.z + shape.wz
+                  p = Math.atan2(x, z) + sn.yaw
+                  d = Math.hypot(x, z)
+                  x = S(p) * d
+                  z = C(p) * d
+                  SpawnProjectile(x, y, z, tgtIdx)
+                }
+              }
+            }
+            //shape.roll = t / 6
+            //shape.pitch -= .01
+          })
+          shape.y = -10
+          shape.yaw = Math.PI/2 - t / 4 + Math.min(Math.PI, Math.max(0, (.3+C(t/2))*Math.PI))
+          renderer.Draw(shape)
+        break
+        default:
+          renderer.Draw(shape)
+        break
+      }
+    })
+    
+    var homing = 100
+    
+    for(var i = 0; i < particleShape.vertices.length; i+=3){
+      particleShape.vertices[i+0] = 1e5
+      particleShape.vertices[i+1] = 1e5
+      particleShape.vertices[i+2] = 1e5
+    }
+    projectiles = projectiles.filter((v, i) => v.life > 0)
+    projectiles.map((v, i) => {
+      var l = i * 3
+      var vx, vy, vz
+      if(typeof sn != 'undefined'){
+        x = sn.x + sn.shapeData[v.tgtIdx].wx
+        y = sn.y + sn.shapeData[v.tgtIdx].wy
+        z = sn.z + sn.shapeData[v.tgtIdx].wz
+        p = Math.atan2(x, z) + sn.yaw
+        d = Math.hypot(x, z)
+        x = S(p) * d
+        z = C(p) * d
+        vx = x - v.x
+        vy = y - v.y
+        vz = z - v.z
+      }
+      v.vx += (vx - v.vx) / homing
+      v.vy += (vy - v.vy) / homing
+      v.vz += (vz - v.vz) / homing
+      d = Math.hypot(v.vx, v.vy, v.vz)
+      v.vx /= d
+      v.vy /= d
+      v.vz /= d
+      v.vx *= iPv
+      v.vy *= iPv
+      v.vz *= iPv
+      particleShape.vertices[l + 0] = v.x += v.vx
+      particleShape.vertices[l + 1] = v.y += v.vy
+      particleShape.vertices[l + 2] = v.z += v.vz
+      v.life -= .01
+    })
+    //particleShape.color = Coordinates.HSVToHex(t*1e5,1,1)
+    renderer.Draw(particleShape)
+  }
+  
+</script>
+
+  </body>
+</html>
