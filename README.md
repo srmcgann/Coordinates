@@ -98,6 +98,7 @@ for quick reference, a sample of boilerplate...
       
       
       window.Draw = () => {
+        renderer.Clear()
         shapes.forEach(shape => {
           shape.yaw += .01
           shape.pitch += .005
@@ -255,3 +256,4 @@ for a slightly more full-featured boilerplate example, the below may be used
   </body>
 </html>
 ```
+
