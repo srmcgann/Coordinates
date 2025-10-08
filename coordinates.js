@@ -214,11 +214,11 @@ const Renderer = async options => {
     var dset   = shader.datasets[geometry.datasetIdx]
     var sProg  = dset.program
     
-    if(geometry.alpha != 1 &&
-       !geometry.isLine &&
-       !geometry.isParticle &&
-       !geometry.isLight &&
-       !geometry.isSprite
+    if(geometry.alpha != 1 ||
+       geometry.isLine ||
+       geometry.isParticle ||
+       geometry.isLight ||
+       geometry.isSprite
        ) {
       ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE)
       ctx.enable(ctx.BLEND)
@@ -3569,7 +3569,6 @@ const BasicShader = async (renderer, options=[]) => {
   
   
   if(renderer.contextType != '2d') {
-    gl.enable(gl.DEPTH_TEST)
     //gl.clear(gl.COLOR_BUFFER_BIT)
     //gl.disable(gl.CULL_FACE)
     gl.cullFace(gl.BACK)
@@ -3578,6 +3577,7 @@ const BasicShader = async (renderer, options=[]) => {
       gl.enable(gl.BLEND)
       gl.disable(gl.DEPTH_TEST)
     }else{
+      gl.enable(gl.DEPTH_TEST)
       //gl.cullFace(gl.BACK)
     }
 
