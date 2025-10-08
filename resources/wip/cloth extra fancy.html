@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>cloth</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+  var rendererOptions = {
+    ambientLight: .5, margin: 0,
+    fov: 1e3, width: 1920, height: 1080,
+    //fov: 1e3/2, width: 1920/2, height: 1080/2,
+    // uncomment above for lower-res, higher-performance canvas
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
+  //var refTexture = 'https://i.imgur.com/tZ8gfw2.mp4'
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  var x, y, z, p, q, d
+  
+  var sphereRad = 1.5
+  
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .3}},
+    { uniform: {
+      type: 'phong',
+      value: .5
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      enabled: true,
+      value: .05
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: 1.25}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+  var shapes = []
+
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    sphereize: 1,
+    subs: 4,
+    map: refTexture,
+    size: 5e3,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+  
+  var baseSphere
+  var geoOptions = {
+    shapeType: 'icosahedron',
+    name: 'background',
+    sphereize: 1,
+    averageNormals: true,
+    subs: 0,
+    size: sphereRad,
+    colorMix: .25,
+    color: 0x44ff88
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    baseSphere = geometry
+    await shader.ConnectGeometry(geometry)
+  })  
+  
+  
+  var geometryData = {
+    vertices: [],
+    normals: [],
+    normalVecs: [],
+    uvs: [],
+  }
+  var cl = 17
+  var rw = 1
+  var br = 19
+  var sp = .5
+  var ls = sp * 2**.5/2, j
+  Array(cl*rw*br).fill().map((v, i) => {
+    j = 0
+    p = Math.PI*2/4*j + Math.PI/4
+    x = S(p) * ls + ((i%cl)-cl/2 + .5) * sp
+    y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    z = C(p) * ls + ((i/cl/rw|0)-br/2 + .5) * sp
+    geometryData.vertices.push(x, y, z)
+    geometryData.normalVecs.push(0, -1, 0)
+    geometryData.normals.push(x, y, z)
+    geometryData.normals.push(x, y-1, z)
+    geometryData.uvs.push(x/cl/sp,z/br/sp+.5)
+    j = 1
+    p = Math.PI*2/4*j + Math.PI/4
+    x = S(p) * ls + ((i%cl)-cl/2 + .5) * sp
+    y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    z = C(p) * ls + ((i/cl/rw|0)-br/2 + .5) * sp
+    geometryData.vertices.push(x, y, z)
+    geometryData.normalVecs.push(0, -1, 0)
+    geometryData.normals.push(x, y, z)
+    geometryData.normals.push(x, y-1, z)
+    geometryData.uvs.push(x/cl/sp,z/br/sp+.5)
+    j = 2
+    p = Math.PI*2/4*j + Math.PI/4
+    x = S(p) * ls + ((i%cl)-cl/2 + .5) * sp
+    y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    z = C(p) * ls + ((i/cl/rw|0)-br/2 + .5) * sp
+    geometryData.vertices.push(x, y, z)
+    geometryData.normalVecs.push(0, -1, 0)
+    geometryData.normals.push(x, y, z)
+    geometryData.normals.push(x, y-1, z)
+    geometryData.uvs.push(x/cl/sp,z/br/sp+.5)
+    j = 2
+    p = Math.PI*2/4*j + Math.PI/4
+    x = S(p) * ls + ((i%cl)-cl/2 + .5) * sp
+    y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    z = C(p) * ls + ((i/cl/rw|0)-br/2 + .5) * sp
+    geometryData.vertices.push(x, y, z)
+    geometryData.normalVecs.push(0, -1, 0)
+    geometryData.normals.push(x, y, z)
+    geometryData.normals.push(x, y-1, z)
+    geometryData.uvs.push(x/cl/sp,z/br/sp+.5)
+    j = 3
+    p = Math.PI*2/4*j + Math.PI/4
+    x = S(p) * ls + ((i%cl)-cl/2 + .5) * sp
+    y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    z = C(p) * ls + ((i/cl/rw|0)-br/2 + .5) * sp
+    geometryData.vertices.push(x, y, z)
+    geometryData.normalVecs.push(0, -1, 0)
+    geometryData.normals.push(x, y, z)
+    geometryData.normals.push(x, y-1, z)
+    geometryData.uvs.push(x/cl/sp,z/br/sp+.5)
+    j = 0
+    p = Math.PI*2/4*j + Math.PI/4
+    x = S(p) * ls + ((i%cl)-cl/2 + .5) * sp
+    y = (((i/cl|0)%rw)-rw/2 + .5) * sp
+    z = C(p) * ls + ((i/cl/rw|0)-br/2 + .5) * sp
+    geometryData.vertices.push(x, y, z)
+    geometryData.normalVecs.push(0, -1, 0)
+    geometryData.normals.push(x, y, z)
+    geometryData.normals.push(x, y-1, z)
+    geometryData.uvs.push(x/cl/sp,z/br/sp+.5)
+  })
+
+  var clothData
+  //var heightmap = 'https://srmcgann.github.io/Coordinates/resources/rd5_po2_small.mp4'
+  var geoOptions = {
+    shapeType: 'custom shape',
+    //url: 'https://srmcgann.github.io/Coordinates/custom shapes/hexgrid_big_circular_polys.json',
+    //map: 'https://srmcgann.github.io/Coordinates/resources/grid_blackbody_po2.png',
+    map: 'https://i.imgur.com/JdwoZOc.mp4',
+    playbackSpeed: .25,
+    //map: heightmap,
+    //heightmap,
+    //heightmapIntensity: 1.5,
+    //maxHeightMap: .5,
+    geometryData,
+    name: 'cloth',
+    scaleX: 20,
+    scaleY: 20,
+    scaleZ: 20,
+    colorMix: 0,
+    offsetUVX: .5,
+    color: 0x4400ff,
+    scaleUVX: 3,
+    scaleUVY: 5,
+    showNormals: false,
+  }
+  var oClothData
+  if(1)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    clothData = Array(geometry.vertices.length/3).fill().map((v, i) => {
+      x = geometry.vertices[i*3+0]
+      y = geometry.vertices[i*3+1] + 20
+      z = geometry.vertices[i*3+2] + 0
+      var vx = 0
+      var vy = 0
+      var vz = 0
+      return {
+        x, y, z,
+        vx, vy, vz,
+        pegged: false,
+        assocs: []
+      }
+    })
+    for(var i = 0; i < clothData.length; i++){
+      var x1 = clothData[i].x
+      var y1 = clothData[i].y
+      var z1 = clothData[i].z
+      for(var j = 0; j < clothData.length; j++){
+        if(j != i){
+          var x2 = clothData[j].x
+          var y2 = clothData[j].y
+          var z2 = clothData[j].z
+          d = Math.hypot(x2-x1, y2-y1, z2-z1)
+          if(d < sp * 5){
+            clothData[i].assocs.push({
+              idx: j,
+              dist: d
+            })
+          }
+        }
+      }
+    }
+    
+    //Coordinates.SyncNormals(geometry, true)
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+    oClothData = structuredClone(clothData)
+  })  
+  
+  var pointArray = []
+  var cl = 2
+  var rw = 1
+  var br = 2
+  var sp = 10
+  if(0)Array(cl*rw*br).fill().map((v, i) => {
+    x = ((i%cl)-cl/2+.5) * sp
+    y = (((i/cl|0)%rw)-rw/2+.5) * sp
+    z = ((i/cl/rw|0)-br/2+.5) * sp
+    pointArray.push([x, y, z])
+  })
+  
+  var geoOptions = {
+    shapeType: 'obj',
+    url: 'https://srmcgann.github.io/objs/bed/bed_hipoly.obj',
+    map: 'https://srmcgann.github.io/objs/bed/bed.png',
+    name: 'main',
+    scaleX: 15,
+    scaleY: 25,
+    scaleZ: 15,
+    //subs: 1, 
+    //sphereize: 1,
+    //size: sphereRad/1.2,
+    colorMix: 0,
+    showNormals: false,
+    //averageNormals: true,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+  
+  var geoOptions = {
+    shapeType: 'obj',
+    url: 'https://srmcgann.github.io/objs/bed/bed_lowpoly.obj?3',
+    scaleX: 15-1.5,
+    scaleY: 22-1.5,
+    scaleZ: 15-1.5,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    for(var i = 0; i < geometry.vertices.length; i+=3){
+      x = geometry.vertices[i+0]
+      y = geometry.vertices[i+1] + .5
+      z = geometry.vertices[i+2]
+      if(!pointArray.filter(v=>Math.hypot(x-v[0],y-v[1],z-v[2]) < .001).length){
+        pointArray.push([x, y, z])
+      }
+    }
+    Coordinates.ShapeFromArray(baseSphere, pointArray, {
+      name: 'sphere array',
+    }).then(async res => {
+      shapes.push(res)
+      await shader.ConnectGeometry(res)
+    })
+  })  
+  
+  //uncomment above to enable mouse/keyboard controls
+  
+  const floor = (x, z) => {
+    d = Math.hypot(x, z)
+    p = Math.atan2(x, z)
+    return -(Math.min(-.25, Math.max(-.75, (C(d-renderer.t*8+p*2)*20)**5/6e6))+.25) * Math.min(1,d/10)
+  }
+  
+  
+  
+  Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+    crossharSel: 2,
+    crosshairSize: .5,
+  })
+  
+  const Respawn = () => {
+    clothData = structuredClone(oClothData)
+  }
+  
+  
+  var grav = -.03
+  var elasticity = 26
+  var damping = 1.1
+  
+  var a, b, e
+  var maxVel = .15
+  renderer.z = renderer.width > 1e3 ? 16 : 32
+  //renderer.pitch = .5
+  
+  if(typeof clothData?.length != "undefined"){
+    var tclothData = Array(clothData.length).fill().map(v=>[0,0,0])
+  }
+
+  window.Draw = () => {
+    renderer.Clear()
+    var t = renderer.t
+    
+    if(!((t*60|0)%240)) Respawn()
+    
+    if(renderer.cameraMode != 'fps'){
+      renderer.yaw += .005
+      renderer.pitch = Math.min(-.25, Math.max(-.75, (-.3+C(t/2))*2))
+      renderer.z = Math.min(20, Math.max(14, (.3-C(t/4))))
+    }
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+          renderer.Draw(shape)
+        break
+        case 'sphere array':
+          //shape.yaw = -t / 3
+          //shape.pitch= -t
+          //renderer.Draw(shape)
+        break
+        case 'main':
+          //shape.yaw = -t / 3
+          //shape.pitch= -t
+          renderer.Draw(shape)
+        break
+        case 'cloth':
+          //shape.yaw += .005
+          
+          //var tclothData = structuredClone(clothData)
+          for(var i = 0; i < clothData.length; i++){
+            var x1 = tclothData[i][0] = clothData[i].x
+            var y1 = tclothData[i][1] = clothData[i].y
+            var z1 = tclothData[i][2] = clothData[i].z
+            clothData[i].assocs.forEach((assoc, id) =>{
+              var x2 = clothData[assoc.idx].x
+              var y2 = clothData[assoc.idx].y
+              var z2 = clothData[assoc.idx].z
+              d = Math.hypot(a=x2-x1, b=y2-y1, e=z2-z1)
+              if(clothData[i].pegged){
+                tclothData[i].x = x2 + a * (d-assoc.dist)
+                tclothData[i].y = y2 + b * (d-assoc.dist)
+                tclothData[i].z = z2 + e * (d-assoc.dist)
+              }else{
+                clothData[i].vx += a * (d-assoc.dist) / elasticity
+                clothData[i].vy += b * (d-assoc.dist) / elasticity
+                clothData[i].vz += e * (d-assoc.dist) / elasticity
+              }
+            })
+            if(shapes.length) shapes.filter(shp=>shp.name == 'sphere array')[0].shapeData.forEach((point, idx) => {
+              var x = point.wx
+              var y = point.wy
+              var z = point.wz
+              p = Math.atan2(x,z) + shapes.filter(shp=>shp.name == 'sphere array')[0].yaw
+              d = Math.hypot(x,z)
+              x = S(p) * d
+              z = C(p) * d
+              p = Math.atan2(y,z) + shapes.filter(shp=>shp.name == 'sphere array')[0].pitch
+              d = Math.hypot(y,z)
+              y = S(p) * d
+              z = C(p) * d
+              var x2 = x
+              var y2 = y
+              var z2 = z
+              d = Math.hypot(a=x2-x1, b=y2-y1, e=z2-z1)
+              if(d < sphereRad * 1.75){
+                tclothData[i][0] = x2 - a / d * sphereRad * 1.75
+                tclothData[i][1] = y2 - b / d * sphereRad * 1.75
+                tclothData[i][2] = z2 - e / d * sphereRad * 1.75
+                //clothData[i].pegged = true
+                //tclothData[i].vy -= grav * 2
+              }
+            })
+          }
+          tclothData.forEach((v, i) => {
+            clothData[i].x = v[0]
+            clothData[i].y = v[1]
+            clothData[i].z = v[2]
+          })
+          
+          for(var i = 0; i < shape.vertices.length; i += 3){
+            //x = shape.vertices[i+0]
+            //y = shape.vertices[i+1]
+            //z = shape.vertices[i+2]
+            //y = floor(x, z)
+            //shape.vertices[i+0] = x
+            //shape.vertices[i+1] = y
+            //shape.vertices[i+2] = z
+            var l = i/3
+            
+            var d1 = Math.hypot(clothData[l].vx, clothData[l].vy, clothData[l].vz) + .00001
+            var d2 = Math.min(d1, maxVel)
+            clothData[l].vx /= d1
+            clothData[l].vy /= d1
+            clothData[l].vz /= d1
+            clothData[l].vx *= d2
+            clothData[l].vy *= d2
+            clothData[l].vz *= d2
+            var vx = clothData[l].vx
+            var pgd = clothData[l].pegged ? 0 : 1
+            var vy = clothData[l].vy += grav * pgd
+            var vz = clothData[l].vz
+            shape.vertices[i+0] = clothData[l].x += vx * pgd
+            shape.vertices[i+1] = clothData[l].y += vy * pgd
+            shape.vertices[i+2] = clothData[l].z += vz * pgd
+            clothData[l].vx /= damping
+            clothData[l].vy /= damping
+            clothData[l].vz /= damping
+          }
+          Coordinates.SyncNormals(shape, true, false, false)
+          renderer.Draw(shape)
+        break
+        default:
+          renderer.Draw(shape)
+        break
+      }
+    })
+    shader.datasets.map(dataset => {
+      if(dataset?.optionalUniforms) {
+        dataset.optionalUniforms.filter(v => v.name == 'reflection')[0].value = Math.min(1, Math.max(.05, (.3+C(t*8))*2))
+      }
+    })
+  }
+  
+</script>
+  </body>
+</html>
