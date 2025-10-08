@@ -3391,7 +3391,7 @@ const BasicShader = async (renderer, options=[]) => {
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
                       vec3 reflectionPos = R_rpy(nV, vec3(0.0,
-                                                      -camOri.y, -camOri.z));
+                                                      camOri.y, -camOri.z));
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
