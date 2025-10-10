@@ -6820,13 +6820,13 @@ const LoadFPSControls = async (renderer, options) => {
     renderer.keyTimerInterval = .2
     
     window.addEventListener('keydown', e => {
-      if(document.activeElement.nodeName == 'CANVAS'){
+      if(1||document.activeElement.nodeName == 'CANVAS'){
         renderer.keys[e.keyCode] = true
         renderer.lastInteraction = renderer.t
       }
     })
     window.addEventListener('keyup', e => {
-      if(document.activeElement.nodeName == 'CANVAS'){
+      if(1||document.activeElement.nodeName == 'CANVAS'){
         renderer.keys[e.keyCode] = false
         renderer.lastInteraction = renderer.t
       }
@@ -6838,7 +6838,7 @@ const LoadFPSControls = async (renderer, options) => {
         //jump()
         //renderer.c.requestFullscreen()
         var el = document.querySelectorAll('.genericPopup')
-        if(!el.length && document.activeElement.nodeName == 'CANVAS') renderer.c.requestPointerLock({unadjustedMovement: true})
+        if(!el.length && (1||document.activeElement.nodeName == 'CANVAS')) document.body.requestPointerLock({unadjustedMovement: true})
       }
     })
     window.addEventListener('mouseup', e => {
@@ -6847,7 +6847,7 @@ const LoadFPSControls = async (renderer, options) => {
     })
     window.addEventListener('mousemove', e => {
       renderer.lastInteraction = renderer.t
-      if(document.pointerLockElement == renderer.c || !renderer.focusRequiredForMouse){
+      if(document.pointerLockElement != null || !renderer.focusRequiredForMouse){
         var rect = renderer.c.getBoundingClientRect()
         mx = (e.pageX - rect.left) / renderer.c.clientWidth * renderer.c.width
         my = (e.pageY - rect.top) / renderer.c.clientHeight* renderer.c.height
@@ -6870,13 +6870,13 @@ const LoadFPSControls = async (renderer, options) => {
       renderer.x += pvx
       renderer.y += pvy
       renderer.z += pvz
-      if(document.activeElement.nodeName == 'CANVAS' && (renderer.hasTraction || renderer.flyMode)){
+      if((1||document.activeElement.nodeName == 'CANVAS') && (renderer.hasTraction || renderer.flyMode)){
         pvx /= renderer.pdrag
         pvy /= renderer.pdrag
         pvz /= renderer.pdrag
       }
 
-      if(renderer.flyMode && document.activeElement.nodeName == 'CANVAS'){
+      if(renderer.flyMode && (1||document.activeElement.nodeName == 'CANVAS')){
         var p1 = -renderer.yaw + Math.PI
         var p2 = renderer.pitch
         switch(renderer.mouseButton){
@@ -6896,7 +6896,7 @@ const LoadFPSControls = async (renderer, options) => {
       }
       
       accel = 1
-      if(document.activeElement.nodeName == 'CANVAS' &&
+      if((1 || document.activeElement.nodeName == 'CANVAS') &&
         (renderer.hasTraction || renderer.flyMode)) renderer.keys.map((v, i) => {
         if(renderer.keys[i]){
           switch(i){
