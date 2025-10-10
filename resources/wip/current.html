@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+
+      import * as Coordinates from
+      //"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      "https://srmcgann.github.io/temppp/coordinates.js?4"
+
+      var rendererOptions = {
+        ambientLight: .5, margin: 0, clearColor: 0x000000,
+        //fov: 600, width: 1920, height: 1080,
+        fov: 600/2, width: 1920/2, height: 1080/2,
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      rendererOptions.attachToBody = false
+      var camera2 = await Coordinates.Renderer(rendererOptions)
+
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+      
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2_lowres.jpg'
+      var playbackSpeed = 2
+      
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+      
+      var x, y, z, p, q, d
+
+      var shaderOptions = [
+        {lighting: {type: 'ambientLight', value: 1}},
+        { uniform: {
+          type: 'phong',
+          value: .25
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          involveCache: false,
+          playbackSpeed,
+          enabled: false,
+          value: .5
+        } },
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+      var c2shader = await Coordinates.BasicShader(camera2, shaderOptions)
+
+      var shaderOptions = [
+        {lighting: {type: 'ambientLight', value: 2}},
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+      ]
+      var c2SpriteShader = await Coordinates.BasicShader(camera2, shaderOptions)
+
+      var iFc = 1;
+      var flyers = []
+      Array(iFc).fill().map((v, i)=>{
+        flyers.push(.5, .5, 0.0)
+      })
+      var shaderOptions = [
+        {lighting: {type: 'ambientLight', value: .5}},
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+        { uniform: {
+          type: 'custom',
+          name: 'mpositions[0]',
+          dataType: 'uniform3fv',
+          value: flyers,
+          vertDeclaration: '',//"varying vec3 warp;",
+          vertCode:        '', //"warp = vec4(0.0, 0.0, 0.0);",
+          fragDeclaration: `uniform vec3 mpositions[${iFc}];`,
+          fragCode: `
+          float mposCountf = ${iFc}.0;
+          const int mposCount = ${iFc};
+          float cdx0 = coords.x;
+          float cdy0 = coords.y;
+          float ofx1 = 0.0;
+          float ofy1 = 0.0;
+          float ct = 0.0;
+          for(int i = 0; i < mposCount; i++){
+            float tx = mpositions[i].x;
+            float ty = mpositions[i].y;
+            float d1 = sqrt(pow((tx - cdx0)*(16.0/9.0), 2.0) + pow(ty - cdy0, 2.0));
+            ofx1 += (tx - cdx0) / pow(1.0+d1, 15.0) * 1000.0 / pow((1.0+mpositions[i].z),1.25);
+            ofy1 += (ty - cdy0) / pow(1.0+d1, 15.0) * 1000.0 / pow((1.0+mpositions[i].z), 1.25);
+          }
+          coords.x = cdx0 + ofx1;
+          coords.y = cdy0 + ofy1;
+          //mixColor = newColor;
+          `,
+          
+          enabled: true,
+        } }
+      ]
+      var screenShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        {lighting: {type: 'ambientLight', value: 2}},
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+      ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      var c2backgroundShader = await Coordinates.BasicShader(camera2, shaderOptions)
+
+
+      var shapes = []
+      var c2shapes = []
+      
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        name: 'background',
+        //scaleUVX: 1.5,
+        //scaleUVY: 1.5,
+        //offsetUVX: .5,
+        //offsetUVY: .5,
+        //scaleX: 16/9,
+        sphereize: 1,
+        subs: 3,
+        map: refTexture,
+        involveCache: false,
+        playbackSpeed,
+        scaleY: -1,
+        size: 5e3,
+        z: 200,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await backgroundShader.ConnectGeometry(geometry)
+      })
+      await Coordinates.LoadGeometry(camera2, geoOptions).then(async (geometry) => {
+        c2shapes.push(geometry)
+        await c2backgroundShader.ConnectGeometry(geometry)
+      })
+
+      
+      var geoOptions = {
+        shapeType: 'rectangle',
+        subs: 5,
+        z: 100,
+        scaleX: 16/9,
+        scaleY: -1,
+        scaleUVX: .98,
+        scaleUVY: .98,
+        offsetUVX: .0102,
+        offsetUVY: .0102,
+        name: 'screen',
+        canvasTexture: camera2.c,
+        color: 0xff0000,
+        colorMix: 0,
+        size: 2480,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await screenShader.ConnectGeometry(geometry)
+      })
+      
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        //geometryData: Array(iFc).fill().map(v=>[0,0,0]),
+        name: 'main',
+        playbackSpeed: 4,
+        //map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+        map: 'https://srmcgann.github.io/Coordinates/resources/earth_with_clouds_lowres.jpg',
+        involveCache: false,
+        subs: 1,
+        sphereize: 1,
+        averageNormals: true,
+        size: 5,
+        //alpha: 1,
+        //penumbra: .4,
+        //color: 0xff0000,
+        colorMix: 0,
+        z: 0
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      await Coordinates.LoadGeometry(camera2, geoOptions).then(async (geometry) => {
+        c2shapes.push(geometry)
+        await c2shader.ConnectGeometry(geometry)
+      })
+      
+      var geoOptions = {
+        shapeType: 'rectangle',
+        name: 'star',
+        alpha: .99,
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+        involveCache: false,
+        size: 200,
+        x: 0,
+        y: 0,
+        z: 50,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      await Coordinates.LoadGeometry(camera2, geoOptions).then(async (geometry) => {
+        c2shapes.push(geometry)
+        await c2shader.ConnectGeometry(geometry)
+      })
+      
+      var ls = 35
+      var flyerPitch = .33
+      
+      Coordinates.LoadFPSControls(camera2, {
+        flyMode: true,
+        mSpeed: 10,
+      })
+      
+      renderer.z = camera2.z = 70 * (5/3) * 2//Math.min(12, Math.max(8, (.3+C(t/4))*20)) * 2
+      window.Draw = async () => {
+        var t = renderer.t
+        renderer.Clear()
+        camera2.Clear()
+        //camera2.pitch = Math.min(Math.PI/4, Math.max(0, (.3+C(t))*Math.PI/2))
+        
+        //renderer.Clear()
+        //camera2.Clear()
+        
+        for(var i = 0; i < flyers.length; i += 3){
+          var m = i / 3
+          x = S(p=(Math.PI*2/iFc*m + t/1.5)*1 + Math.PI/iFc-1)*2*1.5 * ls
+          y = 16//C(p*2+t*1.5)*2*1.5 * ls / 4
+          z = C(p)*2*1.5 * ls * 1 + 50
+          p = Math.atan2(y, z) + flyerPitch
+          d = Math.hypot(y, z)
+          x = x
+          y = S(p) * d
+          z = C(p) * d
+          flyers[i+0] = x
+          flyers[i+1] = y //C((Math.PI*2/iFc*m + t/2)*2)*2*1.5 * ls * 1
+          flyers[i+2] = z
+        }
+        
+        await c2shapes.forEach(async shape => {
+          switch(shape.name){
+            case 'main':
+              var ar = screenShader.datasets[0].optionalUniforms.filter(v=>v.name=='custom')[0].value
+              for(var m = iFc; m--;){
+                var l = m * 3
+                x = flyers[l+0] //S((Math.PI*2/iFc*m + t/4))*5*1.5 * ls
+                y = flyers[l+1] //S((Math.PI*2/iFc*m + t/4)*2)*2*1.5 * ls
+                z = flyers[l+2]
+                //p = Math.atan2(y, z)
+                //d = Math.hypot(y, z)
+                //x = x
+                //y = S(p) * d
+                //z = C(p) * d
+                var l2 = Coordinates.GetShaderCoord(x,y,z, shape, renderer)
+                ar[m*3+0] = (l2[0] - renderer.width/2) /renderer.width/1.2 + .5
+                ar[m*3+1] = (l2[1] - renderer.height/2) /renderer.height/1.2 + .5
+                ar[m*3+2] = l2[2]
+              }
+            break
+            case 'screen':
+            break
+            case 'background':
+              //for(var i = 0; i < shape.uvs.length; i+=2){
+              //  shape.uvs[i+0] -= .0001
+              //}
+              shape.yaw = t / 16 + Math.PI
+              await camera2.Draw(shape)
+            break
+            case 'star':
+              shape.z = 20
+              if(flyers[2] <= -20) await camera2.Draw(shape)
+            break
+            default:
+              //await camera2.Draw(shape)
+            break
+          }
+        })
+        shapes.forEach(async shape => {
+          switch(shape.name){
+            case 'main':
+              if(1)for(var m = iFc; m--;){
+                var l = m * 3
+                x = flyers[l+0]
+                y = flyers[l+1]
+                z = flyers[l+2]
+                p = Math.atan2(y, z)
+                d = Math.hypot(y, z)
+                shape.x = -x
+                shape.y = S(p) * d
+                shape.z = C(p) * d
+                //shape.vertices[l+0] = x
+                //shape.vertices[l+1] = S(p) * d
+                //shape.vertices[l+2] = C(p) * d
+                shape.yaw += .2
+                //shape.pitch += .01
+                await renderer.Draw(shape)
+              }
+            break
+            case 'screen':
+              shape.z = -renderer.z + 1e3
+              renderer.Draw(shape)
+            break
+            case 'background':
+              shape.yaw = t / 16
+              //await renderer.Draw(shape)
+            break
+            case 'star':
+              if(flyers[2] > -19) {
+                shape.x = 0
+                shape.y = 0
+                shape.z = 0
+                await renderer.Draw(shape)
+              }
+            break
+            default:
+              //await renderer.Draw(shape)
+            break
+          }
+        })
+      }
+      
+    </script>
+  </body>
+</html>
