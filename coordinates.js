@@ -209,6 +209,9 @@ const Renderer = async options => {
   }
   renderer['Clear'] = Clear
     
+  const NullDraw = () => { }
+  AnimationLoop(renderer, 'NullDraw')
+  
   const Draw = (geometry, sortedPass = false, penumbraPass = false) => {
     var shader = geometry.shader
     var dset   = shader.datasets[geometry.datasetIdx]
