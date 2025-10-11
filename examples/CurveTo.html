@@ -60,6 +60,7 @@
       
       
       window.Draw = () => {
+        renderer.Clear()
         renderer.z = 10
         shapes.forEach(shape => {
           renderer.Draw(shape)

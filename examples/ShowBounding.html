@@ -71,6 +71,7 @@
       renderer.y = 3
 
       window.Draw = () => {
+        renderer.Clear()
         var t = renderer.t
         renderer.pitch = Math.cos(t)/4 - .5
         renderer.yaw = t/2

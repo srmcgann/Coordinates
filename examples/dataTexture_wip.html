@@ -67,6 +67,7 @@
 
       renderer.z = 8
       window.Draw = () => {
+        renderer.Clear()
         var t = renderer.t
         shapes.forEach(shape => {
           switch(shape.name){

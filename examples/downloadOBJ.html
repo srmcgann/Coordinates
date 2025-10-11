@@ -50,6 +50,7 @@
       
       
       window.Draw = () => {
+        renderer.Clear()
         shapes.forEach(shape => {
           shape.yaw += .01
           shape.pitch += .005
