@@ -6821,14 +6821,13 @@ const LoadFPSControls = async (renderer, options) => {
     renderer.keyTimerInterval = .2
     
     window.addEventListener('keydown', e => {
-      if(1||document.activeElement.nodeName == 'CANVAS'){
-        console.log(e.keyCode)
+      if(document.activeElement.nodeName == 'CANVAS'){
         renderer.keys[e.keyCode] = true
         renderer.lastInteraction = renderer.t
       }
     })
     window.addEventListener('keyup', e => {
-      if(1||document.activeElement.nodeName == 'CANVAS'){
+      if(document.activeElement.nodeName == 'CANVAS'){
         renderer.keys[e.keyCode] = false
         renderer.lastInteraction = renderer.t
       }
@@ -6840,7 +6839,7 @@ const LoadFPSControls = async (renderer, options) => {
         //jump()
         //renderer.c.requestFullscreen()
         var el = document.querySelectorAll('.genericPopup')
-        if(!el.length && (1||document.activeElement.nodeName == 'CANVAS')) document.body.requestPointerLock({unadjustedMovement: true})
+        if(!el.length && (document.activeElement.nodeName == 'CANVAS')) document.body.requestPointerLock({unadjustedMovement: true})
       }
     })
     window.addEventListener('mouseup', e => {
@@ -6872,13 +6871,13 @@ const LoadFPSControls = async (renderer, options) => {
       renderer.x += pvx
       renderer.y += pvy
       renderer.z += pvz
-      if((1||document.activeElement.nodeName == 'CANVAS') && (renderer.hasTraction || renderer.flyMode)){
+      if((document.activeElement.nodeName == 'CANVAS') && (renderer.hasTraction || renderer.flyMode)){
         pvx /= renderer.pdrag
         pvy /= renderer.pdrag
         pvz /= renderer.pdrag
       }
 
-      if(renderer.flyMode && (1||document.activeElement.nodeName == 'CANVAS')){
+      if(renderer.flyMode && (document.activeElement.nodeName == 'CANVAS')){
         var p1 = -renderer.yaw + Math.PI
         var p2 = renderer.pitch
         switch(renderer.mouseButton){
@@ -6898,7 +6897,7 @@ const LoadFPSControls = async (renderer, options) => {
       }
       
       accel = 1
-      if((1 || document.activeElement.nodeName == 'CANVAS') &&
+      if((document.activeElement.nodeName == 'CANVAS') &&
         (renderer.hasTraction || renderer.flyMode)) renderer.keys.map((v, i) => {
         if(renderer.keys[i]){
           switch(i){
