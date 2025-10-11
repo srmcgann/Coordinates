@@ -57,6 +57,7 @@
       
       
       window.Draw = () => {
+        renderer.Clear()
         shapes.forEach(shape => {
           if(!((renderer.t*60|0)%120)) shape.flatShading = !shape.flatShading
           shape.roll  += .03

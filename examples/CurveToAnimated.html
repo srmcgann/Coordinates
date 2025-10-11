@@ -64,6 +64,7 @@
       var S = Math.sin
       var C = Math.cos
       window.Draw = () => {
+        renderer.Clear()
         var t = renderer.t
         renderer.z = 10
         geometryData.map((v, i) => v[0] = C(t) * 10 * (i ? -1 : 1))

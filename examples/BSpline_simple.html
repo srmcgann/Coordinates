@@ -42,6 +42,7 @@
       }
       
       window.Draw = async () => {
+        renderer.Clear()
         var t = renderer.t
         renderer.z = 10
         if(!((t*60|0)%20)) await loadCurve()

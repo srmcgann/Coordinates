@@ -56,6 +56,7 @@
       
       
       window.Draw = () => {
+        renderer.Clear()
         renderer.z = Math.min(6, Math.max(3, (.3+Math.cos(renderer.t))*10))
         
         // rotate every 10th component indpendently
