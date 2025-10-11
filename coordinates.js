@@ -3012,8 +3012,8 @@ const ShowBounding = (shape, renderer, draw=true,
   var p, d, a, b, maxp, tidx, tpart, mind, p3
   var memo=[]
   var pts = []
-  const recurse = (ar, idx, oidx=-1, op=9) => {
-    if(oidx == idx) return
+  const recurse = (ar, idx, oidx=-1, op=9, depth=0) => {
+    if(oidx == idx || depth > 40) return
     oidx = idx
     memo.push(idx)
     
@@ -3036,7 +3036,7 @@ const ShowBounding = (shape, renderer, draw=true,
     
     if(tidx == -9) return
     if(draw) pts.push(ar[tidx])
-    recurse(ar, tidx, oidx, maxp)
+    recurse(ar, tidx, oidx, maxp, depth+1)
   }
 
   var a     = [], b, p, ox=-1, oy=1e6, ax, ay, nx, ny, nz, uvx, uvy
