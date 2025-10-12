@@ -38,6 +38,7 @@ Check back for updated links. The documentation is under active development at t
 [curveTo](https://whr.rf.gd/coordocs/?s=FJUgbKoZe&p=1) curve to, between point pairs
 
 [Glow](https://whr.rf.gd/coordocs/?s=71RvokfzW&p=1) make a shape glow via config, or at draw-time
+
 ---
 
 for quick reference, a sample of boilerplate...
@@ -257,5 +258,6 @@ for a slightly more full-featured boilerplate example, the below may be used
   </body>
 </html>
 ```
+
 
 
