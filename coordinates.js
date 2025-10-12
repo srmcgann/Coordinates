@@ -6823,7 +6823,7 @@ const Glow = (shape, color = 0xffffff,
             renderTarget.glowShape.vertices[i*18+17] = tz / scl
           })
           renderTarget.glowShape.alpha = .1
-          renderTarget.glowShape.color = HSVToHex(rcol[0] + 90/resolution*j, rcol[1], rcol[2])
+          renderTarget.glowShape.color = HSVToHex(rcol[0] + 90/resolution*j - 65, rcol[1], rcol[2])
           renderTarget.glowShape.colorMix = (1 / j / 1e32) ** .05 * alpha * 100 / (1 + resolution)
           renderTarget.glowShape.z = (-j/resolution/5 + 3.3333) / scl
           renderTarget.Draw(renderTarget.glowShape)
