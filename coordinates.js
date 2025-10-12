@@ -212,7 +212,7 @@ const Renderer = async options => {
     
   const NullDraw = () => { }
   AnimationLoop(renderer, 'NullDraw')
-  
+
   const Draw = (geometry, sortedPass = false, penumbraPass = false) => {
     var shader = geometry.shader
     var dset   = shader.datasets[geometry.datasetIdx]
@@ -264,22 +264,6 @@ const Renderer = async options => {
       // depth + alpha bugfix
       if(!sortedPass && (geometry.isSprite || (geometry.isLight && geometry.showSource))) {
         var queueType
-        if(geometry.glow){
-            queueType = 'glowQueue'
-            renderer[queueType] = [{
-              x: geometry.x,
-              y: geometry.y,
-              z: geometry.z,
-              roll: geometry.roll,
-              pitch: geometry.pitch,
-              yaw: geometry.yaw,
-              size: geometry.size,
-              shapeType: geometry.shapeType,
-              vertices: structuredClone(geometry.vertices),
-              offsets: structuredClone(geometry.offsets),
-              geometry
-            }, ...renderer[queueType]]
-        }
         switch(geometry.shapeType){
           case 'sprite'  : case 'point light': queueType = 'alphaQueue'; break
         }
@@ -292,13 +276,30 @@ const Renderer = async options => {
           yaw: geometry.yaw,
           size: geometry.size,
           shapeType: geometry.shapeType,
-          vertices: structuredClone(geometry.vertices),
-          offsets: structuredClone(geometry.offsets),
+          vertices: geometry.vertices,
+          offsets: geometry.offsets,
+          //vertices: structuredClone(geometry.vertices),
+          //offsets: structuredClone(geometry.offsets),
           geometry
         }, ...renderer[queueType]]
         
       }else{
-
+        if(geometry.glow){
+          var queueType = 'glowQueue'
+          renderer[queueType] = [{
+            x: geometry.x,
+            y: geometry.y,
+            z: geometry.z,
+            roll: geometry.roll,
+            pitch: geometry.pitch,
+            yaw: geometry.yaw,
+            size: geometry.size,
+            shapeType: geometry.shapeType,
+            //vertices: structuredClone(geometry.vertices),
+            //offsets: structuredClone(geometry.offsets),
+            geometry
+          }, ...renderer[queueType]]
+        }
         if(!sortedPass && (geometry.isLine || geometry.isParticle)) {
           var queueType
           switch(geometry.shapeType){
@@ -314,8 +315,10 @@ const Renderer = async options => {
             yaw: geometry.yaw,
             size: geometry.size,
             shapeType: geometry.shapeType,
-            vertices: structuredClone(geometry.vertices),
-            offsets: structuredClone(geometry.offsets),
+            vertices: geometry.vertices,
+            offsets: geometry.offsets,
+            //vertices: structuredClone(geometry.vertices),
+            //offsets: structuredClone(geometry.offsets),
             geometry
           }, ...renderer[queueType]]
         }
@@ -1472,15 +1475,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var url                      = ''
   var name                     = ''
   var size                     = 1
-  
-  var glow                     = false
-  var glowColor                = 0xffffff
-  var glowAlpha                = .25
-  var glowIncludeShape         = false
-  var glowRadius               = 1
-  var glowResolution           = 1
-  var glowRenderTarget         = renderer
-
   var averageNormals           = false
   var subs                     = 0
   var sphereize                = 0
@@ -1494,6 +1488,13 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var flipNormals              = false
   var showNormals              = false
   var map                      = '' //`${ModuleBase}/resources/flat_grey.jpg`
+  var glow                     = false
+  var glowColor                = 0xffffff
+  var glowAlpha                = .25
+  var glowIncludeShape         = false
+  var glowRadius               = 1
+  var glowResolution           = 1
+  var glowRenderTarget         = renderer
   var isFromZip                = false
   var heightMap                = ''
   var heightMapIntensity       = 1
@@ -1583,13 +1584,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'scaleuvy'           : scaleUVY = geoOptions[key]; break
       case 'offsetuvx'          : offsetUVX = geoOptions[key]; break
       case 'offsetuvy'          : offsetUVY = geoOptions[key]; break
-      case 'glow'               : glow = geoOptions[key]; break
-      case 'glowcolor'          : glowColor = geoOptions[key]; break
-      case 'glowalpha'          : glowAlpha = geoOptions[key]; break
-      case 'glowincludeshape'   : glowIncludeShape = !!geoOptions[key]; break
-      case 'glowradius'         : glowRadius = geoOptions[key]; break
-      case 'glowresolution'     : glowResolution = geoOptions[key]; break
-      case 'glowrendertarget'   : glowRenderTarget = geoOptions[key]; break
       case 'scalex'             : scaleX = geoOptions[key]; break
       case 'scaley'             : scaleY = geoOptions[key]; break
       case 'scalez'             : scaleZ = geoOptions[key]; break
@@ -1612,6 +1606,13 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'penumbra'           : penumbra = geoOptions[key]; break
       case 'url'                : url = geoOptions[key]; break
       case 'map'                : map = geoOptions[key]; break
+      case 'glow'               : glow = !!geoOptions[key]; break
+      case 'glowcolor'          : glowColor = geoOptions[key]; break
+      case 'glowalpha'          : glowAlpha = geoOptions[key]; break
+      case 'glowincludeshape'   : glowIncludeShape = !!geoOptions[key]; break
+      case 'glowradius'         : glowRadius = geoOptions[key]; break
+      case 'glowresolution'     : glowResolution = geoOptions[key]; break
+      case 'glowrendertarget'   : glowRenderTarget = geoOptions[key]; break
       case 'heightmap'          : heightMap = geoOptions[key]; break
       case 'heightmapintensity' : heightMapIntensity = geoOptions[key]; break
       case 'maxheightmap'       : maxHeightmap = +geoOptions[key]; break
@@ -3047,8 +3048,8 @@ const ShowBounding = (shape, renderer, draw=true,
   var p, d, a, b, maxp, tidx, tpart, mind, p3
   var memo=[]
   var pts = []
-  const recurse = (ar, idx, oidx=-1, op=9, depth=0) => {
-    if(oidx == idx || depth > 40) return
+  const recurse = (ar, idx, oidx=-1, op=9) => {
+    if(oidx == idx) return
     oidx = idx
     memo.push(idx)
     
@@ -3071,7 +3072,7 @@ const ShowBounding = (shape, renderer, draw=true,
     
     if(tidx == -9) return
     if(draw) pts.push(ar[tidx])
-    recurse(ar, tidx, oidx, maxp, depth+1)
+    recurse(ar, tidx, oidx, maxp)
   }
 
   var a     = [], b, p, ox=-1, oy=1e6, ax, ay, nx, ny, nz, uvx, uvy
@@ -7003,13 +7004,13 @@ const LoadFPSControls = async (renderer, options) => {
     renderer.keyTimerInterval = .2
     
     window.addEventListener('keydown', e => {
-      if(document.activeElement.nodeName == 'CANVAS'){
+      if(1||document.activeElement.nodeName == 'CANVAS'){
         renderer.keys[e.keyCode] = true
         renderer.lastInteraction = renderer.t
       }
     })
     window.addEventListener('keyup', e => {
-      if(document.activeElement.nodeName == 'CANVAS'){
+      if(1||document.activeElement.nodeName == 'CANVAS'){
         renderer.keys[e.keyCode] = false
         renderer.lastInteraction = renderer.t
       }
@@ -7021,7 +7022,7 @@ const LoadFPSControls = async (renderer, options) => {
         //jump()
         //renderer.c.requestFullscreen()
         var el = document.querySelectorAll('.genericPopup')
-        if(!el.length && (document.activeElement.nodeName == 'CANVAS')) document.body.requestPointerLock({unadjustedMovement: true})
+        if(!el.length && (1||document.activeElement.nodeName == 'CANVAS')) document.body.requestPointerLock({unadjustedMovement: true})
       }
     })
     window.addEventListener('mouseup', e => {
@@ -7053,13 +7054,13 @@ const LoadFPSControls = async (renderer, options) => {
       renderer.x += pvx
       renderer.y += pvy
       renderer.z += pvz
-      if((document.activeElement.nodeName == 'CANVAS') && (renderer.hasTraction || renderer.flyMode)){
+      if((1||document.activeElement.nodeName == 'CANVAS') && (renderer.hasTraction || renderer.flyMode)){
         pvx /= renderer.pdrag
         pvy /= renderer.pdrag
         pvz /= renderer.pdrag
       }
 
-      if(renderer.flyMode && (document.activeElement.nodeName == 'CANVAS')){
+      if(renderer.flyMode && (1||document.activeElement.nodeName == 'CANVAS')){
         var p1 = -renderer.yaw + Math.PI
         var p2 = renderer.pitch
         switch(renderer.mouseButton){
@@ -7079,7 +7080,7 @@ const LoadFPSControls = async (renderer, options) => {
       }
       
       accel = 1
-      if((document.activeElement.nodeName == 'CANVAS') &&
+      if((1 || document.activeElement.nodeName == 'CANVAS') &&
         (renderer.hasTraction || renderer.flyMode)) renderer.keys.map((v, i) => {
         if(renderer.keys[i]){
           switch(i){
@@ -7181,20 +7182,43 @@ const AnimationLoop = (renderer, func) => {
     var queues = [ 'alphaQueue', 'lineQueue', 'particleQueue', 'glowQueue' ]
     
     queues.forEach(queueType => {
-      if(queueType == 'glowQueue'){
-        //renderer.ctx.blendFunc(renderer.ctx.SRC_ALPHA, renderer.ctx.ONE);
-        //renderer.ctx.enable(renderer.ctx.BLEND)
-        renderer[queueType].map(async (alphaShape, idx) => {
-          var shape      = renderer[queueType][forSort[idx].idx].geometry
-          renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
-          Glow(shape, shape.glowColor,
-               shape.glowAlpha, shape.glowIncludeShape,
-               shape.glowRadius, shape.glowResolution,
-               shape.glowRenderTarget)
-          //if(ShouldDisableDepth(shape)) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
-        })
-      }else{
-        if(renderer[queueType].length){
+      if(renderer[queueType].length){
+        if(queueType == 'glowQueue'){
+          var forSort = []
+          var vec
+
+          renderer.ctx.blendFunc(renderer.ctx.SRC_ALPHA, renderer.ctx.ONE);
+          renderer.ctx.enable(renderer.ctx.BLEND)
+          
+          renderer[queueType].map((v, i) => {
+            var X = v.x + renderer.x
+            var Y = v.y + renderer.y
+            var Z = v.z + renderer.z
+            vec = R(X,Y,Z, {roll: renderer.roll,
+                            pitch: renderer.pitch,
+                            yaw: renderer.yaw}, false)
+                            
+            //var camz = renderer.z / 1e3 * renderer.fov
+            //forSort.push({idx: i, z: camz + vec[2]})
+            forSort.push({idx: i, z: Math.hypot(
+                                      renderer.x + vec[0],
+                                      renderer.y + vec[1],
+                                      renderer.z + vec[2]) })
+          })
+          forSort.sort((a, b) => b.z - a.z)
+
+          renderer[queueType].map((alphaShape, idx) => {
+
+            var shape = renderer[queueType][forSort[idx].idx].geometry
+            Glow(shape, shape.glowColor, shape.glowAlpha,
+                 shape.glowIncludeShape, shape.glowRadius,
+                 shape.glowResolution, shape.glowRenderTarget)
+          })
+          
+          // disable alpha
+          renderer.ctx.blendFunc(renderer.ctx.ONE, renderer.ctx.ZERO)
+          renderer.ctx.disable(renderer.ctx.BLEND)
+        }else{
           var forSort = []
           var vec
           
@@ -7257,7 +7281,7 @@ const AnimationLoop = (renderer, func) => {
     
     renderer.t += 1/60 
     requestAnimationFrame(loop)
-
+    
     if(renderer.cameraMode == 'fps'){
       if(renderer.useKeys && renderer.doKeys){
         await renderer.doKeys()
@@ -7671,8 +7695,8 @@ export {
   Reflect,
   Normal,
   BSpline,
-  Glow,
   Quat,
+  Glow,
   CurveTo,
   ShiftArray,
   ShiftArray2D,
