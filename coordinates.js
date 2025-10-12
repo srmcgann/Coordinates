@@ -60,6 +60,7 @@ const Renderer = async options => {
   var alphaQueue      = []
   var particleQueue   = []
   var lineQueue       = []
+  var glowQueue       = []
   var pointLights     = []
   var pointLightCols  = []
   var optionalPlugins = []
@@ -181,7 +182,7 @@ const Renderer = async options => {
     width, height, x, y, z,
     roll, pitch, yaw, fov,
     ready: false, ambientLight, clearColor,
-    pointLights, pointLightCols, dataArray,
+    pointLights, pointLightCols, dataArray, glowQueue,
     alphaQueue, particleQueue, lineQueue, active,
     cameraMode, showCrosshair, crosshairSel,
     crosshairMap, pageX, pageY, mouseX, mouseY,
@@ -263,6 +264,22 @@ const Renderer = async options => {
       // depth + alpha bugfix
       if(!sortedPass && (geometry.isSprite || (geometry.isLight && geometry.showSource))) {
         var queueType
+        if(geometry.glow){
+            queueType = 'glowQueue'
+            renderer[queueType] = [{
+              x: geometry.x,
+              y: geometry.y,
+              z: geometry.z,
+              roll: geometry.roll,
+              pitch: geometry.pitch,
+              yaw: geometry.yaw,
+              size: geometry.size,
+              shapeType: geometry.shapeType,
+              vertices: structuredClone(geometry.vertices),
+              offsets: structuredClone(geometry.offsets),
+              geometry
+            }, ...renderer[queueType]]
+        }
         switch(geometry.shapeType){
           case 'sprite'  : case 'point light': queueType = 'alphaQueue'; break
         }
@@ -1455,6 +1472,15 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var url                      = ''
   var name                     = ''
   var size                     = 1
+  
+  var glow                     = false
+  var glowColor                = 0xffffff
+  var glowAlpha                = .25
+  var glowIncludeShape         = false
+  var glowRadius               = 1
+  var glowResolution           = 1
+  var glowRenderTarget         = renderer
+
   var averageNormals           = false
   var subs                     = 0
   var sphereize                = 0
@@ -1557,6 +1583,13 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'scaleuvy'           : scaleUVY = geoOptions[key]; break
       case 'offsetuvx'          : offsetUVX = geoOptions[key]; break
       case 'offsetuvy'          : offsetUVY = geoOptions[key]; break
+      case 'glow'               : glow = geoOptions[key]; break
+      case 'glowcolor'          : glowColor = geoOptions[key]; break
+      case 'glowalpha'          : glowAlpha = geoOptions[key]; break
+      case 'glowincludeshape'   : glowIncludeShape = !!geoOptions[key]; break
+      case 'glowradius'         : glowRadius = geoOptions[key]; break
+      case 'glowresolution'     : glowResolution = geoOptions[key]; break
+      case 'glowrendertarget'   : glowRenderTarget = geoOptions[key]; break
       case 'scalex'             : scaleX = geoOptions[key]; break
       case 'scaley'             : scaleY = geoOptions[key]; break
       case 'scalez'             : scaleZ = geoOptions[key]; break
@@ -2492,6 +2525,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     renderer, isParticle, isLine, penumbra, wireframe,
     canvasTexture, canvasTextureMix, showBounding,
     boundingColor, heightMap, heightMapIntensity,
+    glow, glowColor, glowAlpha, glowIncludeShape,
+    glowRadius, glowResolution, glowRenderTarget,
     heightMapIsCanvas, equirectangularHeightmap,
     flipX, flipY, flipZ, isFromZip, rotationMode,
     mapIsDataArray, dataArrayFormat, maxHeightmap,
@@ -6659,6 +6694,150 @@ const BSpline = async (renderer, geoOptions) => {
 }
 
 
+const Glow = (shape, color = 0xffffff,
+                    alpha = .25, includeShape = false,
+                    glowRadius = 1, resolution = 1,
+                    renderTarget) => {
+  var boundingOnly = !includeShape
+  var x, y, z, q, p, d
+  if(typeof renderTarget == 'undefined'){
+    renderTarget = shape.renderer
+  }
+  resolution = Math.max(.01, Math.min(4, resolution))
+  var pdist = 8 / (1+ resolution) + 1
+  var scale = 5.6666 * (1500/renderTarget.fov)
+
+  if(typeof renderTarget.glowShape == 'undefined'){
+    var iTc = 1e3
+    var geoOptions = {
+      shapeType: 'custom shape',
+      geometryData: {
+        vertices: Array(iTc*3).fill(1e5),
+        //normals: Array(iTc*6).fill(0),
+        //normalVecs: Array(iTc*3).fill(0),
+        //uvs: Array(iTc*2).fill(0),
+      },
+    }
+    LoadGeometry(renderTarget, geoOptions).then(async (geometry) => {
+      renderTarget.glowShape = geometry
+    })
+  }
+  if(typeof renderTarget.glowShape != 'undefined' &&
+     typeof renderTarget.glowShape.vertices != 'undefined'){
+    var ar = shape.renderer.width/shape.renderer.height
+    var rtx = renderTarget.x
+    var rty = renderTarget.y
+    var rtz = renderTarget.z
+    var rtroll = renderTarget.roll
+    var rtpitch = renderTarget.pitch
+    var rtyaw = renderTarget.yaw
+    var bounding = ShowBounding(shape, shape.renderer, false)
+    renderTarget.x = 0
+    renderTarget.y = 0
+    renderTarget.z = 0
+    renderTarget.roll = 0
+    renderTarget.pitch = 0
+    renderTarget.yaw = 0
+    if(bounding.length){
+      var ct = 0
+      for(var i = 0; i < renderTarget.glowShape.vertices.length; i += 3){
+        renderTarget.glowShape.vertices[i+0] = 1e5
+        renderTarget.glowShape.vertices[i+1] = 1e5
+        renderTarget.glowShape.vertices[i+2] = 1e5
+      }
+      var pointSet = []
+      var ax = 0
+      var ay = 0
+      var az = 0
+      do{
+        if(ct < bounding.length){
+          var x1 = (bounding[ct][0] / shape.renderer.width - .5) * scale
+          var y1 = ((1-bounding[ct][1] / shape.renderer.height) - .5) / ar * scale
+          var z1 = -1
+          var x2 = (bounding[ct+1][0] / shape.renderer.width - .5) * scale
+          var y2 = ((1-bounding[ct+1][1] / shape.renderer.height) - .5) / ar * scale
+          var z2 = -1
+          var d = Math.hypot(x2-x1, y2-y1)
+          var l = Math.max(1, Math.min(100, d * pdist))
+          for(var i = 0; i < l; i++){
+            x = x1 + (x2-x1) / l * i
+            y = y1 + (y2-y1) / l * i
+            z = z1 + (z2-z1) / l * i
+            pointSet.push([x, y, z])
+            ax += x
+            ay += y
+            az += Math.hypot(shape.x-shape.renderer.x,shape.y-shape.renderer.y,shape.z-shape.renderer.z)
+          }
+        }
+        ct++
+      }while(ct < bounding.length-1 && ct < 100);
+      if(pointSet.length){
+        var tcol = HexToRGB(color)
+        var rcol = HSVFromRGB(tcol[0]*256|0, tcol[1]*256|0, tcol[2]*256|0)
+        ax /= pointSet.length
+        ay /= pointSet.length
+        az /= pointSet.length
+        var tx, ty, tz
+        glowRadius = glowRadius * 10 / (1+Math.hypot(shape.x-rtx,shape.y-rty,shape.z-rtz)) 
+        resolution *= 16
+        var scl = 10
+        for(var j = 0; j < resolution; j++){
+          var margin = glowRadius / resolution * j / (1+az)
+          pointSet.map((v, i) => {
+            l = (i+1)%pointSet.length
+            p = Math.atan2(pointSet[l][0] - ax, pointSet[l][1] - ay)
+            d = Math.hypot(pointSet[l][0] - ax, pointSet[l][1] - ay)
+            tx = x = pointSet[l][0] + S(p) * margin
+            ty = y = pointSet[l][1] + C(p) * margin
+            tz = z = pointSet[l][2]
+            renderTarget.glowShape.vertices[i*18+0] = x / scl
+            renderTarget.glowShape.vertices[i*18+1] = y / scl
+            renderTarget.glowShape.vertices[i*18+2] = z / scl
+            x = boundingOnly ? pointSet[l][0] : ax
+            y = boundingOnly ? pointSet[l][1] : ay
+            z = v[2]
+            renderTarget.glowShape.vertices[i*18+3] = x / scl
+            renderTarget.glowShape.vertices[i*18+4] = y / scl
+            renderTarget.glowShape.vertices[i*18+5] = z / scl
+            l = i
+            x = boundingOnly ? pointSet[l][0] : ax
+            y = boundingOnly ? pointSet[l][1] : ay
+            z = v[2]
+            renderTarget.glowShape.vertices[i*18+6] = x / scl
+            renderTarget.glowShape.vertices[i*18+7] = y / scl
+            renderTarget.glowShape.vertices[i*18+8] = z / scl
+            renderTarget.glowShape.vertices[i*18+9] = x / scl
+            renderTarget.glowShape.vertices[i*18+10] = y / scl
+            renderTarget.glowShape.vertices[i*18+11] = z / scl
+            p = Math.atan2(pointSet[l][0] - ax, pointSet[l][1] - ay)
+            d = Math.hypot(pointSet[l][0] - ax, pointSet[l][1] - ay)
+            x = pointSet[l][0] + S(p) * margin
+            y = pointSet[l][1] + C(p) * margin
+            z = pointSet[l][2]
+            renderTarget.glowShape.vertices[i*18+12] = x / scl
+            renderTarget.glowShape.vertices[i*18+13] = y / scl
+            renderTarget.glowShape.vertices[i*18+14] = z / scl
+            renderTarget.glowShape.vertices[i*18+15] = tx / scl
+            renderTarget.glowShape.vertices[i*18+16] = ty / scl
+            renderTarget.glowShape.vertices[i*18+17] = tz / scl
+          })
+          renderTarget.glowShape.alpha = .1
+          renderTarget.glowShape.color = HSVToHex(rcol[0] + 90/resolution*j, rcol[1], rcol[2])
+          renderTarget.glowShape.colorMix = (1 / j / 1e32) ** .05 * alpha * 100 / (1 + resolution)
+          renderTarget.glowShape.z = (-j/resolution/5 + 3.3333) / scl
+          renderTarget.Draw(renderTarget.glowShape)
+        }
+      }
+    }
+    renderTarget.x = rtx
+    renderTarget.y = rty
+    renderTarget.z = rtz
+    renderTarget.roll = rtroll
+    renderTarget.pitch = rtpitch
+    renderTarget.yaw = rtyaw
+  }
+}
+
 const Reflect = (a, n) => {
   let d1 = Math.hypot(...a)+.00001
   let d2 = Math.hypot(...n)+.00001
@@ -6999,72 +7178,86 @@ const AnimationLoop = (renderer, func) => {
       
     // mimic shader rotation function, for z-sorting.
     // transparent objects must be drawn in reverse depth order
-    var queues = [ 'alphaQueue', 'lineQueue', 'particleQueue' ]
+    var queues = [ 'alphaQueue', 'lineQueue', 'particleQueue', 'glowQueue' ]
     
     queues.forEach(queueType => {
-      if(renderer[queueType].length){
-        var forSort = []
-        var vec
-        
-        renderer.ctx.blendFunc(renderer.ctx.SRC_ALPHA, renderer.ctx.ONE);
-        renderer.ctx.enable(renderer.ctx.BLEND)
-        
-        renderer[queueType].map((v, i) => {
-          var X = v.x + renderer.x
-          var Y = v.y + renderer.y
-          var Z = v.z + renderer.z
-          vec = R(X,Y,Z, {roll: renderer.roll,
-                          pitch: renderer.pitch,
-                          yaw: renderer.yaw}, false)
-                          
-          //var camz = renderer.z / 1e3 * renderer.fov
-          //forSort.push({idx: i, z: camz + vec[2]})
-          forSort.push({idx: i, z: Math.hypot(
-                                    renderer.x + vec[0],
-                                    renderer.y + vec[1],
-                                    renderer.z + vec[2]) })
-        })
-        forSort.sort((a, b) => b.z - a.z)
+      if(queueType == 'glowQueue'){
+        //renderer.ctx.blendFunc(renderer.ctx.SRC_ALPHA, renderer.ctx.ONE);
+        //renderer.ctx.enable(renderer.ctx.BLEND)
         renderer[queueType].map(async (alphaShape, idx) => {
-
-
           var shape      = renderer[queueType][forSort[idx].idx].geometry
-          var tempVerts  = shape.vertices
-          var tempSize   = shape.size
-          shape.size = renderer[queueType][forSort[idx].idx].size
-          shape.vertices = renderer[queueType][forSort[idx].idx].vertices
-          shape.x = renderer[queueType][forSort[idx].idx].x
-          shape.y = renderer[queueType][forSort[idx].idx].y
-          shape.z = renderer[queueType][forSort[idx].idx].z
-          shape.roll = renderer[queueType][forSort[idx].idx].roll
-          shape.pitch = renderer[queueType][forSort[idx].idx].pitch
-          shape.yaw = renderer[queueType][forSort[idx].idx].yaw
-          
-          if(ShouldDisableDepth(shape)) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
-
-          var penumbra = shape.penumbra
-          for(var m = 1 + ((shape.isLine ||shape.isParticle)
-                            && penumbra ? 1 : 0); m--;){
-            renderer.Draw(shape, true, (shape.isParticle || shape.isLine)
-                                               && penumbra && !m)
-          }
-            
-          if(ShouldDisableDepth(shape)) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
-
-          shape.vertices = tempVerts
-          shape.size = tempSize
+          renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
+          Glow(shape, shape.glowColor,
+               shape.glowAlpha, shape.glowIncludeShape,
+               shape.glowRadius, shape.glowResolution,
+               shape.glowRenderTarget)
+          //if(ShouldDisableDepth(shape)) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
         })
-        
-        // disable alpha
-        renderer.ctx.blendFunc(renderer.ctx.ONE, renderer.ctx.ZERO)
-        renderer.ctx.disable(renderer.ctx.BLEND)
+      }else{
+        if(renderer[queueType].length){
+          var forSort = []
+          var vec
+          
+          renderer.ctx.blendFunc(renderer.ctx.SRC_ALPHA, renderer.ctx.ONE);
+          renderer.ctx.enable(renderer.ctx.BLEND)
+          
+          renderer[queueType].map((v, i) => {
+            var X = v.x + renderer.x
+            var Y = v.y + renderer.y
+            var Z = v.z + renderer.z
+            vec = R(X,Y,Z, {roll: renderer.roll,
+                            pitch: renderer.pitch,
+                            yaw: renderer.yaw}, false)
+                            
+            //var camz = renderer.z / 1e3 * renderer.fov
+            //forSort.push({idx: i, z: camz + vec[2]})
+            forSort.push({idx: i, z: Math.hypot(
+                                      renderer.x + vec[0],
+                                      renderer.y + vec[1],
+                                      renderer.z + vec[2]) })
+          })
+          forSort.sort((a, b) => b.z - a.z)
+          renderer[queueType].map(async (alphaShape, idx) => {
+
+
+            var shape      = renderer[queueType][forSort[idx].idx].geometry
+            var tempVerts  = shape.vertices
+            var tempSize   = shape.size
+            shape.size = renderer[queueType][forSort[idx].idx].size
+            shape.vertices = renderer[queueType][forSort[idx].idx].vertices
+            shape.x = renderer[queueType][forSort[idx].idx].x
+            shape.y = renderer[queueType][forSort[idx].idx].y
+            shape.z = renderer[queueType][forSort[idx].idx].z
+            shape.roll = renderer[queueType][forSort[idx].idx].roll
+            shape.pitch = renderer[queueType][forSort[idx].idx].pitch
+            shape.yaw = renderer[queueType][forSort[idx].idx].yaw
+            
+            if(ShouldDisableDepth(shape)) renderer.ctx.disable(renderer.ctx.DEPTH_TEST)
+
+            var penumbra = shape.penumbra
+            for(var m = 1 + ((shape.isLine ||shape.isParticle)
+                              && penumbra ? 1 : 0); m--;){
+              renderer.Draw(shape, true, (shape.isParticle || shape.isLine)
+                                                 && penumbra && !m)
+            }
+              
+            if(ShouldDisableDepth(shape)) renderer.ctx.enable(renderer.ctx.DEPTH_TEST)
+
+            shape.vertices = tempVerts
+            shape.size = tempSize
+          })
+          
+          // disable alpha
+          renderer.ctx.blendFunc(renderer.ctx.ONE, renderer.ctx.ZERO)
+          renderer.ctx.disable(renderer.ctx.BLEND)
+        }
+        renderer[queueType] = []
       }
-      renderer[queueType] = []
     })
     
     renderer.t += 1/60 
     requestAnimationFrame(loop)
-    
+
     if(renderer.cameraMode == 'fps'){
       if(renderer.useKeys && renderer.doKeys){
         await renderer.doKeys()
@@ -7478,6 +7671,7 @@ export {
   Reflect,
   Normal,
   BSpline,
+  Glow,
   Quat,
   CurveTo,
   ShiftArray,
