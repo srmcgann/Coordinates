@@ -17,7 +17,7 @@
       import * as Coordinates from
       "https://srmcgann.github.io/Coordinates/coordinates.min.js"
     
-      var fogColor = 0x333333
+      var fogColor = 0xff8800
       var rendererOptions = {
         ambientLight: 4, margin: 0,
         fov: 1400, clearColor: fogColor
@@ -38,7 +38,7 @@
         { uniform: {
           type: 'fog',
           color: fogColor,
-          value: 5.5
+          value: 15
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
