@@ -2923,9 +2923,9 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
     pitch: geometry.pitch * (geometry.isParticle ? 1: 1),
     yaw:   -geometry.yaw * (geometry.isParticle ? -1: 1),
   }, false)
-  vx = ar[0]
+  vx = -ar[0]
   vy = ar[1]
-  vz = -ar[2]  * (geometry.isParticle ? -1: 1)
+  vz = ar[2]  * (geometry.isParticle ? -1: 1)
 
   if(geometry.isLight){
     ar = R_rpy(vx, vy, vz, {
