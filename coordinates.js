@@ -2917,10 +2917,16 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   }
   
   vy *= -1
-  
-  ar = R_ryp(vx, vy, vz, {
+  var rotFunc
+  switch(geometry.rotationMode){
+    case 0: rotFunc = R_ryp; break
+    case 1: rotFunc = R_pyr; break
+    case 2: rotFunc = R_rpy; break
+    case 3: rotFunc = R_rpy; break
+  }
+  ar = rotFunc(vx, vy, vz, {
     roll:  -geometry.roll * (geometry.isParticle ? -1: 1) + .0001,
-    pitch: geometry.pitch * (geometry.isParticle ? 1: 1),
+    pitch: -geometry.pitch * (geometry.isParticle ? 1: 1),
     yaw:   -geometry.yaw * (geometry.isParticle ? -1: 1),
   }, false)
   vx = -ar[0]
