@@ -6705,6 +6705,42 @@ const Glow = (shape, color = 0xffffff,
                     alpha = .25, includeShape = false,
                     glowRadius = 1, resolution = 1,
                     renderTarget) => {
+
+  if(typeof renderTarget == 'undefined'){
+    renderTarget = shape.renderer
+  }
+
+  var tGlow             = shape.glow
+  var tGlowColor        = shape.glowColor
+  var tGlowAlpha        = shape.glowAlpha
+  var tGlowIncludeShape = shape.glowIncludeShape
+  var tGlowRadius       = shape.glowRadius
+  var tGlowResolution   = shape.glowResolution
+  var tGlowRenderTarget = shape.glowRenderTarget
+  
+  shape.glow             = true
+  shape.glowColor        = color
+  shape.glowAlpha        = alpha
+  shape.glowIncludeShape = includeShape
+  shape.glowRadius       = glowRadius
+  shape.glowResolution   = resolution
+  shape.glowRenderTarget = renderTarget
+
+  renderTarget.Draw(shape)
+  
+  shape.glow             = tGlow
+  shape.glowColor        = tGlowColor
+  shape.glowAlpha        = tGlowAlpha
+  shape.glowIncludeShape = tGlowIncludeShape
+  shape.glowRadius       = tGlowRadius
+  shape.glowResolution   = tGlowResolution
+  shape.glowRenderTarget = tGlowRenderTarget
+}
+
+const GlowInternal = (shape, color = 0xffffff,
+                    alpha = .25, includeShape = false,
+                    glowRadius = 1, resolution = 1,
+                    renderTarget) => {
   var boundingOnly = !includeShape
   var x, y, z, q, p, d
   if(typeof renderTarget == 'undefined'){
@@ -7216,7 +7252,7 @@ const AnimationLoop = (renderer, func) => {
           renderer[queueType].map((alphaShape, idx) => {
 
             var shape = renderer[queueType][forSort[idx].idx].geometry
-            Glow(shape, shape.glowColor, shape.glowAlpha,
+            GlowInternal(shape, shape.glowColor, shape.glowAlpha,
                  shape.glowIncludeShape, shape.glowRadius,
                  shape.glowResolution, shape.glowRenderTarget)
           })
