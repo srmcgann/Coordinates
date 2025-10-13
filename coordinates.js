@@ -6728,13 +6728,15 @@ const Glow = (shape, color = 0xffffff,
 
   renderTarget.Draw(shape)
   
-  shape.glow             = tGlow
-  shape.glowColor        = tGlowColor
-  shape.glowAlpha        = tGlowAlpha
-  shape.glowIncludeShape = tGlowIncludeShape
-  shape.glowRadius       = tGlowRadius
-  shape.glowResolution   = tGlowResolution
-  shape.glowRenderTarget = tGlowRenderTarget
+  setTimeout(()=>{
+    shape.glow             = tGlow
+    shape.glowColor        = tGlowColor
+    shape.glowAlpha        = tGlowAlpha
+    shape.glowIncludeShape = tGlowIncludeShape
+    shape.glowRadius       = tGlowRadius
+    shape.glowResolution   = tGlowResolution
+    shape.glowRenderTarget = tGlowRenderTarget
+  }, 0)
 }
 
 const GlowInternal = (shape, color = 0xffffff,
