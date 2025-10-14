@@ -6453,19 +6453,19 @@ const GetGlyphLuminosities = async renderer => {
           glyphPairs.push({
             chr, cumlum
           })
-          var range = maxc - minc
-          glyphPairs.map(v => {
-            v.cumlum -= minc
-            v.cumlum /= range
-          })
-          glyphPairs.sort((a, b) => a.cumlum - b.cumlum)
-          //ctx.strokeStyle = '#f00'
-          //ctx.strokeRect(0,0,c.width-1,c.height-1)
-          renderer.glyphLuminosities = glyphPairs
-          renderer.glyphScratchCanvas = scratchCanvas
         break
       }
     }
+    var range = maxc - minc
+    glyphPairs.map(v => {
+      v.cumlum -= minc
+      v.cumlum /= range
+    })
+    glyphPairs.sort((a, b) => a.cumlum - b.cumlum)
+    //ctx.strokeStyle = '#f00'
+    //ctx.strokeRect(0,0,c.width-1,c.height-1)
+    renderer.glyphLuminosities = glyphPairs
+    renderer.glyphScratchCanvas = scratchCanvas
   })
 }
 
