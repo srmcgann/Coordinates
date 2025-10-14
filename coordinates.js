@@ -6424,41 +6424,48 @@ const GetGlyphLuminosities = async renderer => {
     ctx.textAlign = 'left'
     var minc = 6e6, maxc = -6e6
     for(var i = 33; i < 127; i++){
-      ctx.fillStyle = '#000'
-      ctx.fillRect(0, 0, c.width, c.height)
-      ctx.fillStyle = '#fff'
-      var chr = String.fromCharCode(i)
-      ctx.fillText(chr, 5, fs)
-      var data = ctx.getImageData(0,0,c.width,c.height)
-      var ct = 0
-      var cumlum = 0
-      for(var j = 0; j < data.data.length; j+=4){
-        var red   = data.data[j+0]
-        var green = data.data[j+1]
-        var blue  = data.data[j+2]
-        //var alpha = data.data[j+3]
-        
-        var lum = (red + green + blue) / 3 / 256
-        cumlum += lum >= .5 ? 1 : 0
-        ct++
-      }
-      cumlum /= ct
-      if(cumlum < minc) minc = cumlum
-      if(cumlum > maxc) maxc = cumlum
-      glyphPairs.push({
-        chr, cumlum
-      })
+      switch(i){
+        case 35: // #
+        case 96: // `
+        break
+        default:
+          ctx.fillStyle = '#000'
+          ctx.fillRect(0, 0, c.width, c.height)
+          ctx.fillStyle = '#fff'
+          var chr = String.fromCharCode(i)
+          ctx.fillText(chr, 5, fs)
+          var data = ctx.getImageData(0,0,c.width,c.height)
+          var ct = 0
+          var cumlum = 0
+          for(var j = 0; j < data.data.length; j+=4){
+            var red   = data.data[j+0]
+            var green = data.data[j+1]
+            var blue  = data.data[j+2]
+            //var alpha = data.data[j+3]
+            
+            var lum = (red + green + blue) / 3 / 256
+            cumlum += lum >= .5 ? 1 : 0
+            ct++
+          }
+          cumlum /= ct
+          if(cumlum < minc) minc = cumlum
+          if(cumlum > maxc) maxc = cumlum
+          glyphPairs.push({
+            chr, cumlum
+          })
+        }
+        var range = maxc - minc
+        glyphPairs.map(v => {
+          v.cumlum -= minc
+          v.cumlum /= range
+        })
+        glyphPairs.sort((a, b) => a.cumlum - b.cumlum)
+        //ctx.strokeStyle = '#f00'
+        //ctx.strokeRect(0,0,c.width-1,c.height-1)
+        renderer.glyphLuminosities = glyphPairs
+        renderer.glyphScratchCanvas = scratchCanvas
+      break
     }
-    var range = maxc - minc
-    glyphPairs.map(v => {
-      v.cumlum -= minc
-      v.cumlum /= range
-    })
-    glyphPairs.sort((a, b) => a.cumlum - b.cumlum)
-    //ctx.strokeStyle = '#f00'
-    //ctx.strokeRect(0,0,c.width-1,c.height-1)
-    renderer.glyphLuminosities = glyphPairs
-    renderer.glyphScratchCanvas = scratchCanvas
   })
 }
 
