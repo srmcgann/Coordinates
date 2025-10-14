@@ -6481,7 +6481,7 @@ const SceneToASCII = (renderer, options = {}) => {
   
   Object.keys(options).forEach(key => {
     switch(key.toLowerCase()){
-      case 'monochrome': monochrome = options[key]; break
+      case 'monochrome': monochrome = !!options[key]; break
       case 'monochromecolor': monochromeColor = options[key]; break
       case 'fontsize': fontSize = options[key]; break
       case 'backcolor': backColor = '#'+((+options[key]).toString(16)); break
@@ -6549,7 +6549,7 @@ const SceneToASCII = (renderer, options = {}) => {
           tidx = i
         }
       })
-      octx.fillStyle = monochrome ? `rgb(${64 + lum*256 *.75}, ${64 + lum*256*.75}, ${64 + lum*256*.75})` : `rgb(${64+red*.75}, ${64+green*.75}, ${64+blue*.75})`
+      octx.fillStyle = monochrome ? `rgb(${64 + lum*mcred *.75}, ${64 + lum*mcgreen*.75}, ${64 + lum*mcblue*.75})` : `rgb(${64+red*.75}, ${64+green*.75}, ${64+blue*.75})`
       var chr = renderer.glyphLuminosities[tidx].chr
       octx.fillText(chr, x/c.width*overlay.c.width / 1,
                          y/c.height*overlay.c.height / 1 + fs/1.5)
