@@ -6474,6 +6474,7 @@ const SceneToASCII = (renderer, options = {}) => {
   // defaults
   var fontSize = 10
   var monochrome = false
+  var outputToConsole = false
   var monochromeColor = 0x00ff44
   var backColor = '#000000'
   var opaqueBackground = true
@@ -6482,6 +6483,7 @@ const SceneToASCII = (renderer, options = {}) => {
   Object.keys(options).forEach(key => {
     switch(key.toLowerCase()){
       case 'monochrome': monochrome = !!options[key]; break
+      case 'outputtoconsole': outputToConsole = !!options[key]; break
       case 'monochromecolor': monochromeColor = options[key]; break
       case 'fontsize': fontSize = options[key]; break
       case 'backcolor': backColor = '#'+((+options[key]).toString(16)); break
@@ -6527,6 +6529,7 @@ const SceneToASCII = (renderer, options = {}) => {
     var mcblue  = ar[2] * 256
   }
   
+  var output = ''
   for(var j = 0; j < data.data.length; j+=4){
     var red   = data.data[j+0]
     var green = data.data[j+1]
@@ -6553,8 +6556,12 @@ const SceneToASCII = (renderer, options = {}) => {
       var chr = renderer.glyphLuminosities[tidx].chr
       octx.fillText(chr, x/c.width*overlay.c.width / 1,
                          y/c.height*overlay.c.height / 1 + fs/1.5)
+      output += chr
+    }else{
+      output += String.fromCharCode(255)
     }
   }
+  if(outputToConsole) console.log(output)
 }
   
 const IsPowerOf2 = (v, d=0) => {
