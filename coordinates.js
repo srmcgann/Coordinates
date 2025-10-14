@@ -6474,14 +6474,15 @@ const SceneToASCII = (renderer, options = {}) => {
   // defaults
   var fontSize = 10
   var monochrome = false
+  var outputToConsole = false
   var monochromeColor = 0x00ff44
   var backColor = '#000000'
   var opaqueBackground = true
   
-  
   Object.keys(options).forEach(key => {
     switch(key.toLowerCase()){
-      case 'monochrome': monochrome = options[key]; break
+      case 'monochrome': monochrome = !!options[key]; break
+      case 'outputtoconsole': outputToConsole = !!options[key]; break
       case 'monochromecolor': monochromeColor = options[key]; break
       case 'fontsize': fontSize = options[key]; break
       case 'backcolor': backColor = '#'+((+options[key]).toString(16)); break
@@ -6527,6 +6528,11 @@ const SceneToASCII = (renderer, options = {}) => {
     var mcblue  = ar[2] * 256
   }
   
+  var output = ''
+  var line = ''
+  var maxmargin = 6e6
+  var headTrimmed = false
+  var tailTrimmed = false
   for(var j = 0; j < data.data.length; j+=4){
     var red   = data.data[j+0]
     var green = data.data[j+1]
@@ -6549,11 +6555,47 @@ const SceneToASCII = (renderer, options = {}) => {
           tidx = i
         }
       })
-      octx.fillStyle = monochrome ? `rgb(${64 + lum*256 *.75}, ${64 + lum*256*.75}, ${64 + lum*256*.75})` : `rgb(${64+red*.75}, ${64+green*.75}, ${64+blue*.75})`
+      octx.fillStyle = monochrome ? `rgb(${64 + lum*mcred *.75}, ${64 + lum*mcgreen*.75}, ${64 + lum*mcblue*.75})` : `rgb(${64+red*.75}, ${64+green*.75}, ${64+blue*.75})`
       var chr = renderer.glyphLuminosities[tidx].chr
       octx.fillText(chr, x/c.width*overlay.c.width / 1,
                          y/c.height*overlay.c.height / 1 + fs/1.5)
+      //output += chr + chr
+      line   += chr + chr
+    }else{
+      //output += '  '
+      line   += '  '
     }
+    if(!((j/4) % c.width)){
+      var lmargin = -1
+      line.split('').forEach((v, ct) => { if(lmargin == -1 && v != ' ') lmargin = ct })
+      if(lmargin != -1 && lmargin < maxmargin) maxmargin = lmargin
+      if(!headTrimmed){
+        if(line.split('').filter(v=>v==' ').length != line.length) {
+          output += line + "\n"
+          headTrimmed = true
+        }
+      }else{
+        output += line + "\n"
+      }        
+      line = ''
+    }
+  }
+  if(outputToConsole) {
+    var ret = ''
+    var ar = output.split("\n")
+    for(var i = ar.length; i--;) {
+      if(!tailTrimmed){
+        if(ar[i].split(' ').length != ar[i].length+1){
+          ret = ar[i]
+          tailTrimmed = true
+        }
+      }else{
+        ret = ar[i] + "\n" + ret
+      }
+    }
+    console.log(ret.split("\n").map(v=>{
+      return v.substr(maxmargin).trimRight()
+    }).join("\n").replaceAll('%%','%%%%'))
   }
 }
   
