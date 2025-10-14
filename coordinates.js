@@ -6462,7 +6462,7 @@ const GetGlyphLuminosities = async renderer => {
   })
 }
 
-const SceneToASCII = (renderer, options) => {
+const SceneToASCII = (renderer, options = {}) => {
   if(typeof renderer.glyphLuminosities == 'undefined'){
     GetGlyphLuminosities(renderer)
   }
@@ -6477,6 +6477,7 @@ const SceneToASCII = (renderer, options) => {
   var monochromeColor = 0x00ff44
   var backColor = '#000000'
   var opaqueBackground = true
+  
   
   Object.keys(options).forEach(key => {
     switch(key.toLowerCase()){
@@ -6548,8 +6549,7 @@ const SceneToASCII = (renderer, options) => {
           tidx = i
         }
       })
-      octx.fillStyle = monochrome ? `rgb(${mcred /4 + lum*mcred *.75}, ${mcgreen/4 + lum*mcgreen*.75}, ${mcblue /4 + lum*mcblue*.75})` :
-                            `rgb(${red}, ${green}, ${blue})`
+      octx.fillStyle = monochrome ? `rgb(${64 + lum*256 *.75}, ${64 + lum*256*.75}, ${64 + lum*256*.75})` : `rgb(${64+red*.75}, ${64+green*.75}, ${64+blue*.75})`
       var chr = renderer.glyphLuminosities[tidx].chr
       octx.fillText(chr, x/c.width*overlay.c.width / 1,
                          y/c.height*overlay.c.height / 1 + fs/1.5)
