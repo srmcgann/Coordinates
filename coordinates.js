@@ -2917,16 +2917,10 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   }
   
   vy *= -1
-  var rotFunc
-  switch(geometry.rotationMode){
-    case 0: rotFunc = R_ryp; break
-    case 1: rotFunc = R_pyr; break
-    case 2: rotFunc = R_rpy; break
-    case 3: rotFunc = R_rpy; break
-  }
-  ar = rotFunc(vx, vy, vz, {
+  
+  ar = R_ryp(vx, vy, vz, {
     roll:  -geometry.roll * (geometry.isParticle ? -1: 1) + .0001,
-    pitch: -geometry.pitch * (geometry.isParticle ? 1: 1),
+    pitch: geometry.pitch * (geometry.isParticle ? 1: 1),
     yaw:   -geometry.yaw * (geometry.isParticle ? -1: 1),
   }, false)
   vx = -ar[0]
@@ -6409,6 +6403,160 @@ const Rectangle = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, s
   return ret
 }
 
+const GetGlyphLuminosities = async renderer => {
+  await Renderer({
+    attachToBody: false,
+    width: 85,
+    height: 85,
+    context:{
+      mode: '2d',
+      options:{
+        willReadFrequently: true,
+      },
+    }
+  }).then(scratchCanvas => {
+    var glyphPairs = []
+    var fs
+    var c = scratchCanvas.c
+    var ctx = scratchCanvas.ctx
+
+    ctx.font = (fs=64) + 'px courier new'
+    ctx.textAlign = 'left'
+    var minc = 6e6, maxc = -6e6
+    for(var i = 33; i < 127; i++){
+      ctx.fillStyle = '#000'
+      ctx.fillRect(0, 0, c.width, c.height)
+      ctx.fillStyle = '#fff'
+      var chr = String.fromCharCode(i)
+      ctx.fillText(chr, 5, fs)
+      var data = ctx.getImageData(0,0,c.width,c.height)
+      var ct = 0
+      var cumlum = 0
+      for(var j = 0; j < data.data.length; j+=4){
+        var red   = data.data[j+0]
+        var green = data.data[j+1]
+        var blue  = data.data[j+2]
+        //var alpha = data.data[j+3]
+        
+        var lum = (red + green + blue) / 3 / 256
+        cumlum += lum >= .5 ? 1 : 0
+        ct++
+      }
+      cumlum /= ct
+      if(cumlum < minc) minc = cumlum
+      if(cumlum > maxc) maxc = cumlum
+      glyphPairs.push({
+        chr, cumlum
+      })
+    }
+    var range = maxc - minc
+    glyphPairs.map(v => {
+      v.cumlum -= minc
+      v.cumlum /= range
+    })
+    glyphPairs.sort((a, b) => a.cumlum - b.cumlum)
+    //ctx.strokeStyle = '#f00'
+    //ctx.strokeRect(0,0,c.width-1,c.height-1)
+    renderer.glyphLuminosities = glyphPairs
+    renderer.glyphScratchCanvas = scratchCanvas
+  })
+}
+
+const SceneToASCII = (renderer, options) => {
+  if(typeof renderer.glyphLuminosities == 'undefined'){
+    GetGlyphLuminosities(renderer)
+  }
+  if(typeof renderer.glyphScratchCanvas == 'undefined') return
+
+  var overlay = Overlay
+  var octx = overlay.ctx
+  
+  // defaults
+  var fontSize = 10
+  var monochrome = false
+  var monochromeColor = 0x00ff44
+  var backColor = '#000000'
+  var opaqueBackground = true
+  
+  Object.keys(options).forEach(key => {
+    switch(key.toLowerCase()){
+      case 'monochrome': monochrome = options[key]; break
+      case 'monochromecolor': monochromeColor = options[key]; break
+      case 'fontsize': fontSize = options[key]; break
+      case 'backcolor': backColor = '#'+((+options[key]).toString(16)); break
+      case 'opaquebackground': opaqueBackground = options[key]; break
+    }
+  })
+  
+  if(backColor.length < 7){
+    var baseNum = backColor.split('')
+    baseNum.shift()
+    var tchr = ''
+    baseNum.forEach(v=>tchr+=v)
+    baseNum = tchr
+    for(var i = 0; i < 7-backColor.length; i++) baseNum = '0' + baseNum
+    backColor = '#' + baseNum
+  }
+  
+  var c = renderer.glyphScratchCanvas.c
+  var ctx = renderer.glyphScratchCanvas.ctx
+  var res = .1 / ((fontSize**.45)/2.5)
+  c.width = (overlay.c.width  * res) | 0
+  c.height= (overlay.c.height * res) | 0
+  
+  var fs = overlay.c.height / (overlay.c.height / c.height) / 16 * (overlay.c.width < 1e3 ? 1 : 2) / 10 * fontSize
+  
+  if(opaqueBackground){
+    octx.fillStyle = backColor
+    octx.fillRect(0,0,overlay.c.width, overlay.c.height)
+  }else{
+    octx.clearRect(0,0,overlay.c.width, overlay.c.height)
+  }
+  
+  octx.font = fs + 'px courier new'
+  
+  ctx.drawImage(renderer.c, 0, 0, c.width, c.height)
+  
+  var data = ctx.getImageData(0,0,c.width,c.height)
+  
+  if(monochrome){
+    var ar = RGBFromHex(monochromeColor)
+    var mcred   = ar[0] * 256
+    var mcgreen = ar[1] * 256
+    var mcblue  = ar[2] * 256
+  }
+  
+  for(var j = 0; j < data.data.length; j+=4){
+    var red   = data.data[j+0]
+    var green = data.data[j+1]
+    var blue  = data.data[j+2]
+    //var alpha = data.data[j+3]
+    
+    var lum = (red + green + blue) / 3 / 256
+    
+    if(lum > .025){
+      var l = j / 4
+      var x = l % c.width
+      var y = l / c.width | 0
+      
+      var nearestMatch = 6e6
+      var tidx = -1
+      renderer.glyphLuminosities.forEach((v, i) => {
+        var diff = Math.abs(v.cumlum - lum)
+        if(diff < nearestMatch){
+          nearestMatch = diff
+          tidx = i
+        }
+      })
+      octx.fillStyle = monochrome ? `rgb(${mcred /4 + lum*mcred *.75}, ${mcgreen/4 + lum*mcgreen*.75}, ${mcblue /4 + lum*mcblue*.75})` :
+                            `rgb(${red}, ${green}, ${blue})`
+      var chr = renderer.glyphLuminosities[tidx].chr
+      octx.fillText(chr, x/c.width*overlay.c.width / 1,
+                         y/c.height*overlay.c.height / 1 + fs/1.5)
+    }
+  }
+}
+  
 const IsPowerOf2 = (v, d=0) => {
   if(d>300) return false
   if(v==2) return true
@@ -6702,44 +6850,6 @@ const BSpline = async (renderer, geoOptions) => {
 
 
 const Glow = (shape, color = 0xffffff,
-                    alpha = .25, includeShape = false,
-                    glowRadius = 1, resolution = 1,
-                    renderTarget) => {
-
-  if(typeof renderTarget == 'undefined'){
-    renderTarget = shape.renderer
-  }
-
-  var tGlow             = shape.glow
-  var tGlowColor        = shape.glowColor
-  var tGlowAlpha        = shape.glowAlpha
-  var tGlowIncludeShape = shape.glowIncludeShape
-  var tGlowRadius       = shape.glowRadius
-  var tGlowResolution   = shape.glowResolution
-  var tGlowRenderTarget = shape.glowRenderTarget
-  
-  shape.glow             = true
-  shape.glowColor        = color
-  shape.glowAlpha        = alpha
-  shape.glowIncludeShape = includeShape
-  shape.glowRadius       = glowRadius
-  shape.glowResolution   = resolution
-  shape.glowRenderTarget = renderTarget
-
-  renderTarget.Draw(shape)
-  
-  setTimeout(()=>{
-    shape.glow             = tGlow
-    shape.glowColor        = tGlowColor
-    shape.glowAlpha        = tGlowAlpha
-    shape.glowIncludeShape = tGlowIncludeShape
-    shape.glowRadius       = tGlowRadius
-    shape.glowResolution   = tGlowResolution
-    shape.glowRenderTarget = tGlowRenderTarget
-  }, 0)
-}
-
-const GlowInternal = (shape, color = 0xffffff,
                     alpha = .25, includeShape = false,
                     glowRadius = 1, resolution = 1,
                     renderTarget) => {
@@ -7254,7 +7364,7 @@ const AnimationLoop = (renderer, func) => {
           renderer[queueType].map((alphaShape, idx) => {
 
             var shape = renderer[queueType][forSort[idx].idx].geometry
-            GlowInternal(shape, shape.glowColor, shape.glowAlpha,
+            Glow(shape, shape.glowColor, shape.glowAlpha,
                  shape.glowIncludeShape, shape.glowRadius,
                  shape.glowResolution, shape.glowRenderTarget)
           })
@@ -7761,8 +7871,11 @@ export {
   GeoSphere,
   ModuleBase,
   LoadFPSControls,
+  GetGlyphLuminosities,
+  SceneToASCII,
   GeometryFromRaw,
   Overlay,
   GenHash,
   IsArray,
 }
+
