@@ -6559,18 +6559,16 @@ const SceneToASCII = (renderer, options = {}) => {
       var chr = renderer.glyphLuminosities[tidx].chr
       octx.fillText(chr, x/c.width*overlay.c.width / 1,
                          y/c.height*overlay.c.height / 1 + fs/1.5)
-      //output += chr + chr
       line   += chr + chr
     }else{
-      //output += '  '
-      line   += '  '
+      line   += (' ').repeat(2)
     }
     if(!((j/4) % c.width)){
       var lmargin = -1
-      line.split('').forEach((v, ct) => { if(lmargin == -1 && v != ' ') lmargin = ct })
+      line.split('').forEach((v, ct) => { if(lmargin == -1 && v != (' ')) lmargin = ct })
       if(lmargin != -1 && lmargin < maxmargin) maxmargin = lmargin
       if(!headTrimmed){
-        if(line.split('').filter(v=>v==' ').length != line.length) {
+        if(line.split('').filter(v=>v==(' ')).length != line.length) {
           output += line + "\n"
           headTrimmed = true
         }
@@ -6585,7 +6583,7 @@ const SceneToASCII = (renderer, options = {}) => {
     var ar = output.split("\n")
     for(var i = ar.length; i--;) {
       if(!tailTrimmed){
-        if(ar[i].split(' ').length != ar[i].length+1){
+        if(ar[i].split((' ')).length != ar[i].length+1){
           ret = ar[i]
           tailTrimmed = true
         }
