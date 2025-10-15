@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      //"https://srmcgann.github.io/temppp/coordinates.js"
+      "https://whr.rf.gd/coordinates.js"
+
+      var rendererOptions = {
+        ambientLight: .05,
+        fov: 1500,
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      Coordinates.AnimationLoop(renderer, 'Draw')
+      
+      
+      var asciiURL = 'https://www.tiqets.com/blog/wp-content/uploads/2023/01/Mona_Lisa.jpg'
+      
+      
+      renderer.z = 10
+      var gamma = .75
+      var ascii = true
+      var fontSize = 40
+      var monochrome = false
+      var monochromeColor = 0x00ff44
+      var colorizeOutput = false
+      var outputToConsole = false
+      var outputToConsoleOnce = true
+      
+      if(location.href.split('url=').length > 1){
+        asciiURL = location.href.split('url=')[1].split('&')[0]
+      }
+      
+      if(asciiURL.toLowerCase().indexOf('.mp4') != -1){
+        var asciiImage = document.createElement('video')
+      }else{
+        var asciiImage = new Image()
+      }
+      
+      if(location.href.split('gamma=').length > 1){
+        gamma = location.href.split('gamma=')[1].split('&')[0]
+      }
+      if(location.href.split('ascii=').length > 1){
+        ascii = eval(location.href.split('ascii=')[1].split('&')[0])
+      }
+      if(location.href.split('fontsize=').length > 1){
+        fontSize = location.href.split('fontsize=')[1].split('&')[0]
+      }
+      if(location.href.split('monochrome=').length > 1){
+        monochrome = eval(location.href.split('monochrome=')[1].split('&')[0])
+      }
+      if(location.href.split('monochromecolor=').length > 1){
+        monochromeColor = eval(location.href.split('monochromecolor=')[1].split('&')[0])
+      }
+      if(location.href.split('colorizeoutput=').length > 1){
+        colorizeOutput = eval(location.href.split('colorizeoutput=')[1].split('&')[0])
+      }
+      if(location.href.split('outputtoconsole=').length > 1){
+        outputToConsole = eval(location.href.split('outputtoconsole=')[1].split('&')[0])
+      }
+      if(location.href.split('outputtoconsoleonce=').length > 1){
+        outputToConsoleOnce = eval(location.href.split('outputtoconsoleonce=')[1].split('&')[0])
+      }
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .5
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: gamma} },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } }
+      ]
+      var screenShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      
+      //var asciiURL = 'https://i.postimg.cc/15Hy3jCt/smiley.png'
+      
+      
+      //var asciiURL = 'https://finearttutorials.com/wp-content/uploads/2023/06/famous-portrait-paintings-1024x768.png'
+      
+      await fetch(asciiURL).then(res=>res.blob()).then(data => asciiImage.src = URL.createObjectURL(data))
+      
+      console.log(location.href)
+
+      var asciiImageLoaded = false
+      var shapes = []
+      
+      asciiImage[asciiURL.toLowerCase().indexOf('.mp4') != -1 ? 'oncanplay' : 'onload'] = async () => {
+        asciiImageLoaded = true
+        var geoOptions = {
+          shapeType: 'rectangle',
+          name: 'screen',
+          scaleX: 100 * (asciiURL.toLowerCase().indexOf('.mp4') != -1 ? (asciiImage.videoWidth/asciiImage.videoHeight) : (asciiImage.width/asciiImage.height)),
+          scaleY: -100,
+          map: asciiURL,
+          colorMix: 0,
+          z: 100,
+        }
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          shapes.push(geometry)
+          await screenShader.ConnectGeometry(geometry)
+          //await Coordinates.ShapeToLines(geometry).then(res => {
+          //  shapes.push(res.shape)
+          //})
+        })  
+      }
+      
+      window.Draw = () => {
+        var t = renderer.t
+        renderer.Clear()
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'screen':
+              renderer.Draw(shape)
+            break
+            default:
+              renderer.Draw(shape)
+            break
+          }
+        })
+        if(ascii) Coordinates.SceneToASCII(renderer, {
+          fontSize,
+          monochrome,
+          monochromeColor,
+          outputToConsoleOnce,
+          colorizeOutput,
+        })
+      }
+      
+    </script>
+  </body>
+</html>

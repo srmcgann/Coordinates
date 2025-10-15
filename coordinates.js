@@ -6625,9 +6625,7 @@ const SceneToASCII = (renderer, options = {}) => {
       colorizedLine = ''
     }
   }
-  if(output.length && (outputToConsole || (outputToConsoleOnce && !renderer.hasOutputtedASCII))) {
-    
-    renderer.hasOutputtedASCII = true
+  if(output.length){
     var ret = ''
     var ar = (colorizeOutput ? colorizedOutput : output).split("\n")
     for(var i = ar.length; i--;) {
@@ -6640,9 +6638,16 @@ const SceneToASCII = (renderer, options = {}) => {
         ret = ar[i] + "\n" + ret
       }
     }
-    console.log(ret.split("\n").map(v=>{
+    
+    var finalOut = ret.split("\n").map(v=>{
       return v.substr(maxmargin).trimRight()
-    }).join("\n").replaceAll('%%','%%%%'))
+    }).join("\n").replaceAll('%%','%%%%')
+    
+    if(outputToConsole || (outputToConsoleOnce && !renderer.hasOutputtedASCII)) {
+      renderer.hasOutputtedASCII = true
+      console.log(finalOut)
+    }
+    return finalOut
   }
 }
   
