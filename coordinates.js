@@ -6482,18 +6482,25 @@ const SceneToASCII = (renderer, options = {}) => {
   var fontSize = 10
   var monochrome = false
   var outputToConsole = false
+  var outputToConsoleOnce = false
+  var colorizeOutput = false
   var monochromeColor = 0x00ff44
   var backColor = '#000000'
   var opaqueBackground = true
+  if(typeof renderer?.hasOutputtedASCII == 'undefined'){
+    renderer.hasOutputtedASCII = false
+  }
   
   Object.keys(options).forEach(key => {
     switch(key.toLowerCase()){
-      case 'monochrome': monochrome = !!options[key]; break
-      case 'outputtoconsole': outputToConsole = !!options[key]; break
-      case 'monochromecolor': monochromeColor = options[key]; break
-      case 'fontsize': fontSize = options[key]; break
-      case 'backcolor': backColor = '#'+((+options[key]).toString(16)); break
-      case 'opaquebackground': opaqueBackground = options[key]; break
+      case 'monochrome'          : monochrome = !!options[key]; break
+      case 'outputtoconsole'     : outputToConsole = !!options[key]; break
+      case 'outputtoconsoleonce' : outputToConsoleOnce = !!options[key]; break
+      case 'colorizeoutput'      : colorizeOutput = !!options[key]; break
+      case 'monochromecolor'     : monochromeColor = options[key]; break
+      case 'fontsize'            : fontSize = options[key]; break
+      case 'backcolor'           : backColor = '#'+((+options[key]).toString(16)); break
+      case 'opaquebackground'    : opaqueBackground = options[key]; break
     }
   })
   
@@ -6536,7 +6543,10 @@ const SceneToASCII = (renderer, options = {}) => {
   }
   
   var output = ''
+  var spchar = ' '
+  var colorizedOutput = ''
   var line = ''
+  var colorizedLine = ''
   var maxmargin = 6e6
   var headTrimmed = false
   var tailTrimmed = false
@@ -6567,30 +6577,62 @@ const SceneToASCII = (renderer, options = {}) => {
       octx.fillText(chr, x/c.width*overlay.c.width / 1,
                          y/c.height*overlay.c.height / 1 + fs/1.5)
       line   += chr + chr
+      
+      if(colorizeOutput){
+        var fg, bg
+        var hsv = HSVFromRGB(red, green, blue)
+        var txtLum = hsv[2] ** .6 - hsv[1] / 2.6 //(hsv[1] + hsv[2]) / 2
+        if(txtLum >= .25 && txtLum < .75){
+          hsv[0]*=1.1
+          //hsv[0]+=10
+          hsv[0]%=360
+          switch((hsv[0]/360*7) | 0){
+            case 6: fg = txtLum >= .5 ? '04' : '05'; break
+            case 0: fg = txtLum >= .5 ? '07' : '07'; break
+            case 1: fg = txtLum >= .5 ? '08' : '07'; break
+            case 2: fg = txtLum >= .5 ? '09' : '03'; break
+            case 3: fg = txtLum >= .5 ? '11' : '10'; break
+            case 4: fg = txtLum >= .5 ? '12' : '02'; break
+            case 5: fg = txtLum >= .5 ? '13' : '06'; break
+            break
+          }
+        }else{
+          fg = txtLum < .25 ? (txtLum < .125 ? 1 : 14) : (txtLum > .8625 ? 0 : 15)
+        }
+        colorizedLine += String.fromCharCode(3) + fg + chr + chr
+        //colorizedLine += chr + chr
+      }
     }else{
-      line   += (' ').repeat(2)
+      line   += spchar.repeat(2)
+      colorizedLine += spchar.repeat(2)
+      
     }
     if(!((j/4) % c.width)){
       var lmargin = -1
-      line.split('').forEach((v, ct) => { if(lmargin == -1 && v != (' ')) lmargin = ct })
+      line.split('').forEach((v, ct) => { if(lmargin == -1 && v != spchar) lmargin = ct })
       if(lmargin != -1 && lmargin < maxmargin) maxmargin = lmargin
       if(!headTrimmed){
-        if(line.split('').filter(v=>v==(' ')).length != line.length) {
+        if(line.split('').filter(v=>v==spchar).length != line.length) {
           output += line + "\n"
+          colorizedOutput += colorizedLine + "\n"
           headTrimmed = true
         }
       }else{
         output += line + "\n"
+        colorizedOutput += colorizedLine + "\n"
       }        
       line = ''
+      colorizedLine = ''
     }
   }
-  if(outputToConsole) {
+  if(output.length && (outputToConsole || (outputToConsoleOnce && !renderer.hasOutputtedASCII))) {
+    
+    renderer.hasOutputtedASCII = true
     var ret = ''
-    var ar = output.split("\n")
+    var ar = (colorizeOutput ? colorizedOutput : output).split("\n")
     for(var i = ar.length; i--;) {
       if(!tailTrimmed){
-        if(ar[i].split((' ')).length != ar[i].length+1){
+        if(ar[i].split(spchar).length != ar[i].length+1){
           ret = ar[i]
           tailTrimmed = true
         }
