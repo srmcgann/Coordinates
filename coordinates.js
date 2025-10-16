@@ -6583,9 +6583,10 @@ const SceneToASCII = (renderer, options = {}) => {
         var hsv = HSVFromRGB(red, green, blue)
         var txtLum = hsv[2] ** .6 - hsv[1] / 2.6 //(hsv[1] + hsv[2]) / 2
         if(txtLum >= .25 && txtLum < .75){
-          hsv[0]*=1.1
-          //hsv[0]+=10
-          hsv[0]%=360
+          hsv[0]*=+1.2
+          hsv[0]-=+20
+          while(hsv[0]<0)hsv[0]+=+360
+          hsv[0] =(+hsv[0]) % 360
           switch((hsv[0]/360*7) | 0){
             case 6: fg = txtLum >= .5 ? '04' : '05'; break
             case 0: fg = txtLum >= .5 ? '07' : '07'; break
@@ -6607,7 +6608,7 @@ const SceneToASCII = (renderer, options = {}) => {
       colorizedLine += spchar.repeat(2)
       
     }
-    if(!((j/4) % c.width)){
+    if(!((j/4+1) % c.width)){
       var lmargin = -1
       line.split('').forEach((v, ct) => { if(lmargin == -1 && v != spchar) lmargin = ct })
       if(lmargin != -1 && lmargin < maxmargin) maxmargin = lmargin
