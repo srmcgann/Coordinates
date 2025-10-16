@@ -6580,7 +6580,7 @@ const SceneToASCII = (renderer, options = {}) => {
       
       if(colorizeOutput){
         var fg, bg
-        var hsv = HSVFromRGB(red, green, blue)
+        var hsv = monochrome ? HSVFromRGB(mcred, mcgreen, mcblue) : HSVFromRGB(red, green, blue)
         var txtLum = hsv[2] ** .6 - hsv[1] / 2.6 //(hsv[1] + hsv[2]) / 2
         if(txtLum >= .25 && txtLum < .75){
           hsv[0]*=+1.2
