@@ -6584,7 +6584,7 @@ const SceneToASCII = (renderer, options = {}) => {
         var txtLum = hsv[2] ** .6 - hsv[1] / 2.6 //(hsv[1] + hsv[2]) / 2
         if(txtLum >= .25 && txtLum < .75){
           hsv[0]*=+1.2
-          hsv[0]-=+20
+          hsv[0]-=70
           while(hsv[0]<0)hsv[0]+=+360
           hsv[0] =(+hsv[0]) % 360
           switch((hsv[0]/360*7) | 0){
