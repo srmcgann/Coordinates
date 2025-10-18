@@ -139,7 +139,7 @@ const Renderer = async options => {
 
   if(context.mode != '2d'){
     console.log(`GLSL version: ${ctx.getParameter(ctx.SHADING_LANGUAGE_VERSION)}`)
-    ctx.pixelStorei(ctx.UNPACK_ALIGNMENT, 4)
+    ctx.pixelStorei(ctx.UNPACK_ALIGNMENT, 1)
   }
   if(exportGPUSpecs) getParams(ctx)
   
@@ -2706,11 +2706,11 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
     break
     case 'dataArray':
       texImage = geometry.map
-      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     break
     case 'heightmapDataArray':
       texImage = geometry.heightMap
-      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     break
     case 'video':
       if(involveCache && (cacheItem=cache.texImages.filter(v=>v.url==geometry.map && tval != -1 && v.tVal == tval)).length){
