@@ -12,6 +12,7 @@ await zipScript.setAttribute('src', ModuleBase + '/zip.js')
 await document.body.appendChild(zipScript)
 
 const S = Math.sin, C = Math.cos, Rn = Math.random
+const InitialTime = (new Date()).getTime()
 
 var audioConsent = false
 //new OffscreenCanvas(256, 256); * might be superior
@@ -7528,7 +7529,7 @@ const AnimationLoop = (renderer, func) => {
       }
     })
     
-    renderer.t += 1/60 
+    renderer.t = ((new Date()).getTime() - InitialTime) * .001
     requestAnimationFrame(loop)
     
     if(renderer.cameraMode == 'fps'){
@@ -7947,6 +7948,7 @@ export {
   Quat,
   Glow,
   CurveTo,
+  InitialTime,
   ShiftArray,
   ShiftArray2D,
   ShiftArray3D,
