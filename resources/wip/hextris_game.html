@@ -20,13 +20,23 @@
     
       var rendererOptions = {
         ambientLight: 1, margin : 0,
-        //width: 1920, height: 1080, fov: 1e3,
-        width: 960, height: 540, fov: 500,
+        width: 1920, height: 1080, fov: 1e3,
+        //width: 960, height: 540, fov: 500,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/million_particle_grid_equirectangular_po2.jpg'
+      
       var base = 6
-      var pieces
+      var pieces, basePieces 
+      var curPiece = {
+        x,
+        y,
+        z,
+        pid: -1,
+        isBomb: false,
+      }
+      var shadowPiece = structuredClone(curPiece)
       switch(base){
         case 3:
           pieces = [[[0,2,0],[0,0,0],[2,0,0]],[[4,0,0],[2,0,0],[0,0,0]]]
@@ -43,7 +53,8 @@
         case 7:
         break
       }
-
+      
+      
       var S = Math.sin
       var C = Math.cos
       var Rn = Math.random
@@ -60,13 +71,36 @@
         { lighting: { type: 'ambientLight', value: 1}},
         { uniform: {
           type: 'phong',
-          value: .25
+          value: .5
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var shaderOptions = [
-        { lighting: { type: 'ambientLight', value: .1}},
+        { lighting: { type: 'ambientLight', value: 1.5}},
+        { uniform: {
+          type: 'phong',
+          value: 1
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          value: .1,
+        } }
+      ]
+      var bombShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: { type: 'ambientLight', value: .8}},
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+      ]
+      var bombShadowShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: { type: 'ambientLight', value: .25}},
         { uniform: {
           type: 'phong',
           value: 0
@@ -75,7 +109,7 @@
       var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var baseShapes = []
-      var baseRectangle
+      var baseRectangle, pieceShapes = []
       if(1){
         var geoOptions = {
           shapeType: 'rectangle',
@@ -101,7 +135,8 @@
               q[2] *= pieceSize / 2
             })
             Coordinates.ShapeFromArray(geometry, pointArray).then(async res=>{
-              baseShapes.push(res)
+              pieceShapes.push(res)
+              baseShapes.push(structuredClone(res.vertices))
               await shader.ConnectGeometry(res)
             })
           })
@@ -195,9 +230,11 @@
         flatShading: true,
         dataArrayWidth: cl,
         dataArrayHeight: rw,
-        scaleX: 100,
-        scaleY: 100,
-        scaleZ: 100,
+        scaleX: 100/1.062,
+        scaleY: 100/1.062,
+        scaleZ: 100/1.062,
+        x: -1.75,
+        y: -1,
         colorMix: 0,
         dataArrayFormat: renderer.gl.RGB, // default: renderer.gl.RGBA (w/alpha)
         map: dataArray
@@ -217,6 +254,7 @@
         scaleX: 102.5,
         scaleY: 102.5,
         scaleZ: 102.5/4,
+        y: 2.5,
         color: 0x888888,
         colorMix: .3,
       }
@@ -228,10 +266,10 @@
       var backgroundShape
       var geoOptions = {
         shapeType: 'dodecahedron',
-        subs: 3,
+        subs: 4,
         size: 5e3,
         name: 'background',
-        map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+        map: refTexture,
         colorMix: 0,
       }
       if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
@@ -239,27 +277,58 @@
         await backgroundShader.ConnectGeometry(geometry)
       })
       
-      var tempParticles
+      var bombShape, bombShadowShape
+      var geoOptions = {
+        shapeType: 'obj',
+        name: 'bomb',
+        url: 'https://srmcgann.github.io/objs/bomb/bomb.obj',
+        map: 'https://srmcgann.github.io/objs/bomb/bomb.png',
+        scaleX: 20,
+        scaleY: 20,
+        scaleZ: 20,
+        color: 0x888888,
+        y: -50,
+        colorMix: .05,
+      }
+      if(1) {
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          bombShape = geometry
+          await bombShader.ConnectGeometry(geometry)
+        })
+        geoOptions.map = ''
+        geoOptions.colorMix = .1
+        geoOptions.color = 0xffffff
+        //geoOptions.alpha = .9
+        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+          bombShadowShape = geometry
+          await bombShadowShader.ConnectGeometry(geometry)
+        })
+      }
+      
+      var flashParticles
       var geoOptions = {
         shapeType: 'particles',
-        geometryData: Array(1e4).fill().map((v, i) => [1e5, 1e5, 1e5]),
+        geometryData: Array(7500).fill().map((v, i) => [1e5, 1e5, 1e5]),
         size: 2,
         alpha: .8,
         penumbra: .4,
         color: 0x00ff44,
       }
       if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        tempParticles = geometry
+        flashParticles = geometry
       })
       
+      
+      var sparkShape, baseSparkShape
       var geoOptions = {
         shapeType: 'sprite',
-        size: 3,
-        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
-        z: -.1
+        size: 3 / 10,
+        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+        z: -1
       }
-      if(0) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
+      if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        sparkShape = geometry
+        baseSparkShape = structuredClone(sparkShape.vertices)
       })
       
       
@@ -272,29 +341,13 @@
         })
       }
 
-      
       var box = Array(1e4).fill(0)
       var mag = pieceSize
-      var curPiece = {
-        x,
-        y,
-        z,
-        pid: -1,
-      }
-      
-      const SpawnPiece = () => {
-        curPiece.pid = pieces.length * Rn() | 0
-        curPiece.x = 0
-        curPiece.y = mag*55 / fact
-        curPiece.z = 0
-      }
-      SpawnPiece()
       
       const AdvancePiece = () => {
-        if(CanDrop()) curPiece.y -= mag
+        if(CanDrop(curPiece)) curPiece.y -= mag
       }
       
-      renderer.z = 200
       Coordinates.Overlay.c.tabIndex = 0
       Coordinates.Overlay.c.focus()
       var keys = Array(256).fill(false)
@@ -311,15 +364,45 @@
       })
       
       var pieceTimer = 0
-      var pieceTimerInterval = .01
+      var pieceTimerInterval = .015
       var keyholdCount = 0
       
-      const CanDrop = () => {
+      basePieces = structuredClone(pieces)
+
+      const CheckRows = () => {
+        var collapseRows = []
+        for(var i = 0; i < 55; i++){
+          var ct = 0
+          for(var j = 0; j < 25; j++){
+            if(box[i*25+j] == 0) ct ++
+          }
+          if(ct == 1){
+            y = (i - 50/fact) * mag + mag/4
+            collapseRows.push(i)
+            for(var j = 0; j < 25; j++) {
+              x = (j - 24.5/fact) * mag
+              z = 0
+              SpawnFlash(x, y, z)
+              box[i*25+j] = 0
+            }
+          }
+        }
+        collapseRows.forEach((q, j) =>{
+          y = collapseRows[collapseRows.length - j - 1]
+          for(var i = y; i<55; i++){
+            for(var j = 0; j < 25; j++) {
+              box[i*25+j] = box[(i+1)*25+j]
+            }
+          }
+        })
+      }
+      
+      const CanDrop = (pc, override=false) => {
         var miny = 6e6
-        var tx = curPiece.x
-        var ty = curPiece.y - mag
+        var tx = pc.x
+        var ty = pc.y - mag
         var collision = false
-        pieces[curPiece.pid].forEach((v, i) => {
+        pieces[pc.pid].forEach((v, i) => {
           if(!collision){
             x = (v[0] + tx) / mag
             y = (v[1] + ty) / mag
@@ -327,25 +410,64 @@
             if(y < miny) miny = y
           }
         })
-        var ret = miny > -24.5*2 / fact && !collision
+        var ret = miny > -23.5*2 / fact && !collision
         if(ret){
           return true
-        }else{
-          var tx = curPiece.x
-          var ty = curPiece.y
+        }else if(!override){
+          if(pc.isBomb){
+            SpawnFlash(pc.x, pc.y, pc.z, 1.5, 5, true)
+            for(var j = 0; j < box.length; j++){
+              x = ((j%25)-25/2) * mag
+              y = ((j/25|0)-50/2) * mag
+              if(Math.hypot(pc.x - x, pc.y - y) < mag * 5){
+                box[j] = 0
+              }
+            }
+          }else{
+            var tx = pc.x
+            var ty = pc.y
+            pieces[pc.pid].forEach((v, i) => {
+              x = Math.round(25 / fact+(tx + v[0])/mag)
+              y = Math.round(50 / fact+(ty + v[1])/mag)
+              box[y * 50 / fact + x] = pc.pid + 1
+              //z = tz + v[2]
+            })
+          }
+          CheckRows()
+          SpawnPiece()
           didDrop = true
-          pieces[curPiece.pid].forEach((v, i) => {
-            x = Math.round(25 / fact+(tx + v[0])/mag)
-            y = Math.round(50 / fact+(ty + v[1])/mag)
-            box[y * 50 / fact + x] = curPiece.pid + 1
-            //z = tz + v[2]
-          })
-          curPiece.pid = Rn() * pieces.length | 0
-          curPiece.x = 0
-          curPiece.y = 27 * 2 * mag  / fact
         }
       }
       
+      const DoShadowPiece = () => {
+        shadowPiece.x = curPiece.x
+        shadowPiece.y = curPiece.y
+        shadowPiece.z = curPiece.z
+        while(CanDrop(shadowPiece, true)) shadowPiece.y -= mag
+      }
+      
+      const SpawnPiece = () => {
+        if(Rn() < .25){
+          curPiece.pid = 8
+          curPiece.isBomb = true
+        }else{
+          curPiece.pid = pieces.length * Rn() | 0 //Rn() < .1 ? pieces.length * Rn() | 0 : 14
+          curPiece.isBomb = false
+        }
+        curPiece.x = 0
+        curPiece.y = mag * 55 / fact
+        curPiece.z = 0
+        pieceShapes[curPiece.pid].vertices = structuredClone(baseShapes[curPiece.pid])
+        pieces[curPiece.pid] = structuredClone(basePieces[curPiece.pid])
+        
+        shadowPiece.pid = curPiece.pid
+        shadowPiece.x = 0
+        shadowPiece.y = mag * 55 / fact
+        shadowPiece.z = 0
+        DoShadowPiece()
+      }
+      SpawnPiece()
+
       const tryShift = (mode, override = false) => {
         var x, y, z, d, p
         var did = false
@@ -390,80 +512,90 @@
               }
             break
             case 'drop':
-              if(CanDrop()){
+              if(CanDrop(curPiece, true)){
                 did = true
                 curPiece.y -= mag
                 if(!override) pieceTimer = renderer.t + pieceTimerInterval * (keyholdCount++<1 ? 20:1)
               }
             break
             case 'rotate':
-              var ax = 0
-              var ay = 0
-              var ct = 0
-              pieces[curPiece.pid].forEach((v, i) => {
-                ax += v[0]
-                ay += v[1]
-                ct++
-              })
-              ax /= ct
-              ay /= ct
-              
-              var tidx, mind = 6e6
-              pieces[curPiece.pid].forEach((v, i) => {
-                if((d=Math.hypot(v[0]-ax, v[1]-ay)) < mind){
-                  mind = d
-                  tidx = i
-                }
-              })
-              
-              var cx = pieces[curPiece.pid][tidx][0]
-              var cy = pieces[curPiece.pid][tidx][1]
-              
-              var successful = true
-              pieces[curPiece.pid].forEach((v, i) => {
-                if(successful){
-                  p = Math.atan2(v[0] - cx, v[1] - cy) - Math.PI/2
-                  d = Math.hypot(v[0] - cx, v[1] - cy)
-                  x = cx + S(p) * d
-                  y = cy + C(p) * d
-                  if(x + curPiece.x >= 24*mag / fact) {
-                    tryShift('left', true)
-                    successful = false
-                  }
-                  if(x + curPiece.x < -23.5*mag / fact) {
-                    tryShift('right', true)
-                    successful = false
-                  }
-                  if(successful && 
-                     (x + curPiece.x >= 24*mag / fact ||
-                      x + curPiece.x <= -24*mag / fact ||
-                      y + curPiece.y <= -24.5*2*mag / fact ||
-                    box[Math.round(25 / fact+(tx + v[0])/mag) + 50 / fact*Math.round(50 / fact+(ty + v[1])/mag)])) successful = false
-                }
-              })
-              if(successful){
-                pieces[curPiece.pid].map((v, i) => {
-                  p = Math.atan2(v[0] - cx, v[1] - cy) - Math.PI/2
-                  d = Math.hypot(v[0] - cx, v[1] - cy)
-                  v[0] = cx + S(p) * d
-                  v[1] = cy + C(p) * d
+              if(!curPiece.isBomb){
+                var ax = 0
+                var ay = 0
+                var ct = 0
+                pieces[curPiece.pid].forEach((v, i) => {
+                  ax += v[0]
+                  ay += v[1]
+                  ct++
                 })
-                for(var i = 0; i < baseShapes[curPiece.pid].vertices.length; i+=3){
-                  x = baseShapes[curPiece.pid].vertices[i+0]
-                  y = baseShapes[curPiece.pid].vertices[i+1]
-                  p = Math.atan2(x - cx, y - cy) - Math.PI/2
-                  d = Math.hypot(x - cx, y - cy)
-                  baseShapes[curPiece.pid].vertices[i+0] = cx + S(p) * d
-                  baseShapes[curPiece.pid].vertices[i+1] = cy + C(p) * d
+                ax /= ct
+                ay /= ct
+                
+                var tidx, mind = 6e6
+                pieces[curPiece.pid].forEach((v, i) => {
+                  if((d=Math.hypot(v[0]-ax, v[1]-ay)) < mind){
+                    mind = d
+                    tidx = i
+                  }
+                })
+                
+                var cx = pieces[curPiece.pid][tidx][0]
+                var cy = pieces[curPiece.pid][tidx][1]
+                
+                var successful = true
+                pieces[curPiece.pid].forEach((v, i) => {
+                  if(successful){
+                    p = Math.atan2(v[0] - cx, v[1] - cy) - Math.PI/2
+                    d = Math.hypot(v[0] - cx, v[1] - cy)
+                    x = cx + S(p) * d
+                    y = cy + C(p) * d
+                    if(x + curPiece.x >= 24*mag / fact) {
+                      tryShift('left', true)
+                      successful = false
+                    }
+                    if(x + curPiece.x < -23.5*mag / fact) {
+                      tryShift('right', true)
+                      successful = false
+                    }
+                    if(successful && 
+                       (x + curPiece.x >= 24*mag / fact ||
+                        x + curPiece.x <= -24*mag / fact ||
+                        y + curPiece.y <= -24.5*2*mag / fact ||
+                      box[Math.round(25 / fact+(curPiece.x + x)/mag) + 50 / fact*Math.round(50 / fact+(curPiece.y + y)/mag)])) successful = false
+                  }
+                })
+                if(successful){
+                  pieces[curPiece.pid].map((v, i) => {
+                    p = Math.atan2(v[0] - cx, v[1] - cy) - Math.PI/2
+                    d = Math.hypot(v[0] - cx, v[1] - cy)
+                    //v[0] = Math.round(cx + S(p) * d)
+                    //v[1] = Math.round(cy + C(p) * d)
+                    v[0] = (cx + S(p) * d)
+                    v[1] = (cy + C(p) * d)
+                  })
+                  for(var i = 0; i < pieceShapes[curPiece.pid].vertices.length; i+=3){
+                    x = pieceShapes[curPiece.pid].vertices[i+0]
+                    y = pieceShapes[curPiece.pid].vertices[i+1]
+                    p = Math.atan2(x - cx, y - cy) - Math.PI/2
+                    d = Math.hypot(x - cx, y - cy)
+                    pieceShapes[curPiece.pid].vertices[i+0] = cx + S(p) * d
+                    pieceShapes[curPiece.pid].vertices[i+1] = cy + C(p) * d
+                  }
+                  if(!override) pieceTimer = renderer.t + pieceTimerInterval * (keyholdCount++<1 ? 20:1)
+                  did = true
                 }
-                if(!override) pieceTimer = renderer.t + pieceTimerInterval * (keyholdCount++<1 ? 20:1)
-                did = true
               }
             break
           }
         }
+        DoShadowPiece()
         return did
       }
+      
+      //pieces.map((v, i) => {
+      //  curPiece.pid = i
+      //  tryShift('rotate', true)
+      //})
       
       const DoKeys = () => {
         keys.forEach((v, i) => {
@@ -491,48 +623,127 @@
               case 68: //d
               break
               case 32: //space
-                while(CanDrop()&&!didDrop) curPiece.y -= mag
+                while(CanDrop(curPiece)&&!didDrop) curPiece.y -= mag
               break
             }
           }
         })
       }
       
+      var flashes = []
+      var iPv = .1
+      const SpawnFlash = (x, y, z, size = 1, bump = 1, isBomb=false) => {
+        for(var m = 50; m--; ){
+          var v = (.1+Rn()*.9)**.5 * iPv * size * (bump / 4)
+          var vx = S(p=Math.PI*2*Rn())*S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * v
+          var vy = C(q) * v
+          var vz = C(p) * S(q) * v
+          flashes.push({ x: x + (isBomb ? vx * mag * 30 : 0), y: y + (isBomb ? vy * mag * 30 - mag : 0), z, vx, vy, vz, life: size, bump})
+        }
+      }
+      
       window.Draw = () => {
         var t = renderer.t
+        renderer.z = 100
         DoKeys()
         renderer.Clear()
         if(!((t*60|0)%60)) AdvancePiece()
+
+        if(typeof borderShape?.shader != 'undefined') renderer.Draw(borderShape)
+        if(typeof backgroundShape?.shader != 'undefined') {
+          //backgroundShape.yaw += .0005
+          backgroundShape.pitch += .001
+          renderer.Draw(backgroundShape)
+        }
+       
         
         var pid = curPiece.pid
-        baseShapes[pid].x = curPiece.x
-        baseShapes[pid].y = curPiece.y
-        baseShapes[pid].color = Coordinates.HSVToHex(360/pieces.length * pid,1,1)
-        renderer.Draw(baseShapes[pid])
         
-        for(var i = 0; i < tempParticles.vertices.length; i+=3){
-          var j = i / 3
-          x = j % (50 / fact)
-          y = j / 50 / fact | 0
-          if(box[x + y * 50 / fact]){
-            tempParticles.vertices[i+0] = (x - 24.5/fact) * mag
-            tempParticles.vertices[i+1] = (y - 50 / fact) * mag
-            tempParticles.vertices[i+2] = 0
-          }else{
-            tempParticles.vertices[i+0] = 1e5
-            tempParticles.vertices[i+1] = 1e5
-            tempParticles.vertices[i+2] = 1e5
+        var pid = shadowPiece.pid
+        if(curPiece.isBomb){
+          if(baseSparkShape){
+            var ls = 20 + C(t*100) * 10
+            for(var i = 0; i < sparkShape.vertices.length; i+=3){
+              sparkShape.vertices[i+0] = baseSparkShape[i+0] * ls
+              sparkShape.vertices[i+1] = baseSparkShape[i+1] * ls
+              sparkShape.vertices[i+2] = baseSparkShape[i+2] * ls
+            }
+            sparkShape.x = bombShape.x
+            sparkShape.y = bombShape.y + 20
+            sparkShape.z = bombShape.z
+            renderer.Draw(sparkShape)
           }
+          bombShape.x = curPiece.x - mag / 2
+          bombShape.y = curPiece.y - mag * 2.15
+          bombShape.z = curPiece.z = 0
+          bombShape.yaw = t * 2
+          bombShape.colorMix = .05
+          bombShape.alpha = 1
+          renderer.Draw(bombShape)
+          bombShadowShape.x = shadowPiece.x - mag / 2
+          bombShadowShape.y = shadowPiece.y - mag * 2.15
+          bombShadowShape.z = shadowPiece.z = 0
+          bombShadowShape.yaw = t * 2
+          renderer.Draw(bombShadowShape)
+        }else{
+          pieceShapes[pid].x = curPiece.x
+          pieceShapes[pid].y = curPiece.y
+          pieceShapes[pid].z = 0
+          pieceShapes[pid].color = Coordinates.HSVToHex(360/pieces.length * pid, 1, .5)
+          renderer.Draw(pieceShapes[pid])
+          pieceShapes[pid].x = shadowPiece.x
+          pieceShapes[pid].y = shadowPiece.y
+          pieceShapes[pid].z = shadowPiece.z
+          pieceShapes[pid].color = 0x111111
+          //pieceShapes[pid].alpha = .9
+          renderer.Draw(pieceShapes[pid])
         }
-        //renderer.Draw(tempParticles)
+
+        flashes = flashes.filter((v, i) => v.life > 0)
+        //flashes.map(v=>v.life -= .01)
+        var vl=0
+        if(1){
+          for(var i = 0; i < flashParticles.vertices.length; i+=3) {
+            var l = i / 3
+            if(l < flashes.length){
+              var v = flashes[l]
+              flashParticles.vertices[i+0] = v.x += v.vx
+              flashParticles.vertices[i+1] = v.y += v.vy
+              flashParticles.vertices[i+2] = v.z += v.vz
+              vl = Math.min(1, v.life -= .01)
+              flashParticles.size = 2 * vl * v.bump
+              flashParticles.alpha = Math.min(1, vl) * .8
+            }else{
+              flashParticles.vertices[i+0] = 1e5
+              flashParticles.vertices[i+1] = 1e5
+              flashParticles.vertices[i+2] = 1e5
+            }
+          }
+          flashParticles.color = Coordinates.HSVToHex((vl) * 100 + 320, 1 - vl/1.5, 1)
+          flashParticles.z = -1
+          renderer.Draw(flashParticles)
+        }
+        /*
+        flashes.map((v, i) => {
+          sparkShape.x = v.x
+          sparkShape.y = v.y
+          sparkShape.z = v.z
+          for(var j = 0; j < sparkShape.vertices.length; j += 3){
+            sparkShape.vertices[j+0] = baseSparkShape[j+0] * 10 * v.life
+            sparkShape.vertices[j+1] = baseSparkShape[j+1] * 10 * v.life
+            sparkShape.vertices[j+2] = baseSparkShape[j+2] * 10 * v.life
+          }
+          renderer.Draw(sparkShape)
+          v.life -= .1
+        })
+        */
        
-        if(typeof borderShape?.shader != 'undefined') renderer.Draw(borderShape)
-        if(typeof backgroundShape?.shader != 'undefined') renderer.Draw(backgroundShape)
-       
+        pieceShapes[pid].alpha = 1
+
         for(var i = 0; i < boxShape.vertices.length; i += 3){
           var idx = i/18|0
           if(box[idx]){
-            var ar = Coordinates.HSVToRGB(360/60*box[idx],1,1)
+            var ar = Coordinates.HSVToRGB(360/60*(box[idx]-1), 1, .5)
             boxShape.map[idx*3+0] = ar[0]
             boxShape.map[idx*3+1] = ar[1]
             boxShape.map[idx*3+2] = ar[2]
