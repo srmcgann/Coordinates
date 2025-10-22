@@ -219,6 +219,12 @@ const Renderer = async options => {
     var dset   = shader.datasets[geometry.datasetIdx]
     var sProg  = dset.program
     
+    if(geometry.cullFace){
+      ctx.enable(ctx.CULL_FACE)
+      ctx.cullFace(geometry.cullFace == 'back' ? ctx.BACK : ctx.FRONT)
+    }else{
+      ctx.disable(ctx.CULL_FACE)
+    }
     if(geometry.alpha != 1 ||
        geometry.isLine ||
        geometry.isParticle ||
@@ -231,8 +237,6 @@ const Renderer = async options => {
       //  ctx.disable(ctx.DEPTH_TEST)
       //  ctx.cullFace(ctx.FRONT)
       //}
-      ctx.enable(ctx.CULL_FACE)
-      ctx.cullFace(ctx.BACK)
     }else{
       ctx.disable(ctx.CULL_FACE)
       if(geometry.shapeType != 'sprite' ||
@@ -1479,6 +1483,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var averageNormals           = false
   var subs                     = 0
   var sphereize                = 0
+  var cullFace                 = ''
   var color                    = 0x333333
   var colorMix                 = .1
   var resolved                 = false // loaded from stock files
@@ -1585,6 +1590,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'scaleuvy'           : scaleUVY = geoOptions[key]; break
       case 'offsetuvx'          : offsetUVX = geoOptions[key]; break
       case 'offsetuvy'          : offsetUVY = geoOptions[key]; break
+      case 'cullface'           : cullFace = geoOptions[key]; break
       case 'scalex'             : scaleX = geoOptions[key]; break
       case 'scaley'             : scaleY = geoOptions[key]; break
       case 'scalez'             : scaleZ = geoOptions[key]; break
@@ -2516,7 +2522,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       (isLine ? 'lines' : shapeType), normalAssocs,
     sphereize, equirectangular, flipNormals,
     vertices, normals, normalVecs, uvs, offsets,
-    offset_buffer, Offset_Index_Buffer,
+    offset_buffer, Offset_Index_Buffer, cullFace,
     vertex_buffer, Vertex_Index_Buffer,
     normal_buffer, Normal_Index_Buffer, muted,
     normalVec_buffer, NormalVec_Index_Buffer,
