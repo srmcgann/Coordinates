@@ -2,7 +2,7 @@
   to do
   * pause
   * scoring / panels
-  * swap piece
+  * swap piece / on-screen queue
   * multiplayer
 -->
 <!DOCTYPE html>
@@ -22,8 +22,8 @@
     <script type="module">
     
       import * as Coordinates from
-      //"https://srmcgann.github.io/Coordinates/coordinates.js"
-      "https://whr.rf.gd/coordinates.js?2"
+      "https://srmcgann.github.io/Coordinates/coordinates.js"
+      //"https://whr.rf.gd/coordinates.js?2"
     
       var rendererOptions = {
         ambientLight: 1, margin : 0,
@@ -497,7 +497,10 @@
               x = ((j%25)-25/2) * mag
               y = ((j/25|0)-50/2) * mag
               if(Math.hypot(pc.ix - x, pc.iy - y) < mag * 10){
-                box[j] = 0
+                if(box[j]){
+                  box[j] = 0
+                  SpawnFlash(x, y, 0)
+                }
               }
             }
           }else{
@@ -730,7 +733,10 @@
                     x = ((j%25)-25/2) * mag
                     y = ((j/25|0)-50/2) * mag
                     if(Math.hypot(curPiece.ix - x, curPiece.iy - y) < mag * 10){
-                      box[j] = 0
+                      if(box[j]){
+                        box[j] = 0
+                        SpawnFlash(x, y, 0)
+                      }
                     }
                   }
                   SpawnPiece()
@@ -899,6 +905,7 @@
           bombShadowShape.z = -.1 //shadowPiece.iz = 0
           bombShadowShape.yaw = t * 2
           bombShadowShape.alpha = .9
+          bombShadowShape.cullFace = 'front'
           renderer.Draw(bombShadowShape)
         }
         renderer.Draw(gridShape)

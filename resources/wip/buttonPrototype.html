@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.js"
+      //"https://whr.rf.gd/coordinates.js?2"
+    
+
+      var buttonTextureWidth = 400 * 2
+      var buttonTextureHeight = 50 * 2
+      var rendererOptions = {
+        width: buttonTextureWidth,
+        height: buttonTextureHeight,
+        attachToBody: false,
+        context: {
+          mode: '2d',
+          options: {
+            willReadFrequently: true
+          }
+        }
+      }
+      var scratchCanvas = await Coordinates.Renderer(rendererOptions)
+      
+      var rendererOptions = {
+        ambientLight: .1,
+        fov: 1500
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .5,
+          theta: -Math.PI / 6
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+      var shapes = []
+      
+      var cl = buttonTextureWidth
+      var rw = buttonTextureHeight
+      var dataArray = []
+      Array(cl*rw).fill().map((v, i) => {
+        var l = i+(i/cl|0)
+        var red = l%2 ? 255 : 0
+        var green = l%2 ? 255 : 0
+        var blue = l%2 ? 255 : 0
+        dataArray.push(red, green, blue)
+      })
+      
+      var geoOptions = {
+        shapeType: 'obj',
+        name: 'button',
+        url: 'https://srmcgann.github.io/objs/button/button.obj',
+        scaleX: -10,
+        scaleY: 10,
+        scaleZ: 10,
+        showBounding: false,
+        flatShading: true,
+        dataArrayWidth: cl,
+        dataArrayHeight: rw,
+        dataArrayFormat: renderer.gl.RGB,
+        map: dataArray,
+        //map: 'https://',
+        colorMix: .1,
+        color: 0x4400ff,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await shader.ConnectGeometry(geometry)
+      })
+      
+      var buttonTexture = new Image()
+      var url = 'https://i.postimg.cc/W38rcfmD/temp-Button-Grey.png'
+      await fetch(url).then(res=>res.blob()).then(data => {
+        buttonTexture.src = URL.createObjectURL(data)
+      })
+      
+        const ProcessButtonTexture = () => {
+          if(typeof scratchCanvas != 'undefined'){
+          var w = scratchCanvas.c.width
+          var h = scratchCanvas.c.height
+          
+          scratchCanvas.ctx.drawImage(buttonTexture, 0,0,w,h)
+          var fs
+          scratchCanvas.ctx.font = (fs=80) + 'px monospace'
+          scratchCanvas.ctx.fillStyle = '#000'
+          scratchCanvas.ctx.textAlign = 'center'
+          scratchCanvas.ctx.shadowColor = '#000'
+          scratchCanvas.ctx.shadowBlur = 5
+          scratchCanvas.ctx.scale(3.0, 1.0)
+          scratchCanvas.ctx.fillText('pause', w/6,h/2+fs/5)
+          scratchCanvas.ctx.fillText('pause', w/6,h/2+fs/5)
+          scratchCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
+          var data = scratchCanvas.ctx.getImageData(0, 0, w, h)
+          for(var i = 0; i < data.data.length; i += 4){
+            var red   = data.data[i+0]
+            var green = data.data[i+1]
+            var blue  = data.data[i+2]
+            var alpha = data.data[i+3]
+            var l = (i/4*3) | 0
+            dataArray[l+0] = red
+            dataArray[l+1] = green
+            dataArray[l+2] = blue
+            
+            data.data[i+0] = red
+            data.data[i+1] = green
+            data.data[i+2] = blue
+            data.data[i+3] = alpha
+          }
+        }
+      }
+      buttonTexture.onload = ProcessButtonTexture
+      
+      
+      renderer.z = 10
+      window.Draw = () => {
+        var t = renderer.t
+        renderer.Clear()
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'button':
+              ProcessButtonTexture()
+              shape.yaw = -.4
+              shape.pitch = .4
+              shape.z = 0
+              var bounding = Coordinates.ShowBounding(shape, renderer, false)
+              if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
+                if(renderer.mouseButton == 1){
+                  shape.z = 1
+                }
+                Coordinates.ShowBounding(shape, renderer, true)
+              }
+              renderer.Draw(shape)
+            break
+            default:
+              renderer.Draw(shape)
+            break
+          }
+        })
+      }
+      
+    </script>
+  </body>
+</html>
