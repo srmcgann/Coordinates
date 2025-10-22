@@ -348,8 +348,7 @@ const Renderer = async options => {
           ctx.uniform1f(renderer.locSplitCheckPass, m)
           
           if(geometry.showBounding) {
-            var bounding = ShowBounding(geometry, renderer, geometry.showBounding,
-                                        equirectangularPlugin, omitSplitCheck, m)
+            var bounding = ShowBounding(geometry, renderer, geometry.showBounding, equirectangularPlugin, omitSplitCheck, m)
           }
           
           if(geometry.shapeType == 'particles' || geometry.isParticle ||
@@ -2927,7 +2926,7 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   
   ar = R_ryp(vx, vy, vz, {
     roll:  -geometry.roll * (geometry.isParticle ? -1: 1) + .0001,
-    pitch: geometry.pitch * (geometry.isParticle ? 1: 1),
+    pitch: -geometry.pitch * (geometry.isParticle ? 1: 1),
     yaw:   -geometry.yaw * (geometry.isParticle ? -1: 1),
   }, false)
   vx = -ar[0]
