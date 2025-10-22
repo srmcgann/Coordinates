@@ -1,3 +1,10 @@
+<!--
+  to do
+  * pause
+  * scoring / panels
+  * swap piece
+  * multiplayer
+-->
 <!DOCTYPE html>
 <html>
   <head>
@@ -15,13 +22,13 @@
     <script type="module">
     
       import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.js"
-      //"https://whr.rf.gd/coordinates.js?2"
+      //"https://srmcgann.github.io/Coordinates/coordinates.js"
+      "https://whr.rf.gd/coordinates.js?2"
     
       var rendererOptions = {
         ambientLight: 1, margin : 0,
-        //width: 1920, height: 1080, fov: 3e3,
-        width: 960, height: 540, fov: 3e3/2,
+        width: 1920, height: 1080, fov: 3e3,
+        //width: 960, height: 540, fov: 3e3/2,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
       rendererOptions.fov /= 4
@@ -262,7 +269,7 @@
         scaleX: 102.5,
         scaleY: 102.5,
         scaleZ: 102.5/4,
-        y: 2.5,
+        y: 3,
         color: 0x886655,
         colorMix: .1,
       }
@@ -289,13 +296,15 @@
       var geoOptions = {
         shapeType: 'rectangle',
         name: 'grid',
-        scaleY: 2.01,
+        scaleX: .995,
+        scaleY: 1.992,
         alpha: .9,
+        //cullFace: 'front',
         subs: 3,
-        size: 76,
-        z: 100,
-        y: 5,
-        flipNormals: true,
+        size: 57.5,
+        x: -.15,
+        z: 0,
+        y: 2.5,
         map: 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_grid.png',
         colorMix: 0,
       }
@@ -447,7 +456,6 @@
               x = (j - 24.5/fact) * mag
               z = 0
               tempFlashQueue.push([x, y, z])
-              //SpawnFlash(x, y, z)
               box[i*25+j] = 0
             }
           }
@@ -488,7 +496,7 @@
             for(var j = 0; j < box.length; j++){
               x = ((j%25)-25/2) * mag
               y = ((j/25|0)-50/2) * mag
-              if(Math.hypot(pc.ix - x, pc.iy - y) < mag * 15){
+              if(Math.hypot(pc.ix - x, pc.iy - y) < mag * 10){
                 box[j] = 0
               }
             }
@@ -498,7 +506,7 @@
             pieces[pc.base][pc.pid].forEach((v, i) => {
               x = Math.round(25 / fact+(tx + v[0])/mag)
               y = Math.round(50 / fact+(ty + v[1])/mag)
-              box[y * 50 / fact + x] = pc.pid + 1
+              box[y * 50 / fact + x] = pc.gid + 1
               //z = tz + v[2]
             })
           }
@@ -531,7 +539,9 @@
         curPiece.gid = 0
         pieces.forEach((v, i) =>{if(i<pieces.length-1) curPiece.gid += pieces[i].length})
         curPiece.gid += curPiece.pid
+        curPiece.gid *= 1e4
         if(Rn() < .1 && !lastPieceWasBomb){
+          curPiece.base = 1
           curPiece.pid = 1
           curPiece.isBomb = true
           lastPieceWasBomb = true
@@ -713,6 +723,19 @@
               break
               case 68: //d
               break
+              case 17: //ctrl
+                if(curPiece.isBomb){
+                  SpawnFlash(curPiece.ix, curPiece.iy, curPiece.iz, 1.5, 5, true)
+                  for(var j = 0; j < box.length; j++){
+                    x = ((j%25)-25/2) * mag
+                    y = ((j/25|0)-50/2) * mag
+                    if(Math.hypot(curPiece.ix - x, curPiece.iy - y) < mag * 10){
+                      box[j] = 0
+                    }
+                  }
+                  SpawnPiece()
+                }
+              break
               case 32: //space
                 while(CanDrop(curPiece)&&!didDrop) curPiece.iy -= mag
               break
@@ -733,12 +756,13 @@
         }
       }
       
-      var homing = 5
+      var homing = 3
       var level = 1, advFreq
       
       window.Draw = () => {
         var t = renderer.t
-        renderer.z = 200
+        renderer.z = 100
+        //renderer.yaw = t
         DoKeys()
         renderer.Clear()
         switch(level){
@@ -774,10 +798,9 @@
           //backgroundShape.yaw += .0005
           //backgroundShape.pitch += .001
           //renderer.Draw(backgroundShape)
-          renderer.Draw(backgroundShape)
+          //renderer.Draw(backgroundShape)
         }
        
-        renderer.Draw(gridShape)
         
         var base = curPiece.base
         var pid = curPiece.pid
@@ -798,28 +821,16 @@
           curPiece.y += (curPiece.iy - curPiece.y) / homing
           bombShape.x = curPiece.x - mag / 2
           bombShape.y = curPiece.y - mag * 2.15
-          bombShape.z = curPiece.z = 0
+          bombShape.z = curPiece.z = -.1
           bombShape.yaw = t * 2
           bombShape.colorMix = .05
           bombShape.alpha = 1
           renderer.Draw(bombShape)
-          bombShadowShape.x = shadowPiece.ix - mag / 2
-          bombShadowShape.y = shadowPiece.iy - mag * 2.15
-          bombShadowShape.z = shadowPiece.iz = 0
-          bombShadowShape.yaw = t * 2
-          bombShadowShape.alpha = .9
-          renderer.Draw(bombShadowShape)
         }else{
           pieceShapes[base][pid].x = curPiece.x += (curPiece.ix - curPiece.x) / homing
           pieceShapes[base][pid].y = curPiece.y += (curPiece.iy - curPiece.y) / homing
-          pieceShapes[base][pid].z = 0
+          pieceShapes[base][pid].z = -.1
           pieceShapes[base][pid].color = Coordinates.HSVToHex(360/totalPieces*curPiece.gid, 1, .5)
-          renderer.Draw(pieceShapes[base][pid])
-          pieceShapes[base][pid].x = shadowPiece.ix
-          pieceShapes[base][pid].y = shadowPiece.iy
-          pieceShapes[base][pid].z = shadowPiece.iz
-          pieceShapes[base][pid].color = 0x111111
-          pieceShapes[base][pid].alpha = .9
           renderer.Draw(pieceShapes[base][pid])
         }
 
@@ -880,11 +891,28 @@
             boxShape.vertices[i+2] = 1e5
           }
         }
+        boxShape.z = -.1
         renderer.Draw(boxShape)
-        
+        if(curPiece.isBomb){
+          bombShadowShape.x = shadowPiece.ix - mag / 2
+          bombShadowShape.y = shadowPiece.iy - mag * 2.15
+          bombShadowShape.z = -.1 //shadowPiece.iz = 0
+          bombShadowShape.yaw = t * 2
+          bombShadowShape.alpha = .9
+          renderer.Draw(bombShadowShape)
+        }
+        renderer.Draw(gridShape)
+        if(!curPiece.isBomb){
+          pieceShapes[base][pid].x = shadowPiece.ix
+          pieceShapes[base][pid].y = shadowPiece.iy
+          pieceShapes[base][pid].z = -.1 //shadowPiece.iz
+          pieceShapes[base][pid].color = 0x111111
+          pieceShapes[base][pid].alpha = .9
+          renderer.Draw(pieceShapes[base][pid])
+        }
         backgroundCamera.Clear()
-        testShape.roll = C(t*2) /  
-        backgroundCamera.Draw(testShape)
+        testShape.roll = C(t/2) / 32
+        //backgroundCamera.Draw(testShape)
       }
     </script>
   </body>
