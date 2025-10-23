@@ -1,8 +1,11 @@
 <!--
+<!--
   to do
   ✔ pause
-  * scoring / panels
-  * swap piece / on-screen queue
+  ✔ on-screen queue
+  ✔ panels
+  * scoring
+  * swap piece
   * multiplayer
 -->
 <!DOCTYPE html>
@@ -37,8 +40,8 @@
       var backgroundCamera = await Coordinates.Renderer(rendererOptions)
 
       var rendererOptions = {
-        width: 800*2,
-        height: 200*2,
+        width: 800*4,
+        height: 200*4,
         attachToBody: false,
         context: {
           mode: '2d',
@@ -63,12 +66,12 @@
           inactiveColor: 0xff8800,
           text: '',
           color: '',
-          x: 100,
-          y: 70,
+          x: 80,
+          y: -30,
           z: 0,
           roll: 0,
-          pitch: .2,
-          yaw: .25,
+          pitch: 0,
+          yaw: .0,
         },
         {
           clickReady: true,
@@ -83,12 +86,12 @@
           inactiveColor: 0x00ff44,
           text: '',
           color: '',
-          x: 100,
-          y: 0,
+          x: 80,
+          y: -50,
           z: 0,
           roll: 0,
           pitch: 0,
-          yaw: .25,
+          yaw: .0,
         },
       ]
       
@@ -158,14 +161,14 @@
         { uniform: {
           type: 'phong',
           value: .25,
-          theta: -Math.PI / 3.5 - .1
+          theta: -Math.PI / 3.5 + .1
         } },
         { uniform: {
           type: 'reflection',
-          value: .2,
+          value: .5,
           enabled: true,
           map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
-          theta: -Math.PI / 6
+          //theta: -Math.PI / 6
         } }
       ]
       var buttonShader = await Coordinates.BasicShader(renderer, shaderOptions)
@@ -178,6 +181,17 @@
         } }
       ]
       var gridShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      /*
+      var shaderOptions = [
+        { lighting: { type: 'ambientLight', value: .75}},
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } }
+      ]
+      var sideboardShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      */
 
       var shaderOptions = [
         { lighting: { type: 'ambientLight', value: 1.5}},
@@ -237,7 +251,7 @@
       })
       
       var sideboardTexture = new Image()
-      var url = 'https://srmcgann.github.io/Coordinates/resources/wip/sideboard.png'
+      var url = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_fullgrid.png'
       await fetch(url).then(res=>res.blob()).then(data => {
         sideboardTexture.src = URL.createObjectURL(data)
       })
@@ -414,6 +428,7 @@
         await backgroundShader.ConnectGeometry(geometry)
       })
       
+      /*
       var gridShape
       var geoOptions = {
         shapeType: 'rectangle',
@@ -434,6 +449,7 @@
         gridShape = geometry
         await gridShader.ConnectGeometry(geometry)
       })
+      */
       
       var backgroundShape
       var geoOptions = {
@@ -457,20 +473,21 @@
       var geoOptions = {
         shapeType: 'rectangle',
         name: 'sideboard',
-        scaleX: .25,
+        scaleX: 1.2,
         scaleY: 1,
         scaleZ: 1,
         subs: 4,
         size: 130,
-        x: -100,
+        x: -.5,
         z: 0,
         pitch: Math.PI, 
         canvasTexture: sideboardCanvas.c,
+        color: 0xff8800,
         colorMix: 0,
       }
       if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         sideboardShape = geometry
-        await gridShader.ConnectGeometry(geometry)
+        await sideboardShader.ConnectGeometry(geometry)
       })
       
       var testShape
@@ -681,30 +698,52 @@
           shadowPiece.iy -= mag
         }
       }
+
+
+      var pieceQueue = []
+      var initQueueLength = 4
+      
+      const PushPieceToQueue = () => {
+        var base, pid, gid = 0, isBomb
+        var x = -80
+        var y = 95 - (initQueueLength - 1) * mag * 9
+        var z = -.1
+        var ix = x
+        var iy = y
+        var iz = z
+
+        if(Rn() < .1 && (pieceQueue.length && !pieceQueue[pieceQueue.length-1].isBomb)){
+          base = 1
+          pid = 1
+          isBomb = true
+        }else{
+          base = (Rn() * pieces.length) | 0
+          pid = (pieces[base].length * Rn()) | 0
+          isBomb = false
+        }
+        pieces.forEach((v, i) =>{if(i<base) gid += pieces[i].length})
+        gid += pid
+        gid *= 1e4
+        pieceQueue.push({ base, pid, gid, isBomb,
+                          x, y, z, ix, iy, iz })
+      }
+      for(var i = initQueueLength; i--; ) PushPieceToQueue()
+      
       
       var lastPieceWasBomb = true
       const SpawnPiece = () => {
-        curPiece.base = (Rn() * pieces.length) | 0
-        curPiece.pid = (pieces[curPiece.base].length * Rn()) | 0
-        curPiece.gid = 0
-        pieces.forEach((v, i) =>{if(i<pieces.length-1) curPiece.gid += pieces[i].length})
-        curPiece.gid += curPiece.pid
-        curPiece.gid *= 1e4
-        if(Rn() < .1 && !lastPieceWasBomb){
-          curPiece.base = 1
-          curPiece.pid = 1
-          curPiece.isBomb = true
-          lastPieceWasBomb = true
-        }else{
-          lastPieceWasBomb = false
-          curPiece.isBomb = false
-        }
-        curPiece.x = 0
-        curPiece.y = mag * 55 / fact
-        curPiece.z = 0
-        curPiece.ix = curPiece.x
-        curPiece.iy = curPiece.y
-        curPiece.iz = curPiece.z
+        var res = pieceQueue.shift()
+        PushPieceToQueue()
+        curPiece.base = res.base
+        curPiece.pid = res.pid
+        curPiece.gid = res.gid
+        lastPieceWasBomb = (curPiece.isBomb = res.isBomb)
+        curPiece.ix = 0
+        curPiece.iy = mag * 55 / fact
+        curPiece.iz = 0
+        curPiece.x = res.ix
+        curPiece.y = res.iy
+        curPiece.z = res.iz
         pieceShapes[curPiece.base][curPiece.pid].vertices = structuredClone(baseShapes[curPiece.base][curPiece.pid])
         pieces[curPiece.base][curPiece.pid] = structuredClone(basePieces[curPiece.base][curPiece.pid])
         
@@ -910,26 +949,90 @@
       }
       
       
-      const DoSideboard = () => {
-        var fs = 40
+      const DoSideboard = t => {
+        var fs = 65 * 2
         var w = sideboardCanvas.c.width
         var h = sideboardCanvas.c.height
+        
+        pieceQueue.forEach((pc, idx) => {
+          var base = pc.base
+          var pid = pc.pid
+          var gid = pc.gid
+          var isBomb = pc.isBomb
+          var ax = 0
+          var ay = 0
+          var az = 0
+          var ct = 0
+          for(var i = 0; i < pieceShapes[base][pid].vertices.length; i+=3){
+            ax += pieceShapes[base][pid].vertices[i+0]
+            ay += pieceShapes[base][pid].vertices[i+1]
+            az += pieceShapes[base][pid].vertices[i+2]
+            ct ++
+          }
+          ax /= ct
+          ay /= ct
+          az /= ct
+          pc.ix = -80 - ax 
+          pc.iy = 95 - ay - idx * mag * 9
+          pc.iz = -.1
+          pc.x += (pc.ix - pc.x) / homing
+          pc.y += (pc.iy - pc.y) / homing
+          pc.z += (pc.iz - pc.z) / homing
+          if(isBomb){
+            bombShape.x = pc.x - mag / 2
+            bombShape.y = pc.y - mag * 4
+            bombShape.z = pc.z = -.1
+            if(baseSparkShape){
+              var ls = 20 + C(t*100) * 10
+              for(var i = 0; i < sparkShape.vertices.length; i+=3){
+                sparkShape.vertices[i+0] = baseSparkShape[i+0] * ls
+                sparkShape.vertices[i+1] = baseSparkShape[i+1] * ls
+                sparkShape.vertices[i+2] = baseSparkShape[i+2] * ls
+              }
+              sparkShape.x = bombShape.x
+              sparkShape.y = bombShape.y + 20
+              sparkShape.z = bombShape.z
+              renderer.Draw(sparkShape)
+            }
+            bombShape.yaw = t * 2
+            bombShape.colorMix = .05
+            bombShape.alpha = 1
+            renderer.Draw(bombShape)
+          }else{
+            pieceShapes[base][pid].x = pc.x
+            pieceShapes[base][pid].y = pc.y
+            pieceShapes[base][pid].z = pc.z
+            pieceShapes[base][pid].color = Coordinates.HSVToHex(360/totalPieces*gid, 1, .5)
+            renderer.Draw(pieceShapes[base][pid])
+          }
+        })
+        
         sideboardCanvas.ctx.clearRect(0,0,w,h)
         sideboardCanvas.ctx.drawImage(sideboardTexture, 0, 0, w, h)
-        sideboardCanvas.ctx.font = fs + 'px monospace'
-        sideboardCanvas.ctx.fillStyle = '#000'
-        sideboardCanvas.ctx.textAlign = 'center'
-        sideboardCanvas.ctx.shadowColor = '#888'
-        sideboardCanvas.ctx.shadowBlur = fs / 20
-        sideboardCanvas.ctx.scale(10.0, .5)
         
-        for(var m=3; m--;)
-          sideboardCanvas.ctx.fillText('rows', w/20, h/1.66)
-          
+        sideboardCanvas.ctx.font = (fs*1.4)  + 'px monospace'
+        sideboardCanvas.ctx.fillStyle = '#063'
+        sideboardCanvas.ctx.textAlign = 'center'
+        sideboardCanvas.ctx.lineCap = sideboardCanvas.ctx.lineJoin = 'round'
+        sideboardCanvas.ctx.lineWidth = 5
+        sideboardCanvas.ctx.strokeStyle = '#88ff8888'
+        //sideboardCanvas.ctx.shadowColor = '#8882'
+        //sideboardCanvas.ctx.shadowBlur = fs / 20
+        sideboardCanvas.ctx.scale(1.33, .33)
+        
+        //sideboardCanvas.ctx.fillStyle = '#333c'
+        //sideboardCanvas.ctx.fillRect(60, h/ 1.3, 202, 380)
+        for(var m=3; m--;) {
+          sideboardCanvas.ctx.fillText('rows', w/10, h * 2.25)
+          sideboardCanvas.ctx.strokeText('rows', w/10, h * 2.25)
+        }
+
         sideboardCanvas.ctx.shadowBlur = fs / 20 * 2
         sideboardCanvas.ctx.font = (fs * 2) + 'px monospace'
-        for(var m=3; m--;)
-          sideboardCanvas.ctx.fillText(rowsCompleted, w/20, h/1.66 + fs*2)
+        for(var m=3; m--;) {
+          sideboardCanvas.ctx.fillText(rowsCompleted, w/10, h * 2.25 + fs*2)
+          sideboardCanvas.ctx.strokeText(rowsCompleted, w/10, h * 2.25 + fs*2)
+        }
         sideboardCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
       }
       
@@ -1045,8 +1148,7 @@
           backgroundShape.pitch = t / 100
           renderer.Draw(backgroundShape)
         }
-       
-        
+
         var base = curPiece.base
         var pid = curPiece.pid
         if(curPiece.isBomb){
@@ -1149,7 +1251,10 @@
           bombShadowShape.z = .1 //shadowPiece.iz = 0
           renderer.Draw(bombShadowShape)
         }
-        renderer.Draw(gridShape)
+        DoSideboard(t)
+        sideboardShape.alpha = .9
+        renderer.Draw(sideboardShape) 
+        //renderer.Draw(gridShape)
         if(!curPiece.isBomb){
           pieceShapes[base][pid].x = shadowPiece.ix
           pieceShapes[base][pid].y = shadowPiece.iy
@@ -1164,9 +1269,6 @@
         testShape.roll = C(t/2) / 32
         //backgroundCamera.Draw(testShape)
         
-        DoSideboard()
-        sideboardShape.alpha = .9
-        renderer.Draw(sideboardShape) 
         DoButtons()
       }
     </script>
