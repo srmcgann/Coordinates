@@ -13,14 +13,17 @@
   </head>
   <body>
     <script type="module">
-    
+
       import * as Coordinates from
       "https://srmcgann.github.io/Coordinates/coordinates.js"
       //"https://whr.rf.gd/coordinates.js?2"
-    
 
-      var buttonTextureWidth = 400 * 2
-      var buttonTextureHeight = 50 * 2
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+
+      var buttonTextureWidth = 800
+      var buttonTextureHeight = 100
       var rendererOptions = {
         width: buttonTextureWidth,
         height: buttonTextureHeight,
@@ -43,48 +46,64 @@
       Coordinates.AnimationLoop(renderer, 'Draw')
 
       var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: .1}
+        },
         { uniform: {
           type: 'phong',
-          value: .5,
+          value: .75,
+          theta: -Math.PI / 3.5
+        } },
+        { uniform: {
+          type: 'reflection',
+          value: .2,
+          enabled: true,
+          map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
           theta: -Math.PI / 6
         } }
       ]
+      var buttonShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .75
+        } }
+      ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-
+      
+      
       var shapes = []
-      
-      var cl = buttonTextureWidth
-      var rw = buttonTextureHeight
-      var dataArray = []
-      Array(cl*rw).fill().map((v, i) => {
-        var l = i+(i/cl|0)
-        var red = l%2 ? 255 : 0
-        var green = l%2 ? 255 : 0
-        var blue = l%2 ? 255 : 0
-        dataArray.push(red, green, blue)
-      })
-      
       var geoOptions = {
-        shapeType: 'obj',
-        name: 'button',
-        url: 'https://srmcgann.github.io/objs/button/button.obj',
-        scaleX: -10,
-        scaleY: 10,
-        scaleZ: 10,
-        showBounding: false,
-        flatShading: true,
-        dataArrayWidth: cl,
-        dataArrayHeight: rw,
-        dataArrayFormat: renderer.gl.RGB,
-        map: dataArray,
-        //map: 'https://',
-        colorMix: .1,
-        color: 0x4400ff,
+        shapeType: 'cube',
+        name: 'cube',
+        
+        size: 1,
+        color: 0xffffff,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         shapes.push(geometry)
         await shader.ConnectGeometry(geometry)
+      }) 
+
+      var geoOptions = {
+        shapeType: 'obj',
+        name: 'button',
+        url: 'https://srmcgann.github.io/objs/button/button.obj',
+        scaleX: -2,
+        scaleY: 2,
+        scaleZ: 10,
+        showBounding: false,
+        //flatShading: true,
+        //dataArrayWidth: cl,
+        //dataArrayHeight: rw,
+        //dataArrayFormat: renderer.gl.RGB,
+        //map: dataArray,
+        canvasTexture: scratchCanvas.c,
+        colorMix: .5,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await buttonShader.ConnectGeometry(geometry)
       })
       
       var buttonTexture = new Image()
@@ -93,62 +112,89 @@
         buttonTexture.src = URL.createObjectURL(data)
       })
       
-        const ProcessButtonTexture = () => {
+        const ProcessButtonTexture = (buttonText, fs=80) => {
           if(typeof scratchCanvas != 'undefined'){
           var w = scratchCanvas.c.width
           var h = scratchCanvas.c.height
           
-          scratchCanvas.ctx.drawImage(buttonTexture, 0,0,w,h)
+          scratchCanvas.ctx.drawImage(buttonTexture, 0, 0, w, h)
           var fs
-          scratchCanvas.ctx.font = (fs=80) + 'px monospace'
+          scratchCanvas.ctx.font = fs + 'px monospace'
           scratchCanvas.ctx.fillStyle = '#000'
           scratchCanvas.ctx.textAlign = 'center'
-          scratchCanvas.ctx.shadowColor = '#000'
-          scratchCanvas.ctx.shadowBlur = 5
-          scratchCanvas.ctx.scale(3.0, 1.0)
-          scratchCanvas.ctx.fillText('pause', w/6,h/2+fs/5)
-          scratchCanvas.ctx.fillText('pause', w/6,h/2+fs/5)
-          scratchCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
-          var data = scratchCanvas.ctx.getImageData(0, 0, w, h)
-          for(var i = 0; i < data.data.length; i += 4){
-            var red   = data.data[i+0]
-            var green = data.data[i+1]
-            var blue  = data.data[i+2]
-            var alpha = data.data[i+3]
-            var l = (i/4*3) | 0
-            dataArray[l+0] = red
-            dataArray[l+1] = green
-            dataArray[l+2] = blue
+          scratchCanvas.ctx.shadowColor = '#888'
+          scratchCanvas.ctx.shadowBlur = fs / 10
+          scratchCanvas.ctx.scale(2.0, 1.0)
+          for(var m=8; m--;)
+            scratchCanvas.ctx.fillText(buttonText, w/4,h/2+fs/4.5)
             
-            data.data[i+0] = red
-            data.data[i+1] = green
-            data.data[i+2] = blue
-            data.data[i+3] = alpha
-          }
+          scratchCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
         }
       }
       buttonTexture.onload = ProcessButtonTexture
       
-      
-      renderer.z = 10
+      renderer.z = 5
+      var clickReady = true
+      var clickState = false
+      var oCState = clickState
+      var oRot = 0, rt = 0
+      var buttonText = clickState ? 'resume' : 'pause'
+      var buttonColor = clickState ? 0x00ffff : 0xff8800
       window.Draw = () => {
         var t = renderer.t
         renderer.Clear()
         shapes.forEach(shape => {
           switch(shape.name){
             case 'button':
-              ProcessButtonTexture()
-              shape.yaw = -.4
-              shape.pitch = .4
-              shape.z = 0
+              ProcessButtonTexture(buttonText)
+              //shape.yaw = -.35
+              shape.pitch = -.15
               var bounding = Coordinates.ShowBounding(shape, renderer, false)
+              //shape.z = (renderer.mouseButton == 1) ? 1 : 0
               if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
                 if(renderer.mouseButton == 1){
-                  shape.z = 1
+                  if(clickReady) {
+                    clickState = !clickState
+                    setTimeout(() => {
+                      buttonText = clickState ? 'resume' : 'pause'
+                      buttonColor = clickState ? 0x00ffff : 0xff8800
+                    }, 250)
+                  }
+                   clickReady = false
+                }else{
+                 clickReady = true
+                oCState = clickState
                 }
-                Coordinates.ShowBounding(shape, renderer, true)
+                if(!oRot) Coordinates.ShowBounding(shape, renderer, true,
+                                                   -1, true, 0, 20)
+                //shape.z = .5
+              }else{
+                //shape.z = 0
               }
+              if(oRot || oCState!=clickState){
+                console.log('hm')
+                oRot+=.04
+                if(oRot >= 1){
+                  oCState = clickState
+                  oRot = 0
+                }
+              }
+              shape.yaw = Math.PI*2*oRot**6
+              //shape.pitch = -Math.PI*oRot*2
+              shape.color = buttonColor
+              shape.boundingColor = clickState ? 0x00ffff : 0xff8800
               renderer.Draw(shape)
+            break
+            case 'cube':
+              rt += 1/60*(clickState?0:1)
+              for(var i = 6; i--;){
+                shape.yaw = rt+i
+                shape.pitch = -(rt+i)*2
+                var p = Math.PI*2/6* i + rt
+                shape.x = S(p) * 4
+                shape.y = C(p) * 2
+                renderer.Draw(shape)
+              }
             break
             default:
               renderer.Draw(shape)
@@ -158,5 +204,6 @@
       }
       
     </script>
+
   </body>
 </html>
