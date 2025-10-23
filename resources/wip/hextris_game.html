@@ -2,7 +2,7 @@
   to do
   * pause
   * scoring / panels
-  * swap piece
+  * swap piece / on-screen queue
   * multiplayer
 -->
 <!DOCTYPE html>
@@ -22,21 +22,82 @@
     <script type="module">
     
       import * as Coordinates from
-      //"https://srmcgann.github.io/Coordinates/coordinates.js"
-      "https://whr.rf.gd/coordinates.js?2"
+      "https://srmcgann.github.io/Coordinates/coordinates.js?2"
+      //"https://whr.rf.gd/coordinates.js?2"
     
       var rendererOptions = {
         ambientLight: 1, margin : 0,
         width: 1920, height: 1080, fov: 3e3,
         //width: 960, height: 540, fov: 3e3/2,
       }
-      var renderer = await Coordinates.Renderer(rendererOptions)
       rendererOptions.fov /= 4
       rendererOptions.width /= 4
       rendererOptions.height /= 4
       rendererOptions.attachToBody = false
       var backgroundCamera = await Coordinates.Renderer(rendererOptions)
+
+      var buttonTextureWidth = 800
+      var buttonTextureHeight = 100
+
+      var buttons = [
+        {
+          clickReady: true,
+          clickState: false,
+          oCState: false,
+          oRot: 0,
+          rt: 0,
+          activeText: 'resume',
+          inactiveText: 'pause',
+          activeColor: 0x00ffff,
+          inactiveColor: 0xff8800,
+          text: '',
+          color: '',
+          x: 100,
+          y: 70,
+          z: 0,
+          roll: 0,
+          pitch: .2,
+          yaw: .25,
+        },
+        {
+          clickReady: true,
+          clickState: false,
+          oCState: false,
+          oRot: 0,
+          rt: 0,
+          activeText: 'option 1',
+          inactiveText: 'option 2',
+          activeColor: 0x4400ff,
+          inactiveColor: 0x00ff44,
+          text: '',
+          color: '',
+          x: 100,
+          y: 0,
+          z: 0,
+          roll: 0,
+          pitch: 0,
+          yaw: .25,
+        },
+      ]
       
+      
+      var rendererOptions = {
+        width: buttonTextureWidth,
+        height: buttonTextureHeight,
+        attachToBody: false,
+        context: {
+          mode: '2d',
+        }
+      }
+      var scratchCanvas = await Coordinates.Renderer(rendererOptions)
+      
+      var rendererOptions = {
+        ambientLight: 1, margin : 0,
+        width: 1920, height: 1080, fov: 3e3,
+        //width: 960, height: 540, fov: 3e3/2,
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+
       var refTexture = 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg'
       
       var base = 4
@@ -76,6 +137,24 @@
         } }
       ]
       var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: .1}
+        },
+        { uniform: {
+          type: 'phong',
+          value: .25,
+          theta: -Math.PI / 3.5 - .1
+        } },
+        { uniform: {
+          type: 'reflection',
+          value: .2,
+          enabled: true,
+          map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+          theta: -Math.PI / 6
+        } }
+      ]
+      var buttonShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
       var shaderOptions = [
         { lighting: { type: 'ambientLight', value: 1}},
@@ -120,6 +199,29 @@
       var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
       var backgroundShader2 = await Coordinates.BasicShader(backgroundCamera, shaderOptions)
 
+      var buttonShape
+      var geoOptions = {
+        shapeType: 'obj',
+        name: 'button',
+        url: 'https://srmcgann.github.io/objs/button/button.obj',
+        scaleX: -20,
+        scaleY: 30,
+        scaleZ: 100,
+        showBounding: false,
+        canvasTexture: scratchCanvas.c,
+        colorMix: .5,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        buttonShape = geometry
+        await buttonShader.ConnectGeometry(geometry)
+      })
+      
+      var buttonTexture = new Image()
+      var url = 'https://srmcgann.github.io/objs/button/button.png'
+      await fetch(url).then(res=>res.blob()).then(data => {
+        buttonTexture.src = URL.createObjectURL(data)
+      })
+      
       var baseShapes = Array(sourcePieces.length).fill().map(v=>[])
       var baseRectangle, pieceShapes = Array(sourcePieces.length).fill().map(v=>[])
       if(1){
@@ -497,7 +599,10 @@
               x = ((j%25)-25/2) * mag
               y = ((j/25|0)-50/2) * mag
               if(Math.hypot(pc.ix - x, pc.iy - y) < mag * 10){
-                box[j] = 0
+                if(box[j]){
+                  box[j] = 0
+                  SpawnFlash(x, y, 0)
+                }
               }
             }
           }else{
@@ -730,7 +835,10 @@
                     x = ((j%25)-25/2) * mag
                     y = ((j/25|0)-50/2) * mag
                     if(Math.hypot(curPiece.ix - x, curPiece.iy - y) < mag * 10){
-                      box[j] = 0
+                      if(box[j]){
+                        box[j] = 0
+                        SpawnFlash(x, y, 0)
+                      }
                     }
                   }
                   SpawnPiece()
@@ -756,6 +864,73 @@
         }
       }
       
+      
+      const DoButtons = () => {
+        buttons.map((button, bidx) => {
+          buttonShape.roll = button.roll
+          buttonShape.yaw = button.yaw + Math.PI*2*button.oRot**6
+          buttonShape.pitch = button.pitch
+          buttonShape.color = button.color
+          buttonShape.boundingColor = button.color
+          buttonShape.x = button.x
+          buttonShape.y = button.y
+          buttonShape.z = button.z
+          if(!button.text){
+            button.text = button.clickState ? button.activeText : button.inactiveText
+            button.color = button.clickState ? button.activeColor : button.inactiveColor
+          }
+          ProcessButtonTexture(button.text)
+          var bounding = Coordinates.ShowBounding(buttonShape, renderer, false)
+          if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
+            if(renderer.mouseButton == 1){
+              if(button.clickReady) {
+                button.clickState = !button.clickState
+                setTimeout(() => {
+                  button.text = button.clickState ? button.activeText : button.inactiveText
+                  button.color = button.clickState ? button.activeColor : button.inactiveColor
+                }, 300)
+              }
+              button.clickReady = false
+            }else{
+              button.clickReady = true
+              button.oCState = button.clickState
+            }
+            if(!button.oRot) Coordinates.ShowBounding(buttonShape, renderer, true, -1, true, 0, 8)
+            //if(!button.oRot) buttonShape.z = 5
+          }else{
+            //buttonShape.z = 0
+          }
+          if(button.oRot || button.oCState != button.clickState){
+            button.oRot+=.04
+            if(button.oRot >= 1){
+              button.oCState = button.clickState
+              button.oRot = 0
+            }
+          }
+          renderer.Draw(buttonShape)
+        })
+      }
+      
+      const ProcessButtonTexture = (buttonText, fs=buttonTextureWidth/10) => {
+        if(typeof scratchCanvas != 'undefined'){
+          var w = scratchCanvas.c.width
+          var h = scratchCanvas.c.height
+          
+          scratchCanvas.ctx.drawImage(buttonTexture, 0, 0, w, h)
+          var fs
+          scratchCanvas.ctx.font = fs + 'px monospace'
+          scratchCanvas.ctx.fillStyle = '#000'
+          scratchCanvas.ctx.textAlign = 'center'
+          scratchCanvas.ctx.shadowColor = '#888'
+          scratchCanvas.ctx.shadowBlur = fs / 10
+          scratchCanvas.ctx.scale(2.0, .75)
+          for(var m=8; m--;)
+            scratchCanvas.ctx.fillText(buttonText, w/4,h/2+fs/2.15)
+          scratchCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
+        }
+      }
+      buttonTexture.onload = ProcessButtonTexture
+
       var homing = 3
       var level = 1, advFreq
       
@@ -899,6 +1074,7 @@
           bombShadowShape.z = -.1 //shadowPiece.iz = 0
           bombShadowShape.yaw = t * 2
           bombShadowShape.alpha = .9
+          bombShadowShape.cullFace = 'front'
           renderer.Draw(bombShadowShape)
         }
         renderer.Draw(gridShape)
@@ -913,6 +1089,8 @@
         backgroundCamera.Clear()
         testShape.roll = C(t/2) / 32
         //backgroundCamera.Draw(testShape)
+        
+        DoButtons()
       }
     </script>
   </body>
