@@ -1,6 +1,6 @@
 <!--
   to do
-  * pause
+  ✔ pause
   * scoring / panels
   * swap piece / on-screen queue
   * multiplayer
@@ -11,7 +11,7 @@
     <title>Coordinates boilerplate example</title>
     <style>
       body, html{
-        background: #222;
+        background: #000;
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
@@ -36,6 +36,16 @@
       rendererOptions.attachToBody = false
       var backgroundCamera = await Coordinates.Renderer(rendererOptions)
 
+      var rendererOptions = {
+        width: 800*2,
+        height: 200*2,
+        attachToBody: false,
+        context: {
+          mode: '2d',
+        }
+      }
+      var sideboardCanvas = await Coordinates.Renderer(rendererOptions)
+      
       var buttonTextureWidth = 800
       var buttonTextureHeight = 100
 
@@ -44,11 +54,12 @@
           clickReady: true,
           clickState: false,
           oCState: false,
+          name: 'pause button',
           oRot: 0,
           rt: 0,
           activeText: 'resume',
           inactiveText: 'pause',
-          activeColor: 0x00ffff,
+          activeColor: 0xff0000,
           inactiveColor: 0xff8800,
           text: '',
           color: '',
@@ -63,6 +74,7 @@
           clickReady: true,
           clickState: false,
           oCState: false,
+          name: 'test button',
           oRot: 0,
           rt: 0,
           activeText: 'option 1',
@@ -100,7 +112,9 @@
 
       var refTexture = 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg'
       
+      var paused = false
       var base = 4
+      var rowsCompleted = 0
       var pieces, basePieces, sourcePieces
       var curPiece = {
         x, y, z, ix:0, iy:0, iz:0,
@@ -205,7 +219,7 @@
         name: 'button',
         url: 'https://srmcgann.github.io/objs/button/button.obj',
         scaleX: -20,
-        scaleY: 30,
+        scaleY: 24,
         scaleZ: 100,
         showBounding: false,
         canvasTexture: scratchCanvas.c,
@@ -220,6 +234,12 @@
       var url = 'https://srmcgann.github.io/objs/button/button.png'
       await fetch(url).then(res=>res.blob()).then(data => {
         buttonTexture.src = URL.createObjectURL(data)
+      })
+      
+      var sideboardTexture = new Image()
+      var url = 'https://srmcgann.github.io/Coordinates/resources/wip/sideboard.png'
+      await fetch(url).then(res=>res.blob()).then(data => {
+        sideboardTexture.src = URL.createObjectURL(data)
       })
       
       var baseShapes = Array(sourcePieces.length).fill().map(v=>[])
@@ -389,7 +409,7 @@
         map: refTexture,
         colorMix: 0,
       }
-      if(0) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         backgroundShape = geometry
         await backgroundShader.ConnectGeometry(geometry)
       })
@@ -428,9 +448,29 @@
         canvasTexture: backgroundCamera.c,
         colorMix: 0,
       }
-      if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      if(0) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         backgroundShape = geometry
         await backgroundShader.ConnectGeometry(geometry)
+      })
+      
+      var sideboardShape
+      var geoOptions = {
+        shapeType: 'rectangle',
+        name: 'sideboard',
+        scaleX: .25,
+        scaleY: 1,
+        scaleZ: 1,
+        subs: 4,
+        size: 130,
+        x: -100,
+        z: 0,
+        pitch: Math.PI, 
+        canvasTexture: sideboardCanvas.c,
+        colorMix: 0,
+      }
+      if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        sideboardShape = geometry
+        await gridShader.ConnectGeometry(geometry)
       })
       
       var testShape
@@ -526,6 +566,10 @@
       var keys = Array(256).fill(false)
       
       Coordinates.Overlay.c.addEventListener('keydown', e => {
+        if(e.keyCode == 19){
+          paused = !paused
+          DoButtons(0)
+        }
         keys[e.keyCode] = true
         didDrop = 0
       })
@@ -554,6 +598,7 @@
           if(ct == 1){
             y = (i - 50/fact) * mag + mag/4
             collapseRows.push(i)
+            rowsCompleted++
             for(var j = 0; j < 25; j++) {
               x = (j - 24.5/fact) * mag
               z = 0
@@ -865,7 +910,30 @@
       }
       
       
-      const DoButtons = () => {
+      const DoSideboard = () => {
+        var fs = 40
+        var w = sideboardCanvas.c.width
+        var h = sideboardCanvas.c.height
+        sideboardCanvas.ctx.clearRect(0,0,w,h)
+        sideboardCanvas.ctx.drawImage(sideboardTexture, 0, 0, w, h)
+        sideboardCanvas.ctx.font = fs + 'px monospace'
+        sideboardCanvas.ctx.fillStyle = '#000'
+        sideboardCanvas.ctx.textAlign = 'center'
+        sideboardCanvas.ctx.shadowColor = '#888'
+        sideboardCanvas.ctx.shadowBlur = fs / 20
+        sideboardCanvas.ctx.scale(10.0, .5)
+        
+        for(var m=3; m--;)
+          sideboardCanvas.ctx.fillText('rows', w/20, h/1.66)
+          
+        sideboardCanvas.ctx.shadowBlur = fs / 20 * 2
+        sideboardCanvas.ctx.font = (fs * 2) + 'px monospace'
+        for(var m=3; m--;)
+          sideboardCanvas.ctx.fillText(rowsCompleted, w/20, h/1.66 + fs*2)
+        sideboardCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
+      }
+      
+      const DoButtons = (forceToggle = -1) => {
         buttons.map((button, bidx) => {
           buttonShape.roll = button.roll
           buttonShape.yaw = button.yaw + Math.PI*2*button.oRot**6
@@ -881,9 +949,9 @@
           }
           ProcessButtonTexture(button.text)
           var bounding = Coordinates.ShowBounding(buttonShape, renderer, false)
-          if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
-            if(renderer.mouseButton == 1){
-              if(button.clickReady) {
+          if(forceToggle == bidx || Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
+            if(renderer.mouseButton == 1 || forceToggle == bidx){
+              if(button.clickReady || forceToggle == bidx) {
                 button.clickState = !button.clickState
                 setTimeout(() => {
                   button.text = button.clickState ? button.activeText : button.inactiveText
@@ -931,14 +999,17 @@
       }
       buttonTexture.onload = ProcessButtonTexture
 
-      var homing = 3
+      var homing = 3, ot = 0
       var level = 1, advFreq
       
       window.Draw = () => {
-        var t = renderer.t
+        paused = buttons.filter(v => v.name == 'pause button')[0].clickState
+      
+        var t = paused ? ot : ot + 1/60
+        ot = t
         renderer.z = 100
         //renderer.yaw = t
-        DoKeys()
+        if(!paused) DoKeys()
         renderer.Clear()
         switch(level){
           case 1:
@@ -966,14 +1037,13 @@
             advFreq = 4
           break
         }
-        if(!((t*60|0)%advFreq)) AdvancePiece()
+        if(!paused && !((t*60|0)%advFreq)) AdvancePiece()
 
         if(typeof borderShape?.shader != 'undefined') renderer.Draw(borderShape)
         if(typeof backgroundShape?.shader != 'undefined') {
           //backgroundShape.yaw += .0005
-          //backgroundShape.pitch += .001
-          //renderer.Draw(backgroundShape)
-          //renderer.Draw(backgroundShape)
+          backgroundShape.pitch = t / 100
+          renderer.Draw(backgroundShape)
         }
        
         
@@ -1071,25 +1141,32 @@
         if(curPiece.isBomb){
           bombShadowShape.x = shadowPiece.ix - mag / 2
           bombShadowShape.y = shadowPiece.iy - mag * 2.15
-          bombShadowShape.z = -.1 //shadowPiece.iz = 0
           bombShadowShape.yaw = t * 2
           bombShadowShape.alpha = .9
           bombShadowShape.cullFace = 'front'
+          bombShadowShape.z = -.1 //shadowPiece.iz = 0
+          renderer.Draw(bombShadowShape)
+          bombShadowShape.z = .1 //shadowPiece.iz = 0
           renderer.Draw(bombShadowShape)
         }
         renderer.Draw(gridShape)
         if(!curPiece.isBomb){
           pieceShapes[base][pid].x = shadowPiece.ix
           pieceShapes[base][pid].y = shadowPiece.iy
-          pieceShapes[base][pid].z = -.1 //shadowPiece.iz
           pieceShapes[base][pid].color = 0x111111
           pieceShapes[base][pid].alpha = .9
+          pieceShapes[base][pid].z = -.1
+          renderer.Draw(pieceShapes[base][pid])
+          pieceShapes[base][pid].z = .1
           renderer.Draw(pieceShapes[base][pid])
         }
         backgroundCamera.Clear()
         testShape.roll = C(t/2) / 32
         //backgroundCamera.Draw(testShape)
         
+        DoSideboard()
+        sideboardShape.alpha = .9
+        renderer.Draw(sideboardShape) 
         DoButtons()
       }
     </script>
