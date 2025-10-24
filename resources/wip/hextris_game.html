@@ -66,12 +66,12 @@
           inactiveColor: 0xff8800,
           text: '',
           color: '',
-          x: 80,
+          x: 78,
           y: -30,
           z: 0,
           roll: 0,
           pitch: 0,
-          yaw: .0,
+          yaw: 0,
         },
         {
           clickReady: true,
@@ -86,8 +86,48 @@
           inactiveColor: 0x00ff44,
           text: '',
           color: '',
-          x: 80,
-          y: -50,
+          x: 78,
+          y: -45,
+          z: 0,
+          roll: 0,
+          pitch: 0,
+          yaw: .0,
+        },
+        {
+          clickReady: true,
+          clickState: false,
+          oCState: false,
+          name: 'test button',
+          oRot: 0,
+          rt: 0,
+          activeText: 'option 3',
+          inactiveText: 'option 4',
+          activeColor: 0x4400ff,
+          inactiveColor: 0x00ff44,
+          text: '',
+          color: '',
+          x: 78,
+          y: -60,
+          z: 0,
+          roll: 0,
+          pitch: 0,
+          yaw: .0,
+        },
+        {
+          clickReady: true,
+          clickState: false,
+          oCState: false,
+          name: 'test button',
+          oRot: 0,
+          rt: 0,
+          activeText: 'option 5',
+          inactiveText: 'option 6',
+          activeColor: 0x4400ff,
+          inactiveColor: 0x00ff44,
+          text: '',
+          color: '',
+          x: 78,
+          y: -75,
           z: 0,
           roll: 0,
           pitch: 0,
@@ -173,6 +213,7 @@
       ]
       var buttonShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
+      /*
       var shaderOptions = [
         { lighting: { type: 'ambientLight', value: 1}},
         { uniform: {
@@ -181,8 +222,8 @@
         } }
       ]
       var gridShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      */
 
-      /*
       var shaderOptions = [
         { lighting: { type: 'ambientLight', value: .75}},
         { uniform: {
@@ -191,7 +232,6 @@
         } }
       ]
       var sideboardShader = await Coordinates.BasicShader(renderer, shaderOptions)
-      */
 
       var shaderOptions = [
         { lighting: { type: 'ambientLight', value: 1.5}},
@@ -406,6 +446,7 @@
         scaleY: 102.5,
         scaleZ: 102.5/4,
         y: 3,
+        x: -.2,
         color: 0x886655,
         colorMix: .1,
       }
@@ -474,11 +515,12 @@
         shapeType: 'rectangle',
         name: 'sideboard',
         scaleX: 1.2,
-        scaleY: 1,
+        scaleY: 1.0033,
         scaleZ: 1,
         subs: 4,
         size: 130,
         x: -.5,
+        y: 0,
         z: 0,
         pitch: Math.PI, 
         canvasTexture: sideboardCanvas.c,
@@ -574,6 +616,66 @@
       var box = Array(1e4).fill(0)
       var mag = pieceSize
       
+      var swapPiece = {
+        x, y, z, ix:0, iy:0, iz:0,
+        gid: 0, base: 0,
+        pid: -1,
+        isBomb: false,
+      }
+      var tempPiece = structuredClone(swapPiece)
+      var swapped = false
+      const SwapPiece = () => {
+        if(!swapped){
+          swapped = true
+          if(swapPiece.pid == -1){
+            swapPiece.gid = curPiece.gid
+            swapPiece.pid = curPiece.pid
+            swapPiece.base = curPiece.base
+            swapPiece.x = curPiece.x
+            swapPiece.y = curPiece.y
+            swapPiece.z = curPiece.z
+            swapPiece.ix = 80
+            swapPiece.iy = 20
+            swapPiece.iz = -.1
+            swapPiece.isBomb = curPiece.isBomb
+            SpawnPiece()
+          }else{
+            tempPiece.gid = swapPiece.gid
+            tempPiece.pid = swapPiece.pid
+            tempPiece.base = swapPiece.base
+            tempPiece.x = swapPiece.x
+            tempPiece.y = swapPiece.y
+            tempPiece.z = swapPiece.z
+            //tempPiece.ix = swapPiece.ix
+            //tempPiece.iy = swapPiece.iy
+            //tempPiece.iz = swapPiece.iz
+            tempPiece.isBomb = swapPiece.isBomb
+
+            swapPiece.gid = curPiece.gid
+            swapPiece.pid = curPiece.pid
+            swapPiece.base = curPiece.base
+            swapPiece.x = curPiece.x
+            swapPiece.y = curPiece.y
+            swapPiece.z = curPiece.z
+            swapPiece.ix = 80
+            swapPiece.iy = 20
+            swapPiece.iz = -.1
+            swapPiece.isBomb = curPiece.isBomb
+            
+            curPiece.gid = tempPiece.gid
+            curPiece.pid = tempPiece.pid
+            curPiece.base = tempPiece.base
+            curPiece.x = tempPiece.x
+            curPiece.y = tempPiece.y
+            curPiece.z = tempPiece.z
+            curPiece.ix = 0
+            curPiece.iy = mag * 55 / fact
+            curPiece.iz = 0
+            curPiece.isBomb = tempPiece.isBomb
+          }
+        }
+      }
+      
       const AdvancePiece = () => {
         if(CanDrop(curPiece)) curPiece.iy -= mag
       }
@@ -583,6 +685,9 @@
       var keys = Array(256).fill(false)
       
       Coordinates.Overlay.c.addEventListener('keydown', e => {
+        if(e.keyCode == 16 && !paused){
+          SwapPiece()
+        }
         if(e.keyCode == 19){
           paused = !paused
           DoButtons(0)
@@ -663,7 +768,7 @@
               if(Math.hypot(pc.ix - x, pc.iy - y) < mag * 10){
                 if(box[j]){
                   box[j] = 0
-                  SpawnFlash(x, y, 0)
+                  SpawnFlash(x, y, 0, 1, 1.5)
                 }
               }
             }
@@ -732,6 +837,7 @@
       
       var lastPieceWasBomb = true
       const SpawnPiece = () => {
+        swapped = false
         var res = pieceQueue.shift()
         PushPieceToQueue()
         curPiece.base = res.base
@@ -921,7 +1027,7 @@
                     if(Math.hypot(curPiece.ix - x, curPiece.iy - y) < mag * 10){
                       if(box[j]){
                         box[j] = 0
-                        SpawnFlash(x, y, 0)
+                        SpawnFlash(x, y, 0, 1, 1.5)
                       }
                     }
                   }
@@ -963,10 +1069,12 @@
           var ay = 0
           var az = 0
           var ct = 0
+          var tempVerts = structuredClone(pieceShapes[base][pid].vertices)
           for(var i = 0; i < pieceShapes[base][pid].vertices.length; i+=3){
-            ax += pieceShapes[base][pid].vertices[i+0]
-            ay += pieceShapes[base][pid].vertices[i+1]
-            az += pieceShapes[base][pid].vertices[i+2]
+          
+            ax += pieceShapes[base][pid].vertices[i+0] = baseShapes[base][pid][i+0]
+            ay += pieceShapes[base][pid].vertices[i+1] = baseShapes[base][pid][i+1]
+            az += pieceShapes[base][pid].vertices[i+2] = baseShapes[base][pid][i+2]
             ct ++
           }
           ax /= ct
@@ -1003,7 +1111,17 @@
             pieceShapes[base][pid].y = pc.y
             pieceShapes[base][pid].z = pc.z
             pieceShapes[base][pid].color = Coordinates.HSVToHex(360/totalPieces*gid, 1, .5)
+            /*
+            Coordinates.Glow(
+              pieceShapes[base][pid],
+              0xffffff,
+              .75,
+              false,
+              10,
+              1
+            )*/
             renderer.Draw(pieceShapes[base][pid])
+            pieceShapes[base][pid].vertices = tempVerts
           }
         })
         
@@ -1011,28 +1129,42 @@
         sideboardCanvas.ctx.drawImage(sideboardTexture, 0, 0, w, h)
         
         sideboardCanvas.ctx.font = (fs*1.4)  + 'px monospace'
-        sideboardCanvas.ctx.fillStyle = '#063'
         sideboardCanvas.ctx.textAlign = 'center'
         sideboardCanvas.ctx.lineCap = sideboardCanvas.ctx.lineJoin = 'round'
-        sideboardCanvas.ctx.lineWidth = 5
-        sideboardCanvas.ctx.strokeStyle = '#88ff8888'
-        //sideboardCanvas.ctx.shadowColor = '#8882'
-        //sideboardCanvas.ctx.shadowBlur = fs / 20
+        sideboardCanvas.ctx.lineWidth = 16
+        //sideboardCanvas.ctx.shadowColor = '#0ff'
+        //sideboardCanvas.ctx.shadowBlur = fs / 5
         sideboardCanvas.ctx.scale(1.33, .33)
         
         //sideboardCanvas.ctx.fillStyle = '#333c'
         //sideboardCanvas.ctx.fillRect(60, h/ 1.3, 202, 380)
-        for(var m=3; m--;) {
-          sideboardCanvas.ctx.fillText('rows', w/10, h * 2.25)
-          sideboardCanvas.ctx.strokeText('rows', w/10, h * 2.25)
-        }
+        //for(var m=3; m--;) {
+
+        sideboardCanvas.ctx.fillStyle = '#888'
+        sideboardCanvas.ctx.strokeStyle = '#ffffff44'
+        sideboardCanvas.ctx.font = (fs*.8)  + 'px monospace'
+          sideboardCanvas.ctx.fillText('[shift]', w/1.55, h/3+fs*2)
+          sideboardCanvas.ctx.strokeText('[shift]', w/1.55, h/3+fs*2)
+        
+        sideboardCanvas.ctx.fillStyle = '#fff'
+        sideboardCanvas.ctx.strokeStyle = '#ff000044'
+        sideboardCanvas.ctx.font = (fs*1.5)  + 'px monospace'
+          sideboardCanvas.ctx.fillText('swap', w/1.55, h/3)
+          sideboardCanvas.ctx.strokeText('swap', w/1.55, h/3)
+        sideboardCanvas.ctx.font = (fs*1.2)  + 'px monospace'
+          sideboardCanvas.ctx.fillText('piece', w/1.55, h/3+fs)
+          sideboardCanvas.ctx.strokeText('piece', w/1.55, h/3+fs)
+        sideboardCanvas.ctx.font = (fs*1.4)  + 'px monospace'
+          sideboardCanvas.ctx.fillText('rows', w/9.5, h * 2.25)
+          sideboardCanvas.ctx.strokeText('rows', w/9.5, h * 2.25)
+        //}
 
         sideboardCanvas.ctx.shadowBlur = fs / 20 * 2
         sideboardCanvas.ctx.font = (fs * 2) + 'px monospace'
-        for(var m=3; m--;) {
-          sideboardCanvas.ctx.fillText(rowsCompleted, w/10, h * 2.25 + fs*2)
-          sideboardCanvas.ctx.strokeText(rowsCompleted, w/10, h * 2.25 + fs*2)
-        }
+        //for(var m=3; m--;) {
+          sideboardCanvas.ctx.fillText(rowsCompleted, w/9.5, h * 2.25 + fs*2)
+          sideboardCanvas.ctx.strokeText(rowsCompleted, w/9.5, h * 2.25 + fs*2)
+        //}
         sideboardCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
       }
       
@@ -1180,6 +1312,25 @@
           pieceShapes[base][pid].color = Coordinates.HSVToHex(360/totalPieces*curPiece.gid, 1, .5)
           renderer.Draw(pieceShapes[base][pid])
         }
+        
+        if(swapPiece.pid != -1){
+          var tempVerts = structuredClone(pieceShapes[swapPiece.base][swapPiece.pid].vertices)
+          for(var i = 0; i < baseShapes[swapPiece.base][swapPiece.pid].length; i += 3){
+            pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+0] = baseShapes[swapPiece.base][swapPiece.pid][i+0]
+            pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+1] = baseShapes[swapPiece.base][swapPiece.pid][i+1]
+            pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+2] = baseShapes[swapPiece.base][swapPiece.pid][i+2]
+          }
+          pieceShapes[swapPiece.base][swapPiece.pid].x = swapPiece.x += (swapPiece.ix - swapPiece.x) / homing
+          pieceShapes[swapPiece.base][swapPiece.pid].y = swapPiece.y += (swapPiece.iy - swapPiece.y) / homing
+          pieceShapes[swapPiece.base][swapPiece.pid].z = -.1
+          pieceShapes[swapPiece.base][swapPiece.pid].color = Coordinates.HSVToHex(360/totalPieces*swapPiece.gid, 1, .5)
+          renderer.Draw(pieceShapes[swapPiece.base][swapPiece.pid])
+          pieceShapes[swapPiece.base][swapPiece.pid].vertices = tempVerts
+        }
+        
+        DoSideboard(t)
+        sideboardShape.alpha = .9
+        renderer.Draw(sideboardShape) 
 
         flashes = flashes.filter((v, i) => v.life > 0)
         //flashes.map(v=>v.life -= .01)
@@ -1193,7 +1344,7 @@
               flashParticles.vertices[i+1] = v.y += v.vy
               flashParticles.vertices[i+2] = v.z += v.vz
               vl = Math.min(1, v.life -= .1 * v.bump * .1)
-              flashParticles.size = 2 * vl * (v.bump / 4) * 8
+              flashParticles.size = 2 * vl * (v.bump / 4) * 16
               flashParticles.alpha = Math.min(1, vl) * .8
             }else{
               flashParticles.vertices[i+0] = 1e5
@@ -1240,6 +1391,7 @@
         }
         boxShape.z = -.1
         renderer.Draw(boxShape)
+        
         if(curPiece.isBomb){
           bombShadowShape.x = shadowPiece.ix - mag / 2
           bombShadowShape.y = shadowPiece.iy - mag * 2.15
@@ -1251,9 +1403,6 @@
           bombShadowShape.z = .1 //shadowPiece.iz = 0
           renderer.Draw(bombShadowShape)
         }
-        DoSideboard(t)
-        sideboardShape.alpha = .9
-        renderer.Draw(sideboardShape) 
         //renderer.Draw(gridShape)
         if(!curPiece.isBomb){
           pieceShapes[base][pid].x = shadowPiece.ix
