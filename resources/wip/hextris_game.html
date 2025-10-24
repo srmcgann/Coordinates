@@ -4,8 +4,8 @@
   ✔ pause
   ✔ on-screen queue
   ✔ panels
+  ✔ swap piece
   * scoring
-  * swap piece
   * multiplayer
 -->
 <!DOCTYPE html>
@@ -14,7 +14,11 @@
     <title>Coordinates boilerplate example</title>
     <style>
       body, html{
-        background: #000;
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-size: cover;
+        background-color: #000;
+        //background-image: url(https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg);
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
@@ -28,9 +32,10 @@
       "https://srmcgann.github.io/Coordinates/coordinates.js?2"
       //"https://whr.rf.gd/coordinates.js?2"
     
+      /*
       var rendererOptions = {
         ambientLight: 1, margin : 0,
-        width: 1920, height: 1080, fov: 3e3,
+        width: 1080, height: 1080, fov: 3e3,
         //width: 960, height: 540, fov: 3e3/2,
       }
       rendererOptions.fov /= 4
@@ -38,6 +43,7 @@
       rendererOptions.height /= 4
       rendererOptions.attachToBody = false
       var backgroundCamera = await Coordinates.Renderer(rendererOptions)
+      */
 
       var rendererOptions = {
         width: 800*4,
@@ -148,7 +154,7 @@
       
       var rendererOptions = {
         ambientLight: 1, margin : 0,
-        width: 1920, height: 1080, fov: 3e3,
+        width: 1200, height: 1200, fov: 3e3,
         //width: 960, height: 540, fov: 3e3/2,
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
@@ -257,7 +263,7 @@
       ]
       var bombShadowShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-      var shaderOptions = [
+      /*var shaderOptions = [
         { lighting: { type: 'ambientLight', value: .5}},
         { uniform: {
           type: 'phong',
@@ -265,7 +271,8 @@
         } }
       ]
       var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
-      var backgroundShader2 = await Coordinates.BasicShader(backgroundCamera, shaderOptions)
+      //var backgroundShader2 = await Coordinates.BasicShader(backgroundCamera, shaderOptions)
+      */
 
       var buttonShape
       var geoOptions = {
@@ -457,12 +464,14 @@
       
       var backgroundShape
       var geoOptions = {
-        shapeType: 'dodecahedron',
-        subs: 4,
-        size: 5e3,
+        shapeType: 'rectangle',
+        subs: 5,
+        size: 460,
+        z: 500,
         name: 'background',
         map: refTexture,
         colorMix: 0,
+        //color: 0xff0000
       }
       if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         backgroundShape = geometry
@@ -492,6 +501,7 @@
       })
       */
       
+      /*
       var backgroundShape
       var geoOptions = {
         shapeType: 'rectangle',
@@ -509,6 +519,7 @@
         backgroundShape = geometry
         await backgroundShader.ConnectGeometry(geometry)
       })
+      */
       
       var sideboardShape
       var geoOptions = {
@@ -532,7 +543,7 @@
         await sideboardShader.ConnectGeometry(geometry)
       })
       
-      var testShape
+      /*var testShape
       var geoOptions = {
         shapeType: 'rectangle',
         name: 'test shape',
@@ -549,6 +560,7 @@
         testShape = geometry
         await backgroundShader2.ConnectGeometry(geometry)
       })
+      */
       
       var bombShape, bombShadowShape
       var geoOptions = {
@@ -602,6 +614,9 @@
       if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
         sparkShape = geometry
         baseSparkShape = structuredClone(sparkShape.vertices)
+        //for(var i = 0; i < baseSparkShape.length; i += 3){
+          //baseSparkShape[i+2] = -.02
+        //}
       })
       
       if(0){
@@ -634,8 +649,8 @@
             swapPiece.x = curPiece.x
             swapPiece.y = curPiece.y
             swapPiece.z = curPiece.z
-            swapPiece.ix = 80
-            swapPiece.iy = 20
+            swapPiece.ix = 85
+            swapPiece.iy = 30
             swapPiece.iz = -.1
             swapPiece.isBomb = curPiece.isBomb
             SpawnPiece()
@@ -657,8 +672,8 @@
             swapPiece.x = curPiece.x
             swapPiece.y = curPiece.y
             swapPiece.z = curPiece.z
-            swapPiece.ix = 80
-            swapPiece.iy = 20
+            swapPiece.ix = 85
+            swapPiece.iy = 30
             swapPiece.iz = -.1
             swapPiece.isBomb = curPiece.isBomb
             
@@ -1087,6 +1102,9 @@
           pc.y += (pc.iy - pc.y) / homing
           pc.z += (pc.iz - pc.z) / homing
           if(isBomb){
+            var tbx = bombShape.x
+            var tby = bombShape.y
+            var tbz = bombShape.z
             bombShape.x = pc.x - mag / 2
             bombShape.y = pc.y - mag * 4
             bombShape.z = pc.z = -.1
@@ -1106,6 +1124,9 @@
             bombShape.colorMix = .05
             bombShape.alpha = 1
             renderer.Draw(bombShape)
+            bombShape.x = tbx
+            bombShape.y = tby
+            bombShape.z = tbz
           }else{
             pieceShapes[base][pid].x = pc.x
             pieceShapes[base][pid].y = pc.y
@@ -1131,7 +1152,7 @@
         sideboardCanvas.ctx.font = (fs*1.4)  + 'px monospace'
         sideboardCanvas.ctx.textAlign = 'center'
         sideboardCanvas.ctx.lineCap = sideboardCanvas.ctx.lineJoin = 'round'
-        sideboardCanvas.ctx.lineWidth = 16
+        sideboardCanvas.ctx.lineWidth = 24
         //sideboardCanvas.ctx.shadowColor = '#0ff'
         //sideboardCanvas.ctx.shadowBlur = fs / 5
         sideboardCanvas.ctx.scale(1.33, .33)
@@ -1147,7 +1168,7 @@
           sideboardCanvas.ctx.strokeText('[shift]', w/1.55, h/3+fs*2)
         
         sideboardCanvas.ctx.fillStyle = '#fff'
-        sideboardCanvas.ctx.strokeStyle = '#ff000044'
+        sideboardCanvas.ctx.strokeStyle = '#44ff0044'
         sideboardCanvas.ctx.font = (fs*1.5)  + 'px monospace'
           sideboardCanvas.ctx.fillText('swap', w/1.55, h/3)
           sideboardCanvas.ctx.strokeText('swap', w/1.55, h/3)
@@ -1168,6 +1189,10 @@
         sideboardCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
       }
       
+      var shotTaken = false
+      window.addEventListener('mouseup', e => {
+        shotTaken = false
+      })
       const DoButtons = (forceToggle = -1) => {
         buttons.map((button, bidx) => {
           buttonShape.roll = button.roll
@@ -1187,7 +1212,10 @@
           if(forceToggle == bidx || Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
             if(renderer.mouseButton == 1 || forceToggle == bidx){
               if(button.clickReady || forceToggle == bidx) {
-                button.clickState = !button.clickState
+                if(!shotTaken){
+                  button.clickState = !button.clickState
+                }
+                shotTaken = true
                 setTimeout(() => {
                   button.text = button.clickState ? button.activeText : button.inactiveText
                   button.color = button.clickState ? button.activeColor : button.inactiveColor
@@ -1275,27 +1303,27 @@
         if(!paused && !((t*60|0)%advFreq)) AdvancePiece()
 
         if(typeof borderShape?.shader != 'undefined') renderer.Draw(borderShape)
+        
         if(typeof backgroundShape?.shader != 'undefined') {
           //backgroundShape.yaw += .0005
-          backgroundShape.pitch = t / 100
+          //backgroundShape.pitch = t / 100
           renderer.Draw(backgroundShape)
         }
+        
 
         var base = curPiece.base
         var pid = curPiece.pid
         if(curPiece.isBomb){
-          if(baseSparkShape){
-            var ls = 20 + C(t*100) * 10
-            for(var i = 0; i < sparkShape.vertices.length; i+=3){
-              sparkShape.vertices[i+0] = baseSparkShape[i+0] * ls
-              sparkShape.vertices[i+1] = baseSparkShape[i+1] * ls
-              sparkShape.vertices[i+2] = baseSparkShape[i+2] * ls
-            }
-            sparkShape.x = bombShape.x
-            sparkShape.y = bombShape.y + 20
-            sparkShape.z = bombShape.z
-            renderer.Draw(sparkShape)
+          var ls = 20 + C(t*100) * 10
+          for(var i = 0; i < sparkShape.vertices.length; i+=3){
+            sparkShape.vertices[i+0] = baseSparkShape[i+0] * ls
+            sparkShape.vertices[i+1] = baseSparkShape[i+1] * ls
+            sparkShape.vertices[i+2] = baseSparkShape[i+2] * ls
           }
+          sparkShape.x = bombShape.x
+          sparkShape.y = bombShape.y + 20
+          sparkShape.z = bombShape.z
+          renderer.Draw(sparkShape)
           curPiece.x += (curPiece.ix - curPiece.x) / homing
           curPiece.y += (curPiece.iy - curPiece.y) / homing
           bombShape.x = curPiece.x - mag / 2
@@ -1320,14 +1348,49 @@
             pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+1] = baseShapes[swapPiece.base][swapPiece.pid][i+1]
             pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+2] = baseShapes[swapPiece.base][swapPiece.pid][i+2]
           }
-          pieceShapes[swapPiece.base][swapPiece.pid].x = swapPiece.x += (swapPiece.ix - swapPiece.x) / homing
-          pieceShapes[swapPiece.base][swapPiece.pid].y = swapPiece.y += (swapPiece.iy - swapPiece.y) / homing
-          pieceShapes[swapPiece.base][swapPiece.pid].z = -.1
-          pieceShapes[swapPiece.base][swapPiece.pid].color = Coordinates.HSVToHex(360/totalPieces*swapPiece.gid, 1, .5)
-          renderer.Draw(pieceShapes[swapPiece.base][swapPiece.pid])
+          if(swapPiece.isBomb){
+            var ls = 20 + C(t*100) * 10
+            for(var i = 0; i < sparkShape.vertices.length; i+=3){
+              sparkShape.vertices[i+0] = baseSparkShape[i+0] * ls
+              sparkShape.vertices[i+1] = baseSparkShape[i+1] * ls
+              sparkShape.vertices[i+2] = baseSparkShape[i+2] * ls
+            }
+            sparkShape.x = bombShape.x
+            sparkShape.y = bombShape.y + 20
+            sparkShape.z = bombShape.z
+            renderer.Draw(sparkShape)
+
+            pieceShapes[swapPiece.base][swapPiece.pid].x = swapPiece.x += (swapPiece.ix - swapPiece.x) / homing
+            pieceShapes[swapPiece.base][swapPiece.pid].y = swapPiece.y += (swapPiece.iy - swapPiece.y) / homing
+            bombShape.x = swapPiece.x - mag / 2
+            bombShape.y = swapPiece.y - mag * 2.15
+            bombShape.z = swapPiece.z = -.1
+            bombShape.yaw = t * 2
+            bombShape.colorMix = .05
+            bombShape.alpha = 1
+            renderer.Draw(bombShape)
+          }else{
+            pieceShapes[swapPiece.base][swapPiece.pid].x = swapPiece.x += (swapPiece.ix - swapPiece.x) / homing
+            pieceShapes[swapPiece.base][swapPiece.pid].y = swapPiece.y += (swapPiece.iy - swapPiece.y) / homing
+            pieceShapes[swapPiece.base][swapPiece.pid].z = -.1
+            pieceShapes[swapPiece.base][swapPiece.pid].color = Coordinates.HSVToHex(360/totalPieces*swapPiece.gid, 1, .5)
+            renderer.Draw(pieceShapes[swapPiece.base][swapPiece.pid])
+          }
           pieceShapes[swapPiece.base][swapPiece.pid].vertices = tempVerts
         }
         
+        if(curPiece.isBomb){
+          bombShadowShape.x = shadowPiece.ix - mag / 2
+          bombShadowShape.y = shadowPiece.iy - mag * 2.15
+          bombShadowShape.yaw = t * 2
+          bombShadowShape.alpha = .9
+          bombShadowShape.cullFace = 'front'
+          bombShadowShape.z = -.1 //shadowPiece.iz = 0
+          renderer.Draw(bombShadowShape)
+          bombShadowShape.z = .1 //shadowPiece.iz = 0
+          renderer.Draw(bombShadowShape)
+        }
+
         DoSideboard(t)
         sideboardShape.alpha = .9
         renderer.Draw(sideboardShape) 
@@ -1392,17 +1455,6 @@
         boxShape.z = -.1
         renderer.Draw(boxShape)
         
-        if(curPiece.isBomb){
-          bombShadowShape.x = shadowPiece.ix - mag / 2
-          bombShadowShape.y = shadowPiece.iy - mag * 2.15
-          bombShadowShape.yaw = t * 2
-          bombShadowShape.alpha = .9
-          bombShadowShape.cullFace = 'front'
-          bombShadowShape.z = -.1 //shadowPiece.iz = 0
-          renderer.Draw(bombShadowShape)
-          bombShadowShape.z = .1 //shadowPiece.iz = 0
-          renderer.Draw(bombShadowShape)
-        }
         //renderer.Draw(gridShape)
         if(!curPiece.isBomb){
           pieceShapes[base][pid].x = shadowPiece.ix
@@ -1414,8 +1466,8 @@
           pieceShapes[base][pid].z = .1
           renderer.Draw(pieceShapes[base][pid])
         }
-        backgroundCamera.Clear()
-        testShape.roll = C(t/2) / 32
+        //backgroundCamera.Clear()
+        //testShape.roll = C(t/2) / 32
         //backgroundCamera.Draw(testShape)
         
         DoButtons()
