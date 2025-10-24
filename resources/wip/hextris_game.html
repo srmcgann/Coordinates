@@ -634,8 +634,8 @@
             swapPiece.x = curPiece.x
             swapPiece.y = curPiece.y
             swapPiece.z = curPiece.z
-            swapPiece.ix = 80
-            swapPiece.iy = 20
+            swapPiece.ix = 85
+            swapPiece.iy = 30
             swapPiece.iz = -.1
             swapPiece.isBomb = curPiece.isBomb
             SpawnPiece()
@@ -657,8 +657,8 @@
             swapPiece.x = curPiece.x
             swapPiece.y = curPiece.y
             swapPiece.z = curPiece.z
-            swapPiece.ix = 80
-            swapPiece.iy = 20
+            swapPiece.ix = 85
+            swapPiece.iy = 30
             swapPiece.iz = -.1
             swapPiece.isBomb = curPiece.isBomb
             
@@ -1168,6 +1168,10 @@
         sideboardCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
       }
       
+      var shotTaken = false
+      window.addEventListener('mouseup', e => {
+        shotTaken = false
+      })
       const DoButtons = (forceToggle = -1) => {
         buttons.map((button, bidx) => {
           buttonShape.roll = button.roll
@@ -1187,7 +1191,10 @@
           if(forceToggle == bidx || Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
             if(renderer.mouseButton == 1 || forceToggle == bidx){
               if(button.clickReady || forceToggle == bidx) {
-                button.clickState = !button.clickState
+                if(!shotTaken){
+                  button.clickState = !button.clickState
+                }
+                shotTaken = true
                 setTimeout(() => {
                   button.text = button.clickState ? button.activeText : button.inactiveText
                   button.color = button.clickState ? button.activeColor : button.inactiveColor
@@ -1320,11 +1327,23 @@
             pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+1] = baseShapes[swapPiece.base][swapPiece.pid][i+1]
             pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+2] = baseShapes[swapPiece.base][swapPiece.pid][i+2]
           }
-          pieceShapes[swapPiece.base][swapPiece.pid].x = swapPiece.x += (swapPiece.ix - swapPiece.x) / homing
-          pieceShapes[swapPiece.base][swapPiece.pid].y = swapPiece.y += (swapPiece.iy - swapPiece.y) / homing
-          pieceShapes[swapPiece.base][swapPiece.pid].z = -.1
-          pieceShapes[swapPiece.base][swapPiece.pid].color = Coordinates.HSVToHex(360/totalPieces*swapPiece.gid, 1, .5)
-          renderer.Draw(pieceShapes[swapPiece.base][swapPiece.pid])
+          if(swapPiece.isBomb){
+            pieceShapes[swapPiece.base][swapPiece.pid].x = swapPiece.x += (swapPiece.ix - swapPiece.x) / homing
+            pieceShapes[swapPiece.base][swapPiece.pid].y = swapPiece.y += (swapPiece.iy - swapPiece.y) / homing
+            bombShape.x = swapPiece.x - mag / 2
+            bombShape.y = swapPiece.y - mag * 2.15
+            bombShape.z = swapPiece.z = -.1
+            bombShape.yaw = t * 2
+            bombShape.colorMix = .05
+            bombShape.alpha = 1
+            renderer.Draw(bombShape)
+          }else{
+            pieceShapes[swapPiece.base][swapPiece.pid].x = swapPiece.x += (swapPiece.ix - swapPiece.x) / homing
+            pieceShapes[swapPiece.base][swapPiece.pid].y = swapPiece.y += (swapPiece.iy - swapPiece.y) / homing
+            pieceShapes[swapPiece.base][swapPiece.pid].z = -.1
+            pieceShapes[swapPiece.base][swapPiece.pid].color = Coordinates.HSVToHex(360/totalPieces*swapPiece.gid, 1, .5)
+            renderer.Draw(pieceShapes[swapPiece.base][swapPiece.pid])
+          }
           pieceShapes[swapPiece.base][swapPiece.pid].vertices = tempVerts
         }
         
