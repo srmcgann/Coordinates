@@ -13,38 +13,46 @@
   <head>
     <title>Coordinates boilerplate example</title>
     <style>
-      body, html{
+      html, body{
         background-repeat: no-repeat;
         background-position: center center;
-        background-size: cover;
+        background-image: url(https://srmcgann.github.io/Coordinates/resources/wip/hextris_background_1.jpg);
+        background-size: 100% 100%;
         background-color: #000;
-        //background-image: url(https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg);
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
       }
+      .loadingText{
+        position: absolute;
+        color: #888;
+        font-family: monospace;
+        font-size: 64px;
+        width: 400px;
+        display: block;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
     </style>
   </head>
   <body>
+    <div class="loadingText" id="loadingTextDiv">loading....</div>
+    <script>
+      window.loaded = false
+      var loop = () => {
+        var el = document.querySelector('#loadingTextDiv')
+        el.innerHTML = 'loading' + ('.').repeat(((new Date()).getTime()/100*6)%8)
+        if(!window.loaded) requestAnimationFrame(loop)
+      }
+      loop()
+    </script>
     <script type="module">
     
       import * as Coordinates from
       "https://srmcgann.github.io/Coordinates/coordinates.js?2"
       //"https://whr.rf.gd/coordinates.js?2"
     
-      /*
-      var rendererOptions = {
-        ambientLight: 1, margin : 0,
-        width: 1080, height: 1080, fov: 3e3,
-        //width: 960, height: 540, fov: 3e3/2,
-      }
-      rendererOptions.fov /= 4
-      rendererOptions.width /= 4
-      rendererOptions.height /= 4
-      rendererOptions.attachToBody = false
-      var backgroundCamera = await Coordinates.Renderer(rendererOptions)
-      */
-
       var rendererOptions = {
         width: 800*4,
         height: 200*4,
@@ -86,10 +94,10 @@
           name: 'test button',
           oRot: 0,
           rt: 0,
-          activeText: 'option 1',
-          inactiveText: 'option 2',
-          activeColor: 0x4400ff,
-          inactiveColor: 0x00ff44,
+          activeText: 'theme 1',
+          inactiveText: 'theme 1',
+          activeColor: 0x110044,
+          inactiveColor: 0x4400ff,
           text: '',
           color: '',
           x: 78,
@@ -101,15 +109,15 @@
         },
         {
           clickReady: true,
-          clickState: false,
-          oCState: false,
+          clickState: true,
+          oCState: true,
           name: 'test button',
           oRot: 0,
           rt: 0,
-          activeText: 'option 3',
-          inactiveText: 'option 4',
-          activeColor: 0x4400ff,
-          inactiveColor: 0x00ff44,
+          activeText: 'theme 2',
+          inactiveText: 'theme 2',
+          activeColor: 0x441111,
+          inactiveColor: 0xff2222,
           text: '',
           color: '',
           x: 78,
@@ -121,15 +129,15 @@
         },
         {
           clickReady: true,
-          clickState: false,
-          oCState: false,
+          clickState: true,
+          oCState: true,
           name: 'test button',
           oRot: 0,
           rt: 0,
-          activeText: 'option 5',
-          inactiveText: 'option 6',
-          activeColor: 0x4400ff,
-          inactiveColor: 0x00ff44,
+          activeText: 'theme 3',
+          inactiveText: 'theme 3',
+          activeColor: 0x114422,
+          inactiveColor: 0x44ff66,
           text: '',
           color: '',
           x: 78,
@@ -159,7 +167,9 @@
       }
       var renderer = await Coordinates.Renderer(rendererOptions)
 
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg'
+      var refTexture1 = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_background_1.jpg'
+      var refTexture2 = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_background_2.jpg'
+      var refTexture3 = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_background_3.jpg'
       
       var paused = false
       var base = 4
@@ -213,7 +223,7 @@
           type: 'reflection',
           value: .5,
           enabled: true,
-          map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+          map: 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2_lowres.jpg',
           //theta: -Math.PI / 6
         } }
       ]
@@ -231,7 +241,7 @@
       */
 
       var shaderOptions = [
-        { lighting: { type: 'ambientLight', value: .75}},
+        { lighting: { type: 'ambientLight', value: .5}},
         { uniform: {
           type: 'phong',
           value: 0
@@ -247,7 +257,7 @@
         } },
         { uniform: {
           type: 'reflection',
-          map: refTexture,
+          //map: refTexture,
           value: .1,
           enabled: false,
         } }
@@ -263,8 +273,8 @@
       ]
       var bombShadowShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-      /*var shaderOptions = [
-        { lighting: { type: 'ambientLight', value: .5}},
+      var shaderOptions = [
+        { lighting: { type: 'ambientLight', value: .75}},
         { uniform: {
           type: 'phong',
           value: 0
@@ -272,7 +282,6 @@
       ]
       var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
       //var backgroundShader2 = await Coordinates.BasicShader(backgroundCamera, shaderOptions)
-      */
 
       var buttonShape
       var geoOptions = {
@@ -297,10 +306,20 @@
         buttonTexture.src = URL.createObjectURL(data)
       })
       
-      var sideboardTexture = new Image()
-      var url = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_fullgrid.png'
+      var sideboardTexture1 = new Image()
+      var sideboardTexture2 = new Image()
+      var sideboardTexture3 = new Image()
+      var url = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_fullgrid_1.png'
       await fetch(url).then(res=>res.blob()).then(data => {
-        sideboardTexture.src = URL.createObjectURL(data)
+        sideboardTexture1.src = URL.createObjectURL(data)
+      })
+      var url = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_fullgrid_2.png'
+      await fetch(url).then(res=>res.blob()).then(data => {
+        sideboardTexture2.src = URL.createObjectURL(data)
+      })
+      var url = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_fullgrid_3.png'
+      await fetch(url).then(res=>res.blob()).then(data => {
+        sideboardTexture3.src = URL.createObjectURL(data)
       })
       
       var baseShapes = Array(sourcePieces.length).fill().map(v=>[])
@@ -462,65 +481,41 @@
         await shader.ConnectGeometry(geometry)
       })
       
-      var backgroundShape
+      var backgroundShape1
+      var backgroundShape2
+      var backgroundShape3
       var geoOptions = {
         shapeType: 'rectangle',
-        subs: 5,
+        subs: 4,
         size: 460,
         z: 500,
         name: 'background',
-        map: refTexture,
         colorMix: 0,
         //color: 0xff0000
       }
-      if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        backgroundShape = geometry
+      geoOptions.map = refTexture1
+      Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        backgroundShape1 = geometry
         await backgroundShader.ConnectGeometry(geometry)
       })
-      
-      /*
-      var gridShape
-      var geoOptions = {
-        shapeType: 'rectangle',
-        name: 'grid',
-        scaleX: .995,
-        scaleY: 1.992,
-        alpha: .9,
-        //cullFace: 'front',
-        subs: 3,
-        size: 57.5,
-        x: -.15,
-        z: 0,
-        y: 2.5,
-        map: 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_grid.png',
-        colorMix: 0,
-      }
-      if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        gridShape = geometry
-        await gridShader.ConnectGeometry(geometry)
-      })
-      */
-      
-      /*
-      var backgroundShape
-      var geoOptions = {
-        shapeType: 'rectangle',
-        name: 'background rectangle',
-        scaleX: renderer.width/renderer.height,
-        subs: 4,
-        size: 100,
-        z: 100,
-        pitch: Math.PI, 
-        flipNormals: true,
-        canvasTexture: backgroundCamera.c,
-        colorMix: 0,
-      }
-      if(0) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        backgroundShape = geometry
+      geoOptions.map = refTexture2
+      //geoOptions.scaleUVX = -.5
+      geoOptions.scaleUVY = -1
+      Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        backgroundShape2 = geometry
+        for(var i = 0; i < geometry.uvs.length; i +=2){
+          geometry.uvs[i+1] += 1
+        }
         await backgroundShader.ConnectGeometry(geometry)
       })
-      */
-      
+      //geoOptions.scaleUVX = .25
+      //geoOptions.scaleUVY = 1
+      geoOptions.map = refTexture3
+      Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        backgroundShape3 = geometry
+        await backgroundShader.ConnectGeometry(geometry)
+      })
+            
       var sideboardShape
       var geoOptions = {
         shapeType: 'rectangle',
@@ -649,8 +644,8 @@
             swapPiece.x = curPiece.x
             swapPiece.y = curPiece.y
             swapPiece.z = curPiece.z
-            swapPiece.ix = 85
-            swapPiece.iy = 30
+            swapPiece.ix = 80
+            swapPiece.iy = 15
             swapPiece.iz = -.1
             swapPiece.isBomb = curPiece.isBomb
             SpawnPiece()
@@ -672,8 +667,8 @@
             swapPiece.x = curPiece.x
             swapPiece.y = curPiece.y
             swapPiece.z = curPiece.z
-            swapPiece.ix = 85
-            swapPiece.iy = 30
+            swapPiece.ix = 80
+            swapPiece.iy = 15
             swapPiece.iz = -.1
             swapPiece.isBomb = curPiece.isBomb
             
@@ -1086,7 +1081,6 @@
           var ct = 0
           var tempVerts = structuredClone(pieceShapes[base][pid].vertices)
           for(var i = 0; i < pieceShapes[base][pid].vertices.length; i+=3){
-          
             ax += pieceShapes[base][pid].vertices[i+0] = baseShapes[base][pid][i+0]
             ay += pieceShapes[base][pid].vertices[i+1] = baseShapes[base][pid][i+1]
             az += pieceShapes[base][pid].vertices[i+2] = baseShapes[base][pid][i+2]
@@ -1142,12 +1136,22 @@
               1
             )*/
             renderer.Draw(pieceShapes[base][pid])
-            pieceShapes[base][pid].vertices = tempVerts
           }
+          pieceShapes[base][pid].vertices = tempVerts
         })
         
         sideboardCanvas.ctx.clearRect(0,0,w,h)
-        sideboardCanvas.ctx.drawImage(sideboardTexture, 0, 0, w, h)
+        switch(currentTheme){
+          case 1:
+            sideboardCanvas.ctx.drawImage(sideboardTexture1, 0, 0, w, h)
+          break
+          case 2:
+            sideboardCanvas.ctx.drawImage(sideboardTexture2, 0, 0, w, h)
+          break
+          case 3:
+            sideboardCanvas.ctx.drawImage(sideboardTexture3, 0, 0, w, h)
+          break
+        }
         
         sideboardCanvas.ctx.font = (fs*1.4)  + 'px monospace'
         sideboardCanvas.ctx.textAlign = 'center'
@@ -1167,8 +1171,20 @@
           sideboardCanvas.ctx.fillText('[shift]', w/1.55, h/3+fs*2)
           sideboardCanvas.ctx.strokeText('[shift]', w/1.55, h/3+fs*2)
         
-        sideboardCanvas.ctx.fillStyle = '#fff'
-        sideboardCanvas.ctx.strokeStyle = '#44ff0044'
+        switch(currentTheme){
+          case 1:
+            sideboardCanvas.ctx.fillStyle = '#fff'
+            sideboardCanvas.ctx.strokeStyle = '#4400ff44'
+          break
+          case 2:
+            sideboardCanvas.ctx.fillStyle = '#fff'
+            sideboardCanvas.ctx.strokeStyle = '#ff004444'
+          break
+          case 3:
+            sideboardCanvas.ctx.fillStyle = '#fff'
+            sideboardCanvas.ctx.strokeStyle = '#00ff4444'
+          break
+        }
         sideboardCanvas.ctx.font = (fs*1.5)  + 'px monospace'
           sideboardCanvas.ctx.fillText('swap', w/1.55, h/3)
           sideboardCanvas.ctx.strokeText('swap', w/1.55, h/3)
@@ -1189,6 +1205,7 @@
         sideboardCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
       }
       
+      var currentTheme = 1
       var shotTaken = false
       window.addEventListener('mouseup', e => {
         shotTaken = false
@@ -1212,8 +1229,21 @@
           if(forceToggle == bidx || Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
             if(renderer.mouseButton == 1 || forceToggle == bidx){
               if(button.clickReady || forceToggle == bidx) {
-                if(!shotTaken){
-                  button.clickState = !button.clickState
+                if(!shotTaken || forceToggle != -1){
+                  if(bidx && forceToggle == -1){
+                    if(currentTheme != bidx){
+                      var tgt = currentTheme
+                      currentTheme = bidx
+                      setTimeout(()=>{
+                        DoButtons(tgt)
+                        DoButtons(currentTheme)
+                        var url = eval('refTexture'+currentTheme)
+                        document.body.style.backgroundImage = `url(${url})`
+                      }, 0)
+                    }
+                  }else{
+                    button.clickState = !button.clickState
+                  }
                 }
                 shotTaken = true
                 setTimeout(() => {
@@ -1304,10 +1334,16 @@
 
         if(typeof borderShape?.shader != 'undefined') renderer.Draw(borderShape)
         
-        if(typeof backgroundShape?.shader != 'undefined') {
-          //backgroundShape.yaw += .0005
-          //backgroundShape.pitch = t / 100
-          renderer.Draw(backgroundShape)
+        switch(currentTheme){
+          case 1:
+            renderer.Draw(backgroundShape1)
+          break
+          case 2:
+            renderer.Draw(backgroundShape2)
+          break
+          case 3:
+            renderer.Draw(backgroundShape3)
+          break
         }
         
 
@@ -1343,11 +1379,26 @@
         
         if(swapPiece.pid != -1){
           var tempVerts = structuredClone(pieceShapes[swapPiece.base][swapPiece.pid].vertices)
+          
           for(var i = 0; i < baseShapes[swapPiece.base][swapPiece.pid].length; i += 3){
             pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+0] = baseShapes[swapPiece.base][swapPiece.pid][i+0]
             pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+1] = baseShapes[swapPiece.base][swapPiece.pid][i+1]
             pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+2] = baseShapes[swapPiece.base][swapPiece.pid][i+2]
           }
+          var ax = 0
+          var ay = 0
+          var az = 0
+          var ct = 0
+          for(var i = 0; i < pieceShapes[swapPiece.base][swapPiece.pid].vertices.length; i+=3){
+            ax += pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+0] = baseShapes[swapPiece.base][swapPiece.pid][i+0]
+            ay += pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+1] = baseShapes[swapPiece.base][swapPiece.pid][i+1]
+            az += pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+2] = baseShapes[swapPiece.base][swapPiece.pid][i+2]
+            ct ++
+          }
+          ax /= ct
+          ay /= ct
+          az /= ct
+          
           if(swapPiece.isBomb){
             var ls = 20 + C(t*100) * 10
             for(var i = 0; i < sparkShape.vertices.length; i+=3){
@@ -1362,16 +1413,16 @@
 
             pieceShapes[swapPiece.base][swapPiece.pid].x = swapPiece.x += (swapPiece.ix - swapPiece.x) / homing
             pieceShapes[swapPiece.base][swapPiece.pid].y = swapPiece.y += (swapPiece.iy - swapPiece.y) / homing
-            bombShape.x = swapPiece.x - mag / 2
-            bombShape.y = swapPiece.y - mag * 2.15
+            bombShape.x = swapPiece.x - mag / 2 - ax
+            bombShape.y = swapPiece.y - mag * 2.15 - ay
             bombShape.z = swapPiece.z = -.1
             bombShape.yaw = t * 2
             bombShape.colorMix = .05
             bombShape.alpha = 1
             renderer.Draw(bombShape)
           }else{
-            pieceShapes[swapPiece.base][swapPiece.pid].x = swapPiece.x += (swapPiece.ix - swapPiece.x) / homing
-            pieceShapes[swapPiece.base][swapPiece.pid].y = swapPiece.y += (swapPiece.iy - swapPiece.y) / homing
+            pieceShapes[swapPiece.base][swapPiece.pid].x = (swapPiece.x += (swapPiece.ix - swapPiece.x) / homing) - ax
+            pieceShapes[swapPiece.base][swapPiece.pid].y = (swapPiece.y += (swapPiece.iy - swapPiece.y) / homing) - ay
             pieceShapes[swapPiece.base][swapPiece.pid].z = -.1
             pieceShapes[swapPiece.base][swapPiece.pid].color = Coordinates.HSVToHex(360/totalPieces*swapPiece.gid, 1, .5)
             renderer.Draw(pieceShapes[swapPiece.base][swapPiece.pid])
@@ -1471,6 +1522,8 @@
         //backgroundCamera.Draw(testShape)
         
         DoButtons()
+        window.loaded = true
+        document.querySelector('#loadingTextDiv').innerHTML = ''
       }
     </script>
   </body>
