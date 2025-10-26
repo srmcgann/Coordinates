@@ -7550,7 +7550,7 @@ const AnimationLoop = (renderer, func) => {
       }
     }
   }
-  window.addEventListener('load', () => {
+  window.addEventListener('DOMContentLoaded', () => {
     renderer.ready = true
     loop()
   })
