@@ -180,8 +180,8 @@ const Renderer = async options => {
   ret = {
     // vars & objects
     c, ctx, contextType, t:0, alpha,
-    width, height, x, y, z,
-    roll, pitch, yaw, fov,
+    width, height, x, y, z, attachToBody,
+    roll, pitch, yaw, fov, context,
     ready: false, ambientLight, clearColor,
     pointLights, pointLightCols, dataArray, glowQueue,
     alphaQueue, particleQueue, lineQueue, active,
@@ -7430,8 +7430,8 @@ const AnimationLoop = (renderer, func) => {
     Overlay.c.width = renderer.c.width
     Overlay.c.height = renderer.c.height
     
-    //if(renderer.ready && typeof window[func] != 'undefined') await window[func]()
-    if(typeof window[func] != 'undefined') await window[func]()
+    if(renderer.ready && typeof window[func] != 'undefined') await window[func]()
+    //if(typeof window[func] != 'undefined') await window[func]()
       
     // mimic shader rotation function, for z-sorting.
     // transparent objects must be drawn in reverse depth order
@@ -7551,10 +7551,11 @@ const AnimationLoop = (renderer, func) => {
       }
     }
   }
-  window.addEventListener('DOMContentLoaded', () => {
+  console.log(renderer.attachToBody)
+  if(renderer.attachToBody && renderer.context.mode == 'webgl2'){
     renderer.ready = true
     loop()
-  })
+  }
 }
 
 const RGBToHSV = (R, G, B) => HSVFromRGB(R, G, B)
