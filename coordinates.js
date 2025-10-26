@@ -7430,7 +7430,8 @@ const AnimationLoop = (renderer, func) => {
     Overlay.c.width = renderer.c.width
     Overlay.c.height = renderer.c.height
     
-    if(renderer.ready && typeof window[func] != 'undefined') await window[func]()
+    //if(renderer.ready && typeof window[func] != 'undefined') await window[func]()
+    if(typeof window[func] != 'undefined') await window[func]()
       
     // mimic shader rotation function, for z-sorting.
     // transparent objects must be drawn in reverse depth order
