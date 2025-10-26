@@ -10,7 +10,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Coordinates boilerplate example</title>
+    <title>hextris! (single player game)</title>
     <style>
       html, body{
         background-repeat: no-repeat;
@@ -36,1308 +36,1269 @@
     </style>
   </head>
   <body>
-    <div class="loadingText" id="loadingTextDiv">loading....</div>
-    <script>
-      window.loaded = false
-      var loop = () => {
-        var el = document.querySelector('#loadingTextDiv')
-        el.innerHTML = 'loading' + ('.').repeat(((new Date()).getTime()/100*6)%8)
-        if(!window.loaded) requestAnimationFrame(loop)
-      }
-      loop()
-    </script>
-    <script type="module">
+<div class="loadingText" id="loadingTextDiv">loading....</div>
+<script>
+  window.loaded = false
+  var loop = () => {
+    var el = document.querySelector('#loadingTextDiv')
+    el.innerHTML = 'loading' + ('.').repeat(((new Date()).getTime()/100*6)%8)
+    if(!window.loaded) requestAnimationFrame(loop)
+  }
+  loop()
+</script>
+<script type="module">
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.js?2"
+  //"https://whr.rf.gd/coordinates.js?2"
+
+  var rendererOptions = {
+    width: 800*4,
+    height: 200*4,
+    attachToBody: false,
+    context: {
+      mode: '2d',
+    }
+  }
+  var sideboardCanvas = await Coordinates.Renderer(rendererOptions)
+  
+  var buttonTextureWidth = 800
+  var buttonTextureHeight = 100
+
+  var includeBases = [
+    {idx: 0, base: 3, include: true},
+    {idx: 1, base: 4, include: true},
+    {idx: 2, base: 5, include: true},
+    {idx: 3, base: 6, include: true},
+    {idx: 4, base: 7, include: true},
+  ]
+
+  var hasBombs = true
+  
+  var buttons = [
+    {
+      clickReady: true,
+      clickState: false,
+      oCState: false,
+      name: 'pause button',
+      oRot: 0,
+      rt: 0,
+      activeText: 'resume',
+      inactiveText: 'pause',
+      activeColor: 0xff0000,
+      inactiveColor: 0xff8800,
+      text: '',
+      color: '',
+      x: 78,
+      y: -30,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: 0,
+      fontSize: 80,
+    },
+    {
+      clickReady: true,
+      clickState: false,
+      oCState: false,
+      name: 'theme button',
+      oRot: 0,
+      rt: 0,
+      activeText: 'theme 1',
+      inactiveText: 'theme 1',
+      activeColor: 0x110044,
+      inactiveColor: 0x4400ff,
+      text: '',
+      color: '',
+      x: 135,
+      y: -35,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: .0,
+      fontSize: 80,
+    },
+    {
+      clickReady: true,
+      clickState: true,
+      oCState: true,
+      name: 'theme button',
+      oRot: 0,
+      rt: 0,
+      activeText: 'theme 2',
+      inactiveText: 'theme 2',
+      activeColor: 0x441111,
+      inactiveColor: 0xff2222,
+      text: '',
+      color: '',
+      x: 135,
+      y: -55,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: .0,
+      fontSize: 80,
+    },
+    {
+      clickReady: true,
+      clickState: true,
+      oCState: true,
+      name: 'theme button',
+      oRot: 0,
+      rt: 0,
+      activeText: 'theme 3',
+      inactiveText: 'theme 3',
+      activeColor: 0x114422,
+      inactiveColor: 0x44ff66,
+      text: '',
+      color: '',
+      x: 135,
+      y: -75,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: .0,
+      fontSize: 80,
+    },
+    {
+      clickReady: true,
+      clickState: hasBombs,
+      oCState: hasBombs,
+      name: 'bombs button',
+      oRot: 0,
+      rt: 0,
+      activeText: 'bombs!💣',
+      inactiveText: 'NO bombs',
+      activeColor: 0xff0000,
+      inactiveColor: 0x00ff22,
+      text: '',
+      color: '',
+      x: 78,
+      y: -70,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: .0,
+      fontSize: 65,
+    },
+    {
+      clickReady: true,
+      clickState: includeBases[0].include,
+      oCState: includeBases[0].include,
+      name: 'base 3 button',
+      oRot: 0,
+      rt: 0,
+      activeText: 'base 3 on',
+      inactiveText: 'base 3 off',
+      activeColor: 0x00ff22,
+      inactiveColor: 0xff0000,
+      text: '',
+      color: '',
+      x: 135,
+      y: 75,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: .0,
+      fontSize: 60,
+    },
+    {
+      clickReady: true,
+      clickState: includeBases[1].include,
+      oCState: includeBases[1].include,
+      name: 'base 4 button',
+      oRot: 0,
+      rt: 0,
+      activeText: 'base 4 on',
+      inactiveText: 'base 4 off',
+      activeColor: 0x00ff22,
+      inactiveColor: 0xff0000,
+      text: '',
+      color: '',
+      x: 135,
+      y: 55,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: .0,
+      fontSize: 60,
+    },
+    {
+      clickReady: true,
+      clickState: includeBases[2].include,
+      oCState: includeBases[2].include,
+      name: 'base 5 button',
+      oRot: 0,
+      rt: 0,
+      activeText: 'base 5 on',
+      inactiveText: 'base 5 off',
+      activeColor: 0x00ff22,
+      inactiveColor: 0xff0000,
+      text: '',
+      color: '',
+      x: 135,
+      y: 35,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: .0,
+      fontSize: 60,
+    },
+    {
+      clickReady: true,
+      clickState: includeBases[3].include,
+      oCState: includeBases[3].include,
+      name: 'base 6 button',
+      oRot: 0,
+      rt: 0,
+      activeText: 'base 6 on',
+      inactiveText: 'base 6 off',
+      activeColor: 0x00ff22,
+      inactiveColor: 0xff0000,
+      text: '',
+      color: '',
+      x: 135,
+      y: 15,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: .0,
+      fontSize: 60,
+    },
+    {
+      clickReady: true,
+      clickState: includeBases[4].include,
+      oCState: includeBases[4].include,
+      name: 'base 7 button',
+      oRot: 0,
+      rt: 0,
+      activeText: 'base 7 on',
+      inactiveText: 'base 7 off',
+      activeColor: 0x00ff22,
+      inactiveColor: 0xff0000,
+      text: '',
+      color: '',
+      x: 135,
+      y: -5,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: .0,
+      fontSize: 60,
+    },
+    {
+      clickReady: true,
+      clickState: true,
+      oCState: true,
+      name: 'show config button',
+      oRot: 0,
+      rt: 0,
+      activeText: 'show config',
+      inactiveText: 'hide config',
+      activeColor: 0xff8800,
+      inactiveColor: 0xff0000,
+      text: '',
+      color: '',
+      x: 78,
+      y: -50,
+      z: 0,
+      roll: 0,
+      pitch: 0,
+      yaw: 0,
+      fontSize: 50,
+    },
+  ]
+  
+  
+  var rendererOptions = {
+    width: buttonTextureWidth,
+    height: buttonTextureHeight,
+    attachToBody: false,
+    context: {
+      mode: '2d',
+    }
+  }
+  var scratchCanvas = await Coordinates.Renderer(rendererOptions)
+  
+  var rendererOptions = {
+    ambientLight: 1, margin : 0,
+    width: 1600, height: 1200, fov: 3e3,
+    //width: 960, height: 540, fov: 3e3/2,
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+
+  var refTexture1 = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_background_1.jpg'
+  var refTexture2 = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_background_2.jpg'
+  var refTexture3 = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_background_3.jpg'
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  var x, y, z, s, q, v, ls, d, p
+  var boardCL = 6*16
+  var fact = 2, totalPieces
+  var pieceSize = 81 / boardCL * 2 * fact
+  var mag = pieceSize
+  var dataArray = [], timeOfDeath
+  var margin = 0, pieceQueue
+  var box, mag, swapped
+  var cl = 50 / fact
+  var rw = 100 / fact
+  var sp = .2
+  var geometryData, baseBox, boxShape
+  var alive, paused, base, rowsCompleted
+  var pieces, basePieces, sourcePieces
+  var baseRectangle, pieceShapes, baseShapes
+  var curPiece, swapPiece, tempPiece, shadowPiece
+  var didDrop, keyholdCount, keys, pieceTimer, pieceTimerInterval
+  var homing = 3, runOnce = false
+  var level, advFreq, shotTaken, ot
+  var flashes, lastPieceWasBomb
+
+  var initQueueLength = 4
+  
+  const PushPieceToQueue = () => {
+    var base, pid, gid = 0, isBomb
+    var x = -80
+    var y = 95 - (initQueueLength - 1) * mag * 9
+    var z = -.1
+    var ix = x
+    var iy = y
+    var iz = z
+
+    var ct = 0
     
-      import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.js?2"
-      //"https://whr.rf.gd/coordinates.js?2"
+    //base = (Rn() * sourcePieces.length) | 0
     
-      var rendererOptions = {
-        width: 800*4,
-        height: 200*4,
-        attachToBody: false,
-        context: {
-          mode: '2d',
-        }
-      }
-      var sideboardCanvas = await Coordinates.Renderer(rendererOptions)
+    
+    var l = includeBases.filter(v=>v.include)
+    var cl = l[(Rn()*l.length)|0]
+    base = cl.idx
+    
+    if(hasBombs && (Rn() < .15 && (pieceQueue.length && !pieceQueue[pieceQueue.length-1].isBomb))){
+      base = 0
+      pid = 1
+      isBomb = true
+    }else{
+      pid = (pieces[base].length * Rn()) | 0
+      isBomb = false
+    }
+    //pieces.forEach((v, i) =>{if(includeBases[i].include && i < base) gid += pieces[i].length})
+    //gid += pid
+    //gid *= 1e4
+    gid = base * 1e3 + pid * 100
+    pieceQueue.push({ base, pid, gid, isBomb,
+                      x, y, z, ix, iy, iz })
+  }
+
+  const SpawnPiece = () => {
+    swapped = false
+    var res = pieceQueue.shift()
+    PushPieceToQueue()
+    curPiece.base = res.base
+    curPiece.pid = res.pid
+    curPiece.gid = res.gid
+    lastPieceWasBomb = (curPiece.isBomb = res.isBomb)
+    curPiece.ix = 0
+    curPiece.iy = mag * 55 / fact
+    curPiece.iz = 0
+    curPiece.x = res.ix
+    curPiece.y = res.iy
+    curPiece.z = res.iz
+    pieceShapes[curPiece.base][curPiece.pid].vertices = structuredClone(baseShapes[curPiece.base][curPiece.pid])
+    pieces[curPiece.base][curPiece.pid] = structuredClone(basePieces[curPiece.base][curPiece.pid])
+    
+    shadowPiece.pid = curPiece.pid
+    shadowPiece.x = 0
+    shadowPiece.y = mag * 55 / fact
+    shadowPiece.z = 0
+    shadowPiece.ix = shadowPiece.x
+    shadowPiece.iy = shadowPiece.y
+    shadowPiece.iz = shadowPiece.z
+    DoShadowPiece()
+  }
+
+  const LoadGame = async () => {
+    box = Array(1e4).fill(0)
+    curPiece = {
+      x, y, z,
+      ix:0, iy:0, iz:0,
+      gid: 0, base: 0,
+      pid: -1, isBomb: false,
+    }
+    swapPiece = structuredClone(curPiece)
+    tempPiece = structuredClone(curPiece)
+    shadowPiece = structuredClone(curPiece)
+    swapped = false
+    alive = true
+    paused = false
+    rowsCompleted = 0
+    pieceQueue = []
+    LoadSourcePieces()
+    pieces = structuredClone(sourcePieces)
+    basePieces = structuredClone(pieces)
+    pieceTimer = 0
+    pieceTimerInterval = .015
+    keyholdCount = 0
+    didDrop = false
+    keys = Array(256).fill(false)
+    homing = 3, ot = 0
+    level = 1
+    shotTaken = false
+    flashes = []
+    lastPieceWasBomb = true
+    
+    if(!runOnce){
+      runOnce = true
+      baseShapes = Array(sourcePieces.length).fill().map(v=>[])
+      pieceShapes = Array(sourcePieces.length).fill().map(v=>[])
       
-      var buttonTextureWidth = 800
-      var buttonTextureHeight = 100
-
-      var buttons = [
-        {
-          clickReady: true,
-          clickState: false,
-          oCState: false,
-          name: 'pause button',
-          oRot: 0,
-          rt: 0,
-          activeText: 'resume',
-          inactiveText: 'pause',
-          activeColor: 0xff0000,
-          inactiveColor: 0xff8800,
-          text: '',
-          color: '',
-          x: 78,
-          y: -30,
-          z: 0,
-          roll: 0,
-          pitch: 0,
-          yaw: 0,
-        },
-        {
-          clickReady: true,
-          clickState: false,
-          oCState: false,
-          name: 'test button',
-          oRot: 0,
-          rt: 0,
-          activeText: 'theme 1',
-          inactiveText: 'theme 1',
-          activeColor: 0x110044,
-          inactiveColor: 0x4400ff,
-          text: '',
-          color: '',
-          x: 78,
-          y: -45,
-          z: 0,
-          roll: 0,
-          pitch: 0,
-          yaw: .0,
-        },
-        {
-          clickReady: true,
-          clickState: true,
-          oCState: true,
-          name: 'test button',
-          oRot: 0,
-          rt: 0,
-          activeText: 'theme 2',
-          inactiveText: 'theme 2',
-          activeColor: 0x441111,
-          inactiveColor: 0xff2222,
-          text: '',
-          color: '',
-          x: 78,
-          y: -60,
-          z: 0,
-          roll: 0,
-          pitch: 0,
-          yaw: .0,
-        },
-        {
-          clickReady: true,
-          clickState: true,
-          oCState: true,
-          name: 'test button',
-          oRot: 0,
-          rt: 0,
-          activeText: 'theme 3',
-          inactiveText: 'theme 3',
-          activeColor: 0x114422,
-          inactiveColor: 0x44ff66,
-          text: '',
-          color: '',
-          x: 78,
-          y: -75,
-          z: 0,
-          roll: 0,
-          pitch: 0,
-          yaw: .0,
-        },
-      ]
-      
-      
-      var rendererOptions = {
-        width: buttonTextureWidth,
-        height: buttonTextureHeight,
-        attachToBody: false,
-        context: {
-          mode: '2d',
-        }
-      }
-      var scratchCanvas = await Coordinates.Renderer(rendererOptions)
-      
-      var rendererOptions = {
-        ambientLight: 1, margin : 0,
-        width: 1200, height: 1200, fov: 3e3,
-        //width: 960, height: 540, fov: 3e3/2,
-      }
-      var renderer = await Coordinates.Renderer(rendererOptions)
-
-      var refTexture1 = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_background_1.jpg'
-      var refTexture2 = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_background_2.jpg'
-      var refTexture3 = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_background_3.jpg'
-      
-      var S = Math.sin
-      var C = Math.cos
-      var Rn = Math.random
-      var x, y, z, s, q, v, ls, d, p
-      var boardCL = 6*16
-      var fact = 2, totalPieces
-      var pieceSize = 81 / boardCL * 2 * fact
-      var mag = pieceSize
-      var dataArray = []
-      var margin = 0, pieceQueue
-      var box, mag, swapped
-      var cl = 50 / fact
-      var rw = 100 / fact
-      var sp = .2, hasBombs
-      var geometryData
-      var alive, paused, base, rowsCompleted
-      var pieces, basePieces, sourcePieces
-      var baseRectangle, pieceShapes, baseShapes
-      var curPiece, swapPiece, tempPiece, shadowPiece
-      var didDrop, keyholdCount, keys, pieceTimer, pieceTimerInterval
-      var homing = 3
-      var level, advFreq, shotTaken, ot
-      var flashes, lastPieceWasBomb
-
-      var initQueueLength = 4
-      
-      const PushPieceToQueue = () => {
-        var base, pid, gid = 0, isBomb
-        var x = -80
-        var y = 95 - (initQueueLength - 1) * mag * 9
-        var z = -.1
-        var ix = x
-        var iy = y
-        var iz = z
-
-        var ct = 0
-        
-        base = (Rn() * sourcePieces.length) | 0
-        var hasBombs = includeBases.filter(v=> v.base == pieces[base][0].length)[0].hasBombs
-        
-        if(hasBombs && (Rn() < .1 && (pieceQueue.length && !pieceQueue[pieceQueue.length-1].isBomb))){
-          base = 0
-          pid = 1
-          isBomb = true
-        }else{
-          pid = (pieces[base].length * Rn()) | 0
-          isBomb = false
-        }
-        pieces.forEach((v, i) =>{if(i<base) gid += pieces[i].length})
-        gid += pid
-        gid *= 1e4
-        pieceQueue.push({ base, pid, gid, isBomb,
-                          x, y, z, ix, iy, iz })
-      }
-
-      const SpawnPiece = () => {
-        swapped = false
-        var res = pieceQueue.shift()
-        PushPieceToQueue()
-        curPiece.base = res.base
-        curPiece.pid = res.pid
-        curPiece.gid = res.gid
-        lastPieceWasBomb = (curPiece.isBomb = res.isBomb)
-        curPiece.ix = 0
-        curPiece.iy = mag * 55 / fact
-        curPiece.iz = 0
-        curPiece.x = res.ix
-        curPiece.y = res.iy
-        curPiece.z = res.iz
-        pieceShapes[curPiece.base][curPiece.pid].vertices = structuredClone(baseShapes[curPiece.base][curPiece.pid])
-        pieces[curPiece.base][curPiece.pid] = structuredClone(basePieces[curPiece.base][curPiece.pid])
-        
-        shadowPiece.pid = curPiece.pid
-        shadowPiece.x = 0
-        shadowPiece.y = mag * 55 / fact
-        shadowPiece.z = 0
-        shadowPiece.ix = shadowPiece.x
-        shadowPiece.iy = shadowPiece.y
-        shadowPiece.iz = shadowPiece.z
-        DoShadowPiece()
-      }
-
-      const LoadGame = async () => {
-        box = Array(1e4).fill(0)
-        curPiece = {
-          x, y, z,
-          ix:0, iy:0, iz:0,
-          gid: 0, base: 0,
-          pid: -1, isBomb: false,
-        }
-        swapPiece = structuredClone(curPiece)
-        tempPiece = structuredClone(curPiece)
-        shadowPiece = structuredClone(curPiece)
-        swapped = false
-        alive = true
-        paused = false
-        rowsCompleted = 0
-        pieceQueue = []
-        LoadSourcePieces()
-        pieces = structuredClone(sourcePieces)
-        basePieces = structuredClone(pieces)
-        pieceTimer = 0
-        pieceTimerInterval = .015
-        keyholdCount = 0
-        didDrop = false
-        keys = Array(256).fill(false)
-        homing = 3, ot = 0
-        level = 1
-        shotTaken = false
-        flashes = []
-        lastPieceWasBomb = true
-        baseShapes = Array(sourcePieces.length).fill().map(v=>[])
-        pieceShapes = Array(sourcePieces.length).fill().map(v=>[])
-        
-        var geoOptions = {
-          shapeType: 'rectangle',
-          name: 'piece',
-          subs: -1,
-          flipNormals: true,
-          size: (2**.5/2-margin)*pieceSize,
-          color: 0xffffff,
-          colorMix: .5
-        }
-        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-          await sourcePieces.forEach(async (pieces, ipx) => {
-            await pieces.forEach(async pointArray => {
-              await Coordinates.ShapeFromArray(geometry, pointArray).then(async res => {
-                pieceShapes[ipx].push(res)
-                baseShapes[ipx].push(structuredClone(res.vertices))
-                await shader.ConnectGeometry(res)
-              })
-            })
-          })
-          baseRectangle = geometry
-          await shader.ConnectGeometry(geometry)
-        })
-        
-        dataArray = []
-        geometryData = {
-          uvs: [],
-          normals: [],
-          vertices: [],
-          normalVecs: [],
-        }
-        var offuvx = -.5001
-        var offuvy = -.50005
-        for(var i = 0; i < cl*rw; i++){
-          if((i+(i/cl|0))%2){
-            dataArray.push(64, 0, 255)
-          }else{
-            dataArray.push(0, 255, 0)
-          }
-          d = 2**.5 * sp / 2
-
-          p = Math.PI*2 / 4 * 0 + Math.PI/4
-          x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
-          y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
-          z = 0
-          geometryData.vertices.push(x, y, z)
-          geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
-          geometryData.normalVecs.push(0, 0, 1)
-          geometryData.normals.push(x, y, 0, x, y, 1)
-
-          p = Math.PI*2 / 4 * 3 + Math.PI/4
-          x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
-          y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
-          z = 0
-          geometryData.vertices.push(x, y, z)
-          geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
-          geometryData.normalVecs.push(0, 0, 1)
-          geometryData.normals.push(x, y, 0, x, y, 1)
-
-          p = Math.PI*2 / 4 * 2 + Math.PI/4
-          x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
-          y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
-          z = 0
-          geometryData.vertices.push(x, y, z)
-          geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
-          geometryData.normalVecs.push(0, 0, 1)
-          geometryData.normals.push(x, y, 0, x, y, 1)
-
-          p = Math.PI*2 / 4 * 2 + Math.PI/4
-          x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
-          y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
-          z = 0
-          geometryData.vertices.push(x, y, z)
-          geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
-          geometryData.normalVecs.push(0, 0, 1)
-          geometryData.normals.push(x, y, 0, x, y, 1)
-
-          p = Math.PI*2 / 4 * 1 + Math.PI/4
-          x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
-          y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
-          z = 0
-          geometryData.vertices.push(x, y, z)
-          geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
-          geometryData.normalVecs.push(0, 0, 1)
-          geometryData.normals.push(x, y, 0, x, y, 1)
-
-          p = Math.PI*2 / 4 * 0 + Math.PI/4
-          x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
-          y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
-          z = 0
-          geometryData.vertices.push(x, y, z)
-          geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
-          geometryData.normalVecs.push(0, 0, -1)
-          geometryData.normals.push(x, y, 0, x, y, -1)
-
-        }
-
-        var geoOptions = {
-          shapeType: 'custom shape',
-          name: 'box',
-          geometryData,
-          //size: 7,
-          //subs: 2,
-          flatShading: true,
-          dataArrayWidth: cl,
-          dataArrayHeight: rw,
-          scaleX: 100/1.062,
-          scaleY: 100/1.062,
-          scaleZ: 100/1.062,
-          x: -1.75,
-          y: -1,
-          colorMix: 0,
-          dataArrayFormat: renderer.gl.RGB, // default: renderer.gl.RGBA (w/alpha)
-          map: dataArray
-        }
-        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-          baseBox = structuredClone(geometry.vertices)
-          boxShape = geometry
-          shader.ConnectGeometry(geometry)
-        })
-
-
-        for(var i = initQueueLength; i--; ) PushPieceToQueue()
-        SpawnPiece()        
-      }
-      
-      const LoadSourcePieces = () => {
-        var resource = [[[[0,2,0],[0,0,0],[2,0,0]],[[4,0,0],[2,0,0],[0,0,0]]], [[[2,4,0],[2,2,0],[0,2,0],[0,0,0]],[[4,0,0],[2,0,0],[0,0,0],[0,2,0]],[[0,0,0],[0,2,0],[2,2,0],[2,0,0]],[[0,0,0],[0,2,0],[0,4,0],[0,6,0]],[[2,0,0],[2,2,0],[4,0,0],[0,0,0]],[[0,2,0],[2,2,0],[0,4,0],[2,0,0]],[[4,0,0],[2,0,0],[4,2,0],[0,0,0]]],[[[2,0,0],[0,0,0],[4,0,0],[4,2,0],[6,2,0]],[[2,2,0],[4,2,0],[2,4,0],[0,2,0],[2,0,0]],[[2,0,0],[4,0,0],[6,0,0],[2,2,0],[0,2,0]],[[2,2,0],[0,2,0],[0,4,0],[2,0,0],[2,4,0]],[[0,2,0],[0,4,0],[2,4,0],[2,2,0],[0,0,0]],[[0,2,0],[0,0,0],[2,0,0],[0,4,0],[0,6,0]],[[0,2,0],[0,0,0],[2,0,0],[4,0,0],[6,0,0]],[[4,0,0],[2,0,0],[0,0,0],[2,2,0],[2,4,0]],[[4,2,0],[2,2,0],[0,2,0],[0,4,0],[2,0,0]],[[0,2,0],[2,2,0],[0,4,0],[0,0,0],[0,6,0]],[[2,4,0],[2,2,0],[2,6,0],[0,2,0],[2,0,0]],[[2,2,0],[2,0,0],[4,2,0],[4,4,0],[0,2,0]],[[0,4,0],[2,4,0],[0,2,0],[0,0,0],[2,0,0]],[[2,2,0],[4,2,0],[0,2,0],[4,4,0],[0,0,0]],[[2,0,0],[0,0,0],[0,2,0],[4,0,0],[0,4,0]],[[0,2,0],[0,4,0],[0,6,0],[0,0,0],[0,8,0]],[[2,0,0],[2,2,0],[4,2,0],[4,4,0],[0,0,0]],[[2,4,0],[4,4,0],[2,2,0],[2,0,0],[0,0,0]]],[[[4,6,0],[4,4,0],[2,4,0],[2,2,0],[2,0,0],[0,0,0]],[[2,2,0],[0,2,0],[0,0,0],[2,4,0],[2,6,0],[2,8,0]],[[2,0,0],[2,2,0],[2,4,0],[0,0,0],[0,4,0],[4,2,0]],[[2,0,0],[2,2,0],[2,4,0],[2,6,0],[0,4,0],[0,6,0]],[[0,2,0],[2,2,0],[2,4,0],[0,4,0],[0,6,0],[0,0,0]],[[2,4,0],[2,2,0],[2,0,0],[4,4,0],[4,6,0],[0,4,0]],[[2,0,0],[2,2,0],[4,2,0],[4,0,0],[0,2,0],[4,4,0]],[[4,0,0],[2,0,0],[4,2,0],[0,0,0],[4,4,0],[2,2,0]],[[4,2,0],[4,0,0],[2,0,0],[2,2,0],[0,0,0],[0,2,0]],[[2,4,0],[2,2,0],[2,0,0],[4,0,0],[4,2,0],[0,4,0]],[[4,4,0],[2,4,0],[6,4,0],[2,2,0],[2,0,0],[0,4,0]],[[2,2,0],[2,4,0],[0,2,0],[2,0,0],[0,0,0],[4,2,0]],[[4,2,0],[2,2,0],[0,2,0],[0,4,0],[4,4,0],[4,0,0]],[[2,2,0],[2,0,0],[4,0,0],[0,0,0],[0,2,0],[6,0,0]],[[0,6,0],[0,4,0],[0,8,0],[0,2,0],[0,0,0],[0,10,0]],[[0,2,0],[2,2,0],[4,2,0],[0,4,0],[4,0,0],[2,4,0]],[[4,0,0],[4,2,0],[2,2,0],[2,4,0],[0,2,0],[6,0,0]],[[0,6,0],[0,4,0],[0,2,0],[0,0,0],[2,2,0],[2,6,0]],[[2,2,0],[4,2,0],[2,0,0],[0,0,0],[4,4,0],[6,4,0]],[[2,4,0],[0,4,0],[2,2,0],[0,2,0],[2,0,0],[0,6,0]],[[0,2,0],[2,2,0],[4,2,0],[6,2,0],[6,0,0],[4,4,0]],[[2,4,0],[2,2,0],[4,2,0],[2,0,0],[0,4,0],[0,6,0]],[[2,4,0],[4,4,0],[2,6,0],[2,2,0],[2,0,0],[0,6,0]],[[0,4,0],[0,2,0],[2,4,0],[2,2,0],[4,4,0],[2,0,0]],[[0,4,0],[2,4,0],[2,2,0],[2,6,0],[4,2,0],[2,0,0]],[[2,2,0],[2,4,0],[0,2,0],[2,6,0],[2,0,0],[2,8,0]],[[2,2,0],[2,4,0],[2,6,0],[2,0,0],[4,2,0],[0,2,0]],[[4,2,0],[2,2,0],[4,0,0],[2,4,0],[0,2,0],[6,2,0]],[[2,2,0],[2,0,0],[4,2,0],[0,0,0],[6,2,0],[8,2,0]],[[2,0,0],[2,2,0],[2,4,0],[0,4,0],[0,0,0],[4,0,0]],[[4,6,0],[4,4,0],[2,4,0],[2,2,0],[0,2,0],[0,0,0]],[[2,0,0],[0,0,0],[0,2,0],[4,0,0],[0,4,0],[0,6,0]],[[4,4,0],[2,4,0],[0,4,0],[2,6,0],[4,2,0],[4,0,0]],[[2,0,0],[4,0,0],[2,2,0],[6,0,0],[0,2,0],[4,2,0]],[[4,2,0],[6,2,0],[2,2,0],[0,2,0],[4,0,0],[8,2,0]],[[2,0,0],[4,0,0],[2,2,0],[0,2,0],[6,0,0],[6,2,0]],[[2,4,0],[4,4,0],[0,4,0],[0,2,0],[4,2,0],[0,0,0]],[[2,2,0],[0,2,0],[2,4,0],[0,0,0],[4,4,0],[6,4,0]],[[2,2,0],[2,4,0],[4,2,0],[4,0,0],[2,6,0],[0,6,0]],[[2,0,0],[2,2,0],[2,4,0],[0,0,0],[2,6,0],[0,6,0]],[[0,2,0],[0,0,0],[0,4,0],[0,6,0],[2,4,0],[2,0,0]],[[4,2,0],[4,0,0],[4,4,0],[4,6,0],[2,2,0],[0,2,0]],[[2,2,0],[2,4,0],[2,0,0],[0,0,0],[4,4,0],[6,4,0]],[[2,0,0],[2,2,0],[4,2,0],[2,4,0],[2,6,0],[0,6,0]],[[2,2,0],[2,4,0],[2,0,0],[0,4,0],[0,6,0],[0,0,0]],[[2,0,0],[2,2,0],[4,0,0],[0,2,0],[6,0,0],[0,4,0]],[[2,6,0],[0,6,0],[2,4,0],[2,2,0],[2,0,0],[2,8,0]],[[2,0,0],[2,2,0],[0,2,0],[2,4,0],[4,0,0],[6,0,0]],[[4,0,0],[6,0,0],[2,0,0],[0,0,0],[0,2,0],[0,4,0]],[[2,2,0],[2,4,0],[2,0,0],[0,0,0],[4,2,0],[6,2,0]],[[4,0,0],[4,2,0],[6,2,0],[8,2,0],[2,0,0],[0,0,0]],[[4,2,0],[4,0,0],[2,2,0],[6,2,0],[0,2,0],[0,4,0]],[[2,4,0],[0,4,0],[4,4,0],[0,2,0],[0,0,0],[4,6,0]],[[8,0,0],[8,2,0],[6,0,0],[4,0,0],[2,0,0],[0,0,0]],[[4,2,0],[6,2,0],[6,4,0],[2,2,0],[0,2,0],[0,0,0]],[[0,2,0],[0,0,0],[2,0,0],[4,0,0],[6,0,0],[8,0,0]],[[2,2,0],[4,2,0],[0,2,0],[0,0,0],[0,4,0],[6,2,0]],[[4,2,0],[2,2,0],[4,0,0],[0,2,0],[6,0,0],[8,0,0]],[[4,2,0],[6,2,0],[2,2,0],[0,2,0],[0,4,0],[6,0,0]],[[0,2,0],[0,0,0],[2,0,0],[4,0,0],[0,4,0],[4,2,0]]],[[[2,2,0],[2,4,0],[2,0,0],[2,6,0],[0,4,0],[0,2,0],[4,4,0]],[[2,2,0],[0,2,0],[0,0,0],[4,2,0],[2,0,0],[2,4,0],[4,4,0]],[[2,2,0],[2,0,0],[4,2,0],[6,2,0],[4,0,0],[0,2,0],[0,0,0]],[[2,4,0],[2,6,0],[2,2,0],[0,6,0],[2,8,0],[0,4,0],[2,0,0]],[[2,4,0],[0,4,0],[2,2,0],[2,6,0],[0,2,0],[2,0,0],[2,8,0]],[[4,0,0],[2,0,0],[2,2,0],[4,2,0],[6,2,0],[4,4,0],[0,2,0]],[[2,4,0],[0,4,0],[2,2,0],[4,2,0],[4,0,0],[4,4,0],[0,2,0]],[[2,4,0],[2,6,0],[2,2,0],[2,0,0],[0,4,0],[4,2,0],[0,0,0]],[[4,2,0],[4,0,0],[2,0,0],[6,2,0],[6,4,0],[4,4,0],[0,0,0]],[[0,2,0],[0,0,0],[0,4,0],[0,6,0],[2,2,0],[4,2,0],[4,4,0]],[[2,4,0],[2,2,0],[0,2,0],[0,4,0],[2,0,0],[4,2,0],[0,0,0]],[[4,0,0],[6,0,0],[2,0,0],[2,2,0],[0,2,0],[6,2,0],[0,0,0]],[[0,0,0],[0,2,0],[0,4,0],[0,6,0],[0,8,0],[2,0,0],[2,4,0]],[[6,2,0],[4,2,0],[2,2,0],[2,4,0],[2,0,0],[0,0,0],[8,2,0]],[[4,2,0],[6,2,0],[2,2,0],[2,0,0],[6,4,0],[2,4,0],[0,2,0]],[[2,4,0],[0,4,0],[2,2,0],[4,4,0],[2,0,0],[4,6,0],[0,2,0]],[[0,4,0],[0,2,0],[0,0,0],[2,2,0],[2,4,0],[2,6,0],[0,6,0]],[[0,2,0],[0,0,0],[2,0,0],[2,2,0],[0,4,0],[4,0,0],[2,4,0]],[[4,0,0],[6,0,0],[6,2,0],[2,0,0],[4,2,0],[0,0,0],[6,4,0]],[[0,2,0],[0,4,0],[2,4,0],[4,4,0],[4,2,0],[6,4,0],[4,0,0]],[[4,2,0],[4,4,0],[4,6,0],[4,0,0],[2,0,0],[0,0,0],[2,4,0]],[[2,4,0],[4,4,0],[2,2,0],[4,2,0],[6,4,0],[0,4,0],[4,0,0]],[[2,4,0],[2,2,0],[0,4,0],[4,2,0],[4,4,0],[2,0,0],[6,2,0]],[[2,2,0],[0,2,0],[4,2,0],[6,2,0],[2,0,0],[6,4,0],[4,0,0]],[[6,2,0],[4,2,0],[6,0,0],[2,2,0],[8,2,0],[0,2,0],[0,4,0]],[[0,4,0],[0,2,0],[2,4,0],[2,6,0],[4,4,0],[0,6,0],[0,0,0]],[[0,2,0],[2,2,0],[4,2,0],[4,0,0],[6,2,0],[0,0,0],[2,4,0]],[[4,2,0],[2,2,0],[2,4,0],[2,6,0],[2,0,0],[0,2,0],[0,0,0]],[[0,6,0],[2,6,0],[0,4,0],[2,8,0],[0,2,0],[0,8,0],[0,0,0]],[[0,4,0],[0,2,0],[2,2,0],[4,2,0],[2,0,0],[6,2,0],[4,0,0]],[[0,2,0],[0,4,0],[0,6,0],[2,2,0],[0,8,0],[2,0,0],[2,4,0]],[[2,0,0],[0,0,0],[0,2,0],[4,0,0],[4,2,0],[0,4,0],[6,2,0]],[[4,2,0],[2,2,0],[0,2,0],[2,4,0],[4,4,0],[0,0,0],[6,4,0]],[[2,2,0],[4,2,0],[2,4,0],[4,0,0],[2,6,0],[0,2,0],[4,4,0]],[[2,4,0],[2,6,0],[2,2,0],[4,2,0],[0,4,0],[0,6,0],[2,0,0]],[[2,2,0],[0,2,0],[4,2,0],[0,4,0],[4,4,0],[0,0,0],[2,0,0]],[[0,2,0],[0,4,0],[2,2,0],[4,2,0],[2,0,0],[4,4,0],[4,6,0]],[[4,0,0],[4,2,0],[2,2,0],[2,0,0],[6,0,0],[0,0,0],[4,4,0]],[[4,4,0],[2,4,0],[4,6,0],[4,2,0],[4,0,0],[4,8,0],[0,4,0]],[[2,2,0],[4,2,0],[0,2,0],[2,4,0],[0,4,0],[4,0,0],[0,0,0]],[[2,4,0],[4,4,0],[2,2,0],[4,6,0],[0,2,0],[2,0,0],[0,0,0]],[[2,0,0],[2,2,0],[0,2,0],[2,4,0],[4,2,0],[4,4,0],[4,6,0]],[[2,2,0],[2,0,0],[2,4,0],[2,6,0],[4,4,0],[0,0,0],[0,2,0]],[[4,2,0],[4,0,0],[6,0,0],[8,0,0],[2,2,0],[6,2,0],[0,2,0]],[[0,2,0],[0,4,0],[2,4,0],[4,4,0],[0,0,0],[2,0,0],[6,4,0]],[[4,2,0],[2,2,0],[2,4,0],[6,2,0],[2,0,0],[0,0,0],[6,0,0]],[[2,0,0],[0,0,0],[2,2,0],[2,4,0],[4,0,0],[0,2,0],[2,6,0]],[[4,0,0],[4,2,0],[4,4,0],[2,2,0],[4,6,0],[6,2,0],[0,2,0]],[[2,2,0],[2,4,0],[2,6,0],[0,6,0],[4,6,0],[2,0,0],[0,2,0]],[[4,2,0],[4,4,0],[2,4,0],[2,2,0],[2,6,0],[0,4,0],[4,0,0]],[[0,6,0],[0,4,0],[0,2,0],[2,2,0],[0,8,0],[0,10,0],[0,0,0]],[[2,2,0],[0,2,0],[4,2,0],[6,2,0],[0,0,0],[2,4,0],[2,6,0]],[[2,4,0],[0,4,0],[4,4,0],[6,4,0],[6,2,0],[6,0,0],[0,2,0]],[[0,4,0],[0,2,0],[2,2,0],[2,0,0],[0,0,0],[0,6,0],[2,6,0]],[[4,0,0],[2,0,0],[6,0,0],[6,2,0],[8,2,0],[0,0,0],[0,2,0]],[[4,0,0],[2,0,0],[6,0,0],[2,2,0],[0,2,0],[6,2,0],[0,4,0]],[[4,4,0],[2,4,0],[2,2,0],[6,4,0],[2,0,0],[0,4,0],[6,6,0]],[[2,4,0],[2,6,0],[2,2,0],[0,2,0],[4,6,0],[4,2,0],[2,0,0]],[[4,2,0],[4,4,0],[6,4,0],[4,0,0],[2,4,0],[2,6,0],[0,4,0]],[[2,6,0],[2,4,0],[0,6,0],[2,2,0],[4,6,0],[4,8,0],[2,0,0]],[[0,6,0],[0,8,0],[0,4,0],[0,2,0],[0,10,0],[0,0,0],[0,12,0]],[[4,2,0],[4,4,0],[2,4,0],[6,2,0],[6,0,0],[0,4,0],[6,4,0]],[[2,2,0],[2,0,0],[2,4,0],[2,6,0],[0,4,0],[2,8,0],[2,10,0]],[[2,2,0],[2,0,0],[4,2,0],[6,2,0],[0,0,0],[4,4,0],[6,4,0]],[[4,2,0],[4,4,0],[4,6,0],[4,0,0],[2,2,0],[0,2,0],[0,0,0]],[[2,6,0],[2,4,0],[2,8,0],[2,2,0],[0,2,0],[2,0,0],[2,10,0]],[[2,4,0],[2,6,0],[2,2,0],[0,2,0],[4,6,0],[2,0,0],[2,8,0]],[[2,2,0],[0,2,0],[0,4,0],[0,0,0],[0,6,0],[4,2,0],[2,0,0]],[[4,0,0],[6,0,0],[2,0,0],[2,2,0],[6,2,0],[0,0,0],[8,2,0]],[[2,2,0],[4,2,0],[4,4,0],[6,2,0],[4,0,0],[0,2,0],[6,4,0]],[[2,2,0],[0,2,0],[0,4,0],[4,2,0],[6,2,0],[2,4,0],[6,0,0]],[[6,2,0],[6,0,0],[4,0,0],[2,0,0],[6,4,0],[2,2,0],[0,0,0]],[[4,2,0],[4,4,0],[4,0,0],[6,2,0],[2,4,0],[2,6,0],[0,6,0]],[[4,2,0],[2,2,0],[0,2,0],[4,4,0],[0,0,0],[4,6,0],[2,4,0]],[[2,2,0],[2,0,0],[4,2,0],[6,2,0],[0,0,0],[4,4,0],[2,4,0]],[[2,4,0],[2,2,0],[4,4,0],[2,0,0],[0,0,0],[4,6,0],[4,2,0]],[[0,2,0],[2,2,0],[0,4,0],[0,0,0],[4,2,0],[6,2,0],[4,4,0]],[[2,0,0],[2,2,0],[2,4,0],[4,2,0],[2,6,0],[0,6,0],[0,8,0]],[[2,0,0],[4,0,0],[0,0,0],[6,0,0],[8,0,0],[6,2,0],[10,0,0]],[[2,4,0],[2,2,0],[2,6,0],[2,0,0],[4,0,0],[0,6,0],[0,0,0]],[[4,4,0],[2,4,0],[2,2,0],[2,0,0],[0,0,0],[4,6,0],[4,8,0]],[[2,4,0],[2,2,0],[4,4,0],[0,2,0],[4,6,0],[4,8,0],[2,0,0]],[[2,0,0],[2,2,0],[4,0,0],[6,0,0],[2,4,0],[0,2,0],[6,2,0]],[[0,2,0],[2,2,0],[0,4,0],[2,4,0],[2,0,0],[4,0,0],[6,0,0]],[[4,2,0],[6,2,0],[2,2,0],[8,2,0],[2,4,0],[0,4,0],[8,0,0]],[[0,6,0],[0,4,0],[0,8,0],[2,4,0],[2,2,0],[2,0,0],[2,8,0]],[[2,6,0],[2,8,0],[0,8,0],[2,4,0],[0,6,0],[2,2,0],[2,0,0]],[[4,2,0],[4,4,0],[2,2,0],[4,6,0],[2,0,0],[4,8,0],[0,0,0]],[[2,6,0],[2,4,0],[2,2,0],[2,8,0],[0,2,0],[0,0,0],[4,4,0]],[[6,2,0],[4,2,0],[6,0,0],[6,4,0],[2,2,0],[8,2,0],[0,2,0]],[[2,6,0],[2,4,0],[2,2,0],[4,2,0],[4,0,0],[4,6,0],[0,6,0]],[[4,0,0],[4,2,0],[6,2,0],[2,2,0],[8,2,0],[8,0,0],[0,2,0]],[[6,0,0],[8,0,0],[10,0,0],[4,0,0],[2,0,0],[2,2,0],[0,2,0]],[[2,4,0],[2,2,0],[4,2,0],[6,2,0],[0,4,0],[0,6,0],[4,0,0]],[[2,2,0],[0,2,0],[2,4,0],[2,6,0],[0,0,0],[4,2,0],[0,6,0]],[[0,0,0],[2,0,0],[4,0,0],[6,0,0],[6,2,0],[8,2,0],[10,2,0]],[[2,2,0],[4,2,0],[6,2,0],[0,2,0],[6,4,0],[4,0,0],[8,4,0]],[[2,2,0],[2,0,0],[4,2,0],[4,4,0],[0,0,0],[2,4,0],[6,4,0]],[[4,2,0],[2,2,0],[6,2,0],[4,0,0],[0,2,0],[6,4,0],[0,4,0]],[[0,2,0],[2,2,0],[0,4,0],[4,2,0],[6,2,0],[6,0,0],[0,6,0]],[[2,0,0],[4,0,0],[6,0,0],[8,0,0],[6,2,0],[2,2,0],[0,0,0]],[[2,0,0],[2,2,0],[2,4,0],[4,2,0],[6,2,0],[0,0,0],[2,6,0]],[[4,2,0],[6,2,0],[2,2,0],[2,4,0],[4,0,0],[0,2,0],[8,2,0]],[[2,0,0],[0,0,0],[2,2,0],[2,4,0],[2,6,0],[4,6,0],[0,4,0]],[[2,4,0],[4,4,0],[2,2,0],[2,0,0],[6,4,0],[8,4,0],[0,4,0]],[[2,6,0],[0,6,0],[2,4,0],[4,6,0],[6,6,0],[2,2,0],[2,0,0]],[[6,2,0],[4,2,0],[2,2,0],[0,2,0],[6,0,0],[0,4,0],[0,0,0]],[[2,2,0],[4,2,0],[4,0,0],[0,2,0],[4,4,0],[6,0,0],[0,4,0]],[[2,2,0],[2,4,0],[2,6,0],[2,0,0],[2,8,0],[0,0,0],[0,6,0]],[[4,0,0],[2,0,0],[2,2,0],[2,4,0],[0,4,0],[2,6,0],[0,6,0]],[[4,4,0],[6,4,0],[2,4,0],[0,4,0],[0,6,0],[0,2,0],[0,0,0]],[[4,2,0],[2,2,0],[2,4,0],[4,0,0],[6,2,0],[0,4,0],[2,6,0]],[[4,2,0],[4,4,0],[2,4,0],[4,0,0],[0,4,0],[4,6,0],[6,2,0]],[[4,0,0],[6,0,0],[6,2,0],[2,0,0],[0,0,0],[8,2,0],[8,4,0]],[[2,4,0],[2,2,0],[2,6,0],[0,6,0],[2,0,0],[2,8,0],[4,2,0]],[[0,6,0],[2,6,0],[0,4,0],[0,2,0],[0,0,0],[4,6,0],[4,8,0]],[[2,2,0],[2,4,0],[2,6,0],[4,2,0],[0,4,0],[2,8,0],[2,0,0]],[[4,0,0],[2,0,0],[4,2,0],[0,0,0],[4,4,0],[2,4,0],[0,4,0]],[[6,0,0],[6,2,0],[6,4,0],[4,4,0],[2,4,0],[0,4,0],[4,6,0]],[[0,0,0],[2,0,0],[0,2,0],[4,0,0],[4,2,0],[4,4,0],[4,6,0]],[[2,4,0],[4,4,0],[4,2,0],[0,4,0],[0,2,0],[6,2,0],[0,0,0]],[[4,2,0],[6,2,0],[2,2,0],[6,0,0],[4,4,0],[0,2,0],[0,0,0]],[[2,2,0],[2,0,0],[0,0,0],[2,4,0],[0,4,0],[4,4,0],[6,4,0]],[[4,2,0],[2,2,0],[6,2,0],[0,2,0],[0,0,0],[0,4,0],[2,0,0]],[[2,2,0],[2,0,0],[2,4,0],[2,6,0],[0,0,0],[4,2,0],[2,8,0]],[[0,0,0],[2,0,0],[4,0,0],[4,2,0],[4,4,0],[0,2,0],[6,2,0]],[[0,6,0],[0,4,0],[0,2,0],[2,2,0],[4,2,0],[0,8,0],[2,0,0]],[[6,0,0],[8,0,0],[4,0,0],[6,2,0],[2,0,0],[2,2,0],[0,2,0]],[[2,6,0],[2,4,0],[4,6,0],[0,6,0],[2,2,0],[0,2,0],[0,0,0]],[[4,0,0],[4,2,0],[6,0,0],[2,0,0],[0,0,0],[4,4,0],[0,2,0]],[[0,4,0],[0,6,0],[0,2,0],[0,8,0],[2,8,0],[4,8,0],[0,0,0]],[[8,0,0],[6,0,0],[4,0,0],[10,0,0],[2,0,0],[0,0,0],[10,2,0]],[[4,2,0],[2,2,0],[6,2,0],[6,4,0],[6,6,0],[0,2,0],[0,0,0]],[[2,2,0],[4,2,0],[2,4,0],[4,0,0],[2,6,0],[6,0,0],[0,2,0]],[[2,4,0],[2,2,0],[4,4,0],[2,0,0],[6,4,0],[0,0,0],[6,6,0]],[[0,4,0],[0,2,0],[0,0,0],[2,0,0],[4,0,0],[0,6,0],[0,8,0]],[[4,2,0],[2,2,0],[6,2,0],[8,2,0],[0,2,0],[0,0,0],[0,4,0]],[[2,6,0],[2,8,0],[2,4,0],[4,4,0],[2,2,0],[0,4,0],[2,0,0]],[[2,2,0],[2,0,0],[2,4,0],[4,4,0],[4,0,0],[2,6,0],[0,6,0]],[[2,4,0],[2,2,0],[4,2,0],[2,6,0],[4,0,0],[0,6,0],[0,2,0]],[[2,2,0],[2,4,0],[2,6,0],[2,8,0],[0,8,0],[0,10,0],[2,0,0]],[[4,4,0],[2,4,0],[4,2,0],[0,4,0],[4,0,0],[0,2,0],[2,0,0]],[[2,0,0],[0,0,0],[4,0,0],[4,2,0],[0,2,0],[6,2,0],[6,4,0]],[[0,2,0],[0,0,0],[0,4,0],[2,4,0],[2,6,0],[4,4,0],[2,8,0]],[[0,2,0],[0,0,0],[2,2,0],[4,2,0],[6,2,0],[6,4,0],[8,4,0]],[[4,2,0],[4,4,0],[2,2,0],[4,0,0],[4,6,0],[0,2,0],[4,8,0]],[[4,4,0],[2,4,0],[0,4,0],[6,4,0],[0,2,0],[2,6,0],[0,0,0]],[[4,2,0],[2,2,0],[4,0,0],[4,4,0],[0,2,0],[4,6,0],[6,6,0]],[[6,2,0],[4,2,0],[4,4,0],[2,2,0],[8,2,0],[0,2,0],[8,0,0]],[[6,2,0],[8,2,0],[4,2,0],[2,2,0],[0,2,0],[0,0,0],[6,4,0]],[[0,0,0],[2,0,0],[4,0,0],[6,0,0],[6,2,0],[6,4,0],[6,6,0]],[[0,2,0],[2,2,0],[0,0,0],[4,2,0],[6,2,0],[8,2,0],[8,0,0]],[[4,4,0],[2,4,0],[2,2,0],[2,0,0],[6,4,0],[4,0,0],[0,2,0]],[[6,2,0],[6,0,0],[4,2,0],[2,2,0],[8,0,0],[0,2,0],[0,0,0]],[[6,2,0],[6,0,0],[6,4,0],[4,4,0],[2,4,0],[0,4,0],[2,6,0]],[[4,0,0],[6,0,0],[2,0,0],[2,2,0],[0,0,0],[8,0,0],[8,2,0]],[[2,0,0],[4,0,0],[2,2,0],[0,2,0],[2,4,0],[4,4,0],[4,6,0]],[[2,2,0],[4,2,0],[0,2,0],[0,4,0],[4,0,0],[0,0,0],[4,4,0]],[[6,2,0],[6,0,0],[8,2,0],[4,2,0],[8,4,0],[2,2,0],[0,2,0]],[[4,4,0],[4,6,0],[4,2,0],[6,2,0],[2,4,0],[6,0,0],[0,4,0]],[[2,2,0],[4,2,0],[4,0,0],[2,4,0],[0,4,0],[0,6,0],[0,8,0]],[[2,2,0],[2,4,0],[4,4,0],[2,0,0],[4,0,0],[6,0,0],[0,0,0]],[[2,4,0],[2,6,0],[4,4,0],[4,2,0],[4,0,0],[0,6,0],[2,8,0]],[[2,4,0],[0,4,0],[4,4,0],[2,2,0],[0,6,0],[2,0,0],[4,6,0]],[[0,2,0],[0,4,0],[2,4,0],[4,4,0],[0,0,0],[4,6,0],[6,4,0]],[[4,4,0],[2,4,0],[2,2,0],[2,0,0],[4,0,0],[0,4,0],[6,0,0]],[[2,4,0],[4,4,0],[4,2,0],[2,6,0],[4,0,0],[0,4,0],[2,8,0]],[[4,0,0],[2,0,0],[4,2,0],[0,0,0],[4,4,0],[6,4,0],[6,6,0]],[[4,4,0],[4,2,0],[6,2,0],[2,4,0],[0,4,0],[0,6,0],[6,0,0]],[[2,2,0],[2,0,0],[0,2,0],[0,4,0],[4,0,0],[6,0,0],[0,6,0]],[[2,0,0],[4,0,0],[6,0,0],[2,2,0],[0,2,0],[8,0,0],[2,4,0]],[[2,6,0],[2,4,0],[2,8,0],[4,4,0],[2,2,0],[2,0,0],[0,8,0]],[[2,6,0],[2,4,0],[2,8,0],[0,4,0],[0,2,0],[0,0,0],[0,8,0]],[[2,2,0],[0,2,0],[4,2,0],[6,2,0],[0,0,0],[8,2,0],[8,4,0]],[[4,0,0],[4,2,0],[4,4,0],[2,4,0],[2,6,0],[0,6,0],[6,0,0]],[[2,4,0],[2,6,0],[2,8,0],[0,4,0],[0,2,0],[2,10,0],[0,0,0]],[[4,2,0],[2,2,0],[2,4,0],[2,6,0],[6,2,0],[0,4,0],[6,0,0]],[[4,2,0],[2,2,0],[2,4,0],[4,0,0],[6,0,0],[0,4,0],[0,6,0]],[[0,4,0],[2,4,0],[2,2,0],[2,0,0],[0,6,0],[0,8,0],[4,0,0]],[[0,2,0],[2,2,0],[4,2,0],[4,4,0],[0,4,0],[6,4,0],[2,0,0]],[[4,2,0],[4,4,0],[4,0,0],[6,4,0],[8,4,0],[2,0,0],[0,0,0]],[[2,4,0],[4,4,0],[6,4,0],[0,4,0],[0,2,0],[6,2,0],[0,0,0]],[[0,2,0],[2,2,0],[4,2,0],[0,4,0],[4,0,0],[0,6,0],[0,8,0]],[[0,4,0],[0,2,0],[2,2,0],[0,6,0],[4,2,0],[4,0,0],[2,6,0]],[[2,4,0],[2,2,0],[0,2,0],[2,6,0],[4,6,0],[2,8,0],[0,0,0]],[[4,0,0],[4,2,0],[2,0,0],[4,4,0],[6,4,0],[2,4,0],[0,0,0]],[[6,2,0],[8,2,0],[10,2,0],[4,2,0],[2,2,0],[10,0,0],[0,2,0]],[[0,6,0],[0,4,0],[0,2,0],[2,2,0],[2,0,0],[2,6,0],[2,8,0]],[[0,2,0],[2,2,0],[4,2,0],[4,4,0],[6,4,0],[0,0,0],[4,6,0]],[[6,4,0],[6,6,0],[6,2,0],[4,2,0],[2,2,0],[2,0,0],[0,0,0]],[[4,0,0],[4,2,0],[2,2,0],[2,4,0],[2,6,0],[0,6,0],[0,8,0]],[[4,2,0],[4,0,0],[2,2,0],[6,0,0],[2,4,0],[0,4,0],[8,0,0]],[[4,2,0],[2,2,0],[6,2,0],[0,2,0],[8,2,0],[0,4,0],[8,0,0]],[[2,4,0],[4,4,0],[0,4,0],[0,2,0],[0,0,0],[4,6,0],[2,0,0]],[[4,4,0],[4,2,0],[2,4,0],[4,0,0],[6,0,0],[8,0,0],[0,4,0]],[[6,2,0],[4,2,0],[6,0,0],[8,0,0],[2,2,0],[2,4,0],[0,4,0]]]]
-       
-        sourcePieces = []
-        resource.forEach((v, i) => {
-          if(includeBases[i].include) sourcePieces.push(v)
-        })
-        totalPieces = 0
-        sourcePieces.forEach((v, i) => {
-          totalPieces += sourcePieces[i].length
-        })
-        
-        var maxx = -6e6
-        var maxy = -6e6
-        sourcePieces = sourcePieces.map((pieces, ipx) => {
-          return pieces.map(pointArray => {
-            pointArray.map((q, j) => {
-              if(q[0] > maxx) maxx = q[0]
-              if(q[1] > maxy) maxy = q[1]
-            })
-            pointArray.map((q, j) => {
-              q[0] -= (maxx/2 | 0) + (maxx%4?3:0) + 1
-              q[1] -= (maxy/2 | 0) + (maxy%4?3:0) + .5
-              q[0] *= pieceSize / 2
-              q[1] *= pieceSize / 2
-              q[2] *= pieceSize / 2
-            })
-            return pointArray
-          })
-        })
-      }
-      
-      
-      Coordinates.AnimationLoop(renderer, 'Draw')
-
-      var shaderOptions = [
-        { lighting: { type: 'ambientLight', value: 1}},
-        { uniform: {
-          type: 'phong',
-          value: .5
-        } }
-      ]
-      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: .1}
-        },
-        { uniform: {
-          type: 'phong',
-          value: .25,
-          theta: -Math.PI / 3.5 + .1
-        } },
-        { uniform: {
-          type: 'reflection',
-          value: .5,
-          enabled: true,
-          map: 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2_lowres.jpg',
-          //theta: -Math.PI / 6
-        } }
-      ]
-      var buttonShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var shaderOptions = [
-        { lighting: { type: 'ambientLight', value: .5}},
-        { uniform: {
-          type: 'phong',
-          value: 0
-        } }
-      ]
-      var sideboardShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var shaderOptions = [
-        { lighting: { type: 'ambientLight', value: 1.5}},
-        { uniform: {
-          type: 'phong',
-          value: 1
-        } },
-        { uniform: {
-          type: 'reflection',
-          //map: refTexture,
-          value: .1,
-          enabled: false,
-        } }
-      ]
-      var bombShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var shaderOptions = [
-        { lighting: { type: 'ambientLight', value: .8}},
-        { uniform: {
-          type: 'phong',
-          value: 0
-        } },
-      ]
-      var bombShadowShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var shaderOptions = [
-        { lighting: { type: 'ambientLight', value: .75}},
-        { uniform: {
-          type: 'phong',
-          value: 0
-        } }
-      ]
-      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var buttonShape
       var geoOptions = {
-        shapeType: 'obj',
-        name: 'button',
-        url: 'https://srmcgann.github.io/objs/button/button.obj',
-        scaleX: -20,
-        scaleY: 24,
-        scaleZ: 100,
-        showBounding: false,
-        canvasTexture: scratchCanvas.c,
-        colorMix: .5,
+        shapeType: 'rectangle',
+        name: 'piece',
+        subs: -1,
+        flipNormals: true,
+        size: (2**.5/2-margin)*pieceSize,
+        color: 0xffffff,
+        colorMix: .5
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        buttonShape = geometry
-        await buttonShader.ConnectGeometry(geometry)
-      })
-      
-      var buttonTexture = new Image()
-      var url = 'https://srmcgann.github.io/objs/button/button.png'
-      await fetch(url).then(res=>res.blob()).then(data => {
-        buttonTexture.src = URL.createObjectURL(data)
-      })
-      
-      var sideboardTexture1 = new Image()
-      var sideboardTexture2 = new Image()
-      var sideboardTexture3 = new Image()
-      var url = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_fullgrid_1.png'
-      await fetch(url).then(res=>res.blob()).then(data => {
-        sideboardTexture1.src = URL.createObjectURL(data)
-      })
-      var url = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_fullgrid_2.png'
-      await fetch(url).then(res=>res.blob()).then(data => {
-        sideboardTexture2.src = URL.createObjectURL(data)
-      })
-      var url = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_fullgrid_3.png'
-      await fetch(url).then(res=>res.blob()).then(data => {
-        sideboardTexture3.src = URL.createObjectURL(data)
-      })
-
-      var baseBox, boxShape
-      
-      var borderShape
-      var geoOptions = {
-        shapeType: 'obj',
-        name: 'border',
-        url: 'https://srmcgann.github.io/objs/hextris_frame.obj?3',
-        scaleX: 102.5,
-        scaleY: 102.5,
-        scaleZ: 102.5/4,
-        y: 3,
-        x: -.2,
-        color: 0x886655,
-        colorMix: .1,
-      }
-      if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        borderShape = geometry
+        await sourcePieces.forEach(async (pieces, ipx) => {
+          await pieces.forEach(async pointArray => {
+            await Coordinates.ShapeFromArray(geometry, pointArray).then(async res => {
+              pieceShapes[ipx].push(res)
+              baseShapes[ipx].push(structuredClone(res.vertices))
+              await shader.ConnectGeometry(res)
+            })
+          })
+        })
+        baseRectangle = geometry
         await shader.ConnectGeometry(geometry)
       })
       
-      var backgroundShape1
-      var backgroundShape2
-      var backgroundShape3
+      dataArray = []
+      geometryData = {
+        uvs: [],
+        normals: [],
+        vertices: [],
+        normalVecs: [],
+      }
+      var offuvx = -.5001
+      var offuvy = -.50005
+      for(var i = 0; i < cl*rw; i++){
+        if((i+(i/cl|0))%2){
+          dataArray.push(64, 0, 255)
+        }else{
+          dataArray.push(0, 255, 0)
+        }
+        d = 2**.5 * sp / 2
+
+        p = Math.PI*2 / 4 * 0 + Math.PI/4
+        x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
+        y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
+        z = 0
+        geometryData.vertices.push(x, y, z)
+        geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
+        geometryData.normalVecs.push(0, 0, 1)
+        geometryData.normals.push(x, y, 0, x, y, 1)
+
+        p = Math.PI*2 / 4 * 3 + Math.PI/4
+        x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
+        y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
+        z = 0
+        geometryData.vertices.push(x, y, z)
+        geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
+        geometryData.normalVecs.push(0, 0, 1)
+        geometryData.normals.push(x, y, 0, x, y, 1)
+
+        p = Math.PI*2 / 4 * 2 + Math.PI/4
+        x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
+        y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
+        z = 0
+        geometryData.vertices.push(x, y, z)
+        geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
+        geometryData.normalVecs.push(0, 0, 1)
+        geometryData.normals.push(x, y, 0, x, y, 1)
+
+        p = Math.PI*2 / 4 * 2 + Math.PI/4
+        x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
+        y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
+        z = 0
+        geometryData.vertices.push(x, y, z)
+        geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
+        geometryData.normalVecs.push(0, 0, 1)
+        geometryData.normals.push(x, y, 0, x, y, 1)
+
+        p = Math.PI*2 / 4 * 1 + Math.PI/4
+        x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
+        y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
+        z = 0
+        geometryData.vertices.push(x, y, z)
+        geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
+        geometryData.normalVecs.push(0, 0, 1)
+        geometryData.normals.push(x, y, 0, x, y, 1)
+
+        p = Math.PI*2 / 4 * 0 + Math.PI/4
+        x = ((i%cl)-cl/2 + .5) * sp + S(p) * d
+        y = ((i/cl|0)-rw/2 + .5) * sp + C(p) * d
+        z = 0
+        geometryData.vertices.push(x, y, z)
+        geometryData.uvs.push(x / cl / sp+offuvx, y / rw / sp+offuvy)
+        geometryData.normalVecs.push(0, 0, -1)
+        geometryData.normals.push(x, y, 0, x, y, -1)
+
+      }
+
       var geoOptions = {
-        shapeType: 'rectangle',
-        subs: 4,
-        size: 460,
-        z: 500,
-        name: 'background',
+        shapeType: 'custom shape',
+        name: 'box',
+        geometryData,
+        //size: 7,
+        //subs: 2,
+        flatShading: true,
+        dataArrayWidth: cl,
+        dataArrayHeight: rw,
+        scaleX: 100/1.062,
+        scaleY: 100/1.062,
+        scaleZ: 100/1.062,
+        x: -1.75,
+        y: -1,
         colorMix: 0,
-        //color: 0xff0000
+        dataArrayFormat: renderer.gl.RGB, // default: renderer.gl.RGBA (w/alpha)
+        map: dataArray
       }
-      geoOptions.map = refTexture1
-      Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        backgroundShape1 = geometry
-        await backgroundShader.ConnectGeometry(geometry)
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        baseBox = structuredClone(geometry.vertices)
+        boxShape = geometry
+        shader.ConnectGeometry(geometry)
       })
-      geoOptions.map = refTexture2
-      //geoOptions.scaleUVX = -.5
-      geoOptions.scaleUVY = -1
-      Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        backgroundShape2 = geometry
-        for(var i = 0; i < geometry.uvs.length; i +=2){
-          geometry.uvs[i+1] += 1
-        }
-        await backgroundShader.ConnectGeometry(geometry)
-      })
-      //geoOptions.scaleUVX = .25
-      //geoOptions.scaleUVY = 1
-      geoOptions.map = refTexture3
-      Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        backgroundShape3 = geometry
-        await backgroundShader.ConnectGeometry(geometry)
-      })
-            
-      var sideboardShape
-      var geoOptions = {
-        shapeType: 'rectangle',
-        name: 'sideboard',
-        scaleX: 1.2,
-        scaleY: 1.0033,
-        scaleZ: 1,
-        subs: 4,
-        size: 130,
-        x: -.5,
-        y: 0,
-        z: 0,
-        pitch: Math.PI, 
-        canvasTexture: sideboardCanvas.c,
-        color: 0xff8800,
-        colorMix: 0,
-      }
-      if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        sideboardShape = geometry
-        await sideboardShader.ConnectGeometry(geometry)
-      })
-      
-      var bombShape, bombShadowShape
-      var geoOptions = {
-        shapeType: 'obj',
-        name: 'bomb',
-        url: 'https://srmcgann.github.io/objs/bomb/bomb.obj',
-        map: 'https://srmcgann.github.io/objs/bomb/bomb.png',
-        scaleX: 20,
-        scaleY: 20,
-        scaleZ: 20,
-        color: 0x888888,
-        y: -50,
-        colorMix: .05,
-      }
-      if(1) {
-        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-          bombShape = geometry
-          await bombShader.ConnectGeometry(geometry)
-        })
-        geoOptions.map = ''
-        geoOptions.colorMix = .1
-        geoOptions.color = 0xffffff
-        //geoOptions.alpha = .9
-        await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-          bombShadowShape = geometry
-          await bombShadowShader.ConnectGeometry(geometry)
-        })
-      }
-      
-      var flashParticles
-      var geoOptions = {
-        shapeType: 'particles',
-        geometryData: Array(7500).fill().map((v, i) => [1e5, 1e5, 1e5]),
-        size: 2,
-        alpha: .8,
-        penumbra: .4,
-        color: 0x00ff44,
-      }
-      if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        flashParticles = geometry
-      })
-      
-      
-      var sparkShape, baseSparkShape
-      var geoOptions = {
-        shapeType: 'sprite',
-        size: 3 / 10,
-        map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
-        z: -1
-      }
-      if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        sparkShape = geometry
-        baseSparkShape = structuredClone(sparkShape.vertices)
-      })
-      
-      if(0){
-        Coordinates.LoadFPSControls(renderer, {
-          flyMode: true,
-          mSpeed: .5,
-          crosshairSel: 2,
-          crosshairSize: .5,
-        })
-      }
+    }
+    
 
-      const SwapPiece = () => {
-        if(!swapped){
-          swapped = true
-          if(swapPiece.pid == -1){
-            swapPiece.gid = curPiece.gid
-            swapPiece.pid = curPiece.pid
-            swapPiece.base = curPiece.base
-            swapPiece.x = curPiece.x
-            swapPiece.y = curPiece.y
-            swapPiece.z = curPiece.z
-            swapPiece.ix = 80
-            swapPiece.iy = 15
-            swapPiece.iz = -.1
-            swapPiece.isBomb = curPiece.isBomb
-            SpawnPiece()
-          }else{
-            tempPiece.gid = swapPiece.gid
-            tempPiece.pid = swapPiece.pid
-            tempPiece.base = swapPiece.base
-            tempPiece.x = swapPiece.x
-            tempPiece.y = swapPiece.y
-            tempPiece.z = swapPiece.z
-            tempPiece.isBomb = swapPiece.isBomb
+    for(var i = initQueueLength; i--; ) PushPieceToQueue()
+    SpawnPiece()
+  }
+  
+  const GetTotalPieces = () => {
+    totalPieces = 0
+    sourcePieces.forEach((v, i) => {
+      if(includeBases[i].include) totalPieces += sourcePieces[i].length
+    })
+  }
+  
+  const LoadSourcePieces = () => {
+    var resource = [[[[0,2,0],[0,0,0],[2,0,0]],[[4,0,0],[2,0,0],[0,0,0]]], [[[2,4,0],[2,2,0],[0,2,0],[0,0,0]],[[4,0,0],[2,0,0],[0,0,0],[0,2,0]],[[0,0,0],[0,2,0],[2,2,0],[2,0,0]],[[0,0,0],[0,2,0],[0,4,0],[0,6,0]],[[2,0,0],[2,2,0],[4,0,0],[0,0,0]],[[0,2,0],[2,2,0],[0,4,0],[2,0,0]],[[4,0,0],[2,0,0],[4,2,0],[0,0,0]]],[[[2,0,0],[0,0,0],[4,0,0],[4,2,0],[6,2,0]],[[2,2,0],[4,2,0],[2,4,0],[0,2,0],[2,0,0]],[[2,0,0],[4,0,0],[6,0,0],[2,2,0],[0,2,0]],[[2,2,0],[0,2,0],[0,4,0],[2,0,0],[2,4,0]],[[0,2,0],[0,4,0],[2,4,0],[2,2,0],[0,0,0]],[[0,2,0],[0,0,0],[2,0,0],[0,4,0],[0,6,0]],[[0,2,0],[0,0,0],[2,0,0],[4,0,0],[6,0,0]],[[4,0,0],[2,0,0],[0,0,0],[2,2,0],[2,4,0]],[[4,2,0],[2,2,0],[0,2,0],[0,4,0],[2,0,0]],[[0,2,0],[2,2,0],[0,4,0],[0,0,0],[0,6,0]],[[2,4,0],[2,2,0],[2,6,0],[0,2,0],[2,0,0]],[[2,2,0],[2,0,0],[4,2,0],[4,4,0],[0,2,0]],[[0,4,0],[2,4,0],[0,2,0],[0,0,0],[2,0,0]],[[2,2,0],[4,2,0],[0,2,0],[4,4,0],[0,0,0]],[[2,0,0],[0,0,0],[0,2,0],[4,0,0],[0,4,0]],[[0,2,0],[0,4,0],[0,6,0],[0,0,0],[0,8,0]],[[2,0,0],[2,2,0],[4,2,0],[4,4,0],[0,0,0]],[[2,4,0],[4,4,0],[2,2,0],[2,0,0],[0,0,0]]],[[[4,6,0],[4,4,0],[2,4,0],[2,2,0],[2,0,0],[0,0,0]],[[2,2,0],[0,2,0],[0,0,0],[2,4,0],[2,6,0],[2,8,0]],[[2,0,0],[2,2,0],[2,4,0],[0,0,0],[0,4,0],[4,2,0]],[[2,0,0],[2,2,0],[2,4,0],[2,6,0],[0,4,0],[0,6,0]],[[0,2,0],[2,2,0],[2,4,0],[0,4,0],[0,6,0],[0,0,0]],[[2,4,0],[2,2,0],[2,0,0],[4,4,0],[4,6,0],[0,4,0]],[[2,0,0],[2,2,0],[4,2,0],[4,0,0],[0,2,0],[4,4,0]],[[4,0,0],[2,0,0],[4,2,0],[0,0,0],[4,4,0],[2,2,0]],[[4,2,0],[4,0,0],[2,0,0],[2,2,0],[0,0,0],[0,2,0]],[[2,4,0],[2,2,0],[2,0,0],[4,0,0],[4,2,0],[0,4,0]],[[4,4,0],[2,4,0],[6,4,0],[2,2,0],[2,0,0],[0,4,0]],[[2,2,0],[2,4,0],[0,2,0],[2,0,0],[0,0,0],[4,2,0]],[[4,2,0],[2,2,0],[0,2,0],[0,4,0],[4,4,0],[4,0,0]],[[2,2,0],[2,0,0],[4,0,0],[0,0,0],[0,2,0],[6,0,0]],[[0,6,0],[0,4,0],[0,8,0],[0,2,0],[0,0,0],[0,10,0]],[[0,2,0],[2,2,0],[4,2,0],[0,4,0],[4,0,0],[2,4,0]],[[4,0,0],[4,2,0],[2,2,0],[2,4,0],[0,2,0],[6,0,0]],[[0,6,0],[0,4,0],[0,2,0],[0,0,0],[2,2,0],[2,6,0]],[[2,2,0],[4,2,0],[2,0,0],[0,0,0],[4,4,0],[6,4,0]],[[2,4,0],[0,4,0],[2,2,0],[0,2,0],[2,0,0],[0,6,0]],[[0,2,0],[2,2,0],[4,2,0],[6,2,0],[6,0,0],[4,4,0]],[[2,4,0],[2,2,0],[4,2,0],[2,0,0],[0,4,0],[0,6,0]],[[2,4,0],[4,4,0],[2,6,0],[2,2,0],[2,0,0],[0,6,0]],[[0,4,0],[0,2,0],[2,4,0],[2,2,0],[4,4,0],[2,0,0]],[[0,4,0],[2,4,0],[2,2,0],[2,6,0],[4,2,0],[2,0,0]],[[2,2,0],[2,4,0],[0,2,0],[2,6,0],[2,0,0],[2,8,0]],[[2,2,0],[2,4,0],[2,6,0],[2,0,0],[4,2,0],[0,2,0]],[[4,2,0],[2,2,0],[4,0,0],[2,4,0],[0,2,0],[6,2,0]],[[2,2,0],[2,0,0],[4,2,0],[0,0,0],[6,2,0],[8,2,0]],[[2,0,0],[2,2,0],[2,4,0],[0,4,0],[0,0,0],[4,0,0]],[[4,6,0],[4,4,0],[2,4,0],[2,2,0],[0,2,0],[0,0,0]],[[2,0,0],[0,0,0],[0,2,0],[4,0,0],[0,4,0],[0,6,0]],[[4,4,0],[2,4,0],[0,4,0],[2,6,0],[4,2,0],[4,0,0]],[[2,0,0],[4,0,0],[2,2,0],[6,0,0],[0,2,0],[4,2,0]],[[4,2,0],[6,2,0],[2,2,0],[0,2,0],[4,0,0],[8,2,0]],[[2,0,0],[4,0,0],[2,2,0],[0,2,0],[6,0,0],[6,2,0]],[[2,4,0],[4,4,0],[0,4,0],[0,2,0],[4,2,0],[0,0,0]],[[2,2,0],[0,2,0],[2,4,0],[0,0,0],[4,4,0],[6,4,0]],[[2,2,0],[2,4,0],[4,2,0],[4,0,0],[2,6,0],[0,6,0]],[[2,0,0],[2,2,0],[2,4,0],[0,0,0],[2,6,0],[0,6,0]],[[0,2,0],[0,0,0],[0,4,0],[0,6,0],[2,4,0],[2,0,0]],[[4,2,0],[4,0,0],[4,4,0],[4,6,0],[2,2,0],[0,2,0]],[[2,2,0],[2,4,0],[2,0,0],[0,0,0],[4,4,0],[6,4,0]],[[2,0,0],[2,2,0],[4,2,0],[2,4,0],[2,6,0],[0,6,0]],[[2,2,0],[2,4,0],[2,0,0],[0,4,0],[0,6,0],[0,0,0]],[[2,0,0],[2,2,0],[4,0,0],[0,2,0],[6,0,0],[0,4,0]],[[2,6,0],[0,6,0],[2,4,0],[2,2,0],[2,0,0],[2,8,0]],[[2,0,0],[2,2,0],[0,2,0],[2,4,0],[4,0,0],[6,0,0]],[[4,0,0],[6,0,0],[2,0,0],[0,0,0],[0,2,0],[0,4,0]],[[2,2,0],[2,4,0],[2,0,0],[0,0,0],[4,2,0],[6,2,0]],[[4,0,0],[4,2,0],[6,2,0],[8,2,0],[2,0,0],[0,0,0]],[[4,2,0],[4,0,0],[2,2,0],[6,2,0],[0,2,0],[0,4,0]],[[2,4,0],[0,4,0],[4,4,0],[0,2,0],[0,0,0],[4,6,0]],[[8,0,0],[8,2,0],[6,0,0],[4,0,0],[2,0,0],[0,0,0]],[[4,2,0],[6,2,0],[6,4,0],[2,2,0],[0,2,0],[0,0,0]],[[0,2,0],[0,0,0],[2,0,0],[4,0,0],[6,0,0],[8,0,0]],[[2,2,0],[4,2,0],[0,2,0],[0,0,0],[0,4,0],[6,2,0]],[[4,2,0],[2,2,0],[4,0,0],[0,2,0],[6,0,0],[8,0,0]],[[4,2,0],[6,2,0],[2,2,0],[0,2,0],[0,4,0],[6,0,0]],[[0,2,0],[0,0,0],[2,0,0],[4,0,0],[0,4,0],[4,2,0]]],[[[2,2,0],[2,4,0],[2,0,0],[2,6,0],[0,4,0],[0,2,0],[4,4,0]],[[2,2,0],[0,2,0],[0,0,0],[4,2,0],[2,0,0],[2,4,0],[4,4,0]],[[2,2,0],[2,0,0],[4,2,0],[6,2,0],[4,0,0],[0,2,0],[0,0,0]],[[2,4,0],[2,6,0],[2,2,0],[0,6,0],[2,8,0],[0,4,0],[2,0,0]],[[2,4,0],[0,4,0],[2,2,0],[2,6,0],[0,2,0],[2,0,0],[2,8,0]],[[4,0,0],[2,0,0],[2,2,0],[4,2,0],[6,2,0],[4,4,0],[0,2,0]],[[2,4,0],[0,4,0],[2,2,0],[4,2,0],[4,0,0],[4,4,0],[0,2,0]],[[2,4,0],[2,6,0],[2,2,0],[2,0,0],[0,4,0],[4,2,0],[0,0,0]],[[4,2,0],[4,0,0],[2,0,0],[6,2,0],[6,4,0],[4,4,0],[0,0,0]],[[0,2,0],[0,0,0],[0,4,0],[0,6,0],[2,2,0],[4,2,0],[4,4,0]],[[2,4,0],[2,2,0],[0,2,0],[0,4,0],[2,0,0],[4,2,0],[0,0,0]],[[4,0,0],[6,0,0],[2,0,0],[2,2,0],[0,2,0],[6,2,0],[0,0,0]],[[0,0,0],[0,2,0],[0,4,0],[0,6,0],[0,8,0],[2,0,0],[2,4,0]],[[6,2,0],[4,2,0],[2,2,0],[2,4,0],[2,0,0],[0,0,0],[8,2,0]],[[4,2,0],[6,2,0],[2,2,0],[2,0,0],[6,4,0],[2,4,0],[0,2,0]],[[2,4,0],[0,4,0],[2,2,0],[4,4,0],[2,0,0],[4,6,0],[0,2,0]],[[0,4,0],[0,2,0],[0,0,0],[2,2,0],[2,4,0],[2,6,0],[0,6,0]],[[0,2,0],[0,0,0],[2,0,0],[2,2,0],[0,4,0],[4,0,0],[2,4,0]],[[4,0,0],[6,0,0],[6,2,0],[2,0,0],[4,2,0],[0,0,0],[6,4,0]],[[0,2,0],[0,4,0],[2,4,0],[4,4,0],[4,2,0],[6,4,0],[4,0,0]],[[4,2,0],[4,4,0],[4,6,0],[4,0,0],[2,0,0],[0,0,0],[2,4,0]],[[2,4,0],[4,4,0],[2,2,0],[4,2,0],[6,4,0],[0,4,0],[4,0,0]],[[2,4,0],[2,2,0],[0,4,0],[4,2,0],[4,4,0],[2,0,0],[6,2,0]],[[2,2,0],[0,2,0],[4,2,0],[6,2,0],[2,0,0],[6,4,0],[4,0,0]],[[6,2,0],[4,2,0],[6,0,0],[2,2,0],[8,2,0],[0,2,0],[0,4,0]],[[0,4,0],[0,2,0],[2,4,0],[2,6,0],[4,4,0],[0,6,0],[0,0,0]],[[0,2,0],[2,2,0],[4,2,0],[4,0,0],[6,2,0],[0,0,0],[2,4,0]],[[4,2,0],[2,2,0],[2,4,0],[2,6,0],[2,0,0],[0,2,0],[0,0,0]],[[0,6,0],[2,6,0],[0,4,0],[2,8,0],[0,2,0],[0,8,0],[0,0,0]],[[0,4,0],[0,2,0],[2,2,0],[4,2,0],[2,0,0],[6,2,0],[4,0,0]],[[0,2,0],[0,4,0],[0,6,0],[2,2,0],[0,8,0],[2,0,0],[2,4,0]],[[2,0,0],[0,0,0],[0,2,0],[4,0,0],[4,2,0],[0,4,0],[6,2,0]],[[4,2,0],[2,2,0],[0,2,0],[2,4,0],[4,4,0],[0,0,0],[6,4,0]],[[2,2,0],[4,2,0],[2,4,0],[4,0,0],[2,6,0],[0,2,0],[4,4,0]],[[2,4,0],[2,6,0],[2,2,0],[4,2,0],[0,4,0],[0,6,0],[2,0,0]],[[2,2,0],[0,2,0],[4,2,0],[0,4,0],[4,4,0],[0,0,0],[2,0,0]],[[0,2,0],[0,4,0],[2,2,0],[4,2,0],[2,0,0],[4,4,0],[4,6,0]],[[4,0,0],[4,2,0],[2,2,0],[2,0,0],[6,0,0],[0,0,0],[4,4,0]],[[4,4,0],[2,4,0],[4,6,0],[4,2,0],[4,0,0],[4,8,0],[0,4,0]],[[2,2,0],[4,2,0],[0,2,0],[2,4,0],[0,4,0],[4,0,0],[0,0,0]],[[2,4,0],[4,4,0],[2,2,0],[4,6,0],[0,2,0],[2,0,0],[0,0,0]],[[2,0,0],[2,2,0],[0,2,0],[2,4,0],[4,2,0],[4,4,0],[4,6,0]],[[2,2,0],[2,0,0],[2,4,0],[2,6,0],[4,4,0],[0,0,0],[0,2,0]],[[4,2,0],[4,0,0],[6,0,0],[8,0,0],[2,2,0],[6,2,0],[0,2,0]],[[0,2,0],[0,4,0],[2,4,0],[4,4,0],[0,0,0],[2,0,0],[6,4,0]],[[4,2,0],[2,2,0],[2,4,0],[6,2,0],[2,0,0],[0,0,0],[6,0,0]],[[2,0,0],[0,0,0],[2,2,0],[2,4,0],[4,0,0],[0,2,0],[2,6,0]],[[4,0,0],[4,2,0],[4,4,0],[2,2,0],[4,6,0],[6,2,0],[0,2,0]],[[2,2,0],[2,4,0],[2,6,0],[0,6,0],[4,6,0],[2,0,0],[0,2,0]],[[4,2,0],[4,4,0],[2,4,0],[2,2,0],[2,6,0],[0,4,0],[4,0,0]],[[0,6,0],[0,4,0],[0,2,0],[2,2,0],[0,8,0],[0,10,0],[0,0,0]],[[2,2,0],[0,2,0],[4,2,0],[6,2,0],[0,0,0],[2,4,0],[2,6,0]],[[2,4,0],[0,4,0],[4,4,0],[6,4,0],[6,2,0],[6,0,0],[0,2,0]],[[0,4,0],[0,2,0],[2,2,0],[2,0,0],[0,0,0],[0,6,0],[2,6,0]],[[4,0,0],[2,0,0],[6,0,0],[6,2,0],[8,2,0],[0,0,0],[0,2,0]],[[4,0,0],[2,0,0],[6,0,0],[2,2,0],[0,2,0],[6,2,0],[0,4,0]],[[4,4,0],[2,4,0],[2,2,0],[6,4,0],[2,0,0],[0,4,0],[6,6,0]],[[2,4,0],[2,6,0],[2,2,0],[0,2,0],[4,6,0],[4,2,0],[2,0,0]],[[4,2,0],[4,4,0],[6,4,0],[4,0,0],[2,4,0],[2,6,0],[0,4,0]],[[2,6,0],[2,4,0],[0,6,0],[2,2,0],[4,6,0],[4,8,0],[2,0,0]],[[0,6,0],[0,8,0],[0,4,0],[0,2,0],[0,10,0],[0,0,0],[0,12,0]],[[4,2,0],[4,4,0],[2,4,0],[6,2,0],[6,0,0],[0,4,0],[6,4,0]],[[2,2,0],[2,0,0],[2,4,0],[2,6,0],[0,4,0],[2,8,0],[2,10,0]],[[2,2,0],[2,0,0],[4,2,0],[6,2,0],[0,0,0],[4,4,0],[6,4,0]],[[4,2,0],[4,4,0],[4,6,0],[4,0,0],[2,2,0],[0,2,0],[0,0,0]],[[2,6,0],[2,4,0],[2,8,0],[2,2,0],[0,2,0],[2,0,0],[2,10,0]],[[2,4,0],[2,6,0],[2,2,0],[0,2,0],[4,6,0],[2,0,0],[2,8,0]],[[2,2,0],[0,2,0],[0,4,0],[0,0,0],[0,6,0],[4,2,0],[2,0,0]],[[4,0,0],[6,0,0],[2,0,0],[2,2,0],[6,2,0],[0,0,0],[8,2,0]],[[2,2,0],[4,2,0],[4,4,0],[6,2,0],[4,0,0],[0,2,0],[6,4,0]],[[2,2,0],[0,2,0],[0,4,0],[4,2,0],[6,2,0],[2,4,0],[6,0,0]],[[6,2,0],[6,0,0],[4,0,0],[2,0,0],[6,4,0],[2,2,0],[0,0,0]],[[4,2,0],[4,4,0],[4,0,0],[6,2,0],[2,4,0],[2,6,0],[0,6,0]],[[4,2,0],[2,2,0],[0,2,0],[4,4,0],[0,0,0],[4,6,0],[2,4,0]],[[2,2,0],[2,0,0],[4,2,0],[6,2,0],[0,0,0],[4,4,0],[2,4,0]],[[2,4,0],[2,2,0],[4,4,0],[2,0,0],[0,0,0],[4,6,0],[4,2,0]],[[0,2,0],[2,2,0],[0,4,0],[0,0,0],[4,2,0],[6,2,0],[4,4,0]],[[2,0,0],[2,2,0],[2,4,0],[4,2,0],[2,6,0],[0,6,0],[0,8,0]],[[2,0,0],[4,0,0],[0,0,0],[6,0,0],[8,0,0],[6,2,0],[10,0,0]],[[2,4,0],[2,2,0],[2,6,0],[2,0,0],[4,0,0],[0,6,0],[0,0,0]],[[4,4,0],[2,4,0],[2,2,0],[2,0,0],[0,0,0],[4,6,0],[4,8,0]],[[2,4,0],[2,2,0],[4,4,0],[0,2,0],[4,6,0],[4,8,0],[2,0,0]],[[2,0,0],[2,2,0],[4,0,0],[6,0,0],[2,4,0],[0,2,0],[6,2,0]],[[0,2,0],[2,2,0],[0,4,0],[2,4,0],[2,0,0],[4,0,0],[6,0,0]],[[4,2,0],[6,2,0],[2,2,0],[8,2,0],[2,4,0],[0,4,0],[8,0,0]],[[0,6,0],[0,4,0],[0,8,0],[2,4,0],[2,2,0],[2,0,0],[2,8,0]],[[2,6,0],[2,8,0],[0,8,0],[2,4,0],[0,6,0],[2,2,0],[2,0,0]],[[4,2,0],[4,4,0],[2,2,0],[4,6,0],[2,0,0],[4,8,0],[0,0,0]],[[2,6,0],[2,4,0],[2,2,0],[2,8,0],[0,2,0],[0,0,0],[4,4,0]],[[6,2,0],[4,2,0],[6,0,0],[6,4,0],[2,2,0],[8,2,0],[0,2,0]],[[2,6,0],[2,4,0],[2,2,0],[4,2,0],[4,0,0],[4,6,0],[0,6,0]],[[4,0,0],[4,2,0],[6,2,0],[2,2,0],[8,2,0],[8,0,0],[0,2,0]],[[6,0,0],[8,0,0],[10,0,0],[4,0,0],[2,0,0],[2,2,0],[0,2,0]],[[2,4,0],[2,2,0],[4,2,0],[6,2,0],[0,4,0],[0,6,0],[4,0,0]],[[2,2,0],[0,2,0],[2,4,0],[2,6,0],[0,0,0],[4,2,0],[0,6,0]],[[0,0,0],[2,0,0],[4,0,0],[6,0,0],[6,2,0],[8,2,0],[10,2,0]],[[2,2,0],[4,2,0],[6,2,0],[0,2,0],[6,4,0],[4,0,0],[8,4,0]],[[2,2,0],[2,0,0],[4,2,0],[4,4,0],[0,0,0],[2,4,0],[6,4,0]],[[4,2,0],[2,2,0],[6,2,0],[4,0,0],[0,2,0],[6,4,0],[0,4,0]],[[0,2,0],[2,2,0],[0,4,0],[4,2,0],[6,2,0],[6,0,0],[0,6,0]],[[2,0,0],[4,0,0],[6,0,0],[8,0,0],[6,2,0],[2,2,0],[0,0,0]],[[2,0,0],[2,2,0],[2,4,0],[4,2,0],[6,2,0],[0,0,0],[2,6,0]],[[4,2,0],[6,2,0],[2,2,0],[2,4,0],[4,0,0],[0,2,0],[8,2,0]],[[2,0,0],[0,0,0],[2,2,0],[2,4,0],[2,6,0],[4,6,0],[0,4,0]],[[2,4,0],[4,4,0],[2,2,0],[2,0,0],[6,4,0],[8,4,0],[0,4,0]],[[2,6,0],[0,6,0],[2,4,0],[4,6,0],[6,6,0],[2,2,0],[2,0,0]],[[6,2,0],[4,2,0],[2,2,0],[0,2,0],[6,0,0],[0,4,0],[0,0,0]],[[2,2,0],[4,2,0],[4,0,0],[0,2,0],[4,4,0],[6,0,0],[0,4,0]],[[2,2,0],[2,4,0],[2,6,0],[2,0,0],[2,8,0],[0,0,0],[0,6,0]],[[4,0,0],[2,0,0],[2,2,0],[2,4,0],[0,4,0],[2,6,0],[0,6,0]],[[4,4,0],[6,4,0],[2,4,0],[0,4,0],[0,6,0],[0,2,0],[0,0,0]],[[4,2,0],[2,2,0],[2,4,0],[4,0,0],[6,2,0],[0,4,0],[2,6,0]],[[4,2,0],[4,4,0],[2,4,0],[4,0,0],[0,4,0],[4,6,0],[6,2,0]],[[4,0,0],[6,0,0],[6,2,0],[2,0,0],[0,0,0],[8,2,0],[8,4,0]],[[2,4,0],[2,2,0],[2,6,0],[0,6,0],[2,0,0],[2,8,0],[4,2,0]],[[0,6,0],[2,6,0],[0,4,0],[0,2,0],[0,0,0],[4,6,0],[4,8,0]],[[2,2,0],[2,4,0],[2,6,0],[4,2,0],[0,4,0],[2,8,0],[2,0,0]],[[4,0,0],[2,0,0],[4,2,0],[0,0,0],[4,4,0],[2,4,0],[0,4,0]],[[6,0,0],[6,2,0],[6,4,0],[4,4,0],[2,4,0],[0,4,0],[4,6,0]],[[0,0,0],[2,0,0],[0,2,0],[4,0,0],[4,2,0],[4,4,0],[4,6,0]],[[2,4,0],[4,4,0],[4,2,0],[0,4,0],[0,2,0],[6,2,0],[0,0,0]],[[4,2,0],[6,2,0],[2,2,0],[6,0,0],[4,4,0],[0,2,0],[0,0,0]],[[2,2,0],[2,0,0],[0,0,0],[2,4,0],[0,4,0],[4,4,0],[6,4,0]],[[4,2,0],[2,2,0],[6,2,0],[0,2,0],[0,0,0],[0,4,0],[2,0,0]],[[2,2,0],[2,0,0],[2,4,0],[2,6,0],[0,0,0],[4,2,0],[2,8,0]],[[0,0,0],[2,0,0],[4,0,0],[4,2,0],[4,4,0],[0,2,0],[6,2,0]],[[0,6,0],[0,4,0],[0,2,0],[2,2,0],[4,2,0],[0,8,0],[2,0,0]],[[6,0,0],[8,0,0],[4,0,0],[6,2,0],[2,0,0],[2,2,0],[0,2,0]],[[2,6,0],[2,4,0],[4,6,0],[0,6,0],[2,2,0],[0,2,0],[0,0,0]],[[4,0,0],[4,2,0],[6,0,0],[2,0,0],[0,0,0],[4,4,0],[0,2,0]],[[0,4,0],[0,6,0],[0,2,0],[0,8,0],[2,8,0],[4,8,0],[0,0,0]],[[8,0,0],[6,0,0],[4,0,0],[10,0,0],[2,0,0],[0,0,0],[10,2,0]],[[4,2,0],[2,2,0],[6,2,0],[6,4,0],[6,6,0],[0,2,0],[0,0,0]],[[2,2,0],[4,2,0],[2,4,0],[4,0,0],[2,6,0],[6,0,0],[0,2,0]],[[2,4,0],[2,2,0],[4,4,0],[2,0,0],[6,4,0],[0,0,0],[6,6,0]],[[0,4,0],[0,2,0],[0,0,0],[2,0,0],[4,0,0],[0,6,0],[0,8,0]],[[4,2,0],[2,2,0],[6,2,0],[8,2,0],[0,2,0],[0,0,0],[0,4,0]],[[2,6,0],[2,8,0],[2,4,0],[4,4,0],[2,2,0],[0,4,0],[2,0,0]],[[2,2,0],[2,0,0],[2,4,0],[4,4,0],[4,0,0],[2,6,0],[0,6,0]],[[2,4,0],[2,2,0],[4,2,0],[2,6,0],[4,0,0],[0,6,0],[0,2,0]],[[2,2,0],[2,4,0],[2,6,0],[2,8,0],[0,8,0],[0,10,0],[2,0,0]],[[4,4,0],[2,4,0],[4,2,0],[0,4,0],[4,0,0],[0,2,0],[2,0,0]],[[2,0,0],[0,0,0],[4,0,0],[4,2,0],[0,2,0],[6,2,0],[6,4,0]],[[0,2,0],[0,0,0],[0,4,0],[2,4,0],[2,6,0],[4,4,0],[2,8,0]],[[0,2,0],[0,0,0],[2,2,0],[4,2,0],[6,2,0],[6,4,0],[8,4,0]],[[4,2,0],[4,4,0],[2,2,0],[4,0,0],[4,6,0],[0,2,0],[4,8,0]],[[4,4,0],[2,4,0],[0,4,0],[6,4,0],[0,2,0],[2,6,0],[0,0,0]],[[4,2,0],[2,2,0],[4,0,0],[4,4,0],[0,2,0],[4,6,0],[6,6,0]],[[6,2,0],[4,2,0],[4,4,0],[2,2,0],[8,2,0],[0,2,0],[8,0,0]],[[6,2,0],[8,2,0],[4,2,0],[2,2,0],[0,2,0],[0,0,0],[6,4,0]],[[0,0,0],[2,0,0],[4,0,0],[6,0,0],[6,2,0],[6,4,0],[6,6,0]],[[0,2,0],[2,2,0],[0,0,0],[4,2,0],[6,2,0],[8,2,0],[8,0,0]],[[4,4,0],[2,4,0],[2,2,0],[2,0,0],[6,4,0],[4,0,0],[0,2,0]],[[6,2,0],[6,0,0],[4,2,0],[2,2,0],[8,0,0],[0,2,0],[0,0,0]],[[6,2,0],[6,0,0],[6,4,0],[4,4,0],[2,4,0],[0,4,0],[2,6,0]],[[4,0,0],[6,0,0],[2,0,0],[2,2,0],[0,0,0],[8,0,0],[8,2,0]],[[2,0,0],[4,0,0],[2,2,0],[0,2,0],[2,4,0],[4,4,0],[4,6,0]],[[2,2,0],[4,2,0],[0,2,0],[0,4,0],[4,0,0],[0,0,0],[4,4,0]],[[6,2,0],[6,0,0],[8,2,0],[4,2,0],[8,4,0],[2,2,0],[0,2,0]],[[4,4,0],[4,6,0],[4,2,0],[6,2,0],[2,4,0],[6,0,0],[0,4,0]],[[2,2,0],[4,2,0],[4,0,0],[2,4,0],[0,4,0],[0,6,0],[0,8,0]],[[2,2,0],[2,4,0],[4,4,0],[2,0,0],[4,0,0],[6,0,0],[0,0,0]],[[2,4,0],[2,6,0],[4,4,0],[4,2,0],[4,0,0],[0,6,0],[2,8,0]],[[2,4,0],[0,4,0],[4,4,0],[2,2,0],[0,6,0],[2,0,0],[4,6,0]],[[0,2,0],[0,4,0],[2,4,0],[4,4,0],[0,0,0],[4,6,0],[6,4,0]],[[4,4,0],[2,4,0],[2,2,0],[2,0,0],[4,0,0],[0,4,0],[6,0,0]],[[2,4,0],[4,4,0],[4,2,0],[2,6,0],[4,0,0],[0,4,0],[2,8,0]],[[4,0,0],[2,0,0],[4,2,0],[0,0,0],[4,4,0],[6,4,0],[6,6,0]],[[4,4,0],[4,2,0],[6,2,0],[2,4,0],[0,4,0],[0,6,0],[6,0,0]],[[2,2,0],[2,0,0],[0,2,0],[0,4,0],[4,0,0],[6,0,0],[0,6,0]],[[2,0,0],[4,0,0],[6,0,0],[2,2,0],[0,2,0],[8,0,0],[2,4,0]],[[2,6,0],[2,4,0],[2,8,0],[4,4,0],[2,2,0],[2,0,0],[0,8,0]],[[2,6,0],[2,4,0],[2,8,0],[0,4,0],[0,2,0],[0,0,0],[0,8,0]],[[2,2,0],[0,2,0],[4,2,0],[6,2,0],[0,0,0],[8,2,0],[8,4,0]],[[4,0,0],[4,2,0],[4,4,0],[2,4,0],[2,6,0],[0,6,0],[6,0,0]],[[2,4,0],[2,6,0],[2,8,0],[0,4,0],[0,2,0],[2,10,0],[0,0,0]],[[4,2,0],[2,2,0],[2,4,0],[2,6,0],[6,2,0],[0,4,0],[6,0,0]],[[4,2,0],[2,2,0],[2,4,0],[4,0,0],[6,0,0],[0,4,0],[0,6,0]],[[0,4,0],[2,4,0],[2,2,0],[2,0,0],[0,6,0],[0,8,0],[4,0,0]],[[0,2,0],[2,2,0],[4,2,0],[4,4,0],[0,4,0],[6,4,0],[2,0,0]],[[4,2,0],[4,4,0],[4,0,0],[6,4,0],[8,4,0],[2,0,0],[0,0,0]],[[2,4,0],[4,4,0],[6,4,0],[0,4,0],[0,2,0],[6,2,0],[0,0,0]],[[0,2,0],[2,2,0],[4,2,0],[0,4,0],[4,0,0],[0,6,0],[0,8,0]],[[0,4,0],[0,2,0],[2,2,0],[0,6,0],[4,2,0],[4,0,0],[2,6,0]],[[2,4,0],[2,2,0],[0,2,0],[2,6,0],[4,6,0],[2,8,0],[0,0,0]],[[4,0,0],[4,2,0],[2,0,0],[4,4,0],[6,4,0],[2,4,0],[0,0,0]],[[6,2,0],[8,2,0],[10,2,0],[4,2,0],[2,2,0],[10,0,0],[0,2,0]],[[0,6,0],[0,4,0],[0,2,0],[2,2,0],[2,0,0],[2,6,0],[2,8,0]],[[0,2,0],[2,2,0],[4,2,0],[4,4,0],[6,4,0],[0,0,0],[4,6,0]],[[6,4,0],[6,6,0],[6,2,0],[4,2,0],[2,2,0],[2,0,0],[0,0,0]],[[4,0,0],[4,2,0],[2,2,0],[2,4,0],[2,6,0],[0,6,0],[0,8,0]],[[4,2,0],[4,0,0],[2,2,0],[6,0,0],[2,4,0],[0,4,0],[8,0,0]],[[4,2,0],[2,2,0],[6,2,0],[0,2,0],[8,2,0],[0,4,0],[8,0,0]],[[2,4,0],[4,4,0],[0,4,0],[0,2,0],[0,0,0],[4,6,0],[2,0,0]],[[4,4,0],[4,2,0],[2,4,0],[4,0,0],[6,0,0],[8,0,0],[0,4,0]],[[6,2,0],[4,2,0],[6,0,0],[8,0,0],[2,2,0],[2,4,0],[0,4,0]]]]
+   
+    sourcePieces = []
+    resource.forEach((v, i) => {
+      sourcePieces.push(v)
+    })
+    
+    GetTotalPieces()
+    
+    var maxx = -6e6
+    var maxy = -6e6
+    sourcePieces = sourcePieces.map((pieces, ipx) => {
+      return pieces.map(pointArray => {
+        pointArray.map((q, j) => {
+          if(q[0] > maxx) maxx = q[0]
+          if(q[1] > maxy) maxy = q[1]
+        })
+        pointArray.map((q, j) => {
+          q[0] -= (maxx/2 | 0) + (maxx%4?3:0) + 1
+          q[1] -= (maxy/2 | 0) + (maxy%4?3:0) + .5
+          q[0] *= pieceSize / 2
+          q[1] *= pieceSize / 2
+          q[2] *= pieceSize / 2
+        })
+        return pointArray
+      })
+    })
+  }
+  
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
 
-            swapPiece.gid = curPiece.gid
-            swapPiece.pid = curPiece.pid
-            swapPiece.base = curPiece.base
-            swapPiece.x = curPiece.x
-            swapPiece.y = curPiece.y
-            swapPiece.z = curPiece.z
-            swapPiece.ix = 80
-            swapPiece.iy = 15
-            swapPiece.iz = -.1
-            swapPiece.isBomb = curPiece.isBomb
-            
-            curPiece.gid = tempPiece.gid
-            curPiece.pid = tempPiece.pid
-            curPiece.base = tempPiece.base
-            curPiece.x = tempPiece.x
-            curPiece.y = tempPiece.y
-            curPiece.z = tempPiece.z
-            curPiece.ix = 0
-            curPiece.iy = mag * 55 / fact
-            curPiece.iz = 0
-            curPiece.isBomb = tempPiece.isBomb
-          }
+  var shaderOptions = [
+    { lighting: { type: 'ambientLight', value: 1}},
+    { uniform: {
+      type: 'phong',
+      value: .5
+    } }
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: {type: 'ambientLight', value: .1}
+    },
+    { uniform: {
+      type: 'phong',
+      value: .25,
+      theta: -Math.PI / 3.5 + .1
+    } },
+    { uniform: {
+      type: 'reflection',
+      value: .5,
+      enabled: true,
+      map: 'https://srmcgann.github.io/Coordinates/resources/grid_saphire_dark_po2_lowres.jpg',
+      //theta: -Math.PI / 6
+    } }
+  ]
+  var buttonShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: { type: 'ambientLight', value: .5}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var sideboardShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: { type: 'ambientLight', value: 1.5}},
+    { uniform: {
+      type: 'phong',
+      value: 1
+    } },
+    { uniform: {
+      type: 'reflection',
+      //map: refTexture,
+      value: .1,
+      enabled: false,
+    } }
+  ]
+  var bombShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: { type: 'ambientLight', value: .8}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } },
+  ]
+  var bombShadowShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: { type: 'ambientLight', value: .75}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: { type: 'ambientLight', value: 1}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var gameOverShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var buttonShape
+  var geoOptions = {
+    shapeType: 'obj',
+    name: 'button',
+    url: 'https://srmcgann.github.io/objs/button/button.obj',
+    scaleX: -20,
+    scaleY: 24,
+    scaleZ: 100,
+    showBounding: false,
+    canvasTexture: scratchCanvas.c,
+    colorMix: .5,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    buttonShape = geometry
+    await buttonShader.ConnectGeometry(geometry)
+  })
+  
+  var gameOverShape
+  var geoOptions = {
+    shapeType: 'rectangle',
+    name: 'game over',
+    map: 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_game_over.png',
+    z: -50,
+    size: 10,
+    scaleY: -14,
+    scaleX: 14 * (16/12),
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    gameOverShape = geometry
+    await gameOverShader.ConnectGeometry(geometry)
+  })
+  
+  var buttonTexture = new Image()
+  var url = 'https://srmcgann.github.io/objs/button/button.png'
+  await fetch(url).then(res=>res.blob()).then(data => {
+    buttonTexture.src = URL.createObjectURL(data)
+  })
+  
+  var sideboardTexture1 = new Image()
+  var sideboardTexture2 = new Image()
+  var sideboardTexture3 = new Image()
+  var url = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_fullgrid_1.png'
+  await fetch(url).then(res=>res.blob()).then(data => {
+    sideboardTexture1.src = URL.createObjectURL(data)
+  })
+  var url = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_fullgrid_2.png'
+  await fetch(url).then(res=>res.blob()).then(data => {
+    sideboardTexture2.src = URL.createObjectURL(data)
+  })
+  var url = 'https://srmcgann.github.io/Coordinates/resources/wip/hextris_fullgrid_3.png'
+  await fetch(url).then(res=>res.blob()).then(data => {
+    sideboardTexture3.src = URL.createObjectURL(data)
+  })
+
+  var borderShape
+  var geoOptions = {
+    shapeType: 'obj',
+    name: 'border',
+    url: 'https://srmcgann.github.io/objs/hextris_frame.obj?3',
+    scaleX: 102.5,
+    scaleY: 102.5,
+    scaleZ: 102.5/4,
+    y: 3,
+    x: -.2,
+    color: 0x886655,
+    colorMix: .1,
+  }
+  if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    borderShape = geometry
+    await shader.ConnectGeometry(geometry)
+  })
+  
+  var backgroundShape1
+  var backgroundShape2
+  var backgroundShape3
+  var geoOptions = {
+    shapeType: 'rectangle',
+    subs: 4,
+    size: 460,
+    z: 500,
+    scaleX: 16/12,
+    name: 'background',
+    colorMix: 0,
+    //color: 0xff0000
+  }
+  geoOptions.map = refTexture1
+  Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    backgroundShape1 = geometry
+    await backgroundShader.ConnectGeometry(geometry)
+  })
+  geoOptions.map = refTexture2
+  //geoOptions.scaleUVX = -.5
+  geoOptions.scaleUVY = -1
+  Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    backgroundShape2 = geometry
+    for(var i = 0; i < geometry.uvs.length; i +=2){
+      geometry.uvs[i+1] += 1
+    }
+    await backgroundShader.ConnectGeometry(geometry)
+  })
+  //geoOptions.scaleUVX = .25
+  //geoOptions.scaleUVY = 1
+  geoOptions.map = refTexture3
+  Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    backgroundShape3 = geometry
+    await backgroundShader.ConnectGeometry(geometry)
+  })
+        
+  var sideboardShape
+  var geoOptions = {
+    shapeType: 'rectangle',
+    name: 'sideboard',
+    scaleX: 1.2,
+    scaleY: 1.0033,
+    scaleZ: 1,
+    subs: 4,
+    size: 130,
+    x: -.5,
+    y: 0,
+    z: 0,
+    pitch: Math.PI, 
+    canvasTexture: sideboardCanvas.c,
+    color: 0xff8800,
+    colorMix: 0,
+  }
+  if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    sideboardShape = geometry
+    await sideboardShader.ConnectGeometry(geometry)
+  })
+  
+  var bombShape, bombShadowShape
+  var geoOptions = {
+    shapeType: 'obj',
+    name: 'bomb',
+    url: 'https://srmcgann.github.io/objs/bomb/bomb.obj',
+    map: 'https://srmcgann.github.io/objs/bomb/bomb.png',
+    scaleX: 20,
+    scaleY: 20,
+    scaleZ: 20,
+    color: 0x888888,
+    y: -50,
+    colorMix: .05,
+  }
+  if(1) {
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      bombShape = geometry
+      await bombShader.ConnectGeometry(geometry)
+    })
+    geoOptions.map = ''
+    geoOptions.colorMix = .1
+    geoOptions.color = 0xffffff
+    //geoOptions.alpha = .9
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      bombShadowShape = geometry
+      await bombShadowShader.ConnectGeometry(geometry)
+    })
+  }
+  
+  var flashParticles
+  var geoOptions = {
+    shapeType: 'particles',
+    geometryData: Array(7500).fill().map((v, i) => [1e5, 1e5, 1e5]),
+    size: 2,
+    alpha: .8,
+    penumbra: .4,
+    color: 0x00ff44,
+  }
+  if(1) Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    flashParticles = geometry
+  })
+  
+  
+  var sparkShape, baseSparkShape
+  var geoOptions = {
+    shapeType: 'sprite',
+    size: 3 / 10,
+    map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+    z: -1
+  }
+  if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    sparkShape = geometry
+    baseSparkShape = structuredClone(sparkShape.vertices)
+  })
+  
+  if(0){
+    Coordinates.LoadFPSControls(renderer, {
+      flyMode: true,
+      mSpeed: .5,
+      crosshairSel: 2,
+      crosshairSize: .5,
+    })
+  }
+
+  const SwapPiece = () => {
+    if(!swapped){
+      swapped = true
+      if(swapPiece.pid == -1){
+        swapPiece.gid = curPiece.gid
+        swapPiece.pid = curPiece.pid
+        swapPiece.base = curPiece.base
+        swapPiece.x = curPiece.x
+        swapPiece.y = curPiece.y
+        swapPiece.z = curPiece.z
+        swapPiece.ix = 80
+        swapPiece.iy = 15
+        swapPiece.iz = -.1
+        swapPiece.isBomb = curPiece.isBomb
+        SpawnPiece()
+      }else{
+        tempPiece.gid = swapPiece.gid
+        tempPiece.pid = swapPiece.pid
+        tempPiece.base = swapPiece.base
+        tempPiece.x = swapPiece.x
+        tempPiece.y = swapPiece.y
+        tempPiece.z = swapPiece.z
+        tempPiece.isBomb = swapPiece.isBomb
+
+        swapPiece.gid = curPiece.gid
+        swapPiece.pid = curPiece.pid
+        swapPiece.base = curPiece.base
+        swapPiece.x = curPiece.x
+        swapPiece.y = curPiece.y
+        swapPiece.z = curPiece.z
+        swapPiece.ix = 80
+        swapPiece.iy = 15
+        swapPiece.iz = -.1
+        swapPiece.isBomb = curPiece.isBomb
+        
+        curPiece.gid = tempPiece.gid
+        curPiece.pid = tempPiece.pid
+        curPiece.base = tempPiece.base
+        curPiece.x = tempPiece.x
+        curPiece.y = tempPiece.y
+        curPiece.z = tempPiece.z
+        curPiece.ix = 0
+        curPiece.iy = mag * 55 / fact
+        curPiece.iz = 0
+        curPiece.isBomb = tempPiece.isBomb
+      }
+    }
+  }
+  
+  const AdvancePiece = () => {
+    if(CanDrop(curPiece)) curPiece.iy -= mag
+  }
+  
+  Coordinates.Overlay.c.tabIndex = 0
+  Coordinates.Overlay.c.focus()
+  
+  Coordinates.Overlay.c.addEventListener('keydown', e => {
+    if(e.keyCode == 16 && !paused){
+      SwapPiece()
+    }
+    if(e.keyCode == 19){
+      paused = !paused
+      DoButtons(0)
+    }
+    if(!buttons.filter(v=>v.name == 'show config button')[0].clickState) {
+      DoButtons(10)
+      shotTaken = false
+    }
+    keys[e.keyCode] = true
+    didDrop = 0
+  })
+  
+  Coordinates.Overlay.c.addEventListener('keyup', e => {
+    keys[e.keyCode] = false
+    keyholdCount = pieceTimer = 0
+  })
+
+  const CheckRows = () => {
+    var collapseRows = []
+    var tempFlashQueue = []
+    for(var i = 0; i < 55; i++){
+      var ct = 0
+      for(var j = 0; j < 25; j++){
+        if(box[i*25+j] == 0) ct ++
+      }
+      if(ct == 1){
+        y = (i - 50/fact) * mag + mag/4
+        collapseRows.push(i)
+        rowsCompleted++
+        for(var j = 0; j < 25; j++) {
+          x = (j - 24.5/fact) * mag
+          z = 0
+          tempFlashQueue.push([x, y, z])
+          box[i*25+j] = 0
         }
       }
-      
-      const AdvancePiece = () => {
-        if(CanDrop(curPiece)) curPiece.iy -= mag
+    }
+    if(tempFlashQueue.length){
+      flashes = []
+      tempFlashQueue.forEach((v, i) => SpawnFlash(...v) )
+    }
+    collapseRows.forEach((q, j) =>{
+      y = collapseRows[collapseRows.length - j - 1]
+      for(var i = y; i<55; i++){
+        for(var j = 0; j < 25; j++) {
+          box[i*25+j] = box[(i+1)*25+j]
+        }
       }
-      
-      Coordinates.Overlay.c.tabIndex = 0
-      Coordinates.Overlay.c.focus()
-      
-      Coordinates.Overlay.c.addEventListener('keydown', e => {
-        if(e.keyCode == 16 && !paused){
-          SwapPiece()
-        }
-        if(e.keyCode == 19){
-          paused = !paused
-          DoButtons(0)
-        }
-        keys[e.keyCode] = true
-        didDrop = 0
-      })
-      
-      Coordinates.Overlay.c.addEventListener('keyup', e => {
-        keys[e.keyCode] = false
-        keyholdCount = pieceTimer = 0
-      })
-
-      const CheckRows = () => {
-        var collapseRows = []
-        var tempFlashQueue = []
-        for(var i = 0; i < 55; i++){
-          var ct = 0
-          for(var j = 0; j < 25; j++){
-            if(box[i*25+j] == 0) ct ++
-          }
-          if(ct == 1){
-            y = (i - 50/fact) * mag + mag/4
-            collapseRows.push(i)
-            rowsCompleted++
-            for(var j = 0; j < 25; j++) {
-              x = (j - 24.5/fact) * mag
-              z = 0
-              tempFlashQueue.push([x, y, z])
-              box[i*25+j] = 0
+    })
+  }
+  
+  const CanDrop = (pc, override=false) => {
+    var miny = 6e6
+    var tx = pc.ix
+    var ty = pc.iy - mag
+    var collision = false
+    pieces[pc.base][pc.pid].forEach((v, i) => {
+      if(!collision){
+        x = (v[0] + tx) / mag
+        y = (v[1] + ty) / mag
+        if(box[Math.round(25 / fact+(tx + v[0])/mag) + 50 / fact*Math.round(50 / fact+(ty + v[1])/mag)]) collision = true
+        if(y < miny) miny = y
+      }
+    })
+    var ret = miny > -23.5*2 / fact && !collision
+    if(ret){
+      return true
+    }else if(!override){
+      if(pc.isBomb){
+        SpawnFlash(pc.ix, pc.iy, pc.iz, 1.5, 5, true)
+        for(var j = 0; j < box.length; j++){
+          x = ((j%25)-25/2) * mag
+          y = ((j/25|0)-50/2) * mag
+          if(Math.hypot(pc.ix - x, pc.iy - y) < mag * 10){
+            if(box[j]){
+              box[j] = 0
+              SpawnFlash(x, y, 0, 1, 1.5)
             }
           }
         }
-        if(tempFlashQueue.length){
-          flashes = []
-          tempFlashQueue.forEach((v, i) => SpawnFlash(...v) )
-        }
-        collapseRows.forEach((q, j) =>{
-          y = collapseRows[collapseRows.length - j - 1]
-          for(var i = y; i<55; i++){
-            for(var j = 0; j < 25; j++) {
-              box[i*25+j] = box[(i+1)*25+j]
-            }
-          }
-        })
-      }
-      
-      const CanDrop = (pc, override=false) => {
-        var miny = 6e6
+      }else{
         var tx = pc.ix
-        var ty = pc.iy - mag
-        var collision = false
+        var ty = pc.iy
         pieces[pc.base][pc.pid].forEach((v, i) => {
-          if(!collision){
+          x = Math.round(25 / fact+(tx + v[0])/mag)
+          y = Math.round(50 / fact+(ty + v[1])/mag)
+          box[y * 50 / fact + x] = pc.gid + 1
+          //z = tz + v[2]
+        })
+      }
+      CheckRows()
+      if(pc.iy < 85){
+        SpawnPiece()
+      }else{
+        alive = false
+        timeOfDeath = renderer.t
+      }
+      didDrop = true
+    }
+  }
+  
+  const DoShadowPiece = () => {
+    shadowPiece.pid = curPiece.pid
+    shadowPiece.base = curPiece.base
+    shadowPiece.gid = curPiece.gid
+    shadowPiece.x = curPiece.x
+    shadowPiece.y = curPiece.y
+    shadowPiece.z = curPiece.z
+    shadowPiece.ix = curPiece.ix
+    shadowPiece.iy = curPiece.iy
+    shadowPiece.iz = curPiece.iz
+    while(CanDrop(shadowPiece, true)) {
+      shadowPiece.y -= mag
+      shadowPiece.iy -= mag
+    }
+  }
+  
+  await LoadGame()
+
+  const tryShift = (mode, override = false) => {
+    var x, y, z, d, p
+    var did = false
+    if(pieceTimer < renderer.t){
+      switch(mode){
+        case 'left':
+          var minx = 6e6
+          var tx = curPiece.ix - mag
+          var ty = curPiece.iy
+          pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
             x = (v[0] + tx) / mag
             y = (v[1] + ty) / mag
-            if(box[Math.round(25 / fact+(tx + v[0])/mag) + 50 / fact*Math.round(50 / fact+(ty + v[1])/mag)]) collision = true
-            if(y < miny) miny = y
+            if(x < minx) minx = x
+          })
+          var clear = true
+          pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
+            if(box[Math.round(25 / fact+(tx + v[0])/mag) + 50 / fact*Math.round(50 / fact+(ty + v[1])/mag)]) clear = false
+          })
+          if(clear && minx >= -24 / fact){
+            did = true
+            curPiece.ix -= mag
+            if(!override) pieceTimer = renderer.t + pieceTimerInterval * (keyholdCount++<1 ? 20:1)
           }
-        })
-        var ret = miny > -23.5*2 / fact && !collision
-        if(ret){
-          return true
-        }else if(!override){
-          if(pc.isBomb){
-            SpawnFlash(pc.ix, pc.iy, pc.iz, 1.5, 5, true)
-            for(var j = 0; j < box.length; j++){
-              x = ((j%25)-25/2) * mag
-              y = ((j/25|0)-50/2) * mag
-              if(Math.hypot(pc.ix - x, pc.iy - y) < mag * 10){
-                if(box[j]){
-                  box[j] = 0
-                  SpawnFlash(x, y, 0, 1, 1.5)
-                }
-              }
-            }
-          }else{
-            var tx = pc.ix
-            var ty = pc.iy
-            pieces[pc.base][pc.pid].forEach((v, i) => {
-              x = Math.round(25 / fact+(tx + v[0])/mag)
-              y = Math.round(50 / fact+(ty + v[1])/mag)
-              box[y * 50 / fact + x] = pc.gid + 1
-              //z = tz + v[2]
+        break
+        case 'right':
+          var maxx = -6e6
+          var tx = curPiece.ix + mag
+          var ty = curPiece.iy
+          pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
+            x = (v[0] + tx) / mag
+            y = (v[1] + ty) / mag
+            if(x > maxx) maxx = x
+          })
+          var clear = true
+          pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
+            if(box[Math.round(25 / fact+(tx + v[0])/mag) + 50 / fact*Math.round(50 / fact+(ty + v[1])/mag)]) clear = false
+          })
+          if(maxx <= 24 / fact && clear){
+            did = true
+            curPiece.ix += mag
+            if(!override) pieceTimer = renderer.t + pieceTimerInterval * (keyholdCount++<1 ? 20:1)
+          }
+        break
+        case 'drop':
+          if(CanDrop(curPiece, true)){
+            did = true
+            curPiece.iy -= mag
+            if(!override) pieceTimer = renderer.t + pieceTimerInterval * (keyholdCount++<1 ? 20:1)
+          }
+        break
+        case 'rotate':
+          if(!curPiece.isBomb){
+            var ax = 0
+            var ay = 0
+            var ct = 0
+            pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
+              ax += v[0]
+              ay += v[1]
+              ct++
             })
-          }
-          CheckRows()
-          if(pc.iy < 85){
-            SpawnPiece()
-          }else{
-            alive = false
-          }
-          didDrop = true
-        }
-      }
-      
-      const DoShadowPiece = () => {
-        shadowPiece.pid = curPiece.pid
-        shadowPiece.base = curPiece.base
-        shadowPiece.gid = curPiece.gid
-        shadowPiece.x = curPiece.x
-        shadowPiece.y = curPiece.y
-        shadowPiece.z = curPiece.z
-        shadowPiece.ix = curPiece.ix
-        shadowPiece.iy = curPiece.iy
-        shadowPiece.iz = curPiece.iz
-        while(CanDrop(shadowPiece, true)) {
-          shadowPiece.y -= mag
-          shadowPiece.iy -= mag
-        }
-      }
-      
-      var includeBases = [
-        {idx: 0, base: 3, hasBombs: false, include: false},
-        {idx: 1, base: 4, hasBombs: false, include: false},
-        {idx: 2, base: 5, hasBombs: false, include: false},
-        {idx: 3, base: 6, hasBombs: false, include: false},
-        {idx: 4, base: 7, hasBombs: false, include: true},
-      ]
-      await LoadGame()
-
-      const tryShift = (mode, override = false) => {
-        var x, y, z, d, p
-        var did = false
-        if(pieceTimer < renderer.t){
-          switch(mode){
-            case 'left':
-              var minx = 6e6
-              var tx = curPiece.ix - mag
-              var ty = curPiece.iy
-              pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
-                x = (v[0] + tx) / mag
-                y = (v[1] + ty) / mag
-                if(x < minx) minx = x
-              })
-              var clear = true
-              pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
-                if(box[Math.round(25 / fact+(tx + v[0])/mag) + 50 / fact*Math.round(50 / fact+(ty + v[1])/mag)]) clear = false
-              })
-              if(clear && minx >= -24 / fact){
-                did = true
-                curPiece.ix -= mag
-                if(!override) pieceTimer = renderer.t + pieceTimerInterval * (keyholdCount++<1 ? 20:1)
+            ax /= ct
+            ay /= ct
+            
+            var tidx, mind = 6e6
+            pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
+              if((d=Math.hypot(v[0]-ax, v[1]-ay)) < mind){
+                mind = d
+                tidx = i
               }
-            break
-            case 'right':
-              var maxx = -6e6
-              var tx = curPiece.ix + mag
-              var ty = curPiece.iy
-              pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
-                x = (v[0] + tx) / mag
-                y = (v[1] + ty) / mag
-                if(x > maxx) maxx = x
-              })
-              var clear = true
-              pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
-                if(box[Math.round(25 / fact+(tx + v[0])/mag) + 50 / fact*Math.round(50 / fact+(ty + v[1])/mag)]) clear = false
-              })
-              if(maxx <= 24 / fact && clear){
-                did = true
-                curPiece.ix += mag
-                if(!override) pieceTimer = renderer.t + pieceTimerInterval * (keyholdCount++<1 ? 20:1)
-              }
-            break
-            case 'drop':
-              if(CanDrop(curPiece, true)){
-                did = true
-                curPiece.iy -= mag
-                if(!override) pieceTimer = renderer.t + pieceTimerInterval * (keyholdCount++<1 ? 20:1)
-              }
-            break
-            case 'rotate':
-              if(!curPiece.isBomb){
-                var ax = 0
-                var ay = 0
-                var ct = 0
-                pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
-                  ax += v[0]
-                  ay += v[1]
-                  ct++
-                })
-                ax /= ct
-                ay /= ct
-                
-                var tidx, mind = 6e6
-                pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
-                  if((d=Math.hypot(v[0]-ax, v[1]-ay)) < mind){
-                    mind = d
-                    tidx = i
-                  }
-                })
-                
-                var cx = pieces[curPiece.base][curPiece.pid][tidx][0]
-                var cy = pieces[curPiece.base][curPiece.pid][tidx][1]
-                
-                var successful = true
-                pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
-                  if(successful){
-                    p = Math.atan2(v[0] - cx, v[1] - cy) - Math.PI/2
-                    d = Math.hypot(v[0] - cx, v[1] - cy)
-                    x = cx + S(p) * d
-                    y = cy + C(p) * d
-                    if(x + curPiece.ix >= 24*mag / fact) {
-                      tryShift('left', true)
-                      successful = false
-                    }
-                    if(x + curPiece.ix < -23.5*mag / fact) {
-                      tryShift('right', true)
-                      successful = false
-                    }
-                    if(successful && 
-                       (x + curPiece.ix >= 24*mag / fact ||
-                        x + curPiece.ix <= -24*mag / fact ||
-                        y + curPiece.iy <= -24.5*2*mag / fact ||
-                      box[Math.round(25 / fact+(curPiece.ix + x)/mag) + 50 / fact*Math.round(50 / fact+(curPiece.iy + y)/mag)])) successful = false
-                  }
-                })
-                if(successful){
-                  pieces[curPiece.base][curPiece.pid].map((v, i) => {
-                    p = Math.atan2(v[0] - cx, v[1] - cy) - Math.PI/2
-                    d = Math.hypot(v[0] - cx, v[1] - cy)
-                    //v[0] = Math.round(cx + S(p) * d)
-                    //v[1] = Math.round(cy + C(p) * d)
-                    v[0] = (cx + S(p) * d)
-                    v[1] = (cy + C(p) * d)
-                  })
-                  for(var i = 0; i < pieceShapes[curPiece.base][curPiece.pid].vertices.length; i+=3){
-                    x = pieceShapes[curPiece.base][curPiece.pid].vertices[i+0]
-                    y = pieceShapes[curPiece.base][curPiece.pid].vertices[i+1]
-                    p = Math.atan2(x - cx, y - cy) - Math.PI/2
-                    d = Math.hypot(x - cx, y - cy)
-                    pieceShapes[curPiece.base][curPiece.pid].vertices[i+0] = cx + S(p) * d
-                    pieceShapes[curPiece.base][curPiece.pid].vertices[i+1] = cy + C(p) * d
-                  }
-                  if(!override) pieceTimer = renderer.t + pieceTimerInterval * (keyholdCount++<1 ? 20:1)
-                  did = true
+            })
+            
+            var cx = pieces[curPiece.base][curPiece.pid][tidx][0]
+            var cy = pieces[curPiece.base][curPiece.pid][tidx][1]
+            
+            var successful = true
+            pieces[curPiece.base][curPiece.pid].forEach((v, i) => {
+              if(successful){
+                p = Math.atan2(v[0] - cx, v[1] - cy) - Math.PI/2
+                d = Math.hypot(v[0] - cx, v[1] - cy)
+                x = cx + S(p) * d
+                y = cy + C(p) * d
+                if(x + curPiece.ix >= 24*mag / fact) {
+                  tryShift('left', true)
+                  successful = false
                 }
-              }
-            break
-          }
-        }
-        DoShadowPiece()
-        return did
-      }
-      
-      const DoKeys = () => {
-        keys.forEach((v, i) => {
-          if(v){
-            switch(i){
-              case 37: // left key
-                tryShift('left')
-              break;
-              case 38: // up key
-                var ct = 0
-                while(!tryShift('rotate') && (ct++ <30));
-              break;
-              case 39: // right key
-                tryShift('right')
-              break;
-              case 40: // down key
-                tryShift('drop')
-              break;
-              case 87: //w
-              break
-              case 65: //a
-              break
-              case 83: //s
-              break
-              case 68: //d
-              break
-              case 17: //ctrl
-                if(curPiece.isBomb){
-                  SpawnFlash(curPiece.ix, curPiece.iy, curPiece.iz, 1.5, 5, true)
-                  for(var j = 0; j < box.length; j++){
-                    x = ((j%25)-25/2) * mag
-                    y = ((j/25|0)-50/2) * mag
-                    if(Math.hypot(curPiece.ix - x, curPiece.iy - y) < mag * 10){
-                      if(box[j]){
-                        box[j] = 0
-                        SpawnFlash(x, y, 0, 1, 1.5)
-                      }
-                    }
-                  }
-                  SpawnPiece()
+                if(x + curPiece.ix < -23.5*mag / fact) {
+                  tryShift('right', true)
+                  successful = false
                 }
-              break
-              case 32: //space
-                while(CanDrop(curPiece)&&!didDrop) curPiece.iy -= mag
-              break
+                if(successful && 
+                   (x + curPiece.ix >= 24*mag / fact ||
+                    x + curPiece.ix <= -24*mag / fact ||
+                    y + curPiece.iy <= -24.5*2*mag / fact ||
+                  box[Math.round(25 / fact+(curPiece.ix + x)/mag) + 50 / fact*Math.round(50 / fact+(curPiece.iy + y)/mag)])) successful = false
+              }
+            })
+            if(successful){
+              pieces[curPiece.base][curPiece.pid].map((v, i) => {
+                p = Math.atan2(v[0] - cx, v[1] - cy) - Math.PI/2
+                d = Math.hypot(v[0] - cx, v[1] - cy)
+                //v[0] = Math.round(cx + S(p) * d)
+                //v[1] = Math.round(cy + C(p) * d)
+                v[0] = (cx + S(p) * d)
+                v[1] = (cy + C(p) * d)
+              })
+              for(var i = 0; i < pieceShapes[curPiece.base][curPiece.pid].vertices.length; i+=3){
+                x = pieceShapes[curPiece.base][curPiece.pid].vertices[i+0]
+                y = pieceShapes[curPiece.base][curPiece.pid].vertices[i+1]
+                p = Math.atan2(x - cx, y - cy) - Math.PI/2
+                d = Math.hypot(x - cx, y - cy)
+                pieceShapes[curPiece.base][curPiece.pid].vertices[i+0] = cx + S(p) * d
+                pieceShapes[curPiece.base][curPiece.pid].vertices[i+1] = cy + C(p) * d
+              }
+              if(!override) pieceTimer = renderer.t + pieceTimerInterval * (keyholdCount++<1 ? 20:1)
+              did = true
             }
           }
-        })
+        break
       }
-      
-      var iPv = .2
-      const SpawnFlash = (x, y, z, size = 1, bump = 1, isBomb=false) => {
-        for(var m = 50 * bump; m--; ){
-          var v = (.1+Rn()*.9)**.5 * iPv * size * (bump / 4)
-          var vx = S(p=Math.PI*2*Rn())*S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * v
-          var vy = C(q) * v
-          var vz = C(p) * S(q) * v
-          flashes.push({ x: x + (isBomb ? vx * mag * 10 : 0), y: y + (isBomb ? vy * mag * 10 - mag : 0), z, vx, vy, vz, life: size, bump})
-        }
-      }
-      
-      
-      const DoSideboard = t => {
-        var fs = 65 * 2
-        var w = sideboardCanvas.c.width
-        var h = sideboardCanvas.c.height
-        
-        pieceQueue.forEach((pc, idx) => {
-          var base = pc.base
-          var pid = pc.pid
-          var gid = pc.gid
-          var isBomb = pc.isBomb
-          var ax = 0
-          var ay = 0
-          var az = 0
-          var ct = 0
-          var tempVerts = structuredClone(pieceShapes[base][pid].vertices)
-          for(var i = 0; i < pieceShapes[base][pid].vertices.length; i+=3){
-            ax += pieceShapes[base][pid].vertices[i+0] = baseShapes[base][pid][i+0]
-            ay += pieceShapes[base][pid].vertices[i+1] = baseShapes[base][pid][i+1]
-            az += pieceShapes[base][pid].vertices[i+2] = baseShapes[base][pid][i+2]
-            ct ++
-          }
-          ax /= ct
-          ay /= ct
-          az /= ct
-          pc.ix = -80 - ax 
-          pc.iy = 95 - ay - idx * mag * 9
-          pc.iz = -.1
-          pc.x += (pc.ix - pc.x) / homing
-          pc.y += (pc.iy - pc.y) / homing
-          pc.z += (pc.iz - pc.z) / homing
-          if(isBomb){
-            var tbx = bombShape.x
-            var tby = bombShape.y
-            var tbz = bombShape.z
-            bombShape.x = pc.x - mag / 2
-            bombShape.y = pc.y - mag * 4
-            bombShape.z = pc.z = -.1
-            if(baseSparkShape){
-              var ls = 20 + C(t*100) * 10
-              for(var i = 0; i < sparkShape.vertices.length; i+=3){
-                sparkShape.vertices[i+0] = baseSparkShape[i+0] * ls
-                sparkShape.vertices[i+1] = baseSparkShape[i+1] * ls
-                sparkShape.vertices[i+2] = baseSparkShape[i+2] * ls
-              }
-              sparkShape.x = bombShape.x
-              sparkShape.y = bombShape.y + 20
-              sparkShape.z = bombShape.z
-              renderer.Draw(sparkShape)
-            }
-            bombShape.yaw = t * 2
-            bombShape.colorMix = .05
-            bombShape.alpha = 1
-            renderer.Draw(bombShape)
-            bombShape.x = tbx
-            bombShape.y = tby
-            bombShape.z = tbz
-          }else{
-            pieceShapes[base][pid].x = pc.x
-            pieceShapes[base][pid].y = pc.y
-            pieceShapes[base][pid].z = pc.z
-            pieceShapes[base][pid].color = Coordinates.HSVToHex(360/totalPieces*gid, 1, .5)
-            /*
-            Coordinates.Glow(
-              pieceShapes[base][pid],
-              0xffffff,
-              .75,
-              false,
-              10,
-              1
-            )*/
-            renderer.Draw(pieceShapes[base][pid])
-          }
-          pieceShapes[base][pid].vertices = tempVerts
-        })
-        
-        sideboardCanvas.ctx.clearRect(0,0,w,h)
-        switch(currentTheme){
-          case 1:
-            sideboardCanvas.ctx.drawImage(sideboardTexture1, 0, 0, w, h)
+    }
+    DoShadowPiece()
+    return did
+  }
+  
+  const DoKeys = () => {
+    keys.forEach(async (v, i) => {
+      if(v && (alive || i == 32)){
+        switch(i){
+          case 37: // left key
+            tryShift('left')
+          break;
+          case 38: // up key
+            var ct = 0
+            while(!tryShift('rotate') && (ct++ <30));
+          break;
+          case 39: // right key
+            tryShift('right')
+          break;
+          case 40: // down key
+            tryShift('drop')
+          break;
+          case 87: //w
           break
-          case 2:
-            sideboardCanvas.ctx.drawImage(sideboardTexture2, 0, 0, w, h)
+          case 65: //a
           break
-          case 3:
-            sideboardCanvas.ctx.drawImage(sideboardTexture3, 0, 0, w, h)
+          case 83: //s
           break
-        }
-        
-        sideboardCanvas.ctx.font = (fs*1.4)  + 'px monospace'
-        sideboardCanvas.ctx.textAlign = 'center'
-        sideboardCanvas.ctx.lineCap = sideboardCanvas.ctx.lineJoin = 'round'
-        sideboardCanvas.ctx.lineWidth = 24
-        //sideboardCanvas.ctx.shadowColor = '#0ff'
-        //sideboardCanvas.ctx.shadowBlur = fs / 5
-        sideboardCanvas.ctx.scale(1.33, .33)
-        
-        //sideboardCanvas.ctx.fillStyle = '#333c'
-        //sideboardCanvas.ctx.fillRect(60, h/ 1.3, 202, 380)
-        //for(var m=3; m--;) {
-
-        sideboardCanvas.ctx.fillStyle = '#888'
-        sideboardCanvas.ctx.strokeStyle = '#ffffff44'
-        sideboardCanvas.ctx.font = (fs*.8)  + 'px monospace'
-          sideboardCanvas.ctx.fillText('[shift]', w/1.55, h/3+fs*2)
-          sideboardCanvas.ctx.strokeText('[shift]', w/1.55, h/3+fs*2)
-        
-        switch(currentTheme){
-          case 1:
-            sideboardCanvas.ctx.fillStyle = '#fff'
-            sideboardCanvas.ctx.strokeStyle = '#4400ff44'
+          case 68: //d
           break
-          case 2:
-            sideboardCanvas.ctx.fillStyle = '#fff'
-            sideboardCanvas.ctx.strokeStyle = '#ff004444'
-          break
-          case 3:
-            sideboardCanvas.ctx.fillStyle = '#fff'
-            sideboardCanvas.ctx.strokeStyle = '#00ff4444'
-          break
-        }
-        sideboardCanvas.ctx.font = (fs*1.5)  + 'px monospace'
-          sideboardCanvas.ctx.fillText('swap', w/1.55, h/3)
-          sideboardCanvas.ctx.strokeText('swap', w/1.55, h/3)
-        sideboardCanvas.ctx.font = (fs*1.2)  + 'px monospace'
-          sideboardCanvas.ctx.fillText('piece', w/1.55, h/3+fs)
-          sideboardCanvas.ctx.strokeText('piece', w/1.55, h/3+fs)
-        sideboardCanvas.ctx.font = (fs*1.4)  + 'px monospace'
-          sideboardCanvas.ctx.fillText('rows', w/9.5, h * 2.25)
-          sideboardCanvas.ctx.strokeText('rows', w/9.5, h * 2.25)
-        //}
-
-        sideboardCanvas.ctx.shadowBlur = fs / 20 * 2
-        sideboardCanvas.ctx.font = (fs * 2) + 'px monospace'
-        //for(var m=3; m--;) {
-          sideboardCanvas.ctx.fillText(rowsCompleted, w/9.5, h * 2.25 + fs*2)
-          sideboardCanvas.ctx.strokeText(rowsCompleted, w/9.5, h * 2.25 + fs*2)
-        //}
-        sideboardCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
-      }
-      
-      var currentTheme = 1
-      window.addEventListener('mouseup', e => {
-        shotTaken = false
-      })
-      const DoButtons = (forceToggle = -1) => {
-        buttons.map((button, bidx) => {
-          buttonShape.roll = button.roll
-          buttonShape.yaw = button.yaw + Math.PI*2*button.oRot**6
-          buttonShape.pitch = button.pitch
-          buttonShape.color = button.color
-          buttonShape.boundingColor = button.color
-          buttonShape.x = button.x
-          buttonShape.y = button.y
-          buttonShape.z = button.z
-          if(!button.text){
-            button.text = button.clickState ? button.activeText : button.inactiveText
-            button.color = button.clickState ? button.activeColor : button.inactiveColor
-          }
-          ProcessButtonTexture(button.text)
-          var bounding = Coordinates.ShowBounding(buttonShape, renderer, false)
-          if(forceToggle == bidx || Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
-            if(renderer.mouseButton == 1 || forceToggle == bidx){
-              if(button.clickReady || forceToggle == bidx) {
-                if(!shotTaken || forceToggle != -1){
-                  if(bidx && forceToggle == -1){
-                    if(currentTheme != bidx){
-                      var tgt = currentTheme
-                      currentTheme = bidx
-                      setTimeout(()=>{
-                        DoButtons(tgt)
-                        DoButtons(currentTheme)
-                        var url = eval('refTexture'+currentTheme)
-                        document.body.style.backgroundImage = `url(${url})`
-                      }, 0)
-                    }
-                  }else{
-                    button.clickState = !button.clickState
+          case 17: //ctrl
+            if(curPiece.isBomb){
+              SpawnFlash(curPiece.ix, curPiece.iy, curPiece.iz, 1.5, 5, true)
+              for(var j = 0; j < box.length; j++){
+                x = ((j%25)-25/2) * mag
+                y = ((j/25|0)-50/2) * mag
+                if(Math.hypot(curPiece.ix - x, curPiece.iy - y) < mag * 10){
+                  if(box[j]){
+                    box[j] = 0
+                    SpawnFlash(x, y, 0, 1, 1.5)
                   }
                 }
-                shotTaken = true
-                setTimeout(() => {
-                  button.text = button.clickState ? button.activeText : button.inactiveText
-                  button.color = button.clickState ? button.activeColor : button.inactiveColor
-                }, 300)
               }
-              button.clickReady = false
+              SpawnPiece()
+            }
+          break
+          case 32: //space 
+            if(alive){
+              while(CanDrop(curPiece)&&!didDrop) curPiece.iy -= mag
             }else{
-              button.clickReady = true
-              button.oCState = button.clickState
+              if(renderer.t - timeOfDeath > .5){
+                await LoadGame()
+              }
             }
-            if(!button.oRot) Coordinates.ShowBounding(buttonShape, renderer, true, -1, true, 0, 8)
-            //if(!button.oRot) buttonShape.z = 5
-          }else{
-            //buttonShape.z = 0
-          }
-          if(button.oRot || button.oCState != button.clickState){
-            button.oRot+=.04
-            if(button.oRot >= 1){
-              button.oCState = button.clickState
-              button.oRot = 0
-            }
-          }
-          renderer.Draw(buttonShape)
-        })
-      }
-      
-      const ProcessButtonTexture = (buttonText, fs=buttonTextureWidth/10) => {
-        if(typeof scratchCanvas != 'undefined'){
-          var w = scratchCanvas.c.width
-          var h = scratchCanvas.c.height
-          
-          scratchCanvas.ctx.drawImage(buttonTexture, 0, 0, w, h)
-          var fs
-          scratchCanvas.ctx.font = fs + 'px monospace'
-          scratchCanvas.ctx.fillStyle = '#000'
-          scratchCanvas.ctx.textAlign = 'center'
-          scratchCanvas.ctx.shadowColor = '#888'
-          scratchCanvas.ctx.shadowBlur = fs / 10
-          scratchCanvas.ctx.scale(2.0, .75)
-          for(var m=8; m--;)
-            scratchCanvas.ctx.fillText(buttonText, w/4,h/2+fs/2.15)
-          scratchCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
+          break
         }
       }
-      buttonTexture.onload = ProcessButtonTexture
-
-      window.Draw = () => {
-        paused = buttons.filter(v => v.name == 'pause button')[0].clickState
-      
-        var t = paused ? ot : ot + 1/60
-        ot = t
-        renderer.z = 100
-        if(!paused) DoKeys()
-        renderer.Clear()
-        switch(level){
-          case 1:
-            advFreq = 30
-          break
-          case 2:
-            advFreq = 25
-          break
-          case 3:
-            advFreq = 20
-          break
-          case 4:
-            advFreq = 15
-          break
-          case 5:
-            advFreq = 10
-          break
-          case 6:
-            advFreq = 8
-          break
-          case 7:
-            advFreq = 6
-          break
-          case 8:
-            advFreq = 4
-          break
-        }
-        if(!paused && !((t*60|0)%advFreq)) AdvancePiece()
-
-        if(typeof borderShape?.shader != 'undefined') renderer.Draw(borderShape)
-        
-        switch(currentTheme){
-          case 1:
-            renderer.Draw(backgroundShape1)
-          break
-          case 2:
-            renderer.Draw(backgroundShape2)
-          break
-          case 3:
-            renderer.Draw(backgroundShape3)
-          break
-        }
-        
-
-        var base = curPiece.base
-        var pid = curPiece.pid
-        if(curPiece.isBomb){
+    })
+  }
+  
+  var iPv = .2
+  const SpawnFlash = (x, y, z, size = 1, bump = 1, isBomb=false) => {
+    for(var m = 50 * bump; m--; ){
+      var v = (.1+Rn()*.9)**.5 * iPv * size * (bump / 4)
+      var vx = S(p=Math.PI*2*Rn())*S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * v
+      var vy = C(q) * v
+      var vz = C(p) * S(q) * v
+      flashes.push({ x: x + (isBomb ? vx * mag * 10 : 0), y: y + (isBomb ? vy * mag * 10 - mag : 0), z, vx, vy, vz, life: size, bump})
+    }
+  }
+  
+  
+  const DoSideboard = t => {
+    var fs = 65 * 2
+    var w = sideboardCanvas.c.width
+    var h = sideboardCanvas.c.height
+    
+    pieceQueue.forEach((pc, idx) => {
+      var base = pc.base
+      var pid = pc.pid
+      var gid = pc.gid
+      var isBomb = pc.isBomb
+      var ax = 0
+      var ay = 0
+      var az = 0
+      var ct = 0
+      var tempVerts = structuredClone(pieceShapes[base][pid].vertices)
+      for(var i = 0; i < pieceShapes[base][pid].vertices.length; i+=3){
+        ax += pieceShapes[base][pid].vertices[i+0] = baseShapes[base][pid][i+0]
+        ay += pieceShapes[base][pid].vertices[i+1] = baseShapes[base][pid][i+1]
+        az += pieceShapes[base][pid].vertices[i+2] = baseShapes[base][pid][i+2]
+        ct ++
+      }
+      ax /= ct
+      ay /= ct
+      az /= ct
+      pc.ix = -80 - ax 
+      pc.iy = 95 - ay - idx * mag * 9
+      pc.iz = -.1
+      pc.x += (pc.ix - pc.x) / homing
+      pc.y += (pc.iy - pc.y) / homing
+      pc.z += (pc.iz - pc.z) / homing
+      if(isBomb){
+        var tbx = bombShape.x
+        var tby = bombShape.y
+        var tbz = bombShape.z
+        bombShape.x = pc.x - mag / 2
+        bombShape.y = pc.y - mag * 4
+        bombShape.z = pc.z = -.1
+        if(baseSparkShape){
           var ls = 20 + C(t*100) * 10
           for(var i = 0; i < sparkShape.vertices.length; i+=3){
             sparkShape.vertices[i+0] = baseSparkShape[i+0] * ls
@@ -1348,153 +1309,423 @@
           sparkShape.y = bombShape.y + 20
           sparkShape.z = bombShape.z
           renderer.Draw(sparkShape)
-          curPiece.x += (curPiece.ix - curPiece.x) / homing
-          curPiece.y += (curPiece.iy - curPiece.y) / homing
-          bombShape.x = curPiece.x - mag / 2
-          bombShape.y = curPiece.y - mag * 2.15
-          bombShape.z = curPiece.z = -.1
-          bombShape.yaw = t * 2
-          bombShape.colorMix = .05
-          bombShape.alpha = 1
-          renderer.Draw(bombShape)
-        }else{
-          pieceShapes[base][pid].x = curPiece.x += (curPiece.ix - curPiece.x) / homing
-          pieceShapes[base][pid].y = curPiece.y += (curPiece.iy - curPiece.y) / homing
-          pieceShapes[base][pid].z = -.1
-          pieceShapes[base][pid].color = Coordinates.HSVToHex(360/totalPieces*curPiece.gid, 1, .5)
-          renderer.Draw(pieceShapes[base][pid])
         }
-        
-        if(swapPiece.pid != -1){
-          var tempVerts = structuredClone(pieceShapes[swapPiece.base][swapPiece.pid].vertices)
-          
-          for(var i = 0; i < baseShapes[swapPiece.base][swapPiece.pid].length; i += 3){
-            pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+0] = baseShapes[swapPiece.base][swapPiece.pid][i+0]
-            pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+1] = baseShapes[swapPiece.base][swapPiece.pid][i+1]
-            pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+2] = baseShapes[swapPiece.base][swapPiece.pid][i+2]
-          }
-          var ax = 0
-          var ay = 0
-          var az = 0
-          var ct = 0
-          for(var i = 0; i < pieceShapes[swapPiece.base][swapPiece.pid].vertices.length; i+=3){
-            ax += pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+0] = baseShapes[swapPiece.base][swapPiece.pid][i+0]
-            ay += pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+1] = baseShapes[swapPiece.base][swapPiece.pid][i+1]
-            az += pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+2] = baseShapes[swapPiece.base][swapPiece.pid][i+2]
-            ct ++
-          }
-          ax /= ct
-          ay /= ct
-          az /= ct
-          
-          if(swapPiece.isBomb){
-            var ls = 20 + C(t*100) * 10
-            for(var i = 0; i < sparkShape.vertices.length; i+=3){
-              sparkShape.vertices[i+0] = baseSparkShape[i+0] * ls
-              sparkShape.vertices[i+1] = baseSparkShape[i+1] * ls
-              sparkShape.vertices[i+2] = baseSparkShape[i+2] * ls
-            }
-            sparkShape.x = bombShape.x
-            sparkShape.y = bombShape.y + 20
-            sparkShape.z = bombShape.z
-            renderer.Draw(sparkShape)
-
-            pieceShapes[swapPiece.base][swapPiece.pid].x = swapPiece.x += (swapPiece.ix - swapPiece.x) / homing
-            pieceShapes[swapPiece.base][swapPiece.pid].y = swapPiece.y += (swapPiece.iy - swapPiece.y) / homing
-            bombShape.x = swapPiece.x - mag / 2 - ax
-            bombShape.y = swapPiece.y - mag * 2.15 - ay
-            bombShape.z = swapPiece.z = -.1
-            bombShape.yaw = t * 2
-            bombShape.colorMix = .05
-            bombShape.alpha = 1
-            renderer.Draw(bombShape)
-          }else{
-            pieceShapes[swapPiece.base][swapPiece.pid].x = (swapPiece.x += (swapPiece.ix - swapPiece.x) / homing) - ax
-            pieceShapes[swapPiece.base][swapPiece.pid].y = (swapPiece.y += (swapPiece.iy - swapPiece.y) / homing) - ay
-            pieceShapes[swapPiece.base][swapPiece.pid].z = -.1
-            pieceShapes[swapPiece.base][swapPiece.pid].color = Coordinates.HSVToHex(360/totalPieces*swapPiece.gid, 1, .5)
-            renderer.Draw(pieceShapes[swapPiece.base][swapPiece.pid])
-          }
-          pieceShapes[swapPiece.base][swapPiece.pid].vertices = tempVerts
-        }
-        
-        if(curPiece.isBomb){
-          bombShadowShape.x = shadowPiece.ix - mag / 2
-          bombShadowShape.y = shadowPiece.iy - mag * 2.15
-          bombShadowShape.yaw = t * 2
-          bombShadowShape.alpha = .9
-          bombShadowShape.cullFace = 'front'
-          bombShadowShape.z = -.1 //shadowPiece.iz = 0
-          renderer.Draw(bombShadowShape)
-          bombShadowShape.z = .1 //shadowPiece.iz = 0
-          renderer.Draw(bombShadowShape)
-        }
-
-        DoSideboard(t)
-        sideboardShape.alpha = .9
-        renderer.Draw(sideboardShape) 
-
-        flashes = flashes.filter((v, i) => v.life > 0)
-        //flashes.map(v=>v.life -= .01)
-        var vl=0
-        if(1){
-          for(var i = 0; i < flashParticles.vertices.length; i+=3) {
-            var l = i / 3
-            if(l < flashes.length){
-              var v = flashes[l]
-              flashParticles.vertices[i+0] = v.x += v.vx
-              flashParticles.vertices[i+1] = v.y += v.vy
-              flashParticles.vertices[i+2] = v.z += v.vz
-              vl = Math.min(1, v.life -= .1 * v.bump * .1)
-              flashParticles.size = 2 * vl * (v.bump / 4) * 16
-              flashParticles.alpha = Math.min(1, vl) * .8
-            }else{
-              flashParticles.vertices[i+0] = 1e5
-              flashParticles.vertices[i+1] = 1e5
-              flashParticles.vertices[i+2] = 1e5
-            }
-          }
-          flashParticles.color = Coordinates.HSVToHex((vl) * 100 + 320, 1 - vl/1.5, 1)
-          flashParticles.z = -1
-          renderer.Draw(flashParticles)
-        }
-
-        pieceShapes[base][pid].alpha = 1
-
-        for(var i = 0; i < boxShape.vertices.length; i += 3){
-          var idx = (i/18)|0
-          if(box[idx]){
-            var ar = Coordinates.HSVToRGB(360/totalPieces*(box[idx]-1), 1, .5)
-            boxShape.map[idx*3+0] = ar[0]
-            boxShape.map[idx*3+1] = ar[1]
-            boxShape.map[idx*3+2] = ar[2]
-            boxShape.vertices[i+0] = baseBox[i+0]
-            boxShape.vertices[i+1] = baseBox[i+1]
-            boxShape.vertices[i+2] = baseBox[i+2]
-          }else{
-            boxShape.vertices[i+0] = 1e5
-            boxShape.vertices[i+1] = 1e5
-            boxShape.vertices[i+2] = 1e5
-          }
-        }
-        boxShape.z = -.1
-        renderer.Draw(boxShape)
-        
-        if(!curPiece.isBomb){
-          pieceShapes[base][pid].x = shadowPiece.ix
-          pieceShapes[base][pid].y = shadowPiece.iy
-          pieceShapes[base][pid].color = 0x111111
-          pieceShapes[base][pid].alpha = .9
-          pieceShapes[base][pid].z = -.1
-          renderer.Draw(pieceShapes[base][pid])
-          pieceShapes[base][pid].z = .1
-          renderer.Draw(pieceShapes[base][pid])
-        }
-        
-        DoButtons()
-        window.loaded = true
-        document.querySelector('#loadingTextDiv').innerHTML = ''
+        bombShape.yaw = t * 2
+        bombShape.colorMix = .05
+        bombShape.alpha = 1
+        renderer.Draw(bombShape)
+        bombShape.x = tbx
+        bombShape.y = tby
+        bombShape.z = tbz
+      }else{
+        pieceShapes[base][pid].x = pc.x
+        pieceShapes[base][pid].y = pc.y
+        pieceShapes[base][pid].z = pc.z
+        pieceShapes[base][pid].color = Coordinates.HSVToHex(360/totalPieces+gid, 1, .5)
+        /*
+        Coordinates.Glow(
+          pieceShapes[base][pid],
+          0xffffff,
+          .75,
+          false,
+          10,
+          1
+        )*/
+        renderer.Draw(pieceShapes[base][pid])
       }
-    </script>
+      pieceShapes[base][pid].vertices = tempVerts
+    })
+    
+    sideboardCanvas.ctx.clearRect(0,0,w,h)
+    switch(currentTheme){
+      case 1:
+        sideboardCanvas.ctx.drawImage(sideboardTexture1, 0, 0, w, h)
+      break
+      case 2:
+        sideboardCanvas.ctx.drawImage(sideboardTexture2, 0, 0, w, h)
+      break
+      case 3:
+        sideboardCanvas.ctx.drawImage(sideboardTexture3, 0, 0, w, h)
+      break
+    }
+    
+    sideboardCanvas.ctx.font = (fs*1.4)  + 'px monospace'
+    sideboardCanvas.ctx.textAlign = 'center'
+    sideboardCanvas.ctx.lineCap = sideboardCanvas.ctx.lineJoin = 'round'
+    sideboardCanvas.ctx.lineWidth = 24
+    //sideboardCanvas.ctx.shadowColor = '#0ff'
+    //sideboardCanvas.ctx.shadowBlur = fs / 5
+    sideboardCanvas.ctx.scale(1.33, .33)
+    
+    //sideboardCanvas.ctx.fillStyle = '#333c'
+    //sideboardCanvas.ctx.fillRect(60, h/ 1.3, 202, 380)
+    //for(var m=3; m--;) {
+
+    sideboardCanvas.ctx.fillStyle = '#888'
+    sideboardCanvas.ctx.strokeStyle = '#ffffff44'
+    sideboardCanvas.ctx.font = (fs*.8)  + 'px monospace'
+      sideboardCanvas.ctx.fillText('[shift]', w/1.55, h/3+fs*2)
+      sideboardCanvas.ctx.strokeText('[shift]', w/1.55, h/3+fs*2)
+    
+    switch(currentTheme){
+      case 1:
+        sideboardCanvas.ctx.fillStyle = '#fff'
+        sideboardCanvas.ctx.strokeStyle = '#4400ff44'
+      break
+      case 2:
+        sideboardCanvas.ctx.fillStyle = '#fff'
+        sideboardCanvas.ctx.strokeStyle = '#ff004444'
+      break
+      case 3:
+        sideboardCanvas.ctx.fillStyle = '#fff'
+        sideboardCanvas.ctx.strokeStyle = '#00ff4444'
+      break
+    }
+    sideboardCanvas.ctx.font = (fs*1.5)  + 'px monospace'
+      sideboardCanvas.ctx.fillText('swap', w/1.55, h/3)
+      sideboardCanvas.ctx.strokeText('swap', w/1.55, h/3)
+    sideboardCanvas.ctx.font = (fs*1.2)  + 'px monospace'
+      sideboardCanvas.ctx.fillText('piece', w/1.55, h/3+fs)
+      sideboardCanvas.ctx.strokeText('piece', w/1.55, h/3+fs)
+    sideboardCanvas.ctx.font = (fs*1.4)  + 'px monospace'
+      sideboardCanvas.ctx.fillText('rows', w/9.5, h * 2.25)
+      sideboardCanvas.ctx.strokeText('rows', w/9.5, h * 2.25)
+    //}
+
+    sideboardCanvas.ctx.shadowBlur = fs / 20 * 2
+    sideboardCanvas.ctx.font = (fs * 2) + 'px monospace'
+    //for(var m=3; m--;) {
+      sideboardCanvas.ctx.fillText(rowsCompleted, w/9.5, h * 2.25 + fs*2)
+      sideboardCanvas.ctx.strokeText(rowsCompleted, w/9.5, h * 2.25 + fs*2)
+    //}
+    sideboardCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
+  }
+  
+  var currentTheme = 1
+  window.addEventListener('mouseup', e => {
+    shotTaken = false
+  })
+  const DoButtons = (forceToggle = -1) => {
+    buttons.map((button, bidx) => {
+      if(button.x != 135 || (button.x == 135 &&
+          !buttons.filter(v=>v.name == 'show config button')[0].clickState)){
+        buttonShape.roll = button.roll
+        buttonShape.yaw = button.yaw + Math.PI*2*button.oRot**6
+        buttonShape.pitch = button.pitch
+        buttonShape.color = button.color
+        buttonShape.boundingColor = button.color
+        buttonShape.x = button.x
+        buttonShape.y = button.y
+        buttonShape.z = button.z
+        if(!button.text){
+          button.text = button.clickState ? button.activeText : button.inactiveText
+          button.color = button.clickState ? button.activeColor : button.inactiveColor
+        }
+        ProcessButtonTexture(button.text, button.fontSize)
+        var bounding = Coordinates.ShowBounding(buttonShape, renderer, false)
+        if(forceToggle == bidx || Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
+          if(renderer.mouseButton == 1 || forceToggle == bidx){
+            if(button.clickReady || forceToggle == bidx) {
+              if(!shotTaken || forceToggle != -1){
+                if(bidx && bidx < 4 && forceToggle == -1){
+                  if(currentTheme != bidx){
+                    var tgt = currentTheme
+                    currentTheme = bidx
+                    setTimeout(()=>{
+                      DoButtons(tgt)
+                      DoButtons(currentTheme)
+                      var url = eval('refTexture'+currentTheme)
+                      document.body.style.backgroundImage = `url(${url})`
+                    }, 0)
+                  }
+                }else{
+                  button.clickState = !button.clickState
+                  switch(bidx){
+                    case 4:  // bombs button
+                      hasBombs = !hasBombs
+                    break
+                    default:
+                      if(bidx > 4 && bidx < 10){ // base buttons
+                        includeBases[bidx-5].include = button.clickState
+                        if(!includeBases.filter(v=>v.include).length){
+                          includeBases[0].include = true
+                          setTimeout(()=>{
+                            DoButtons(5)
+                            shotTaken = false
+                          }, 0)
+                        }
+                        GetTotalPieces()
+                      }
+                    break
+                  }
+                }
+              }
+              shotTaken = true
+              setTimeout(() => {
+                button.text = button.clickState ? button.activeText : button.inactiveText
+                button.color = button.clickState ? button.activeColor : button.inactiveColor
+              }, 300)
+            }
+            button.clickReady = false
+          }else{
+            button.clickReady = true
+            button.oCState = button.clickState
+          }
+          if(!button.oRot) Coordinates.ShowBounding(buttonShape, renderer, true, -1, true, 0, 8)
+          //if(!button.oRot) buttonShape.z = 5
+        }else{
+          //buttonShape.z = 0
+        }
+        if(button.oRot || button.oCState != button.clickState){
+          button.oRot+=.04
+          if(button.oRot >= 1){
+            button.oCState = button.clickState
+            button.oRot = 0
+          }
+        }
+        renderer.Draw(buttonShape)
+      }
+    })
+  }
+  
+  const ProcessButtonTexture = (buttonText, fs=buttonTextureWidth/10) => {
+    if(typeof scratchCanvas != 'undefined'){
+      var w = scratchCanvas.c.width
+      var h = scratchCanvas.c.height
+      
+      scratchCanvas.ctx.drawImage(buttonTexture, 0, 0, w, h)
+      var fs
+      scratchCanvas.ctx.font = fs + 'px monospace'
+      scratchCanvas.ctx.fillStyle = '#000'
+      scratchCanvas.ctx.textAlign = 'center'
+      scratchCanvas.ctx.shadowColor = '#888'
+      scratchCanvas.ctx.shadowBlur = fs / 10
+      scratchCanvas.ctx.scale(2.0, .75)
+      for(var m=8; m--;)
+        scratchCanvas.ctx.fillText(buttonText, w/4,h/2+fs/2.15)
+      scratchCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
+    }
+  }
+  buttonTexture.onload = ProcessButtonTexture
+
+  window.Draw = () => {
+  
+    paused = !alive || buttons.filter(v => v.name == 'pause button')[0].clickState
+  
+    var t = paused ? ot : ot + 1/60
+    ot = t
+    renderer.z = 100
+    //renderer.y = 15
+    DoKeys()
+    renderer.Clear()
+    switch(level){
+      case 1:
+        advFreq = 30
+      break
+      case 2:
+        advFreq = 25
+      break
+      case 3:
+        advFreq = 20
+      break
+      case 4:
+        advFreq = 15
+      break
+      case 5:
+        advFreq = 10
+      break
+      case 6:
+        advFreq = 8
+      break
+      case 7:
+        advFreq = 6
+      break
+      case 8:
+        advFreq = 4
+      break
+    }
+    if(!paused && !((t*60|0)%advFreq)) AdvancePiece()
+
+    if(typeof borderShape?.shader != 'undefined') renderer.Draw(borderShape)
+    
+    switch(currentTheme){
+      case 1:
+        renderer.Draw(backgroundShape1)
+      break
+      case 2:
+        renderer.Draw(backgroundShape2)
+      break
+      case 3:
+        renderer.Draw(backgroundShape3)
+      break
+    }
+    
+
+    var base = curPiece.base
+    var pid = curPiece.pid
+    if(curPiece.isBomb){
+      var ls = 20 + C(t*100) * 10
+      for(var i = 0; i < sparkShape.vertices.length; i+=3){
+        sparkShape.vertices[i+0] = baseSparkShape[i+0] * ls
+        sparkShape.vertices[i+1] = baseSparkShape[i+1] * ls
+        sparkShape.vertices[i+2] = baseSparkShape[i+2] * ls
+      }
+      sparkShape.x = bombShape.x
+      sparkShape.y = bombShape.y + 20
+      sparkShape.z = bombShape.z
+      renderer.Draw(sparkShape)
+      curPiece.x += (curPiece.ix - curPiece.x) / homing
+      curPiece.y += (curPiece.iy - curPiece.y) / homing
+      bombShape.x = curPiece.x - mag / 2
+      bombShape.y = curPiece.y - mag * 2.15
+      bombShape.z = curPiece.z = -.1
+      bombShape.yaw = t * 2
+      bombShape.colorMix = .05
+      bombShape.alpha = 1
+      renderer.Draw(bombShape)
+    }else{
+      pieceShapes[base][pid].x = curPiece.x += (curPiece.ix - curPiece.x) / homing
+      pieceShapes[base][pid].y = curPiece.y += (curPiece.iy - curPiece.y) / homing
+      pieceShapes[base][pid].z = -.1
+      pieceShapes[base][pid].color = Coordinates.HSVToHex(360/totalPieces+curPiece.gid, 1, .5)
+      renderer.Draw(pieceShapes[base][pid])
+    }
+    
+    if(swapPiece.pid != -1){
+      var tempVerts = structuredClone(pieceShapes[swapPiece.base][swapPiece.pid].vertices)
+      
+      for(var i = 0; i < baseShapes[swapPiece.base][swapPiece.pid].length; i += 3){
+        pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+0] = baseShapes[swapPiece.base][swapPiece.pid][i+0]
+        pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+1] = baseShapes[swapPiece.base][swapPiece.pid][i+1]
+        pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+2] = baseShapes[swapPiece.base][swapPiece.pid][i+2]
+      }
+      var ax = 0
+      var ay = 0
+      var az = 0
+      var ct = 0
+      for(var i = 0; i < pieceShapes[swapPiece.base][swapPiece.pid].vertices.length; i+=3){
+        ax += pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+0] = baseShapes[swapPiece.base][swapPiece.pid][i+0]
+        ay += pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+1] = baseShapes[swapPiece.base][swapPiece.pid][i+1]
+        az += pieceShapes[swapPiece.base][swapPiece.pid].vertices[i+2] = baseShapes[swapPiece.base][swapPiece.pid][i+2]
+        ct ++
+      }
+      ax /= ct
+      ay /= ct
+      az /= ct
+      
+      if(swapPiece.isBomb){
+        var ls = 20 + C(t*100) * 10
+        for(var i = 0; i < sparkShape.vertices.length; i+=3){
+          sparkShape.vertices[i+0] = baseSparkShape[i+0] * ls
+          sparkShape.vertices[i+1] = baseSparkShape[i+1] * ls
+          sparkShape.vertices[i+2] = baseSparkShape[i+2] * ls
+        }
+        sparkShape.x = bombShape.x
+        sparkShape.y = bombShape.y + 20
+        sparkShape.z = bombShape.z
+        renderer.Draw(sparkShape)
+
+        pieceShapes[swapPiece.base][swapPiece.pid].x = swapPiece.x += (swapPiece.ix - swapPiece.x) / homing
+        pieceShapes[swapPiece.base][swapPiece.pid].y = swapPiece.y += (swapPiece.iy - swapPiece.y) / homing
+        bombShape.x = swapPiece.x - mag / 2 - ax
+        bombShape.y = swapPiece.y - mag * 2.15 - ay
+        bombShape.z = swapPiece.z = -.1
+        bombShape.yaw = t * 2
+        bombShape.colorMix = .05
+        bombShape.alpha = 1
+        renderer.Draw(bombShape)
+      }else{
+        pieceShapes[swapPiece.base][swapPiece.pid].x = (swapPiece.x += (swapPiece.ix - swapPiece.x) / homing) - ax
+        pieceShapes[swapPiece.base][swapPiece.pid].y = (swapPiece.y += (swapPiece.iy - swapPiece.y) / homing) - ay
+        pieceShapes[swapPiece.base][swapPiece.pid].z = -.1
+        pieceShapes[swapPiece.base][swapPiece.pid].color = Coordinates.HSVToHex(360/totalPieces+swapPiece.gid, 1, .5)
+        renderer.Draw(pieceShapes[swapPiece.base][swapPiece.pid])
+      }
+      pieceShapes[swapPiece.base][swapPiece.pid].vertices = tempVerts
+    }
+    
+    if(curPiece.isBomb){
+      bombShadowShape.x = shadowPiece.ix - mag / 2
+      bombShadowShape.y = shadowPiece.iy - mag * 2.15
+      bombShadowShape.yaw = t * 2
+      bombShadowShape.alpha = .9
+      bombShadowShape.cullFace = 'front'
+      bombShadowShape.z = -.1 //shadowPiece.iz = 0
+      renderer.Draw(bombShadowShape)
+      bombShadowShape.z = .1 //shadowPiece.iz = 0
+      renderer.Draw(bombShadowShape)
+    }
+
+    DoSideboard(t)
+    sideboardShape.alpha = .9
+    renderer.Draw(sideboardShape) 
+
+    flashes = flashes.filter((v, i) => v.life > 0)
+    //flashes.map(v=>v.life -= .01)
+    var vl=0
+    if(1){
+      for(var i = 0; i < flashParticles.vertices.length; i+=3) {
+        var l = i / 3
+        if(l < flashes.length){
+          var v = flashes[l]
+          flashParticles.vertices[i+0] = v.x += v.vx
+          flashParticles.vertices[i+1] = v.y += v.vy
+          flashParticles.vertices[i+2] = v.z += v.vz
+          vl = Math.min(1, v.life -= .1 * v.bump * .1)
+          flashParticles.size = 2 * vl * (v.bump / 4) * 16
+          flashParticles.alpha = Math.min(1, vl) * .8
+        }else{
+          flashParticles.vertices[i+0] = 1e5
+          flashParticles.vertices[i+1] = 1e5
+          flashParticles.vertices[i+2] = 1e5
+        }
+      }
+      flashParticles.color = Coordinates.HSVToHex((vl) * 100 + 320, 1 - vl/1.5, 1)
+      flashParticles.z = -1
+      renderer.Draw(flashParticles)
+    }
+
+    pieceShapes[base][pid].alpha = 1
+
+    for(var i = 0; i < boxShape.vertices.length; i += 3){
+      var idx = (i/18)|0
+      if(box[idx]){
+        var ar = Coordinates.HSVToRGB(360/totalPieces+(box[idx]-1), 1, .5)
+        boxShape.map[idx*3+0] = ar[0]
+        boxShape.map[idx*3+1] = ar[1]
+        boxShape.map[idx*3+2] = ar[2]
+        boxShape.vertices[i+0] = baseBox[i+0]
+        boxShape.vertices[i+1] = baseBox[i+1]
+        boxShape.vertices[i+2] = baseBox[i+2]
+      }else{
+        boxShape.vertices[i+0] = 1e5
+        boxShape.vertices[i+1] = 1e5
+        boxShape.vertices[i+2] = 1e5
+      }
+    }
+    boxShape.z = -.1
+    renderer.Draw(boxShape)
+    
+    if(!curPiece.isBomb){
+      pieceShapes[base][pid].x = shadowPiece.ix
+      pieceShapes[base][pid].y = shadowPiece.iy
+      pieceShapes[base][pid].color = 0x111111
+      pieceShapes[base][pid].alpha = .9
+      pieceShapes[base][pid].z = -.1
+      renderer.Draw(pieceShapes[base][pid])
+      pieceShapes[base][pid].z = .1
+      renderer.Draw(pieceShapes[base][pid])
+    }
+    
+    DoButtons()
+    window.loaded = true
+    document.querySelector('#loadingTextDiv').innerHTML = ''
+    
+    if(!alive){
+      //gameOverShape.alpha = .9
+      renderer.Draw(gameOverShape)
+    }
+  }
+</script>
   </body>
 </html>
