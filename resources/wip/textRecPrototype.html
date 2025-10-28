@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var rendererOptions = {
+        ambientLight: .5,
+        fov: 1500
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .75
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        {lighting: {type: 'ambientLight', value: .8}},
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } }
+      ]
+      var nullShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+      var textCanvas = document.createElement('canvas')
+      var textRectShape
+      textCanvas.width = 400
+      textCanvas.height = 140
+      var textCanvasCtx = textCanvas.getContext('2d')
+      var geoOptions = {
+        shapeType: 'rectangle',
+        canvasTexture: textCanvas,
+        subs: 3,
+        size: 5,
+        scaleY: -1/(textCanvas.width/textCanvas.height),
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        textRectShape = geometry
+        await nullShader.ConnectGeometry(geometry)
+      })  
+      
+      
+      renderer.z = 5
+      window.Draw = () => {
+        renderer.Clear()
+        textCanvasCtx.fillStyle = '#111'
+        textCanvasCtx.fillRect(0,0,textCanvas.width, textCanvas.height)
+        textCanvasCtx.fillStyle = '#fff'
+        var fs
+        textCanvasCtx.font = (fs = 32) + 'px monospace'
+        textCanvasCtx.fillText(`player   : ${'cantelope'}`, 10,fs)
+        textCanvasCtx.fillText(`cur rows : ${'157'}`, 10,fs*2)
+        textCanvasCtx.fillText(`max rows : ${'298'}`, 10,fs*3)
+        renderer.Draw(textRectShape)
+      }
+      
+    </script>
+  </body>
+</html>
