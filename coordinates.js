@@ -2066,10 +2066,30 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
 
   
+  if(shapeType == 'obj' && (scaleX != 1 || scaleY != 1 || scaleZ != 1)){
+    for(var i = 0; i< vertices.length; i+=3){
+      vertices[i+0] *= scaleX
+      vertices[i+1] *= scaleY
+      vertices[i+2] *= scaleZ
+    }
+    for(var i = 0; i< normals.length; i+=6){
+      var x1 = normals[i+0] *= scaleX
+      var y1 = normals[i+1] *= scaleY
+      var z1 = normals[i+2] *= scaleZ
+      var x2 = normals[i+3] *= scaleX
+      var y2 = normals[i+4] *= scaleY
+      var z2 = normals[i+5] *= scaleZ
+      var d = Math.hypot(x2-x1, y2-y1, z2-z1)
+      normals[i+3] = x1 + (x2-x1)/d
+      normals[i+4] = y1 + (y2-y1)/d
+      normals[i+5] = z1 + (z2-z1)/d
+    }
+  }
+  
   //sphereize
   if(shapeType != 'lines' && shapeType != 'particles' && !isParticle &&
      shapeType != 'custom shape' && shapeType != 'obj' && shapeType != 'dynamic' ||
-     (scaleX != 1 || scaleY != 1 || scaleZ != 1)){
+     ((scaleX != 1 || scaleY != 1 || scaleZ != 1) && shapeType != 'obj')){
        // && (sphereize || scaleX != 1 || scaleY != 1 || scaleZ != 1)){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
