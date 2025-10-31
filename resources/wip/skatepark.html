@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+  import * as Coordinates from
+  //"https://whr.rf.gd/coordinates.js?3"
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+  var rendererOptions = {
+    ambientLight: .5, margin: 0,
+    fov: 1e3, width: 1920, height: 1080,
+    //fov: 1e3/2, width: 1920/2, height: 1080/2,
+    // uncomment above for lower-res, higher-performance canvas
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  var x, y, z, p, q, d
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .6}},
+    { uniform: {
+      type: 'phong',
+      value: .3
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      enabled: false,
+      value: .1
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: 1}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var floorShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .25}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+  var shapes = []
+
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    sphereize: 1,
+    subs: 4,
+    map: refTexture,
+    size: 5e3,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+  
+  var geoOptions = {
+    shapeType: 'rectangle',
+    name: 'floor rectangle',
+    subs: 7,
+    map: 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2_lowres.jpg',
+    size: 200,
+    scaleUVX: 4,
+    scaleUVY: 4,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    for(var i = 0; i < geometry.vertices.length; i+=3){
+      x = geometry.vertices[i+0]
+      y = geometry.vertices[i+1]
+      z = geometry.vertices[i+2]
+      p = Math.atan2(y, z) + Math.PI / 2
+      d = Math.hypot(y, z)
+      y = S(p) * d
+      z = C(p) * d
+      geometry.vertices[i+0] = x
+      geometry.vertices[i+1] = y
+      geometry.vertices[i+2] = z
+
+      x = geometry.normals[i+0]
+      y = geometry.normals[i+1]
+      z = geometry.normals[i+2]
+      p = Math.atan2(y, z) + Math.PI / 2
+      d = Math.hypot(y, z)
+      y = S(p) * d
+      z = C(p) * d
+      geometry.normals[i+0] = x
+      geometry.normals[i+1] = y
+      geometry.normals[i+2] = z
+    }
+    for(var i = 0; i < geometry.normalVecs.length; i+=3){
+      x = geometry.normalVecs[i+0]
+      y = geometry.normalVecs[i+1]
+      z = geometry.normalVecs[i+2]
+      p = Math.atan2(y, z) + Math.PI / 2
+      d = Math.hypot(y, z)
+      y = S(p) * d
+      z = C(p) * d
+      geometry.normalVecs[i+0] = x
+      geometry.normalVecs[i+1] = y
+      geometry.normalVecs[i+2] = z
+    }
+    shapes.push(geometry)
+    await floorShader.ConnectGeometry(geometry)
+  })  
+  
+  var polyCenters = []
+  const InitializeColliders = geometry => {
+    var ax, ay, az
+    for(var i = 0; i < geometry.vertices.length; i += 9){
+      ax = 0
+      ay = 0
+      az = 0
+      var a = []
+      for(var m = 0; m < 3; m++){
+        x = geometry.vertices[i+0+m*3]
+        y = geometry.vertices[i+1+m*3]
+        z = geometry.vertices[i+2+m*3]
+        a.push([x, y, z])
+        ax += x
+        ay += y
+        az += z
+      }
+      ax /= 3
+      ay /= 3
+      az /= 3
+      var n =  Coordinates.Normal(a)
+      n = [n[3]-n[0], n[4]-n[1], n[5]-n[2]]
+      polyCenters.push([ax, ay, az, n])
+    }
+  }
+  var geoOptions = {
+    shapeType: 'obj',
+    url: 'https://srmcgann.github.io/objs/halfpipe/masonite.obj',
+    map: 'https://srmcgann.github.io/objs/halfpipe/halfpipe.png',
+    name: 'masonite',
+    showNormals: false,
+    scaleX: -10,
+    scaleY: 10,
+    scaleZ: 10,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    InitializeColliders(geometry)
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })
+  
+  var iPc = 1000
+  var geometryData = Array(iPc).fill().map(v=>[1e5,1e5,1e5])
+  
+  var geoOptions = {
+    shapeType: 'particles',
+    name: 'particles',
+    geometryData,
+    size: 6,
+    alpha: 1,
+    penumbra: .33,
+    color: 0x4400ff,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+  })
+  
+  var flashShape, baseFlashShape
+  var geoOptions = {
+    rotationMode: 3,
+    shapeType: 'rectangle',
+    name: 'flash',
+    alpha: .9,
+    map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
+    size: 20,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    flashShape = geometry
+    baseFlashShape = structuredClone(geometry.vertices)
+  })
+  
+  var geoOptions = {
+    shapeType: 'obj',
+    url: 'https://srmcgann.github.io/objs/halfpipe/frame.obj',
+    map: 'https://srmcgann.github.io/objs/halfpipe/halfpipe.png',
+    name: 'frame',
+    scaleX: -10,
+    scaleY: 10,
+    scaleZ: 10,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+  
+
+  if(0) Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+    crossharSel: 2,
+    mSpeed: .6,
+    crosshairSize: .5,
+  })
+  
+  //uncomment above to enable mouse/keyboard controls
+  
+  var particles = []
+  var iPv = .0, grav = -.045
+  var iPFreq = 0
+  const SpawnParticles = () => {
+    for(var m = 1; m--; ){
+      x = Math.min(26, Math.max(-26, (.3+C(renderer.t/4))*200))
+      y = 60
+      z = C(C(renderer.t /2 + m) * 10) * 15 +Rn()
+      var vx = S(p=Math.PI*Rn()*2) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * iPv
+      var vy = C(q) * iPv / 8
+      var vz = C(p) * S(q) * iPv / 20
+      if(!((renderer.t*60|0)%5) || 1) SpawnFlash(x, y, z)
+      particles.push({
+        x, y, z,
+        vx, vy, vz, life: 1
+      })
+    }
+  }
+  
+  var flashes = []
+  const SpawnFlash = (x, y, z) => {
+    flashes.push({ x, y, z, life: 1 })
+  }
+  
+  renderer.z = renderer.width > 1e3 ? 50 : 100
+  //renderer.y = -16
+  renderer.pitch = .2
+  
+  window.Draw = () => {
+    var t = renderer.t
+    
+    renderer.Clear()
+    renderer.y = -16
+    renderer.yaw = Math.min(0, Math.max(-Math.PI*1.75, (-.3+C(t/6))*8))
+    renderer.z = Math.min(100, Math.max(50, (.3+C(t/8))*100))
+    renderer.pitch = Math.min(.1, Math.max(-Math.PI/2+.25, (.8+C(t/4))*Math.PI))
+
+    if(!particles.length || !((t*60|0)%iPFreq)) SpawnParticles()
+
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+          //shape.yaw += .005
+          renderer.Draw(shape)
+        break
+        case 'floor rectangle':
+          renderer.Draw(shape)
+        break
+        case 'frame':
+          renderer.Draw(shape)
+        break
+        case 'masonite':
+          renderer.Draw(shape)
+        break
+        case 'particles':
+          particles = particles.filter((v, i) => v.life > 0)
+          particles.map((particle, j) => {
+            var bounced = false
+            polyCenters.forEach((v, i) => {
+              if(!bounced){
+                var ax = v[0]
+                var ay = v[1] - 2.5
+                var az = v[2]
+                x = particle.x + particle.vx
+                y = particle.y + particle.vy
+                z = particle.z + particle.vz
+                d = Math.hypot(x-ax, y-ay, z-az)
+                if(d < 1+Math.hypot(particle.vx/40, particle.vy, particle.vz)){
+                  bounced = true
+                  var ar = Coordinates.Reflect([particle.vx, particle.vy, particle.vz], v[3])
+                  particle.vx = (ar[0] + particle.vx) / 2
+                  particle.vy = (ar[1] + particle.vy) / 2
+                  particle.vz = (ar[2] + particle.vz) / 2
+                }
+              }
+            })
+          })
+          for(var i = 0; i < shape.vertices.length; i+=3){
+            var j = i/3
+            if(j < particles.length){
+              x = particles[j].x
+              y = particles[j].y
+              z = particles[j].z
+              y = particles[j].y += particles[j].vy += (grav * (particles[j].vy > .166 ? .4 : 1))
+              x = particles[j].x += particles[j].vx += (particles[j].y > 4 ? (particles[j].x > 0 ? -.0015 : .0015) : 0)
+              z = particles[j].z += particles[j].vz
+              if(y < 0) {
+                y = particles[j].y = -grav
+                particles.vy *= -.95
+              }
+              shape.vertices[i+0] = x
+              shape.vertices[i+1] = y
+              shape.vertices[i+2] = z
+              particles[j].life -= .004
+            }else{
+              shape.vertices[i+0] = 1e5
+              shape.vertices[i+1] = 1e5
+              shape.vertices[i+2] = 1e5
+            }
+          }
+          shape.y = 3
+          //shape.color = Coordinates.HSVToHex(t*1e4,1,1)
+          renderer.Draw(shape)
+        break
+        default:
+          renderer.Draw(shape)
+        break
+      }
+    })
+    
+    var forSort = []
+    flashes = flashes.filter((v, i) => v.life > 0)
+    flashes.forEach((v, i) => {
+      d = Math.hypot(renderer.x - v.x, renderer.y - v.y, renderer.z - v.z)
+      forSort.push([d, i])
+    })
+    forSort.sort((a, b) => a[0]- b[0])
+    flashes.map((q, j) => {
+      var v = flashes[forSort[j][1]]
+      flashShape.x = v.x
+      flashShape.y = v.y
+      flashShape.z = v.z
+      flashShape.yaw = -renderer.yaw
+      flashShape.pitch = -renderer.pitch
+      for(var i = 0; i < baseFlashShape.length; i+=3){
+        flashShape.vertices[i+0] = baseFlashShape[i+0] * v.life**2
+        flashShape.vertices[i+1] = baseFlashShape[i+1] * v.life**2
+        flashShape.vertices[i+2] = baseFlashShape[i+2] * v.life**2
+      }
+      renderer.Draw(flashShape)
+      v.life -= .2
+    })
+  }
+  
+</script>
+  </body>
+</html>
