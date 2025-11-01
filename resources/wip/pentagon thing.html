@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+  var myCanvas = await Coordinates.Renderer({
+    attachToBody: false, margin: 0,
+    context: {mode: '2d'}, width: 960, height: 540,
+  })
+  var rendererOptions = {
+    ambientLight: .5, margin: 0, fov: 700,
+    width: 960, height: 540
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  var x, y, z, p, q, d
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .5}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      enabled: false,
+      value: .1
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: 1.33}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var backgroundShape
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    sphereize: 1,
+    subs: 4,
+    map: refTexture,
+    size: 5e3,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    backgroundShape = geometry
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+  
+  var mainShape
+  var geoOptions = {
+    shapeType: 'rectangle',
+    name: 'main',
+    subs: 5,
+    scaleY: -1,
+    scaleX: 16/9,
+    size: 15.3,
+    canvasTexture: myCanvas.c,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    mainShape = geometry
+    await shader.ConnectGeometry(geometry)
+  })  
+  
+  /*
+  Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+    crossharSel: 2,
+    crosshairSize: .5,
+  })
+  */
+  
+  //uncomment above to enable mouse/keyboard controls
+  
+  renderer.z = renderer.width > 1e3 ? 10 : 20
+  
+  window.Draw = () => {
+    var t = renderer.t
+    renderer.Clear()
+    var w = myCanvas.width
+    var h = myCanvas.height
+    var ctx = myCanvas.ctx
+    
+    ctx.fillStyle = '#000'
+    ctx.lineWidth = 1
+    ctx.fillRect(0,0,w,h)
+
+    var sd = 5
+    var ls = 25
+    var tgtDepth = 2
+    var theta = Math.PI/sd
+    
+    ctx.beginPath()
+    var tx = w/2, ty = h/2
+    for(var i = 0; i < sd; i++){
+      x = tx + S(p=Math.PI*2/sd*i+Math.PI/sd+theta) * ls
+      y = ty + C(p) * ls
+      ctx.lineTo(x, y)
+    }
+    ctx.closePath()
+    ctx.stroke()
+    const recurse = (lx=0, ly=0, depth = 0, n=0) => {
+      if(depth >= tgtDepth) return
+      var phi = .5+5**.5/2
+      var ls2 = ls * phi
+      for(var i = 0; i < 3; i++){
+        var p, q
+        var tx = lx + S(p=Math.PI*2/sd*i+theta+n) * ls2
+        var ty = ly + C(p) * ls2
+        if(Math.hypot(tx, ty) > Math.hypot(lx, ly)){
+          ctx.beginPath()
+          for(var j = 0; j < sd; j++){
+            x = w/2 + tx + S(q=p+Math.PI*2/sd*j+Math.PI/sd+Math.PI/sd) * ls
+            y = h/2 + ty + C(q) * ls
+            ctx.lineTo(x, y)
+          }
+          ctx.closePath()
+          ctx.strokeStyle = `hsla(${360/tgtDepth*depth},99%,50%,1)`
+          ctx.stroke()
+          recurse(tx, ty, depth + 1, p-Math.PI/sd*2*(j+1))
+        }
+      }
+    }
+    recurse()
+      
+    //ctx.lineJoin = ctx.lineCap = 'round'
+    
+    renderer.Draw(backgroundShape)
+    renderer.Draw(mainShape)
+  }
+  
+</script>
+  </body>
+</html>
