@@ -19,7 +19,7 @@ import * as Coordinates from
 
 var myCanvas = await Coordinates.Renderer({
   attachToBody: false, margin: 0,
-  context: {mode: '2d'}, width: 960/2, height: 540/2,
+  context: {mode: '2d'}, width: 960/1, height: 540/1,
 })
 var rendererOptions = {
   ambientLight: .5, margin: 0, fov: 700,
@@ -117,12 +117,12 @@ window.Draw = () => {
 
   
   var fov = 50
-  var sd = 6
-  var cl = 10
-  var rw = (cl * 3.66 | 0) - 1
+  var sd = 4
+  var cl = 3
+  var rw = 3 //(cl * 3.66 | 0) - 1
   var br = 1
-  var ls = 5 //+ C(t/2) * 8
-  var sp = ls * 3
+  var ls = 4 //+ C(t/2) * 8
+  var sp = ls * 2**.5
   var pts = []
   var subs = 8
   var minx = 6e6
@@ -130,13 +130,13 @@ window.Draw = () => {
   var miny = 6e6
   var maxy = -6e6
   
-  var px = sp / 4 + C(t/2) * 32 + t * 16
-  var py = sp / 3 + S(t/4) * 16
+  var px = 0 //t*9 //sp / 4 + C(t/2) * 32 + t * 16
+  var py = 0 //t*3 //sp / 3 + S(t/4) * 16
   var pz = 0
   
   for(var j = 0; j < cl*rw; j++){
-    var tx = ((j%cl)-cl/2 + .5) * sp + sp/4 * ((j/cl|0)%2?-1:1)
-    var ty = (((j/cl|0)%rw)-rw/2 + .5) * sp / 3 * (.75**.5)
+    var tx = ((j%cl)-cl/2 + .5) * sp //+ sp/4 * ((j/cl|0)%2?-1:1)
+    var ty = (((j/cl|0)%rw)-rw/2 + .5) * sp /// 3 * (.75**.5)
     var tz = ((j/cl/rw|0)-br/2 + .5) * sp
     var a = []
     if(tx < minx) minx = tx
@@ -175,10 +175,36 @@ window.Draw = () => {
       var x2 = v[l][0] + tx
       var y2 = v[l][1] + ty
       var z2 = v[l][2] + tz
+
+      x = x1 + (x2-x1)
+      y = y1 + (y2-y1)
+      z = z1 + (z2-z1) + renderer.z / 1.9
+      var d1 = Math.hypot(x, y, z) + .0001
+      var d2 = 55 - 1/d1
+      x = x / d1 * d2
+      y = y / d1 * d2
+      ctx.lineTo(w/2 + x/z*fov, h/2 + y/z*fov)
+
+      if(!j){
+        x = q[3] + px
+        y = q[4] + py
+        z = q[5] + pz + renderer.z / 1.9
+        var d1 = Math.hypot(x, y, z) + .0001
+        var d2 = 55 - 1/d1
+        var s = 3e3 / d1 / d1
+        x = x / d1 * d2
+        y = y / d1 * d2
+        ctx.fillStyle = '#f002'
+        ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
+        s /= 4
+        ctx.fillStyle = '#f00'
+        ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
+      }
+
       if(0) for(var k = 0; k < subs; k++){
         x = x1 + (x2-x1) / subs * k
         y = y1 + (y2-y1) / subs * k
-        z = z1 + (z2-z1) / subs * k + renderer.z / .9
+        z = z1 + (z2-z1) / subs * k + renderer.z / 1.9
         
         var d1 = Math.hypot(x, y, z) + .0001
         var d2 = 55 - 1/d1
@@ -186,7 +212,7 @@ window.Draw = () => {
         y = y / d1 * d2
         //z = z / d1 * d2
         
-        var s = 4e3 / d1 / d1
+        var s = 1e3 / d1 / d1
         
         ctx.fillStyle = '#fff2'
         ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
@@ -194,23 +220,12 @@ window.Draw = () => {
         ctx.fillStyle = '#fff'
         ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
       }
-      
-      
-      x = x1 + (x2-x1)
-      y = y1 + (y2-y1)
-      z = z1 + (z2-z1) + renderer.z / .9
-      var d1 = Math.hypot(x, y, z) + .0001
-      var d2 = 55 - 1/d1
-      x = x / d1 * d2
-      y = y / d1 * d2
-      ctx.lineTo(w/2 + x/z*fov, h/2 + y/z*fov)
     })
-    ctx.fillStyle = `hsla(0, 0%, ${10+((i*51)%90)}%, .8)`
-    ctx.fill()
+    //ctx.fillStyle = `hsla(0, 0%, ${10+((((i+9)**3.1)|0)%90)}%, .2)`
+    //ctx.fill()
   })
   
   //ctx.lineJoin = ctx.lineCap = 'round'
-  
   //renderer.Draw(backgroundShape)
   renderer.Draw(mainShape)
 }
