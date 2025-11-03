@@ -1746,7 +1746,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
         case 'icosahedron_3':
         case 'icosahedron_4':
         case 'icosahedron_5':
-          //if(shapeType == 'torus') flipNormals = false//!flipNormals
           if(sphereize<0){
             sphereize /= hint.indexOf('tetrahedron') != -1 ? 3 : 1
             sphereize /= hint.indexOf('octahedron') != -1 ? 2 : 1
@@ -1868,6 +1867,25 @@ const LoadGeometry = async (renderer, geoOptions) => {
           normals.push(...v.normal)
           uvs.push(...v.texCoord)
         })
+      break
+      case 'sphere':
+        if(rows == 16 && cols == 40){
+          rows = 32
+          cols = 64
+          var tempURL = `${ModuleBase}/resources/objs/sphere_0.obj`
+          shape = await LoadOBJ(tempURL, size, 0,0,0,0,0,0, false, true)
+          vertices = shape.vertices
+          normals  = shape.normals
+          uvs      = shape.uvs
+        }else{
+          shape = await Sphere(size, subs, sphereize,
+                        flipNormals, shapeType, rows, cols)
+          shape.geometry.map(v => {
+            vertices.push(...v.position)
+            normals.push(...v.normal)
+            uvs.push(...v.texCoord)
+          })
+        }
       break
       case 'torus':
         shape = await Torus(size, subs, sphereize,
@@ -5876,6 +5894,32 @@ const Cylinder = (size = 1, subs = 0, rw, cl, sphereize = 0, flipNormals=false, 
     }
   }
   return GeometryFromRaw(ret, texCoords, 1, subs,
+                         sphereize, flipNormals, true, shapeType)
+}
+
+const Sphere = async (size = 1, subs = 0, sphereize = 0, flipNormals=false, shapeType='torus', rw, cl) => {
+  var ret = [], X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, X4, Y4, Z4
+  var TX1, TY1, TZ1, TX2, TY2, TZ2, TX3, TY3, TZ3, TX4, TY4, TZ4
+  var p, q, d, texCoords = []
+  for(var i = 0; i<cl; i++){
+    for(var j = 0; j<rw; j++){
+      X1 = S(p=Math.PI*2/cl*i) * S(q=Math.PI/rw*j) * size
+      Y1 = C(q) * size
+      Z1 = C(p) * S(q) * size
+      X2 = S(p=Math.PI*2/cl*(i+1)) * S(q=Math.PI/rw*j) * size
+      Y2 = C(q) * size
+      Z2 = C(p) * S(q) * size
+      X3 = S(p=Math.PI*2/cl*(i+1)) * S(q=Math.PI/rw*(j+1)) * size
+      Y3 = C(q) * size
+      Z3 = C(p) * S(q) * size
+      X4 = S(p=Math.PI*2/cl*i) * S(q=Math.PI/rw*(j+1)) * size
+      Y4 = C(q) * size
+      Z4 = C(p) * S(q) * size
+      ret.push([[X1,Y1,Z1], [X4,Y4,Z4], [X3,Y3,Z3], [X2,Y2,Z2]])
+      texCoords.push([[0,0], [0,0], [0,0], [0,0]])
+    }
+  }
+  return GeometryFromRaw(ret, texCoords, size, subs,
                          sphereize, flipNormals, true, shapeType)
 }
 
