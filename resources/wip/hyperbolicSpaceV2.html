@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #111;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+import * as Coordinates from
+"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+var myCanvas = await Coordinates.Renderer({
+  attachToBody: false, margin: 0,
+  context: {mode: '2d'}, width: 960/1, height: 540/1,
+})
+var rendererOptions = {
+  ambientLight: .5, margin: 0, fov: 700,
+  width: 960, height: 540
+}
+var renderer = await Coordinates.Renderer(rendererOptions)
+
+var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+
+var S = Math.sin
+var C = Math.cos
+var Rn = Math.random
+
+var x, y, z, p, q, d
+
+
+Coordinates.AnimationLoop(renderer, 'Draw')
+
+var shaderOptions = [
+  {lighting: {type: 'ambientLight', value: .5}},
+  { uniform: {
+    type: 'phong',
+    value: 0
+  } },
+  { uniform: {
+    type: 'reflection',
+    map: refTexture,
+    enabled: false,
+    value: .1
+  } },
+]
+var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+var shaderOptions = [
+  {lighting: {type: 'ambientLight', value: 1.33}},
+  { uniform: {
+    type: 'phong',
+    value: 0
+  } }
+]
+var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+var backgroundShape
+var geoOptions = {
+  shapeType: 'dodecahedron',
+  name: 'background',
+  sphereize: 1,
+  subs: 4,
+  map: refTexture,
+  size: 5e3,
+  colorMix: 0,
+}
+if(0) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  backgroundShape = geometry
+  await backgroundShader.ConnectGeometry(geometry)
+})  
+
+var mainShape
+var geoOptions = {
+  shapeType: 'rectangle',
+  name: 'main',
+  subs: 5,
+  scaleY: -1,
+  scaleX: 16/9,
+  size: 15.3,
+  canvasTexture: myCanvas.c,
+  colorMix: 0,
+}
+await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  mainShape = geometry
+  await shader.ConnectGeometry(geometry)
+})  
+
+/*
+Coordinates.LoadFPSControls(renderer, {
+  flyMode: true,
+  crossharSel: 2,
+  crosshairSize: .5,
+})
+*/
+
+
+var s
+renderer.z = renderer.width > 1e3 ? 10 : 20
+
+window.Draw = () => {
+  var t = renderer.t
+  renderer.Clear()
+  var w = myCanvas.width
+  var h = myCanvas.height
+  var ctx = myCanvas.ctx
+  
+  ctx.lineWidth = 2
+  ctx.fillStyle = '#000'
+  ctx.fillRect(0,0,w,h)
+
+  
+  var fov = 50
+  var sd = 4
+  var cl = 3
+  var rw = 3 //(cl * 3.66 | 0) - 1
+  var br = 1
+  var ls = 10 //+ C(t/2) * 8
+  var sp = ls * 2**.5
+  var pts = []
+  var subs = 8
+  var minx = 6e6
+  var maxx = -6e6
+  var miny = 6e6
+  var maxy = -6e6
+  
+  var px = 0 //t*9 //sp / 4 + C(t/2) * 32 + t * 16
+  var py = 0 //t*3 //sp / 3 + S(t/4) * 16
+  var pz = 0
+  
+  for(var j = 0; j < cl*rw; j++){
+    var tx = ((j%cl)-cl/2 + .5) * sp //+ sp/4 * ((j/cl|0)%2?-1:1)
+    var ty = (((j/cl|0)%rw)-rw/2 + .5) * sp /// 3 * (.75**.5)
+    var tz = ((j/cl/rw|0)-br/2 + .5) * sp
+    var a = []
+    if(tx < minx) minx = tx
+    if(tx > maxx) maxx = tx
+    if(ty < miny) miny = ty
+    if(ty > maxy) maxy = ty
+    for(var i = 0; i < sd; i++){
+      x = S(p = Math.PI*2/sd*i+Math.PI/sd) * ls / 1.05
+      y = C(p) * ls / 1.05
+      z = 0
+      a.push([x, y, z, tx, ty, tz])
+    }
+    pts.push(a)
+  }
+  
+  var spx = cl * sp
+  var spy = rw * sp / 3 * (.75**.5)
+  
+  pts.map((v, i) => {
+    ctx.beginPath()
+    v.map((q, j) => {
+    
+      var tx = q[3] + px
+      var ty = q[4] + py
+      var tz = q[5] + pz
+      while(tx < minx) tx += spx
+      while(ty < miny) ty += spy
+      while(tx > maxx) tx -= spx
+      while(ty > maxy) ty -= spy
+      
+      var x1 = v[j][0] + tx
+      var y1 = v[j][1] + ty
+      var z1 = v[j][2] + tz
+
+      var l = (j+1)%v.length
+      var x2 = v[l][0] + tx
+      var y2 = v[l][1] + ty
+      var z2 = v[l][2] + tz
+
+      x = x1 + (x2-x1)
+      y = y1 + (y2-y1)
+      z = z1 + (z2-z1) + renderer.z / 1.9
+      var d1 = Math.hypot(x, y, z) + .0001
+      var d2 = 55 - 1/d1
+      //x = x / d1 * d2
+      //y = y / d1 * d2
+      ctx.lineTo(w/2 + x/z*fov, h/2 + y/z*fov)
+
+      if(!j){
+        x = q[3] + px
+        y = q[4] + py
+        z = q[5] + pz + renderer.z / 1.9
+        var d1 = Math.hypot(x, y, z) + .0001
+        var d2 = 55 - 1/d1
+        var s = 200 / z //d1 / d1
+        //x = x / d1 * d2
+        //y = y / d1 * d2
+        ctx.fillStyle = '#f002'
+        ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
+        s /= 4
+        ctx.fillStyle = '#f00'
+        ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
+      }
+
+      if(1) for(var k = 0; k < subs; k++){
+        x = x1 + (x2-x1) / subs * k
+        y = y1 + (y2-y1) / subs * k
+        z = z1 + (z2-z1) / subs * k + renderer.z / 1.9
+        
+        var d1 = Math.hypot(x, y, z) + .0001
+        var d2 = 55 - 1/d1
+        //x = x / d1 * d2
+        //y = y / d1 * d2
+        //z = z / d1 * d2
+        
+        var s = 100 / z //d1 / d1
+        
+        ctx.fillStyle = '#fff2'
+        ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
+        s /= 4
+        ctx.fillStyle = '#fff'
+        ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
+      }
+    })
+    ctx.fillStyle = `hsla(0, 0%, ${10+((((i+9)**3.1)|0)%90)}%, .2)`
+    ctx.fill()
+  })
+  
+  //ctx.lineJoin = ctx.lineCap = 'round'
+  //renderer.Draw(backgroundShape)
+  renderer.Draw(mainShape)
+}
+  
+</script>
+  </body>
+</html>
