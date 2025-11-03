@@ -38,7 +38,7 @@
   Coordinates.AnimationLoop(renderer, 'Draw')
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .33}},
+    {lighting: {type: 'ambientLight', value: .5}},
     { uniform: {
       type: 'phong',
       value: .6
@@ -52,7 +52,7 @@
   var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .33}},
+    {lighting: {type: 'ambientLight', value: .1}},
     { uniform: {
       type: 'phong',
       value: 0
@@ -64,19 +64,19 @@
   var shapes = []
 
   var geoOptions = {
-    shapeType: 'dodecahedron',
+    shapeType: 'sphere',
     name: 'background',
-    sphereize: 1,
-    subs: 4,
+    //sphereize: 1,
+    //subs: 4,
     map: refTexture,
-    size: 50,
-    z: -10,
+    size: 5e3,
+    scaleY: .97,
+    pitch: Math.PI/2,
+    scaleUVY: 1.05,
+    offsetUVY: -.0235,
     colorMix: 0,
   }
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    for(var i = 0; i < geometry.uvs.length; i+=2){
-      geometry.uvs[i+0] /=3
-    }
     shapes.push(geometry)
     await backgroundShader.ConnectGeometry(geometry)
   })  
@@ -101,13 +101,11 @@
     //await backgroundShader.ConnectGeometry(geometry)
   })  
   
-  /*
-  Coordinates.LoadFPSControls(renderer, {
+  if(0) Coordinates.LoadFPSControls(renderer, {
     flyMode: true,
     crossharSel: 2,
     crosshairSize: .5,
   })
-  */
   
   //uncomment above to enable mouse/keyboard controls
   
@@ -150,7 +148,7 @@
     lines = []
     var sd = 4
     var splits = 3
-    tgtDepth = 6
+    tgtDepth = 1
     var reduction = 1
     var theta = Math.PI*2/1.333333
     var len = 4
