@@ -35,6 +35,7 @@ var Rn = Math.random
 
 var x, y, z, p, q, d
 
+
 Coordinates.AnimationLoop(renderer, 'Draw')
 
 var shaderOptions = [
@@ -121,7 +122,7 @@ window.Draw = () => {
   var cl = 3
   var rw = 3 //(cl * 3.66 | 0) - 1
   var br = 1
-  var ls = 4 //+ C(t/2) * 8
+  var ls = 10 //+ C(t/2) * 8
   var sp = ls * 2**.5
   var pts = []
   var subs = 8
@@ -181,8 +182,8 @@ window.Draw = () => {
       z = z1 + (z2-z1) + renderer.z / 1.9
       var d1 = Math.hypot(x, y, z) + .0001
       var d2 = 55 - 1/d1
-      x = x / d1 * d2
-      y = y / d1 * d2
+      //x = x / d1 * d2
+      //y = y / d1 * d2
       ctx.lineTo(w/2 + x/z*fov, h/2 + y/z*fov)
 
       if(!j){
@@ -191,9 +192,9 @@ window.Draw = () => {
         z = q[5] + pz + renderer.z / 1.9
         var d1 = Math.hypot(x, y, z) + .0001
         var d2 = 55 - 1/d1
-        var s = 3e3 / d1 / d1
-        x = x / d1 * d2
-        y = y / d1 * d2
+        var s = 200 / z //d1 / d1
+        //x = x / d1 * d2
+        //y = y / d1 * d2
         ctx.fillStyle = '#f002'
         ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
         s /= 4
@@ -201,18 +202,18 @@ window.Draw = () => {
         ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
       }
 
-      if(0) for(var k = 0; k < subs; k++){
+      if(1) for(var k = 0; k < subs; k++){
         x = x1 + (x2-x1) / subs * k
         y = y1 + (y2-y1) / subs * k
         z = z1 + (z2-z1) / subs * k + renderer.z / 1.9
         
         var d1 = Math.hypot(x, y, z) + .0001
         var d2 = 55 - 1/d1
-        x = x / d1 * d2
-        y = y / d1 * d2
+        //x = x / d1 * d2
+        //y = y / d1 * d2
         //z = z / d1 * d2
         
-        var s = 1e3 / d1 / d1
+        var s = 100 / z //d1 / d1
         
         ctx.fillStyle = '#fff2'
         ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
@@ -221,8 +222,8 @@ window.Draw = () => {
         ctx.fillRect(w/2 + x/z*fov - s/2, h/2 + y/z*fov - s/2, s, s)
       }
     })
-    //ctx.fillStyle = `hsla(0, 0%, ${10+((((i+9)**3.1)|0)%90)}%, .2)`
-    //ctx.fill()
+    ctx.fillStyle = `hsla(0, 0%, ${10+((((i+9)**3.1)|0)%90)}%, .2)`
+    ctx.fill()
   })
   
   //ctx.lineJoin = ctx.lineCap = 'round'
