@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
   <head>
@@ -179,6 +180,7 @@ window.Draw = () => {
   }
   centers.push([0,0,0,])
   
+  /*
   for(var i = 0; i < particleShape.vertices.length; i+=3){
     var j = i/3
     if(j < centers.length){
@@ -191,6 +193,7 @@ window.Draw = () => {
       particleShape.vertices[i+2] = 1e5
     }
   }
+  */
   
   renderer.Clear()
   var w = myCanvas.width
@@ -200,6 +203,61 @@ window.Draw = () => {
   ctx.lineWidth = 2
   ctx.fillStyle = '#000'
   ctx.fillRect(0,0,w,h)
+  
+  var cl = 7
+  var rw = 7
+  var sp = 50
+  var segs = 20
+  var sd = 4
+  for(var m = 0; m < sd/1|0; m++){
+    var theta = Math.PI * 2 / sd * m
+    for(var j = 0; j < rw; j++){
+      for(var i = 0; i < cl; i++){
+        var x1 = (i - cl/2) * sp
+        var y1 = (j - rw/2 + .5) * sp
+        var x2 = ((i+1) - cl/2) * sp
+        var y2 = (j - rw/2 + .5) * sp
+        ctx.beginPath()
+        var d1 = Math.hypot(x1, y1) + 1
+        var d2 = Math.hypot(x2, y2) + 1
+        for(var k = 0; k < segs; k++){
+          var x1a = x1 + (x2-x1) / segs * k
+          var y1a = y1 + (y2-y1) / segs * k + x1a**2 * (y2+y1)/(10000 + d1)
+          var x2a = x1 + (x2-x1) / segs * (k+1)
+          var y2a = y1 + (y2-y1) / segs * (k+1) + x2a**2 * (y2+y1)/(10000 + d2)
+          p = Math.atan2(x1a, y1a) +  theta
+          d = Math.hypot(x1a, y1a)
+          x1a = S(p) * d
+          y1a = C(p) * d
+          p = Math.atan2(x2a, y2a) +  theta
+          d = Math.hypot(x2a, y2a)
+          x2a = S(p) * d
+          y2a = C(p) * d
+
+          var d1 = Math.hypot(x1a, y1a) + .0001
+          var d2 = 30 - 1/d1
+          //x1a = x1a / d1 * d2
+          //y1a = y1a / d1 * d2
+          ctx.lineTo(w/2+x1a, h/2+y1a)
+          ctx.lineTo(w/2+x1a, h/2+y1a)
+
+          var d1 = Math.hypot(x2a, y2a) + .0001
+          var d2 = 30 - 1/d1
+          //x2a = x2a / d1 * d2
+          //y2a = y2a / d1 * d2
+          ctx.lineTo(w/2+x2a, h/2+y2a)
+          ctx.lineTo(w/2+x2a, h/2+y2a)
+        }
+        ctx.strokeStyle = '#fff4'
+        ctx.lineWidth = 4
+        ctx.stroke()
+        ctx.strokeStyle = '#fff'
+        ctx.lineWidth /= 4
+        ctx.stroke()
+      }
+    }
+  }
+  
   
   var fov = 50
   var sd = 4
@@ -219,19 +277,20 @@ window.Draw = () => {
   var py = 0 //t*3 //sp / 3 + S(t/4) * 16
   var pz = 0
   
-
+  /*
   centers.map((v, i) => {
-    x = v[0] / 2e3
-    y = v[1] / 2e3
-    z = v[2] / 2e3
+    x = v[0] * 200 // 2e3
+    y = v[1] * 200 // 2e3
+    z = v[2] * 200 // 2e3
 
     var d1 = Math.hypot(x, y, z) + .0001
     var d2 = 1e3 - 1/d1
-    x = x / d1 * d2
-    y = y / d1 * d2
-    z = z / d1 * d2 + 10
+    //x = x / d1 * d2
+    //y = y / d1 * d2
+    //z = z / d1 * d2
     
-
+    z += 10
+    
     var s = 50 / z //d1 / d1
     ctx.fillStyle = '#f002'
     ctx.fillRect(w/2+ x/z-s/2, h/2 + y/z-s/2, s, s)
@@ -239,6 +298,7 @@ window.Draw = () => {
     s /= 4
     ctx.fillRect(w/2+ x/z-s/2, h/2 + y/z-s/2, s, s)
   })
+  */
 
   /*
   for(var j = 0; j < cl*rw; j++){
