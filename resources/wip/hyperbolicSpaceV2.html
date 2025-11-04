@@ -35,6 +35,8 @@ var Rn = Math.random
 
 var x, y, z, p, q, d
 
+var phi = .5+5**.5/2
+  
 
 Coordinates.AnimationLoop(renderer, 'Draw')
 
@@ -77,6 +79,26 @@ if(0) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry)
   await backgroundShader.ConnectGeometry(geometry)
 })  
 
+var geometryData = []
+var iPc = 6e3
+Array(iPc).fill().map(v => {
+  geometryData.push([1e5,1e5,1e5], [1e5,1e5,1e5])
+})
+
+var particleShape
+var geoOptions = {
+  shapeType: 'particles',
+  name: 'particles',
+  geometryData: Array(iPc).fill().map(v=>[1e5,1e5,1e5]),
+  size: .33,
+  alpha: 1,
+  penumbra: .3,
+  color: 0xff0000,
+}
+await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  particleShape = geometry
+})  
+
 var mainShape
 var geoOptions = {
   shapeType: 'rectangle',
@@ -101,12 +123,75 @@ Coordinates.LoadFPSControls(renderer, {
 })
 */
 
+var lines = [], tgtDepth, centers = []
+var f, b, e
+const recurse = (x=0, y=0, z=0, a=0, depth=0, len=6, theta = Math.PI/2, reduction = phi, splits = 2, sd=2) => {
+  var x1=0, y1=0, z1=0, x2=0, y2=0, z2=0
+  if(depth > tgtDepth) return
 
+  centers.push([x, y, z])
+  x1 = x
+  y1 = y
+  z1 = z
+  x2 = x1 + S(a) * len
+  y2 = y1 + C(a) * len
+  z2 = z1
+  if(Math.hypot(x1,y1,z1) < Math.hypot(x2,y2,z2)){
+    //lines.push({ x1, y1, z1, x2, y2, z2 })
+    if(0) for(var k = sd; k--;){
+      p = Math.PI*2/sd * k + a + Math.PI/sd + Math.PI
+      d = len
+      var ls = .05 //len / 4
+      x = x2 + S(p) * ls
+      y = y2 + C(p) * ls
+      z = z2
+      p = Math.PI*2/sd * (k+1) + a + Math.PI/sd + Math.PI
+      d = len
+      f = x2 + S(p) * ls
+      b = y2 + C(p) * ls
+      e = z2
+      //lines.push({ x1: x, y1: y, z1: z, x2: f, y2: b, z2: e })
+    }
+    for(var j = 0; j < splits; j++) {
+      centers.push([x2, y2, z2])
+      recurse(x2, y2, z2, a-theta/2+theta/splits*(j+.5), depth+1, len / (reduction * phi), theta, reduction, splits, sd)
+    }
+  }
+}
+  
 var s
 renderer.z = renderer.width > 1e3 ? 10 : 20
 
 window.Draw = () => {
   var t = renderer.t
+  
+  lines = []
+  centers = []
+  var sd = 4
+  var splits = 3
+  tgtDepth = 4
+  var reduction = 1
+  var theta = Math.PI*2/1.333333
+  var len = 4
+  for(var m = sd; m--;) {
+    var iTheta = Math.PI*2/sd*m //+ Math.PI/sd
+    recurse(0,0,0, iTheta, 0, len, theta, reduction, splits, 4)
+  }
+  centers.push([0,0,0,])
+  
+  for(var i = 0; i < particleShape.vertices.length; i+=3){
+    var j = i/3
+    if(j < centers.length){
+      particleShape.vertices[i+0] = centers[j][0]
+      particleShape.vertices[i+1] = centers[j][1]
+      particleShape.vertices[i+2] = centers[j][2]
+    }else{
+      particleShape.vertices[i+0] = 1e5
+      particleShape.vertices[i+1] = 1e5
+      particleShape.vertices[i+2] = 1e5
+    }
+  }
+  
   renderer.Clear()
   var w = myCanvas.width
   var h = myCanvas.height
@@ -115,7 +200,6 @@ window.Draw = () => {
   ctx.lineWidth = 2
   ctx.fillStyle = '#000'
   ctx.fillRect(0,0,w,h)
-
   
   var fov = 50
   var sd = 4
@@ -131,10 +215,32 @@ window.Draw = () => {
   var miny = 6e6
   var maxy = -6e6
   
-  var px = 0 //t*9 //sp / 4 + C(t/2) * 32 + t * 16
+  var px = t*9 //sp / 4 + C(t/2) * 32 + t * 16
   var py = 0 //t*3 //sp / 3 + S(t/4) * 16
   var pz = 0
   
+
+  centers.map((v, i) => {
+    x = v[0] / 2e3
+    y = v[1] / 2e3
+    z = v[2] / 2e3
+
+    var d1 = Math.hypot(x, y, z) + .0001
+    var d2 = 1e3 - 1/d1
+    x = x / d1 * d2
+    y = y / d1 * d2
+    z = z / d1 * d2 + 10
+    
+
+    var s = 50 / z //d1 / d1
+    ctx.fillStyle = '#f002'
+    ctx.fillRect(w/2+ x/z-s/2, h/2 + y/z-s/2, s, s)
+    ctx.fillStyle = '#f00'
+    s /= 4
+    ctx.fillRect(w/2+ x/z-s/2, h/2 + y/z-s/2, s, s)
+  })
+
+  /*
   for(var j = 0; j < cl*rw; j++){
     var tx = ((j%cl)-cl/2 + .5) * sp //+ sp/4 * ((j/cl|0)%2?-1:1)
     var ty = (((j/cl|0)%rw)-rw/2 + .5) * sp /// 3 * (.75**.5)
@@ -225,6 +331,7 @@ window.Draw = () => {
     ctx.fillStyle = `hsla(0, 0%, ${10+((((i+9)**3.1)|0)%90)}%, .2)`
     ctx.fill()
   })
+  */
   
   //ctx.lineJoin = ctx.lineCap = 'round'
   //renderer.Draw(backgroundShape)
