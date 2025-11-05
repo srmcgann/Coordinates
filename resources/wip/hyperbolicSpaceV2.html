@@ -23,12 +23,12 @@ var myCanvas = await Coordinates.Renderer({
   context: {mode: '2d'}, width: 960/1, height: 540/1,
 })
 var rendererOptions = {
-  ambientLight: .5, margin: 0, fov: 700,
+  ambientLight: .5, margin: 0, fov: 500,
   width: 960, height: 540
 }
 var renderer = await Coordinates.Renderer(rendererOptions)
 
-var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+var refTexture = 'https://srmcgann.github.io/Coordinates/resources/pseudoEquirectangular_3.jpg'
 
 var S = Math.sin
 var C = Math.cos
@@ -75,7 +75,7 @@ var geoOptions = {
   size: 5e3,
   colorMix: 0,
 }
-if(0) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
   backgroundShape = geometry
   await backgroundShader.ConnectGeometry(geometry)
 })  
@@ -106,6 +106,7 @@ var geoOptions = {
   name: 'main',
   subs: 5,
   scaleY: -1,
+  alpha: .9,
   scaleX: 16/9,
   size: 15.3,
   canvasTexture: myCanvas.c,
@@ -116,13 +117,12 @@ await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
   await shader.ConnectGeometry(geometry)
 })  
 
-/*
-Coordinates.LoadFPSControls(renderer, {
+
+if(0) Coordinates.LoadFPSControls(renderer, {
   flyMode: true,
   crossharSel: 2,
   crosshairSize: .5,
 })
-*/
 
 var lines = [], tgtDepth, centers = []
 var f, b, e
@@ -161,13 +161,29 @@ const recurse = (x=0, y=0, z=0, a=0, depth=0, len=6, theta = Math.PI/2, reductio
 }
   
 var s
-renderer.z = renderer.width > 1e3 ? 10 : 20
+renderer.z = renderer.width > 1e3 ? 16 : 32
+
+var bgVid = document.createElement('video')
+
+await fetch('https://srmcgann.github.io/Coordinates/resources/rd4_po2_small.mp4').then(res=>res.blob()).then(data => {
+  bgVid.src = URL.createObjectURL(data)
+})
+bgVid.autoplay = true
+bgVid.muted = true
+bgVid.loop = true
+bgVid.defaultPlaybackRate = bgVid.playbackRate = 3
+bgVid.oncanplay = () => bgVid.play()
 
 window.Draw = () => {
   var t = renderer.t
   
   lines = []
   centers = []
+  
+  renderer.pitch = Math.min(.5, Math.max(.1, (.3+C(t/2))))
+  renderer.yaw = Math.min(Math.PI*2, Math.max(0, (.3+C(t/4))*Math.PI*2))
+  renderer.z = Math.min(32, Math.max(8, (.3+C(t/8))*100))
+  
   var sd = 4
   var splits = 3
   tgtDepth = 4
@@ -202,7 +218,8 @@ window.Draw = () => {
   
   ctx.lineWidth = 2
   ctx.fillStyle = '#000'
-  ctx.fillRect(0,0,w,h)
+  //ctx.fillRect(0,0,w,h)
+  ctx.drawImage(bgVid, 0,0,w,h)
   
   /*
   var sd = 5
@@ -250,32 +267,32 @@ window.Draw = () => {
   //}
   //117.55705045849461 * 1.4142135623730951
   
-  var cl = 8
-  var rw = 8
-  var sp = 100
-  var segs = 5
+  var cl = 12
+  var rw = 12
+  var sp = 26
+  var segs = 3
   var sd = 2
-  var ofx = S(t/2)*10
-  var ofy = C(t/6)*10
+  var ofx = 0 //S(t/2)*10
+  var ofy = 0 //C(t/6)*10
   while(ofx>1/2)ofx-=1
   while(ofy>1/2)ofy-=1
   while(ofx<-1/2)ofx+=1
   while(ofy<-1/2)ofy+=1
-  var redfact = 20000
+  var redfact = C(t) * 50000
   for(var m = 0; m < sd/1|0; m++){
-    var theta = Math.PI * 2 / sd * m + t / 8
+    var theta = Math.PI * 2 / sd * m + t / 2
     for(var j = 0; j < rw; j++){
-      ctx.beginPath()
       for(var i = 0; i < cl; i++){
+        ctx.beginPath()
         if(m){
           var x1 = (i - cl/2) * sp * 2
-          var y1 = (j - rw/2 + ofy) * sp
+          var y1 = (j - rw/2 + ofy + .5) * sp
           var x2 = ((i+1) - cl/2) * sp * 2
-          var y2 = (j - rw/2 + ofy) * sp
+          var y2 = (j - rw/2 + ofy + .5) * sp
         }else{
-          var x1 = (i - cl/2 + ofx) * sp
+          var x1 = (i - cl/2 + ofx + .5) * sp
           var y1 = (j - rw/2) * sp * 2
-          var x2 = (i - cl/2 + ofx) * sp
+          var x2 = (i - cl/2 + ofx + .5) * sp
           var y2 = ((j+1) - rw/2) * sp * 2
         }
         var d1 = Math.hypot(x1, y1) + 1
@@ -300,7 +317,7 @@ window.Draw = () => {
           d = Math.hypot(x2a, y2a)
           x2a = S(p) * d / 1
           y2a = C(p) * d / 1
-
+          
           var d1 = Math.hypot(x1a, y1a) + 1
           var d2 = 250 - 1/d1
           //x1a = x1a / d1 * d2
@@ -315,13 +332,13 @@ window.Draw = () => {
           ctx.lineTo(w/2+x2a, h/2+y2a)
           ctx.lineTo(w/2+x2a, h/2+y2a)
         }
+        ctx.strokeStyle = `hsla(${t*2500},99%, 50%,.25)`
+        ctx.lineWidth = 20
+        ctx.stroke()
+        ctx.strokeStyle = '#fffa'
+        ctx.lineWidth /= 6
+        ctx.stroke()
       }
-      ctx.strokeStyle = '#40f3'
-      ctx.lineWidth = 50
-      ctx.stroke()
-      ctx.strokeStyle = '#fff4'
-      ctx.lineWidth /= 5
-      ctx.stroke()
     }
   }
   
@@ -462,7 +479,7 @@ window.Draw = () => {
   */
   
   //ctx.lineJoin = ctx.lineCap = 'round'
-  //renderer.Draw(backgroundShape)
+  renderer.Draw(backgroundShape)
   renderer.Draw(mainShape)
 }
   
