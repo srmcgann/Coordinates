@@ -204,57 +204,124 @@ window.Draw = () => {
   ctx.fillStyle = '#000'
   ctx.fillRect(0,0,w,h)
   
-  var cl = 7
-  var rw = 7
-  var sp = 50
-  var segs = 20
-  var sd = 4
+  /*
+  var sd = 5
+  var sp = 100
+  ls = 0.725 //- t/10000000
+  ctx.textAlign = 'center'
+  ctx.font = '32px verdana'
+  var a = []
+  for(var i = 0; i < sd; i++){
+    x = S(p=Math.PI*2/sd*i+Math.PI/sd) * sp * ls
+    y = C(p) * sp
+    z = 0
+    a.push([x, y])
+  }
+  var ofx = a[2][1]
+  a.map(v=>{
+    v[1] -= ofx
+  })
+  for(var j = 0; j < 4; j++){
+    var tx = 0
+    var ty = 0
+    ctx.beginPath()
+    a.map((v, i) => {
+      x = v[0]
+      y = v[1]
+      p = Math.atan2(x, y) + Math.PI*2/4*j + Math.PI/4
+      d = Math.hypot(x, y)
+      x = S(p) * d
+      y = C(p) * d
+      ctx.lineTo(w/2+x, h/2+y)
+      //ctx.fillStyle = '#fff'
+      //ctx.fillText(i, w/2+x, h/2+y+16)
+    })
+    ctx.strokeStyle = '#f00a'
+    ctx.lineWidth = 1
+    ctx.closePath()
+    ctx.stroke()
+  }
+  */
+  
+  //var d1 = 166.25077511098138 //Math.hypot(a[1][0]-a[0][0], a[1][1]-a[0][1])
+  //var d2 = Math.hypot(a[1][0]-a[3][0], a[1][1]-a[3][1])
+  //if(Math.abs(d1-d2) < .000001) {
+  //  console.log(d1, d2-d1, ls)
+  //}
+  //117.55705045849461 * 1.4142135623730951
+  
+  var cl = 8
+  var rw = 8
+  var sp = 100
+  var segs = 5
+  var sd = 2
+  var ofx = S(t/2)*10
+  var ofy = C(t/6)*10
+  while(ofx>1/2)ofx-=1
+  while(ofy>1/2)ofy-=1
+  while(ofx<-1/2)ofx+=1
+  while(ofy<-1/2)ofy+=1
+  var redfact = 20000
   for(var m = 0; m < sd/1|0; m++){
-    var theta = Math.PI * 2 / sd * m
+    var theta = Math.PI * 2 / sd * m + t / 8
     for(var j = 0; j < rw; j++){
+      ctx.beginPath()
       for(var i = 0; i < cl; i++){
-        var x1 = (i - cl/2) * sp
-        var y1 = (j - rw/2 + .5) * sp
-        var x2 = ((i+1) - cl/2) * sp
-        var y2 = (j - rw/2 + .5) * sp
-        ctx.beginPath()
+        if(m){
+          var x1 = (i - cl/2) * sp * 2
+          var y1 = (j - rw/2 + ofy) * sp
+          var x2 = ((i+1) - cl/2) * sp * 2
+          var y2 = (j - rw/2 + ofy) * sp
+        }else{
+          var x1 = (i - cl/2 + ofx) * sp
+          var y1 = (j - rw/2) * sp * 2
+          var x2 = (i - cl/2 + ofx) * sp
+          var y2 = ((j+1) - rw/2) * sp * 2
+        }
         var d1 = Math.hypot(x1, y1) + 1
         var d2 = Math.hypot(x2, y2) + 1
         for(var k = 0; k < segs; k++){
-          var x1a = x1 + (x2-x1) / segs * k
-          var y1a = y1 + (y2-y1) / segs * k + x1a**2 * (y2+y1)/(10000 + d1)
-          var x2a = x1 + (x2-x1) / segs * (k+1)
-          var y2a = y1 + (y2-y1) / segs * (k+1) + x2a**2 * (y2+y1)/(10000 + d2)
+          if(m){
+            var x1a = x1 + (x2-x1) / segs * k
+            var y1a = y1 + (y2-y1) / segs * k + x1a**2 /redfact * y1
+            var x2a = x1 + (x2-x1) / segs * (k+1)
+            var y2a = y1 + (y2-y1) / segs * (k+1) + x2a**2 /redfact* y2
+          }else{
+            var y1a = y1 + (y2-y1) / segs * k
+            var x1a = x1 + (x2-x1) / segs * k + y1a**2 /redfact * x1
+            var y2a = y1 + (y2-y1) / segs * (k+1)
+            var x2a = x1 + (x2-x1) / segs * (k+1) + y2a**2 /redfact * x2
+          }
           p = Math.atan2(x1a, y1a) +  theta
           d = Math.hypot(x1a, y1a)
-          x1a = S(p) * d
-          y1a = C(p) * d
+          x1a = S(p) * d / 1
+          y1a = C(p) * d / 1
           p = Math.atan2(x2a, y2a) +  theta
           d = Math.hypot(x2a, y2a)
-          x2a = S(p) * d
-          y2a = C(p) * d
+          x2a = S(p) * d / 1
+          y2a = C(p) * d / 1
 
-          var d1 = Math.hypot(x1a, y1a) + .0001
-          var d2 = 30 - 1/d1
+          var d1 = Math.hypot(x1a, y1a) + 1
+          var d2 = 250 - 1/d1
           //x1a = x1a / d1 * d2
           //y1a = y1a / d1 * d2
           ctx.lineTo(w/2+x1a, h/2+y1a)
           ctx.lineTo(w/2+x1a, h/2+y1a)
 
-          var d1 = Math.hypot(x2a, y2a) + .0001
-          var d2 = 30 - 1/d1
+          var d1 = Math.hypot(x2a, y2a) + 1
+          var d2 = 250 - 1/d1
           //x2a = x2a / d1 * d2
           //y2a = y2a / d1 * d2
           ctx.lineTo(w/2+x2a, h/2+y2a)
           ctx.lineTo(w/2+x2a, h/2+y2a)
         }
-        ctx.strokeStyle = '#fff4'
-        ctx.lineWidth = 4
-        ctx.stroke()
-        ctx.strokeStyle = '#fff'
-        ctx.lineWidth /= 4
-        ctx.stroke()
       }
+      ctx.strokeStyle = '#40f3'
+      ctx.lineWidth = 50
+      ctx.stroke()
+      ctx.strokeStyle = '#fff4'
+      ctx.lineWidth /= 5
+      ctx.stroke()
     }
   }
   
@@ -276,6 +343,7 @@ window.Draw = () => {
   var px = t*9 //sp / 4 + C(t/2) * 32 + t * 16
   var py = 0 //t*3 //sp / 3 + S(t/4) * 16
   var pz = 0
+  
   
   /*
   centers.map((v, i) => {
