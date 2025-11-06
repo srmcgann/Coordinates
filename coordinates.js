@@ -2198,6 +2198,17 @@ const LoadGeometry = async (renderer, geoOptions) => {
     //ComputeNormalAssocs(ret)
   }
 
+  if(!resolved && (1 || shapeType != 'custom shape') &&
+    !isParticle && !isLine && !averageNormals &&
+     (!resolvedFromCache || !resolved)){
+    normalVecs    = []
+    for(var i=0; i<normals.length; i+=6){
+      let X = normals[i+3] - normals[i+0]
+      let Y = normals[i+4] - normals[i+1]
+      let Z = normals[i+5] - normals[i+2]
+      normalVecs.push(X,Y,Z)
+    }
+  }
 
   if((shapeType == 'custom shape' || shapeType == 'obj') && 
     (objPitch || objRoll || objYaw || objX || objY || objZ)){
@@ -2230,17 +2241,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  if(!resolved && (1 || shapeType != 'custom shape') &&
-    !isParticle && !isLine && !averageNormals &&
-     (!resolvedFromCache || !resolved)){
-    normalVecs    = []
-    for(var i=0; i<normals.length; i+=6){
-      let X = normals[i+3] - normals[i+0]
-      let Y = normals[i+4] - normals[i+1]
-      let Z = normals[i+5] - normals[i+2]
-      normalVecs.push(X,Y,Z)
-    }
-  }
   
   if(flipX){
     for(var i=0; i< vertices.length; i+=3){
