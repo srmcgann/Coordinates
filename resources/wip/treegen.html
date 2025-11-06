@@ -17,6 +17,11 @@
   import * as Coordinates from
   "https://srmcgann.github.io/Coordinates/coordinates.min.js"
 
+  var myCanvas = await Coordinates.Renderer({
+    attachToBody: false, margin: 0,
+    context: {mode: '2d'}, width: 960/1, height: 540/1,
+  })
+  
   var rendererOptions = {
     ambientLight: .5, margin: 0,
     fov: 1e3, width: 1920, height: 1080,
@@ -38,7 +43,7 @@
   Coordinates.AnimationLoop(renderer, 'Draw')
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .33}},
+    {lighting: {type: 'ambientLight', value: .5}},
     { uniform: {
       type: 'phong',
       value: .6
@@ -52,7 +57,7 @@
   var shader = await Coordinates.BasicShader(renderer, shaderOptions)
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .33}},
+    {lighting: {type: 'ambientLight', value: .1}},
     { uniform: {
       type: 'phong',
       value: 0
@@ -64,27 +69,27 @@
   var shapes = []
 
   var geoOptions = {
-    shapeType: 'dodecahedron',
+    shapeType: 'sphere',
     name: 'background',
-    sphereize: 1,
-    subs: 4,
+    //sphereize: 1,
+    //subs: 4,
     map: refTexture,
-    size: 50,
-    z: -10,
+    size: 5e3,
+    scaleY: .97,
+    pitch: Math.PI/2,
+    scaleUVY: 1.05,
+    offsetUVY: -.0235,
     colorMix: 0,
   }
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-    for(var i = 0; i < geometry.uvs.length; i+=2){
-      geometry.uvs[i+0] /=3
-    }
     shapes.push(geometry)
     await backgroundShader.ConnectGeometry(geometry)
   })  
   
   
   var geometryData = []
-  
-  Array(6e3).fill().map(v => {
+  var iPc = 6e3
+  Array(iPc).fill().map(v => {
     geometryData.push([1e5,1e5,1e5], [1e5,1e5,1e5])
   })
   var geoOptions = {
@@ -99,25 +104,41 @@
   await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
     shapes.push(geometry)
     //await backgroundShader.ConnectGeometry(geometry)
+  })
+  
+  var particleShape
+  var geoOptions = {
+    shapeType: 'particles',
+    name: 'particles',
+    geometryData: Array(iPc).fill().map(v=>[1e5,1e5,1e5]),
+    size: .33,
+    alpha: 1,
+    penumbra: .3,
+    color: 0xff0000,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    particleShape = geometry
   })  
   
-  /*
-  Coordinates.LoadFPSControls(renderer, {
+  if(0) Coordinates.LoadFPSControls(renderer, {
     flyMode: true,
     crossharSel: 2,
     crosshairSize: .5,
   })
-  */
   
   //uncomment above to enable mouse/keyboard controls
   
   renderer.z = renderer.width > 1e3 ? 10 : 20
   
-  var lines = [], tgtDepth
+  
+  
+  var lines = [], tgtDepth, centers = []
   var f, b, e
   const recurse = (x=0, y=0, z=0, a=0, depth=0, len=6, theta = Math.PI/2, reduction = phi, splits = 2, sd=2) => {
-    var x1, y1, z1, x2, y2, z2
+    var x1=0, y1=0, z1=0, x2=0, y2=0, z2=0
     if(depth > tgtDepth) return
+
+    centers.push([x, y, z])
     x1 = x
     y1 = y
     z1 = z
@@ -125,11 +146,11 @@
     y2 = y1 + C(a) * len
     z2 = z1
     if(Math.hypot(x1,y1,z1) < Math.hypot(x2,y2,z2)){
-      lines.push({ x1, y1, z1, x2, y2, z2 })
-      if(1) for(var k = sd; k--;){
+      //lines.push({ x1, y1, z1, x2, y2, z2 })
+      if(0) for(var k = sd; k--;){
         p = Math.PI*2/sd * k + a + Math.PI/sd + Math.PI
         d = len
-        var ls = len / 4
+        var ls = .05 //len / 4
         x = x2 + S(p) * ls
         y = y2 + C(p) * ls
         z = z2
@@ -138,9 +159,10 @@
         f = x2 + S(p) * ls
         b = y2 + C(p) * ls
         e = z2
-        lines.push({ x1: x, y1: y, z1: z, x2: f, y2: b, z2: e })
+        //lines.push({ x1: x, y1: y, z1: z, x2: f, y2: b, z2: e })
       }
       for(var j = 0; j < splits; j++) {
+        centers.push([x2, y2, z2])
         recurse(x2, y2, z2, a-theta/2+theta/splits*(j+.5), depth+1, len / (reduction * phi), theta, reduction, splits, sd)
       }
     }
@@ -148,9 +170,10 @@
   window.Draw = () => {
     var t = renderer.t
     lines = []
+    centers = []
     var sd = 4
     var splits = 3
-    tgtDepth = 6
+    tgtDepth = 4
     var reduction = 1
     var theta = Math.PI*2/1.333333
     var len = 4
@@ -158,7 +181,24 @@
       var iTheta = Math.PI*2/sd*m //+ Math.PI/sd
       recurse(0,0,0, iTheta, 0, len, theta, reduction, splits, 4)
     }
+    
     renderer.Clear()
+    
+    for(var i = 0; i < particleShape.vertices.length; i+=3){
+      var j = i/3
+      if(j < centers.length){
+        particleShape.vertices[i+0] = centers[j][0]
+        particleShape.vertices[i+1] = centers[j][1]
+        particleShape.vertices[i+2] = centers[j][2]
+      }else{
+        particleShape.vertices[i+0] = 1e5
+        particleShape.vertices[i+1] = 1e5
+        particleShape.vertices[i+2] = 1e5
+      }
+    }
+    
+    renderer.Draw(particleShape)
+    
     shapes.forEach(shape => {
       switch(shape.name){
         case 'background':
