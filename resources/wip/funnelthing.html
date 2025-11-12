@@ -14,193 +14,362 @@
   <body>
     <script type="module">
     
-      import * as Coordinates from
-      //"https://whr.rf.gd/coordinates.js"
-      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  import * as Coordinates from
+  //"https://whr.rf.gd/coordinates.js"
+  "https://srmcgann.github.io/Coordinates/coordinates.js"
+
+  var rendererOptions = {
+    ambientLight: .5,
+    fov: 1e3
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+  
+  //var refTexture = 'https://srmcgann.github.io/Coordinates/resources/volcanoes_lowres.jpg'
+  var refTexture = 'https://i.imgur.com/x1A9swq.mp4'
+
+  // invoke a shader - phong in this case for a pseudo-lighting effect
+  var shaderOptions = [
+    { lighting: {type: 'ambientLight', value: .1}
+    },
+    { uniform: {
+      type: 'phong',
+      value: .5
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      flipReflections: false,
+      value: .25
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    { lighting: {type: 'ambientLight', value: 1.5}
+    },
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } },
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+  var shapes = []
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    map: refTexture,
+    subs: 4,
+    sphereize: 1,
+    size: 3e3,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+  
+  
+  var iPc = 1e3
+  var color1 = 0x2288ff
+  var color2 = 0x44ff00
+  var geometryData = Array(iPc).fill().map(v=>[1e5,1e5,1e5])
+  var particleShape2
+  var geoOptions = {
+    shapeType: 'particles',
+    name: 'particles',
+    geometryData,
+    size: 1,
+    alpha: 1,
+    penumbra: .3,
+    color: color1,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+  })  
+  var geoOptions = {
+    shapeType: 'particles',
+    name: 'particles2',
+    geometryData,
+    size: 1,
+    alpha: 1,
+    penumbra: .3,
+    color: color1,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    particleShape2 = geometry
+  })  
+  
+  var geoOptions = {
+    shapeType: 'obj',
+    name: 'funnel',
+    map: 'https://srmcgann.github.io/objs/funnel/funnel.png',
+    //map: 'https://srmcgann.github.io/Coordinates/resources/rd5_po2_small.mp4',
+    url: 'https://srmcgann.github.io/objs/funnel/funnel_2_sides.obj',
+    scaleX: 8,
+    scaleY: 8,
+    scaleZ: 8,
+    showNormals: false,
+    //objRoll: -Math.PI/2,
+    colorMix: .1,
+    color: 0x888888,
+  }
+  var polyCenters = []
+  const InitializeColliders = geometry => {
+    polyCenters = []
+    var ax, ay, az
+    for(var i = 0; i < geometry.vertices.length; i += 9){
+      ax = 0
+      ay = 0
+      az = 0
+      var a = []
+      for(var m = 0; m < 3; m++){
+        x = geometry.vertices[i+0+m*3]
+        y = geometry.vertices[i+1+m*3]
+        z = geometry.vertices[i+2+m*3]
+        a.push([x, y, z])
+        ax += x
+        ay += y
+        az += z
+      }
+      ax /= 3
+      ay /= 3
+      az /= 3
+      var n =  Coordinates.Normal(a, true)
+      n = [n[3]-n[0], n[4]-n[1], n[5]-n[2]]
+      polyCenters.push([ax, ay, az, n])
+    }
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    /*
+    Coordinates.ShapeFromArray(geometry, [[0,0,0],[0,0,0]]).then(async res=>{
+      for(var i = 0; i < res.vertices.length; i+=3){
+        if(i >= res.vertices.length/2){
+          //x = res.vertices[i+0]
+          y = res.vertices[i+1]
+          z = res.vertices[i+2]
+          p = Math.atan2(y, z) + Math.PI
+          d = Math.hypot(y, z)
+          //res.vertices[i+0] = x
+          res.vertices[i+1] = S(p) * d
+          res.vertices[i+2] = C(p) * d
+
+          y = res.normalVecs[i+1]
+          z = res.normalVecs[i+2]
+          p = Math.atan2(y, z) + Math.PI
+          d = Math.hypot(y, z)
+          res.normalVecs[i+1] = S(p) * d
+          res.normalVecs[i+2] = C(p) * d
+          
+          y = res.normals[i*2+1]
+          z = res.normals[i*2+2]
+          p = Math.atan2(y, z) + Math.PI
+          d = Math.hypot(y, z)
+          res.normals[i*2+1] = S(p) * d
+          res.normals[i*2+2] = C(p) * d
+          y = res.normals[i*2+4]
+          z = res.normals[i*2+5]
+          p = Math.atan2(y, z) + Math.PI
+          d = Math.hypot(y, z)
+          res.normals[i*2+4] = S(p) * d
+          res.normals[i*2+5] = C(p) * d
+        }
+      }
+      InitializeColliders(res)
+      shapes.push(res)
+      await shader.ConnectGeometry(res)
+    })
+    */
+    InitializeColliders(geometry)
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+
+        
+  var p, d, q, x, y, z
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  var particles = []
+  var iPFreq = 5
+  var grav = -.015
+  var iPv = .2  
+  var ls, vx, vy, vz
+  const SpawnParticles = () => {
+    for(var m = 1; m--;){
+      var ls = 4 //Rn()**.5 * 8
+      x = 7 //+ Rn() / 2
+      y = 8.5 //S(p=renderer.t) * ls
+      z = 0 //S(p*2) * ls
+      var theta = Math.PI*2 * Rn()
+      p = Math.atan2(x, z) + theta
+      d = Math.hypot(x, z)
+      x = S(p) * d
+      z = C(p) * d
+      
+      vx = 0 //-iPv
+      vy = 0 //(Rn() - .5) * iPv*2
+      vz = iPv
+      p = Math.atan2(vx, vz) + theta
+      d = Math.hypot(vx, vz)
+      vx = S(p) * d
+      vz = C(p) * d
+      var ret = { x, y, z, vx, vy, vz, life: 1 }
+      particles.push(ret)
+    }
+  }
+  
+  if(0) Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+    crossharSel: 2,
+    mSpeed: .25,
+    crosshairSize: .5,
+  })
+
+  window.Draw = () => {
+    var t = renderer.t
+    renderer.z = Math.min(32, Math.max(16, (.3+C(t/8))*32))
+    renderer.pitch = Math.min(Math.PI/2, Math.max(-Math.PI/4, C(t/4)*Math.PI/1.5))
+    renderer.yaw = t / 8
+
+    renderer.Clear()
     
-      var rendererOptions = {
-        ambientLight: .5,
-        fov: 1e3
-      }
-      var renderer = await Coordinates.Renderer(rendererOptions)
-      
-      
-      Coordinates.AnimationLoop(renderer, 'Draw')
-      
-      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/volcanoes.jpg'
-
-      // invoke a shader - phong in this case for a pseudo-lighting effect
-      var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: .25}
-        },
-        { uniform: {
-          type: 'phong',
-          value: 1
-        } },
-        { uniform: {
-          type: 'reflection',
-          map: refTexture,
-          value: .1
-        } },
-      ]
-      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-      var shaderOptions = [
-        { lighting: {type: 'ambientLight', value: 1.5}
-        },
-        { uniform: {
-          type: 'phong',
-          value: 0
-        } },
-      ]
-      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-
-      var shapes = []
-      var geoOptions = {
-        shapeType: 'dodecahedron',
-        name: 'background',
-        map: 'https://srmcgann.github.io/Coordinates/resources/volcanoes.jpg',
-        subs: 4,
-        sphereize: 1,
-        size: 3e3,
-        colorMix: 0,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await backgroundShader.ConnectGeometry(geometry)
-      })  
-      
-      
-      var iPc = 1e4
-      var geometryData = Array(iPc).fill().map(v=>[1e5,1e5,1e5])
-      var geoOptions = {
-        shapeType: 'particles',
-        name: 'particles',
-        geometryData,
-        size: 1,
-        alpha: .75,
-        penumbra: .3,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-      })  
-      
-      var geoOptions = {
-        shapeType: 'obj',
-        name: 'funnel',
-        map: 'https://srmcgann.github.io/objs/funnel/funnel.png',
-        url: 'https://srmcgann.github.io/objs/funnel/funnel.obj?3',
-        scaleX: 8,
-        scaleY: 8,
-        scaleZ: 8,
-        showNormals: false,
-        objRoll: -Math.PI/2,
-        objX: -1,
-        colorMix: 0,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })  
-      
-      var geoOptions = {
-        shapeType: 'obj',
-        name: 'funnel2',
-        map: 'https://srmcgann.github.io/objs/funnel/funnel.png',
-        url: 'https://srmcgann.github.io/objs/funnel/funnel.obj?2',
-        scaleX: 8,
-        scaleY: 8,
-        scaleZ: 8,
-        showNormals: false,
-        objRoll: Math.PI/2,
-        objX: -1,
-        objY: 0,
-        colorMix: 0,
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        shapes.push(geometry)
-        await shader.ConnectGeometry(geometry)
-      })  
-      
-      var p, d, q, x, y, z
-      var S = Math.sin
-      var C = Math.cos
-      var Rn = Math.random
-      
-      var particles = []
-      var iPFreq = 0
-      var iPv = .1
-      var iPvariance = .001
-      var ls, vx, vy, vz
-      const SpawnParticleA = () => {
-        var ls = Rn()**.5
-        x = -20
-        y = S(p=Math.PI*2*Rn()) * ls
-        z = C(p) * ls
-        vx = iPv
-        vy = 0
-        vz = 0      
-        var ret = { x, y, z, vx, vy, vz, life: 1 }
-        particles.push(ret)
-      }
-      
-      Coordinates.LoadFPSControls(renderer, {
-        flyMode: true,
-        crossharSel: 2,
-        mSpeed: .25,
-        crosshairSize: .5,
-      })
-
-      renderer.z = 2.5 * 8
-      renderer.yaw = 0 //t / 16 + Math.PI/2
-      window.Draw = () => {
-        var t = renderer.t
-        renderer.Clear()
-        
-        if(!((t*60|0)%iPFreq)) SpawnParticleA()
-        
-        shapes.forEach(shape => {
-          switch(shape.name){
-            case 'background':
-              renderer.Draw(shape)
-            break
-            case 'particles':
-              particles = particles.filter(v => v.life > 0)
-              for(var i = 0; i < shape.vertices.length; i+=3){
-                var j = i / 3
-                if(j < particles.length){
-                  shape.vertices[i+0] = particles[j].x
-                  shape.vertices[i+1] = particles[j].y
-                  shape.vertices[i+2] = particles[j].z
-                  particles[j].x += particles[j].vx
-                  particles[j].y += particles[j].vy
-                  particles[j].z += particles[j].vz
-                  particles[j].life -= .001
-                }else{
-                  shape.vertices[i+0] = 1e5
-                  shape.vertices[i+1] = 1e5
-                  shape.vertices[i+2] = 1e5
-                }
-              }
-              renderer.Draw(shape)
-            break
-            case 'funnel':
-            case 'funnel2':
-              //shape.roll += .01
-              //shape.yaw += .02
-              shape.pitch += .005
-              var color = 0xff8800
-              var alpha = .33
-              renderer.Draw(shape)
-              //Coordinates.Glow(shape, color, alpha, true)
-            break
-            default:
-            break
+    if(!particles.length || !((t*60|0)%iPFreq)) SpawnParticles()
+    
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+          renderer.Draw(shape)
+        break
+        case 'particles':
+         /*
+          particles = particles.filter(v => v.life > 0)
+          for(var i = 0; i < shape.vertices.length; i+=3){
+            var j = i / 3
+            if(j < particles.length){
+              shape.vertices[i+0] = particles[j].x
+              shape.vertices[i+1] = particles[j].y
+              shape.vertices[i+2] = particles[j].z
+              particles[j].x += particles[j].vx
+              particles[j].y += particles[j].vy
+              particles[j].z += particles[j].vz
+              particles[j].life -= .0025
+            }else{
+              shape.vertices[i+0] = 1e5
+              shape.vertices[i+1] = 1e5
+              shape.vertices[i+2] = 1e5
+            }
+          }
+          renderer.Draw(shape)
+          */
+      particles = particles.filter((v, i) => v.life > 0 && v.y > -20)
+      particles.map((particle, j) => {
+        var bounced = false
+        polyCenters.forEach((v, i) => {
+          if(!bounced){
+            var ax = v[0]
+            var ay = v[1]
+            var az = v[2]
+            x = particle.x + particle.vx
+            y = particle.y + particle.vy
+            z = particle.z + particle.vz
+            d = Math.hypot(x-ax, (y-ay)/1, z-az)
+            if(y > 0 && d < (.75+Math.hypot(particle.vx, particle.vy/8, particle.vz)*2)/2){
+              bounced = true
+              var ar = Coordinates.Reflect([particle.vx, particle.vy, particle.vz], v[3])
+              particle.vx = (ar[0] * .6 + particle.vx * .4) / 1
+              particle.vy = (ar[1] * .6 + particle.vy * .4) / 1
+              particle.vz = (ar[2] * .6 + particle.vz * .4) / 1
+              //particle.vx = ar[0] / 1.00025
+              //particle.vy = ar[1] / 5
+              //particle.vz = ar[2] / 1.00025
+              particle.y -= grav * 1.5
+            }
           }
         })
+      })
+      for(var i = 0; i < shape.vertices.length; i+=3){
+        var j = i/3
+        if(j < particles.length){
+          x = particles[j].x
+          y = particles[j].y
+          z = particles[j].z
+          y = particles[j].y += particles[j].vy += grav
+          x = particles[j].x += particles[j].vx
+          z = particles[j].z += particles[j].vz
+          //particles[j].vx /= 1.005 
+          //particles[j].vy /= 1.005
+          //particles[j].vz /= 1.005
+          if(0 && y < 0) {
+            y = particles[j].y //= -grav
+            particles.vy *= -.95
+          }
+          shape.vertices[i+0] = x
+          shape.vertices[i+1] = y
+          shape.vertices[i+2] = z
+          particles[j].life -= .0005
+        }else{
+          shape.vertices[i+0] = 1e5
+          shape.vertices[i+1] = 1e5
+          shape.vertices[i+2] = 1e5
+        }
       }
-      
+      //shape.y = 3
+      //shape.color = Coordinates.HSVToHex(t*1e4,1,1)
+      shape.color = color2
+      shape.y = .25
+      renderer.Draw(shape)
+      for(var i = 0; i < shape.vertices.length; i += 3){
+        x = shape.vertices[i+0]
+        y = shape.vertices[i+1]
+        z = shape.vertices[i+2]
+        particleShape2.vertices[i+0] = -x
+        particleShape2.vertices[i+1] = -y
+        particleShape2.vertices[i+2] = z
+      }
+      particleShape2.color = color1
+      particleShape2.y = -.25
+      renderer.Draw(particleShape2)
+
+      break
+        case 'funnel':
+        //case 'funnel2':
+          //shape.roll += .01
+          //shape.yaw += .02
+          //shape.pitch += .005
+          var color = 0x22ff00
+          var alpha = .33
+          shape.shader.datasets[0].optionalUniforms.filter(v=>v.name == 'reflection')[0].value =  Math.min(1, Math.max(0, (.3+C(t))))
+          renderer.Draw(shape)
+          //Coordinates.Glow(shape, color, alpha, false)
+          
+          if(0)polyCenters.map((v, i) => {
+            x = v[0]
+            y = v[1]
+            z = v[2]
+            p = Math.atan2(x, y) + shape.roll
+            d = Math.hypot(x, y)
+            v[0] = S(p) * d
+            v[1] = C(p) * d
+            
+            x = v[3][0]
+            y = v[3][1]
+            z = v[3][2]
+            p = Math.atan2(x, y) + shape.roll
+            d = Math.hypot(x, y)
+            v[3][0] = S(p) * d
+            v[3][1] = C(p) * d
+          })
+        break
+        default:
+        break
+      }
+    })
+  }
+  
     </script>
   </body>
 </html>

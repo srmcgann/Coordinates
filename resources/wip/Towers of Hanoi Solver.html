@@ -1,0 +1,260 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+  var rendererOptions = {
+    ambientLight: .5, margin: 0,
+    fov: 1e3, width: 1920, height: 1080,
+    //fov: 1e3/2, width: 1920/2, height: 1080/2,
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  var x, y, z, p, q, d
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .33}},
+    { uniform: {
+      type: 'phong',
+      value: .6
+    } },
+    { uniform: {
+      type: 'reflection',
+      enabled: true,
+      map: refTexture,
+      value: .1
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .33}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+  var shapes = []
+  var gamePieceShapes = Array(8).fill()
+  var geometryData = []
+  var cl = 64, ls = 4
+  for(var i = 0; i < cl; i++){
+    var x1 = S(p=Math.PI*2/cl*i) * ls
+    var y1 = 0
+    var z1 = C(p) * ls
+    var x2 = S(p=Math.PI*2/cl*(i+1)) * ls
+    var y2 = 0
+    var z2 = C(p) * ls
+    geometryData.push([x1,y1,z1],[x2,y2,z2])
+  }
+  var geoOptions = {
+    shapeType: 'lines',
+    name: 'placeholder',
+    geometryData,
+    size: 1,
+    alpha: .8,
+    penumbra: .3,
+    color: 0x00ff44,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    //await backgroundShader.ConnectGeometry(geometry)
+  })  
+  
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    sphereize: 1,
+    subs: 4,
+    map: refTexture,
+    size: 5e3,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+  
+  var geoOptions = {
+    shapeType: 'obj',
+    url: 'https://srmcgann.github.io/objs/hanoi/base.obj',
+    map: 'https://srmcgann.github.io/objs/hanoi/hanoi.png',
+    name: 'game base',
+    scaleX: 4,
+    scaleY: 8,
+    scaleZ: 4,
+    y: -8,
+    colorMix: 0,
+  }
+  if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })
+  
+  for(var m = 0; m<8; m++){
+    var geoOptions = {
+      shapeType: 'obj',
+      scaleX: 4,
+      scaleY: 8,
+      scaleZ: 4,
+      y: -8,
+      url: `https://srmcgann.github.io/objs/hanoi/piece${m+1}.obj?3`,
+      map: `https://srmcgann.github.io/objs/hanoi/hanoi.png`,
+      name: `game piece ${m+1}`,
+      colorMix: 0,
+    }
+    await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+      gamePieceShapes[m] = geometry
+      await shader.ConnectGeometry(geometry)
+    })
+  }
+  
+  
+  Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+    mSpeed: .25,
+    crossharSel: 2,
+    crosshairSize: .5,
+  })
+
+  var pieceMoving = false, movementStage
+  var pofx = 0, pofy = 0, mpFinish = ''
+  var spd = 1
+  const MovePiece = (srcPost, dstPost) => {
+    if(!pieceMoving){
+      if(posts[srcPost].length && srcPost != dstPost){
+        pieceMoving = posts[srcPost][posts[srcPost].length-1]
+        movementStage = 0
+        pofx = pofy = 0
+        mpFinish = dstPost
+        return true
+      } else {
+        pieceMoving = false    
+        return false
+      }
+    }
+  }
+  
+  renderer.z = renderer.width > 1e3 ? 16 : 32
+  
+  var resetPostsFreq = 0
+  
+  var posts, pcs
+  const ResetPosts = () => {
+    posts = [[],[],[]]
+    pcs = [1,2,3,4,5,6,7,8]
+    for(var i = 0; i < 8; i++){
+      var postNum = Rn() * 3 | 0
+      var sel = Rn() * pcs.length | 0
+      var pc = pcs[sel]
+      pcs = pcs.filter((v, i) => v != pc)
+      posts[postNum].push(pc)
+    }
+  }
+  ResetPosts()
+  
+  window.Draw = () => {
+    
+    var t = renderer.t
+    renderer.Clear()
+    
+    if(0) if(!((t*60|0)%resetPostsFreq)) ResetPosts()
+    if(1) if(!((t*60|0)%resetPostsFreq)) MovePiece(Rn()*3|0, Rn()*3|0)
+    
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+          renderer.Draw(shape)
+        break
+        case 'game base':
+          renderer.Draw(shape)
+        break
+        case 'placeholder':
+          if(0) Array(24).fill().map((v, i) => {
+            shape.y = ((i%8) / 1.25 - 3.6) * 2
+            shape.x = ((i/8|0)-1) * ls * 2
+            shape.z = 0
+            renderer.Draw(shape)
+          })
+        break
+        default:
+          //renderer.Draw(shape)
+        break
+      }
+      
+      posts.map((post, postIdx) => {
+        post.map((pc, pcIdx) => {
+          var pcnum = pc-1
+          if(pieceMoving == pc){
+            switch(movementStage){
+              case 0:
+                pofy += spd
+                if(pofy > 14){
+                  movementStage++
+                }
+              break
+              case 1:
+                pofx += spd * (mpFinish < postIdx ? -1 : 1)
+                if(Math.abs((postIdx - 1) * ls * 2.1 - 
+                         ((mpFinish - 1) * ls * 2.1) + pofx) < spd){
+                  movementStage++
+                }
+              break
+              case 2:
+                pofy -= spd
+                var curY = (((pcIdx) / 1.25 + (pcnum-12) / 1.25) * 2 + pofy)
+                var diff = Math.abs(
+                  (((posts[mpFinish].length-1) / 1.25 + (posts[mpFinish][posts[mpFinish].length-1]-12) / 1.25) * 2)
+                    -
+                  curY
+                )
+                if(diff < spd || curY < -8){
+                  posts[mpFinish].push(posts[postIdx].pop())
+                  movementStage = 0
+                  pofx = pofy = 0
+                  pieceMoving = false
+                }
+              break
+            }
+            gamePieceShapes[pcnum].y =
+              ((pcIdx) / 1.25 + (pcnum-12) / 1.25) * 2 + pofy
+            gamePieceShapes[pcnum].x = (postIdx - 1) * ls * 2.1 + pofx
+          }else{
+            gamePieceShapes[pcnum].y = (pcIdx / 1.25 + (pcnum-12) / 1.25) * 2
+            gamePieceShapes[pcnum].x = (postIdx - 1) * ls * 2.1
+          }
+          
+          renderer.Draw(gamePieceShapes[pcnum])
+        })
+      })
+    })
+  }
+  
+</script>
+  </body>
+</html>
