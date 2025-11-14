@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #333;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+  var rendererOptions = {
+    ambientLight: .5, margin: 0,
+    fov: 1e3, width: 1920, height: 1080,
+    //fov: 1e3/2, width: 1920/2, height: 1080/2,
+    // uncomment above for lower-res, higher-performance canvas
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  var myCanvas = await Coordinates.Renderer({
+    width: 1024,
+    height: 1024,
+    attachToBody: false,
+    context:{
+      mode: '2d',
+    }
+  })
+  
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  var x, y, z, p, q, d
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .33}},
+    { uniform: {
+      type: 'phong',
+      value: .6
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      enabled: false,
+      value: .1
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .7}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+  var shapes = []
+
+  var geoOptions = {
+    shapeType: 'rectangle',
+    name: 'screen',
+    subs: 6,
+    pitch: Math.PI,
+    canvasTexture: myCanvas.c,
+    size: 15.25 * 2,
+    //scaleX: 16/9,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    for(var i = 0; i < geometry.vertices.length; i += 3){
+      x = geometry.vertices[i+0]
+      y = geometry.vertices[i+1]
+      z = geometry.vertices[i+2]
+      p = Math.atan2(y, z) + Math.PI/2
+      d = Math.hypot (y, z)
+      y = S(p) * d
+      z = C(p) * d
+      geometry.vertices[i+0] = x
+      geometry.vertices[i+1] = y
+      geometry.vertices[i+2] = z
+
+      x = geometry.normalVecs[i+0]
+      y = geometry.normalVecs[i+1]
+      z = geometry.normalVecs[i+2]
+      p = Math.atan2(y, z) + Math.PI/2
+      d = Math.hypot (y, z)
+      y = S(p) * d
+      z = C(p) * d
+      geometry.normalVecs[i+0] = x
+      geometry.normalVecs[i+1] = y
+      geometry.normalVecs[i+2] = z
+
+      x = geometry.normals[i*2+0]
+      y = geometry.normals[i*2+1]
+      z = geometry.normals[i*2+2]
+      p = Math.atan2(y, z) + Math.PI/2
+      d = Math.hypot (y, z)
+      y = S(p) * d
+      z = C(p) * d
+      geometry.normals[i*2+0] = x
+      geometry.normals[i*2+1] = y
+      geometry.normals[i*2+2] = z
+      x = geometry.normals[i*2+3]
+      y = geometry.normals[i*2+4]
+      z = geometry.normals[i*2+5]
+      p = Math.atan2(y, z) + Math.PI/2
+      d = Math.hypot (y, z)
+      y = S(p) * d
+      z = C(p) * d
+      geometry.normals[i*2+3] = x
+      geometry.normals[i*2+4] = y
+      geometry.normals[i*2+5] = z
+    }
+    console.log(geometry)
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })
+
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    sphereize: 1,
+    subs: 4,
+    map: refTexture,
+    size: 5e3,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+  
+  var focalPointShape
+  var geoOptions = {
+    shapeType: 'sprite',
+    name: 'focal point',
+    map: 'https://srmcgann.github.io/Coordinates/resources/stars/star4.png',
+    size: .5,
+    y: 16,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    focalPointShape = geometry
+    //await shader.ConnectGeometry(res.shape)
+  })
+  
+  var geometryData = []
+  var ls = .5
+  var cl = 7
+  var rw = cl*3.66 | 0
+  Array(cl*rw).fill().map((q, j) => {
+    var tx = ((j%cl)-cl/2+.5) * ls * 3 + ((j/cl|0)%2?ls*1.5:0)
+    var ty = 0
+    var tz = ((j/cl|0)-rw/2+.5) * ls * (.75**.5)
+    for(var i = 6; i--;){
+      var x1 = tx + S(p=Math.PI*2/6*i+Math.PI/6) * ls
+      var y1 = ty
+      var z1 = tz + C(p) * ls
+      var x2 = tx + S(p=Math.PI*2/6*(i+1)+Math.PI/6) * ls
+      var y2 = ty
+      var z2 = tz + C(p) * ls
+      if(Math.hypot(tx,ty,tz) <= cl*ls*1.1){
+
+        var rad = 1
+        var rx = x1
+        var ry = y1 - rad
+        var rz = z1
+        d = Math.hypot(x1-rx,y1-ry,z1-rz)
+        x1 = rx + x1 / d * rad
+        y1 = ry + y1 / d * rad
+        z1 = rz + z1 / d * rad
+        rx = x2
+        ry = y2 - rad
+        rz = z2
+        d = Math.hypot(x2-rx,y2-ry,z2-rz)
+        x2 = rx + x2 / d * rad
+        y2 = ry + y2 / d * rad
+        z2 = rz + z2 / d * rad
+        
+
+        geometryData.push([x1,y1,z1])
+        geometryData.push([x2,y2,z2])
+      }
+    }
+  })
+  var ax = 0
+  var ay = 0
+  var az = 0
+  var ct = 0
+  geometryData.map((v, i) => {
+    ax += v[0]
+    ay += v[1]
+    az += v[2]
+    ct++
+  })
+  ax /=ct
+  ay /=ct
+  az /=ct
+  geometryData.map((v, i) => {
+    v[0]-=ax
+    v[1]-=ay
+    v[2]-=az
+  })
+  
+  
+  
+  var size = 1
+  /*
+  var geometryData = []
+  let rawShape = (await Coordinates.Dodecahedron(size, -1, 0)).geometry
+  var sd = 6, a, tx, ty, tz
+  rawShape.forEach((vert, idx) => {
+    x = vert.position[0]
+    y = vert.position[1]
+    z = vert.position[2]
+    if(!(idx%sd)) {
+      a = []
+      tx = x
+      ty = y
+      tz = z
+      d = Math.hypot(tx,ty,tz)
+      tx/=d, ty/=d, tz/=d
+      tx*=size, ty*=size, tz*=size
+    }
+    d = Math.hypot(x,y,z)
+    x/=d, y/=d, z/=d
+    x*=size, y*=size, z*=size
+    a.push([x,y,z])
+    if(idx%sd==sd-1) {
+      a.push([tx, ty, tz])
+      geometryData.push(...a)
+    }else{
+      x = rawShape[idx+1].position[0]
+      y = rawShape[idx+1].position[1]
+      z = rawShape[idx+1].position[2]
+      d = Math.hypot(x,y,z)
+      x/=d, y/=d, z/=d
+      x*=size, y*=size, z*=size
+      a.push([x, y, z])
+    }
+  })
+  */
+  
+  var sourceShape, rawSourceShape
+  /*
+  var ls = 1
+  for(var i = 0; i < 4; i++){
+    x = S(p=Math.PI*2/4*i+Math.PI/4) * ls
+    y = 0
+    z = C(p) * ls
+    geometryData.push([x,y,z])
+    x = S(p=Math.PI*2/4*(i+1)+Math.PI/4) * ls
+    y = 0
+    z = C(p) * ls
+    geometryData.push([x,y,z])
+  }
+  */
+  var geoOptions = {
+    shapeType: 'lines',
+    geometryData,
+    name: 'source shape',
+    subs: -1,
+    sphereize: -1,
+    size: 1,
+    alpha: 1,
+    penumbra: .25,
+    y: 6,
+    color: 0x4400ff,
+    colorMix: .5,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    rawSourceShape = geometry
+    /*
+    Coordinates.ShapeToLines(geometry, {
+      name: 'source shape',
+      size: .5,
+      penumbra: 0,
+      closePaths: true,
+      alpha: .25,
+    }).then(res => {
+      shapes.push(res.shape)
+      sourceShape = res.shape
+    })
+    */
+    shapes.push(geometry)
+    //await shader.ConnectGeometry(geometry)
+  })  
+  
+  if(1) Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+    crossharSel: 2,
+    mSpeed: .2,
+    crosshairSize: .5,
+  })
+  
+  renderer.z = renderer.width > 1e3 ? 20 : 20
+  renderer.y = -2
+  renderer.pitch = -.5
+  
+  var poly = [
+    [-15.25*(9/9)*2e3, 0, -15.25*2e3],
+    [15.25*(9/9)*2e3,  0, -15.25*2e3],
+    [15.25*(9/9)*2e3,  0, 15.25*2e3],
+    [-15.25*(9/9)*2e3, 0, 15.25*2e3],
+  ]
+  
+  var interpolationDistance = 400
+  var ip1, ip2, steps = 50
+  
+  window.Draw = () => {
+    var t = renderer.t
+    
+    //renderer.yaw += .001
+    
+    renderer.Clear()
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+          renderer.Draw(shape)
+        break
+        case 'screen':
+          var ctx = myCanvas.ctx
+          var c = myCanvas.c
+          var w = c.width
+          var h = c.height
+          ctx.fillStyle = '#000'
+          ctx.fillRect(0,0,w,h)
+          
+          /*
+          var ls = 25
+          var cl = 8
+          var rw = cl*3.33333 | 0
+          Array(cl*rw).fill().map((q, j) => {
+            var tx = ((j%cl)-cl/2+.5) * ls * 3 + ls*.75*((j/cl|0)%2?1:-1)
+            var ty = ((j/cl|0)-rw/2+.5) * ls * (.75**.5)
+            ctx.beginPath()
+            for(var i = 6; i--;){
+              x = tx + S(p=Math.PI*2/6*i+Math.PI/6) * ls
+              y = ty + C(p) * ls
+              ctx.lineTo(w/2 + x,
+                         h/2 + y)
+            }
+            ctx.closePath()
+            ctx.fillStyle = '#40f2'
+            ctx.fill()
+            ctx.lineWidth = 6
+            ctx.strokeStyle = '#fff1'
+            ctx.stroke()
+            ctx.lineWidth /= 2
+            ctx.strokeStyle = '#fff3'
+            ctx.stroke()
+          })
+          */
+          
+          var fx = focalPointShape.x
+          var fy = focalPointShape.y
+          var fz = focalPointShape.z
+          
+          for(var i = 0; i < rawSourceShape.vertices.length; i += 6){
+            ctx.beginPath()
+            //for(var m = 0; m<2; m++){
+              var x1 = rawSourceShape.vertices[i+0]
+              var y1 = rawSourceShape.vertices[i+1]
+              var z1 = rawSourceShape.vertices[i+2]
+              p = Math.atan2(x1, z1) - rawSourceShape.yaw
+              d = Math.hypot(x1, z1)
+              x1 = S(p) * d
+              z1 = C(p) * d
+              p = Math.atan2(y1, z1) - rawSourceShape.pitch
+              d = Math.hypot(y1, z1)
+              y1 = S(p) * d
+              z1 = C(p) * d
+              var x2 = rawSourceShape.vertices[i+3]
+              var y2 = rawSourceShape.vertices[i+4]
+              var z2 = rawSourceShape.vertices[i+5]
+              p = Math.atan2(x2, z2) - rawSourceShape.yaw
+              d = Math.hypot(x2, z2)
+              x2 = S(p) * d
+              z2 = C(p) * d
+              p = Math.atan2(y2, z2) - rawSourceShape.pitch
+              d = Math.hypot(y2, z2)
+              y2 = S(p) * d
+              z2 = C(p) * d
+              for(var k = 0; k <= steps; k++){
+                x = x1 + (x2-x1) / steps * k
+                y = y1 + (y2-y1) / steps * k
+                z = z1 + (z2-z1) / steps * k
+                d = Math.hypot(x,y,z)
+                //x/=d, y/=d, z/=d
+                //x*=size, y*=size, z*=size
+                x*=ls, y*=ls, z*=ls
+                
+                if(y<fy-rawSourceShape.y-.1){
+                  x += rawSourceShape.x
+                  y += rawSourceShape.y
+                  z += rawSourceShape.z
+                  
+                  var mag = y-Math.min(8+rawSourceShape.y-3, fy)
+                  var d1 = Math.hypot(x-fx, y-fy, z-fz)
+                  var px = fx + (x-fx) * 1.25 / mag
+                  //var py = fy + (y-fy) * 1.5 / (y-fy)
+                  var pz = fz + (z-fz) * 1.25 / mag
+                  px*=-200
+                  pz*=200
+                  var d1 = Math.hypot(px, pz)
+                  d = Math.min(d1, interpolationDistance)
+                  ip1 = (d/interpolationDistance)**1
+                  ip2 = 1-ip1
+                  //px = px * ip2 + px/d1*interpolationDistance*ip1
+                  //pz = pz * ip2 + pz/d1*interpolationDistance*ip1
+                  ctx.lineTo(w/2 + px,
+                             h/2 + pz)
+                }
+              }
+            //}
+            //ctx.fillStyle = '#40f2'
+            //ctx.fill()
+            ctx.lineWidth = 5
+            ctx.strokeStyle = '#fff1'
+            ctx.stroke()
+            ctx.lineWidth /= 3
+            ctx.strokeStyle = '#0fff4'
+            ctx.stroke()
+          }
+          renderer.Draw(shape)
+        break
+        case 'source shape':
+        
+          //shape.yaw = -t/4
+          //shape.pitch = -t/2
+          
+          rawSourceShape.x = shape.x
+          rawSourceShape.y = shape.y
+          rawSourceShape.z = shape.z
+          rawSourceShape.roll = shape.roll
+          rawSourceShape.pitch = shape.pitch
+          rawSourceShape.yaw = shape.yaw
+          renderer.Draw(shape)
+        break
+        case 'focal point':
+          shape.y = Math.min(8, Math.max(4, (1.5+C(t))*4)) + 6
+          renderer.Draw(shape)
+        break
+        default:
+          renderer.Draw(shape)
+        break
+      }
+    })
+  }
+  
+</script>
+  </body>
+</html>
