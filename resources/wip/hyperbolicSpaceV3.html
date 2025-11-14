@@ -125,7 +125,6 @@
       geometry.normals[i*2+4] = y
       geometry.normals[i*2+5] = z
     }
-    console.log(geometry)
     shapes.push(geometry)
     await backgroundShader.ConnectGeometry(geometry)
   })
@@ -159,8 +158,11 @@
   })
   
   var geometryData = []
+  for
+  /*
+  var geometryData = []
   var ls = .5
-  var cl = 7
+  var cl = 15
   var rw = cl*3.66 | 0
   Array(cl*rw).fill().map((q, j) => {
     var tx = ((j%cl)-cl/2+.5) * ls * 3 + ((j/cl|0)%2?ls*1.5:0)
@@ -175,21 +177,22 @@
       var z2 = tz + C(p) * ls
       if(Math.hypot(tx,ty,tz) <= cl*ls*1.1){
 
-        var rad = 1
-        var rx = x1
-        var ry = y1 - rad
-        var rz = z1
-        d = Math.hypot(x1-rx,y1-ry,z1-rz)
-        x1 = rx + x1 / d * rad
-        y1 = ry + y1 / d * rad
-        z1 = rz + z1 / d * rad
-        rx = x2
-        ry = y2 - rad
-        rz = z2
-        d = Math.hypot(x2-rx,y2-ry,z2-rz)
-        x2 = rx + x2 / d * rad
-        y2 = ry + y2 / d * rad
-        z2 = rz + z2 / d * rad
+        var rad = 3
+        var rx = 0
+        var ry = y1-rad
+        var rz = 0
+        var a, b, e
+        d = Math.hypot(a=x1-rx, b=y1-ry, e=z1-rz)
+        x1 = rx + a / d * rad * 1
+        y1 = ry + b / d * rad * 1
+        z1 = rz + e / d * rad * 1
+        rx = 0
+        ry = y2-rad
+        rz = 0
+        d = Math.hypot(a=x2-rx, b=y2-ry, e=z2-rz)
+        x2 = rx + a / d * rad * 1
+        y2 = ry + b / d * rad * 1
+        z2 = rz + e / d * rad * 1
         
 
         geometryData.push([x1,y1,z1])
@@ -197,6 +200,9 @@
       }
     }
   })
+  */
+  
+  // center geometryData
   var ax = 0
   var ay = 0
   var az = 0
@@ -275,7 +281,7 @@
     name: 'source shape',
     subs: -1,
     sphereize: -1,
-    size: 1,
+    size: .5,
     alpha: 1,
     penumbra: .25,
     y: 6,
@@ -452,7 +458,7 @@
           renderer.Draw(shape)
         break
         case 'focal point':
-          shape.y = Math.min(8, Math.max(4, (1.5+C(t))*4)) + 6
+          shape.y = 8 //Math.min(8, Math.max(4, (1.5+C(t))*4)) + 6
           renderer.Draw(shape)
         break
         default:
