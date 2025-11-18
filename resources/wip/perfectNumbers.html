@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+  var rendererOptions = {
+    ambientLight: .5, margin: 0,
+    fov: 1e3, width: 1920, height: 1080,
+    //fov: 1e3/2, width: 1920/2, height: 1080/2,
+    // uncomment above for lower-res, higher-performance canvas
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg'
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  var x, y, z, p, q, d
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .33}},
+    { uniform: {
+      type: 'phong',
+      value: .6
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      value: .1
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .1}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+  var shapes = []
+
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    sphereize: 1,
+    subs: 4,
+    map: refTexture,
+    size: 5e3,
+    colorMix: 0,
+  }
+  if(0) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+  
+  
+  var sp = .2, h = 4
+  
+  
+  var geometryData = []
+  
+  var rotate = false
+  
+  
+  var cl = 32
+  var sp = 1
+  
+  
+  for(var i = 0; i < cl; i++){
+    x = ((-cl/2) + i) * sp
+    y = C(Math.PI*2/cl*i + Math.PI) * h
+    z = 0
+    geometryData.push([x, y, z])
+    x = ((-cl/2) + (i+1)) * sp
+    y = C(Math.PI*2/cl*(i+1) + Math.PI) * h
+    z = 0
+    geometryData.push([x, y, z])
+  }
+  var geoOptions = {
+    shapeType: 'lines',
+    name: 'lines',
+    geometryData,
+    color: 0xff8800,
+    size: 2,
+    alpha: .8,
+    penumbra: .25,
+  }
+  if(0) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    console.log(geometry)
+    shapes.push(geometry)
+    //await shader.ConnectGeometry(geometry)
+  })
+  
+    
+  var iPc = 1e4
+
+  geometryData = Array(iPc).fill().map(v=>[1e5,1e5,1e5])
+  var evenPointsShape
+  var geoOptions = {
+    shapeType: 'particles',
+    name: 'even points',
+    geometryData,
+    size: .2,
+    alpha: .6,
+    z: .025,
+    penumbra: .25,
+    color: 0x2288ff,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    evenPointsShape = geometry
+    shapes.push(geometry)
+    //await shader.ConnectGeometry(geometry)
+  })
+  geometryData = []
+  
+  geometryData = Array(iPc).fill().map(v=>[1e5,1e5,1e5])
+  var oddPointsShape
+  var geoOptions = {
+    shapeType: 'particles',
+    name: 'odd points',
+    geometryData,
+    size: .2,
+    z: .05,
+    alpha: .6,
+    penumbra: .25,
+    color: 0xff8822,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    oddPointsShape = geometry
+    shapes.push(geometry)
+    //await shader.ConnectGeometry(geometry)
+  })
+
+  geometryData = Array(100).fill().map(v=>[1e5,1e5,1e5])
+  var perfectNumberPointsShape
+  var oddPointsShape
+  var geoOptions = {
+    shapeType: 'particles',
+    name: 'perfect number points',
+    geometryData,
+    size: 2,
+    z: -.005,
+    alpha: 1,
+    penumbra: .25,
+    color: 0xff0000,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    perfectNumberPointsShape = geometry
+    shapes.push(geometry)
+    //await shader.ConnectGeometry(geometry)
+  })
+
+  
+  geometryData = []
+  
+  var cl = 46 * 1
+  var rw = (1+cl / (16/9)) | 0
+  var sp = 1
+  //var rw = 10
+  for(var i = 1; i < cl-1; i++){
+    x = (i-cl/2) * sp
+    y = -sp*10
+    z = 0
+    geometryData.push([x, y, z])
+    x = ((i+1)-cl/2) * sp
+    y = -sp*10
+    z = 0
+    geometryData.push([x, y, z])
+  }
+  for(var i = 1; i < rw-1; i++){
+    x = sp*20
+    y = (i-rw/2) * sp
+    z = 0
+    geometryData.push([x, y, z])
+    x = sp*20
+    y = ((i+1)-rw/2) * sp
+    z = 0
+    geometryData.push([x, y, z])
+  }
+
+
+  var geoOptions = {
+    shapeType: 'lines',
+    name: 'grid major lines',
+    geometryData,
+    size: 2,
+    penumbra: .25,
+    color: 0xffffff,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })
+
+  var geometryData = Array(100).fill().map(v=>[1e5,1e5,1e5])
+  var testLinesShape
+  var geoOptions = {
+    shapeType: 'lines',
+    name: 'test lines',
+    geometryData,
+    size: 1,
+    alpha: .5,
+    z: 0,
+    penumbra: .25,
+    color: 0x00ff00,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    testLinesShape = geometry
+    shapes.push(geometry)
+    //await shader.ConnectGeometry(geometry)
+  })
+
+
+  geometryData = []
+  
+  
+  for(var j = 1; j < rw; j++){
+    for(var i = 1; i < cl-1; i++){
+      x = (i-cl/2) * sp
+      y = (j-rw/2) * sp
+      z = 0
+      geometryData.push([x, y, z])
+      x = ((i+1)-cl/2) * sp
+      y = (j-rw/2) * sp
+      z = 0
+      geometryData.push([x, y, z])
+    }
+  }
+      
+  for(var j = 1; j < cl; j++){
+    for(var i = 1; i < rw-1; i++){
+      x = (j-cl/2) * sp
+      y = (i-rw/2) * sp
+      z = 0
+      geometryData.push([x, y, z])
+      x = (j-cl/2) * sp
+      y = ((i+1)-rw/2) * sp
+      z = 0
+      geometryData.push([x, y, z])
+    }
+  }
+
+  var geoOptions = {
+    shapeType: 'lines',
+    name: 'grid minor lines',
+    geometryData,
+    size: 1,
+    alpha: .15,
+    penumbra: .25,
+    color: 0xccccff,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+
+
+  /*
+  Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+    crossharSel: 2,
+    crosshairSize: .5,
+  })
+  */
+  
+  //uncomment above to enable mouse/keyboard controls
+  
+  var pts = []
+  for(var i = 1; i < iPc; i+=1){
+    var pd = []
+    for(var j = 1; j <= i/2; j++){
+      if(!(((i/j)|0)-i/j)) pd.push(j)
+    }
+    var sum = 0
+    pd.forEach(v=>sum += v)
+    var pn = sum == i
+    var obj = {
+      number: i,
+      even: !(i%2) ? true : false,
+      odd: i%2 ? true : false,
+      sum,
+      properDivisors: pd,
+      perfectNumber: pn
+    }
+    pts.push(obj)
+  }
+  
+  //console.log(pts)
+  var spc = .019675 / 5 / 1
+  var pnct = 0
+  pts.map((v, i) => {
+    if(v.perfectNumber){
+      perfectNumberPointsShape.vertices[pnct*3+0] = (-iPc/2 + .5 + v.number) * spc
+      perfectNumberPointsShape.vertices[pnct*3+1] = -9.85 + spc*v.sum / 10
+      perfectNumberPointsShape.vertices[pnct*3+2] = 0
+      pnct++
+    }else{
+      if(v.even){
+        evenPointsShape.vertices[i*3+0] = (-iPc/2 + .5 + v.number) * spc
+        evenPointsShape.vertices[i*3+1] = -9.85 + spc*v.sum / 10
+        evenPointsShape.vertices[i*3+2] = 0
+      }else{
+        oddPointsShape.vertices[i*3+0] = (-iPc/2 + .5 + v.number) * spc
+        oddPointsShape.vertices[i*3+1] = -9.85 + spc*v.sum / 10
+        oddPointsShape.vertices[i*3+2] = 0
+      }
+    }
+  })
+  
+  var fEl = pts.filter(v=>v.perfectNumber)[0]
+  var fNum = fEl.number
+  var fSum = fEl.sum
+  x = (-iPc/2 + .5 + fNum) * spc
+  y = -9.85 + spc*fSum / 10
+  z = 0
+  pts.filter(v=>v.perfectNumber).map((q, i) => {
+    if(i){
+      var x2 = (-iPc/2 + .5 + q.number) * spc
+      var y2 = -9.85 + spc*q.sum / 10
+      var z2 = 0
+      testLinesShape.vertices[i*6+0] = x
+      testLinesShape.vertices[i*6+1] = y
+      testLinesShape.vertices[i*6+2] = 0
+      testLinesShape.vertices[i*6+3] = x + (x2 - x) * 10
+      testLinesShape.vertices[i*6+4] = (y + (y2 - y) * 10)
+      testLinesShape.vertices[i*6+5] = 0 //z + (z2 - z) * 10
+    }
+  })
+  
+  var perfectNumbers = pts.filter(v=>v.perfectNumber).map(v=>v.number)
+  console.log('perfect numbers: ', perfectNumbers)
+
+
+  renderer.z = renderer.width > 1e3 ? 11.5 : 23
+  
+  window.Draw = () => {
+    var t = renderer.t
+    
+    var ctx = Coordinates.Overlay.ctx
+    var c = Coordinates.Overlay.c
+    var w = c.width
+    var h = c.height
+    
+    var sd = 22
+    for(var i = 0; i < sd; i++){
+      ctx.font = '24px monospace'
+      ctx.lineWidth = 5
+      ctx.textAlign = 'center'
+      ctx.strokeStyle = '#000'
+      ctx.strokeText(i*500, w/sd*i+90, h - 50)
+      ctx.fillStyle = '#0f8'
+      ctx.fillText(i*500, w/sd*i +90, h - 50)
+
+      ctx.strokeStyle = '#000'
+      ctx.strokeText(i*5000, 50, h-w/sd*i-95)
+      ctx.fillStyle = '#40f'
+      ctx.fillText(i*5000, 50, h-w/sd*i-95)
+    }
+  
+    renderer.Clear()
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+          //shape.yaw += .005
+          renderer.Draw(shape)
+        break
+        case 'lines':
+          if(rotate){
+            for(var i = 0; i < shape.vertices.length; i+=3){
+              x = shape.vertices[i+0]
+              y = shape.vertices[i+1]
+              z = shape.vertices[i+2]
+              p = Math.atan2(x, z) + .0025
+              d = Math.hypot(x, z)
+              shape.vertices[i+0] = S(p) * d
+              shape.vertices[i+1] = y
+              shape.vertices[i+2] = C(p) * d
+            }
+          }
+          renderer.Draw(shape)
+        break
+        case 'test lines':
+          //shape.yaw += .01
+          renderer.Draw(shape)
+        break
+        case 'even points':
+          renderer.Draw(shape)
+        break
+        case 'odd points':
+          renderer.Draw(shape)
+        break
+        default:
+          renderer.Draw(shape)
+        break
+      }
+    })
+  }
+  
+</script>
+  </body>
+</html>
