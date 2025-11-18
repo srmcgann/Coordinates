@@ -8039,6 +8039,7 @@ export {
   GeoSphere,
   ModuleBase,
   LoadFPSControls,
+  UnloadFPSControls,
   GetGlyphLuminosities,
   SceneToASCII,
   GeometryFromRaw,
