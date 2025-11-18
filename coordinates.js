@@ -1492,6 +1492,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var preComputeNormalAssocs   = false
   var flipNormals              = false
   var showNormals              = false
+  var syncNormals              = false
   var map                      = '' //`${ModuleBase}/resources/flat_grey.jpg`
   var glow                     = false
   var glowColor                = 0xffffff
@@ -1570,6 +1571,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'equirectangularheightmap' : equirectangularHeightmap = !!geoOptions[key]; break
       case 'flipnormals'        : flipNormals = !!geoOptions[key]; break
       case 'shownormals'        : showNormals = !!geoOptions[key]; break
+      case 'syncnormals'        : syncNormals = !!geoOptions[key]; break
       case 'offsetx'            : offsetX = geoOptions[key]; break
       case 'offsety'            : offsetY = geoOptions[key]; break
       case 'offsetz'            : offsetZ = geoOptions[key]; break
@@ -2170,8 +2172,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     }
   }
   
-  if(averageNormals) {
-    AverageNormals(vertices, normals, shapeType, normalVecs, flipNormals)
+  if(averageNormals && !syncNormals) {
+    AverageNormals(vertices, normals, shapeType, normalVecs)
   }
 
   if(shapeType == 'dynamic' || preComputeNormalAssocs) {
@@ -2563,7 +2565,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     vertex_buffer, Vertex_Index_Buffer,
     normal_buffer, Normal_Index_Buffer, muted,
     normalVec_buffer, NormalVec_Index_Buffer,
-    nVecIndices, uv_buffer, UV_Index_Buffer,
+    nVecIndices, uv_buffer, UV_Index_Buffer, syncNormals,
     oIndices, vIndices, nIndices, uvIndices, map, video,
     textureMode, isSprite, isLight, playbackSpeed,
     disableDepthTest, lum, alpha, involveCache,
@@ -2602,7 +2604,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
     await renderer.nullShader.ConnectGeometry(geometry)
   }
   
-  
+  if(geometry.syncNormals) SyncNormals(geometry, averageNormals, flipNormals)
+
   if(geometry.downloadShape && !isFromZip) DownloadCustomShape(geometry)
   if(geometry.downloadAsOBJ && !isFromZip) DownloadAsOBJ(geometry)
 
@@ -2855,8 +2858,8 @@ const ComputeNormalAssocs = geometry => {
   }
 }
 
-const SyncNormals = (shape, averageNormals=false, flipNormals=false,
-                       autoFlip=true, cx = 0, cy = 0, cz = 0) => {
+const SyncNormals = (shape, averageNormals=true, flipNormals=false,
+                       autoFlip=false, cx = 0, cy = 0, cz = 0) => {
   var X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, n
   var nrms = []
   // populate normals/normalVecs/uvs if needed
@@ -2897,9 +2900,9 @@ const SyncNormals = (shape, averageNormals=false, flipNormals=false,
       shape.normals[idx*18+m*6+3] = shape.vertices[idx*9+m*3+0] + (nrm[3] - nrm[0]) * fn
       shape.normals[idx*18+m*6+4] = shape.vertices[idx*9+m*3+1] + (nrm[4] - nrm[1]) * fn
       shape.normals[idx*18+m*6+5] = shape.vertices[idx*9+m*3+2] + (nrm[5] - nrm[2]) * fn
-      shape.normalVecs[idx*9+m*3+0] = shape.normals[idx*18+m*6+3] - shape.normals[idx*18+m*6+0]
-      shape.normalVecs[idx*9+m*3+1] = shape.normals[idx*18+m*6+4] - shape.normals[idx*18+m*6+1]
-      shape.normalVecs[idx*9+m*3+2] = shape.normals[idx*18+m*6+5] - shape.normals[idx*18+m*6+2]
+      shape.normalVecs[idx*9+m*3+0] = (nrm[3] - nrm[0]) * fn
+      shape.normalVecs[idx*9+m*3+1] = (nrm[4] - nrm[1]) * fn
+      shape.normalVecs[idx*9+m*3+2] = (nrm[5] - nrm[2]) * fn
     }
   })
   if(averageNormals){
