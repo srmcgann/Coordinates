@@ -108,7 +108,7 @@
     geometryData,
     //map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
     name: 'flashes A',
-    size: 2,
+    size: 4,
     alpha: 1, 
     penumbra: .5,
     color: 0xff0000,
@@ -136,15 +136,34 @@
   })  
   
   var flashes = []
-  var spawnFreq = 10
-  const SpawnFlash = () => {
-    var type = Rn() < .96 ? 'A' : 'B'
-    var rad = type == 'A' ? G*1.66*Rn() ** .4 : G
-    x = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * rad * 2
-    y = C(q) * rad * (type  == 'A' ? 1 : 0)
-    z = C(p) * S(q) * rad * 2
+  var spawnFreq = 60
+  const SpawnFlash = (type = -1) => {
+    var type = type == -1 ? (Rn() < .9 ? 'A' : 'B') : type
+    if(type == 'A'){
+      var rad = G * 4 //*1.66*Rn() ** .4
+      x = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * rad
+      y = C(q) * rad * (type  == 'A' ? 1 : 0)
+      z = C(p) * S(q) * rad
+    }else{
+      var rad = G / 2
+      x = S(p=0) * rad * 2
+      y = 0
+      z = C(p) * rad * 2
+    }
     flashes.push( {x, y, z, life: 1, type} )
   }
+  
+  //SpawnFlash('A')
+  //SpawnFlash('A')
+  SpawnFlash('A')
+
+  SpawnFlash('B')
+  SpawnFlash('B')
+  //SpawnFlash('B')
+  //SpawnFlash('B')
+  //SpawnFlash('B')
+  //SpawnFlash('B')
+  
   
   /*
   Coordinates.LoadFPSControls(renderer, {
@@ -159,23 +178,25 @@
   renderer.z = renderer.width > 1e3 ? 16 : 32
   
   var lastSpawn = 0
-  var grav = 2
-  var homing = 200
-  var drag = 5
-  var maxSpeed = 5
+  var grav = 1
+  var homing = 8000
+  var drag = 1.5
+  var maxSpeed = .9 
   window.Draw = () => {
     var t = renderer.t
     renderer.Clear()
-    renderer.z = Math.min(40, Math.max(20, (.3+C(t/4))*60))
-    renderer.yaw += .01
+    renderer.z = Math.min(60, Math.max(30, (.3+C(t/4))*100))
+    renderer.yaw = Math.min(Math.PI * 1.5, Math.max(0, (.3+S(t/3)*2)*Math.PI*1))
     renderer.pitch = Math.min(.25, Math.max(-.25, C(t/3)*2))
     
     flashes = flashes.filter(v=>v.life>0)
-    if(!((t*60|0)%spawnFreq) && t-lastSpawn > spawnFreq/2/60) {
-      lastSpawn = t
-      SpawnFlash()
-    }
+    //if(!((t*60|0)%spawnFreq) && t-lastSpawn > spawnFreq/2/60) {
+    //  lastSpawn = t
+    //  SpawnFlash()
+    //}
     
+    var flashesA = flashes.filter(v=>v.type == 'A')
+    var flashesB = flashes.filter(v=>v.type == 'B')
     shapes.forEach(shape => {
       switch(shape.name){
         case 'background':
@@ -190,21 +211,36 @@
             var x = particles[l].x
             var y = particles[l].y
             var z = particles[l].z
-            flashes.map(v => {
-              var dir = v.type == 'A' ? 8 : -1
+            flashes.map((v, idx) => {
+              var dir = v.type == 'A' ? 2 : -1
               if(v.type == 'A') {
-                d = 1+(1+Math.hypot(v.x - x, v.y - y, v.z - z))**12 / 1e9
+                var ls = Math.min(1, Math.max(-1, C(t/2+Math.PI*2/flashesA.length * idx)*3))
+                var x2 = v.x * ls
+                var y2 = v.y * ls
+                var z2 = v.z * ls
+                d = 1+(1+Math.hypot(x2 - x, y2 - y, z2 - z))**12 / 1e11
               } else{
-                d = 1+(1+Math.hypot(v.x - x, v.y - y, v.z - z))**12 / 1e8
+                var x2 = v.x
+                var y2 = v.y
+                var z2 = v.z
+                p = Math.atan2(x2, z2) + t * 32 + Math.PI*2/flashesB.length * idx
+                d = Math.hypot(x2, z2)
+                x2 = S(p) * d
+                z2 = C(p) * d
+                p = Math.atan2(y2, z2) - t * 2 //Math.PI*2/flashesB.length * idx
+                d = Math.hypot(y2, z2)
+                y2 = S(p) * d
+                z2 = C(p) * d
+                d = 1+(1+Math.hypot(x2 - x, y2 - y, z2 - z))**10 / 1e8
               }
-              particles[l].vx += (x - v.x) * grav / d * dir
-              particles[l].vy += (y - v.y) * grav / d * dir
-              particles[l].vz += (z - v.z) * grav / d * dir
+              particles[l].vx += (x - x2) * grav / d * dir
+              particles[l].vy += (y - y2) * grav / d * dir
+              particles[l].vz += (z - z2) * grav / d * dir
             })
             particles[l].vx += (particles[l].ox - x) / homing
             particles[l].vy += (particles[l].oy - y) / homing
             particles[l].vz += (particles[l].oz - z) / homing
-            var d1 = Math.hypot(particles[l].vx, particles[l].vy, particles[l].vz) + .0001
+            var d1 = Math.hypot(particles[l].vx, particles[l].vy, particles[l].vz) + .001
             var d2 = Math.min(maxSpeed, d1)
             particles[l].vx /= d1
             particles[l].vy /= d1
@@ -219,13 +255,16 @@
           renderer.Draw(shape)
         break
         case 'flashes A':
-          var flashesA = flashes.filter(v=>v.type == 'A')
           for(var i = 0; i < shape.vertices.length; i += 3){
             if(i/3 < flashesA.length){
-              shape.vertices[i+0] = flashesA[i/3].x
-              shape.vertices[i+1] = flashesA[i/3].y
-              shape.vertices[i+2] = flashesA[i/3].z
-              flashesA[i/3].life -= .05
+              var ls = Math.min(1, Math.max(-1, C(t/2+Math.PI*2/flashesA.length * i/3)*3))
+              var x2 = flashesA[i/3].x * ls
+              var y2 = flashesA[i/3].y * ls
+              var z2 = flashesA[i/3].z * ls
+              shape.vertices[i+0] = x2
+              shape.vertices[i+1] = y2
+              shape.vertices[i+2] = z2
+              //flashesA[i/3].life -= .005
             }else{
               shape.vertices[i+0] = 1e5
               shape.vertices[i+1] = 1e5
@@ -235,27 +274,26 @@
           renderer.Draw(shape)
         break
         case 'flashes B':
-          var flashesB = flashes.filter(v=>v.type == 'B')
           for(var i = 0; i < shape.vertices.length; i += 3){
             if(i/3 < flashesB.length){
               x = flashesB[i/3].x
               y = flashesB[i/3].y
               z = flashesB[i/3].z
-              p = Math.atan2(x, z) + .2
+              p = Math.atan2(x, z) + t * 32 + Math.PI*2/flashesB.length * i/3
               d = Math.hypot(x, z)
               x = S(p) * d
               z = C(p) * d
-              p = Math.atan2(y, z) - C(t/4)/4
+              p = Math.atan2(y, z) - t * 2 //Math.PI*2/flashesB.length * i/3
               d = Math.hypot(y, z)
               y = S(p) * d
               z = C(p) * d
-              flashesB[i/3].x = x
-              flashesB[i/3].y = y
-              flashesB[i/3].z = z
+              //flashesB[i/3].x = x
+              //flashesB[i/3].y = y
+              //flashesB[i/3].z = z
               shape.vertices[i+0] = x
               shape.vertices[i+1] = y
               shape.vertices[i+2] = z
-              flashesB[i/3].life -= .005
+              //flashesB[i/3].life -= .001
             }else{
               shape.vertices[i+0] = 1e5
               shape.vertices[i+1] = 1e5
