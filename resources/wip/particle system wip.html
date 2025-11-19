@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+  var rendererOptions = {
+    ambientLight: .5, margin: 0,
+    fov: 800, width: 1920, height: 1080,
+    //fov: 1e3/2, width: 1920/2, height: 1080/2,
+    // uncomment above for lower-res, higher-performance canvas
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg'
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  var x, y, z, p, q, d
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .33}},
+    { uniform: {
+      type: 'phong',
+      value: .6
+    } },
+    { uniform: {
+      type: 'reflection',
+      enabled: false,
+      map: refTexture,
+      value: .1
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .3}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+  var shapes = []
+  
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    sphereize: 1,
+    subs: 4,
+    map: refTexture,
+    size: 5e3,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+
+  var geometryData = []
+  var particles = []
+  var iPc = 1e4, G = 5.5
+  for(var i = 0; i < iPc; i++){
+    var rad = G*Rn() ** .2
+    x = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * rad * 2
+    y = C(q) * rad
+    z = C(p) * S(q) * rad * 2
+    geometryData.push([x,y,z])
+    particles.push({ x, y, z, ox: x, oy: y, oz: z, vx: 0, vy: 0, vz: 0 })
+  }
+  var geoOptions = {
+    shapeType: 'particles',
+    geometryData,
+    name: 'main',
+    size: 1,
+    alpha: .75,
+    penumbra: .2,
+    color: 0xff8800,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+  
+  var geometryData = Array(1e3).fill().map(v=>[1e5,1e5,1e5])
+  var flashesAShape
+  var geoOptions = {
+    shapeType: 'particles',
+    geometryData,
+    //map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+    name: 'flashes A',
+    size: 2,
+    alpha: 1, 
+    penumbra: .5,
+    color: 0xff0000,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    flashesAShape = geometry
+    shapes.push(geometry)
+  })  
+
+  var geometryData = Array(1e3).fill().map(v=>[1e5,1e5,1e5])
+  var flashesBShape
+  var geoOptions = {
+    shapeType: 'particles',
+    geometryData,
+    //map: 'https://srmcgann.github.io/Coordinates/resources/stars/star1.png',
+    name: 'flashes B',
+    size: 3,
+    alpha: 1, 
+    penumbra: .5,
+    color: 0x22ff88,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    flashesBShape = geometry
+    shapes.push(geometry)
+  })  
+  
+  var flashes = []
+  var spawnFreq = 10
+  const SpawnFlash = () => {
+    var type = Rn() < .96 ? 'A' : 'B'
+    var rad = type == 'A' ? G*1.66*Rn() ** .4 : G
+    x = S(p=Math.PI*2*Rn()) * S(q=Rn()<.5?Math.PI/2*Rn()**.5:Math.PI-Math.PI/2*Rn()**.5) * rad * 2
+    y = C(q) * rad * (type  == 'A' ? 1 : 0)
+    z = C(p) * S(q) * rad * 2
+    flashes.push( {x, y, z, life: 1, type} )
+  }
+  
+  /*
+  Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+    crossharSel: 2,
+    crosshairSize: .5,
+  })
+  */
+  
+  //uncomment above to enable mouse/keyboard controls
+  
+  renderer.z = renderer.width > 1e3 ? 16 : 32
+  
+  var lastSpawn = 0
+  var grav = 2
+  var homing = 200
+  var drag = 5
+  var maxSpeed = 5
+  window.Draw = () => {
+    var t = renderer.t
+    renderer.Clear()
+    renderer.z = Math.min(40, Math.max(20, (.3+C(t/4))*60))
+    renderer.yaw += .01
+    renderer.pitch = Math.min(.25, Math.max(-.25, C(t/3)*2))
+    
+    flashes = flashes.filter(v=>v.life>0)
+    if(!((t*60|0)%spawnFreq) && t-lastSpawn > spawnFreq/2/60) {
+      lastSpawn = t
+      SpawnFlash()
+    }
+    
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+          renderer.Draw(shape)
+        break
+        case 'main':
+          for(var i = 0 ; i < shape.vertices.length; i += 3){
+            var l = i/3
+            particles[l].vx /= drag
+            particles[l].vy /= drag
+            particles[l].vz /= drag
+            var x = particles[l].x
+            var y = particles[l].y
+            var z = particles[l].z
+            flashes.map(v => {
+              var dir = v.type == 'A' ? 8 : -1
+              if(v.type == 'A') {
+                d = 1+(1+Math.hypot(v.x - x, v.y - y, v.z - z))**12 / 1e9
+              } else{
+                d = 1+(1+Math.hypot(v.x - x, v.y - y, v.z - z))**12 / 1e8
+              }
+              particles[l].vx += (x - v.x) * grav / d * dir
+              particles[l].vy += (y - v.y) * grav / d * dir
+              particles[l].vz += (z - v.z) * grav / d * dir
+            })
+            particles[l].vx += (particles[l].ox - x) / homing
+            particles[l].vy += (particles[l].oy - y) / homing
+            particles[l].vz += (particles[l].oz - z) / homing
+            var d1 = Math.hypot(particles[l].vx, particles[l].vy, particles[l].vz) + .0001
+            var d2 = Math.min(maxSpeed, d1)
+            particles[l].vx /= d1
+            particles[l].vy /= d1
+            particles[l].vz /= d1
+            particles[l].vx *= d2
+            particles[l].vy *= d2
+            particles[l].vz *= d2
+            shape.vertices[i+0] = particles[l].x += particles[l].vx
+            shape.vertices[i+1] = particles[l].y += particles[l].vy
+            shape.vertices[i+2] = particles[l].z += particles[l].vz
+          }
+          renderer.Draw(shape)
+        break
+        case 'flashes A':
+          var flashesA = flashes.filter(v=>v.type == 'A')
+          for(var i = 0; i < shape.vertices.length; i += 3){
+            if(i/3 < flashesA.length){
+              shape.vertices[i+0] = flashesA[i/3].x
+              shape.vertices[i+1] = flashesA[i/3].y
+              shape.vertices[i+2] = flashesA[i/3].z
+              flashesA[i/3].life -= .05
+            }else{
+              shape.vertices[i+0] = 1e5
+              shape.vertices[i+1] = 1e5
+              shape.vertices[i+2] = 1e5
+            }
+          }
+          renderer.Draw(shape)
+        break
+        case 'flashes B':
+          var flashesB = flashes.filter(v=>v.type == 'B')
+          for(var i = 0; i < shape.vertices.length; i += 3){
+            if(i/3 < flashesB.length){
+              x = flashesB[i/3].x
+              y = flashesB[i/3].y
+              z = flashesB[i/3].z
+              p = Math.atan2(x, z) + .2
+              d = Math.hypot(x, z)
+              x = S(p) * d
+              z = C(p) * d
+              p = Math.atan2(y, z) - C(t/4)/4
+              d = Math.hypot(y, z)
+              y = S(p) * d
+              z = C(p) * d
+              flashesB[i/3].x = x
+              flashesB[i/3].y = y
+              flashesB[i/3].z = z
+              shape.vertices[i+0] = x
+              shape.vertices[i+1] = y
+              shape.vertices[i+2] = z
+              flashesB[i/3].life -= .005
+            }else{
+              shape.vertices[i+0] = 1e5
+              shape.vertices[i+1] = 1e5
+              shape.vertices[i+2] = 1e5
+            }
+          }
+          renderer.Draw(shape)
+        break
+        default:
+          renderer.Draw(shape)
+        break
+      }
+    })
+  }
+  
+</script>
+  </body>
+</html>
