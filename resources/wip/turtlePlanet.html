@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+  import * as Coordinates from
+  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  //"https://whr.rf.gd/coordinates.js"
+
+  var rendererOptions = {
+    ambientLight: .5, margin: 0,
+    fov: 1e3, width: 1920, height: 1080,
+    //fov: 1e3/2, width: 1920/2, height: 1080/2,
+    // uncomment above for lower-res, higher-performance canvas
+  }
+  var renderer = await Coordinates.Renderer(rendererOptions)
+  
+  var refTexture = 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg'
+  
+  var S = Math.sin
+  var C = Math.cos
+  var Rn = Math.random
+  
+  var x, y, z, p, q, d
+  
+  Coordinates.AnimationLoop(renderer, 'Draw')
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .5}},
+    { uniform: {
+      type: 'phong',
+      value: .5
+    } },
+    { uniform: {
+      type: 'reflection',
+      map: refTexture,
+      enabled: true,
+      value: .15
+    } },
+  ]
+  var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+  var shaderOptions = [
+    {lighting: {type: 'ambientLight', value: .33}},
+    { uniform: {
+      type: 'phong',
+      value: 0
+    } }
+  ]
+  var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+  var shapes = []
+
+  var geoOptions = {
+    shapeType: 'dodecahedron',
+    name: 'background',
+    sphereize: 1,
+    subs: 4,
+    map: refTexture,
+    size: 5e3,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await backgroundShader.ConnectGeometry(geometry)
+  })  
+  var heightmap = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+  var geoOptions = {
+    shapeType: 'obj',
+    name: 'planet',
+    url: 'https://srmcgann.github.io/Coordinates/resources/objs/sphere_highpoly.obj',
+    map: heightmap,
+    heightmap,
+    //heightmapIntensity: 10,
+    //maxHeightmap: 1,
+    scaleUVX: 8,
+    scaleUVY: 8,
+    scaleX: 12,
+    scaleY: 12,
+    scaleZ: 12,
+    colorMix: 0,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    shapes.push(geometry)
+    await shader.ConnectGeometry(geometry)
+  })  
+  
+
+  if(1) Coordinates.LoadFPSControls(renderer, {
+    flyMode: true,
+    mSpeed: .5,
+    crossharSel: 2,
+    crosshairSize: .5,
+  })
+  
+  //uncomment above to enable mouse/keyboard controls
+  
+  renderer.z = renderer.width > 1e3 ? 20 : 40
+  
+  window.Draw = () => {
+    var t = renderer.t
+    //renderer.pitch = C(t)/2
+    renderer.Clear()
+    shapes.forEach(shape => {
+      switch(shape.name){
+        case 'background':
+          //shape.yaw += .005
+          renderer.Draw(shape)
+        break
+        case 'planet':
+          shape.yaw = t / 16
+          renderer.Draw(shape)
+        break
+        default:
+          renderer.Draw(shape)
+        break
+      }
+    })
+  }
+  
+</script>
+  </body>
+</html>
