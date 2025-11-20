@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+<script type="module">
+
+import * as Coordinates from
+"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+
+var fogColor = 0x000000
+var rendererOptions = {
+  ambientLight: .5, margin: 0, clearColor: fogColor,
+  fov: 1e3, width: 1920, height: 1080,
+  //fov: 1e3/2, width: 1920/2, height: 1080/2,
+  // uncomment above for lower-res, higher-performance canvas
+}
+var renderer = await Coordinates.Renderer(rendererOptions)
+
+//var refTexture = 'https://srmcgann.github.io/Coordinates/resources/stars_po2.jpg'
+var refTexture = 'https://i.imgur.com/Ad8pyZy.mp4'
+
+var S = Math.sin
+var C = Math.cos
+var Rn = Math.random
+
+var x, y, z, p, q, d
+
+Coordinates.AnimationLoop(renderer, 'Draw')
+
+var shaderOptions = [
+  {lighting: {type: 'ambientLight', value: .3}},
+  { uniform: {
+    type: 'phong',
+    value: .25
+  } },
+  { uniform: {
+    type: 'fog',
+    color: fogColor,  // hex value, e.g. 0x222222 (dark grey)
+    value: 3.7        // fog 'thickness' or distance. 0 - ?
+  } },
+  { uniform: {
+    type: 'reflection',
+    enabled: false,
+    map: refTexture,
+    playbackSpeed: .333,
+    value: .2
+  } },
+]
+var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+var shaderOptions = [
+  {lighting: {type: 'ambientLight', value: 1}},
+  { uniform: {
+    type: 'phong',
+    value: 1,
+    theta: .85,
+  } },
+  { uniform: {
+    type: 'fog',
+    color: fogColor,
+    value: 4
+  } },
+  { uniform: {
+    type: 'reflection',
+    map: refTexture,
+    playbackSpeed: .333,
+    enabled: false,
+    value: .2
+  } },
+]
+var wallShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+var shaderOptions = [
+  {lighting: {type: 'ambientLight', value: 1}},
+  { uniform: {
+    type: 'phong',
+    value: 0
+  } }
+]
+var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+
+var shapes = []
+
+var geoOptions = {
+  shapeType: 'dodecahedron',
+  name: 'background',
+  sphereize: 1,
+  yaw: Math.PI,
+  subs: 4,
+  map: refTexture,
+  playbackSpeed: .333,
+  size: 5e3,
+  colorMix: 0,
+}
+if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  shapes.push(geometry)
+  await backgroundShader.ConnectGeometry(geometry)
+})  
+
+
+var followMode = true
+var rotateUVs = false
+var showAxis = false
+var segProg = 0
+var segProgv = 0
+var spd = .015 / 3
+
+var geometryData = []
+var path = []
+var advFreq = 0
+var iPc = 55
+var len = 2
+var p1v = 0
+var p2v = 0
+var p1a
+var p2a
+var p1b
+var p2b
+var x1, y1, z1, x2, y2, z2
+for(var i = 0; i <iPc; i++){
+  x1 = i ? x2 : 0
+  y1 = i ? y2 : 0
+  z1 = i ? z2 : 0
+  p1a = i ? p1b : 0
+  p2a = i ? p2b : 0
+  x = 0
+  y = S(p2a) * len
+  z = C(p2a) * len
+  q = Math.atan2(x, z) + p1a
+  d = Math.hypot(x, z)
+  x = S(q) * d
+  z = C(q) * d
+  x2 = x + x1
+  y2 = y + y1
+  z2 = z + z1
+  p1v /= 1.05
+  //p1v += (Rn() - .5) / 20
+  p2v /= 1.05
+  //p2v += (Rn() - .5) / 20
+  p1b = p1a + p1v
+  p2b = (p2a / 1.1) + p2v
+  var obj = { x1, y1, z1, x2, y2, z2, p1a, p2a, p1b, p2b, len }
+  path.push(obj)
+  geometryData.push( [x1,y1,z1], [x2,y2,z2] )
+}
+var axisShape
+var geoOptions = {
+  shapeType: 'lines',
+  name: 'axis',
+  geometryData,
+  size: 2,
+  alpha: .75,
+  penumbra: .33,
+  color: 0x00ff88,
+}
+if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  for(var i = 0; i < geometry.vertices.length; i+=3){
+    geometry.vertices[i+0] *= -1
+    //geometry.vertices[i+1] *= -1
+    geometry.vertices[i+2] *= -1
+  }
+  axisShape = geometry
+  shapes.push(geometry)
+  await shader.ConnectGeometry(geometry)
+})  
+
+var keys = Array(256).fill(false)
+var keyTimers = Array(256).fill(0)
+
+window.onkeydown = e => {
+  //console.log(e.keyCode)
+  keys[e.keyCode] = true
+  if(e.keyCode != 17) autoDriveTimer = renderer.t + 1
+}
+
+window.onkeyup = e => {
+  keys[e.keyCode] = false
+  keyTimers[e.keyCode] = 0
+}
+
+var keyTimerInterval = .5
+var lastDir = 1, accel, autoDriveTimer = 2
+const DoKeys = () => {
+  keys.map((state, keyCode) => {
+    if(state){
+      switch(keyCode){
+        case 90: // z
+          if(followMode){
+            accel = keys[17] ? 3 : 1
+            segProgv += spd * accel
+          }
+          break
+        case 88: // x
+          if(followMode){
+            accel = keys[17] ? 3 : 1
+            segProgv -= spd * accel
+          }
+          break
+        case 87: // w
+          break
+        case 65: // a
+          break
+        case 83: // s
+          break
+        case 68: // d
+          break
+        case 70:
+          if(keyTimers[keyCode] < renderer.t){
+            keyTimers[keyCode] = renderer.t + keyTimerInterval
+            followMode = !followMode
+            if(followMode){
+              //Coordinates.UnloadFPSControls(renderer)
+              tempRpos.x = renderer.x
+              tempRpos.y = renderer.y
+              tempRpos.z = renderer.z
+              tempRpos.roll = renderer.roll
+              tempRpos.pitch = renderer.pitch
+              tempRpos.yaw = renderer.yaw
+            }else{
+              //Coordinates.LoadFPSControls(renderer, FPSControlsOptions)
+              renderer.x = tempRpos.x
+              renderer.y = tempRpos.y
+              renderer.z = tempRpos.z
+              renderer.roll = tempRpos.roll
+              renderer.pitch = tempRpos.pitch
+              renderer.yaw = tempRpos.yaw
+            }
+          }
+          break
+      }
+    }
+  })
+}
+
+var loadWallFromURL = true
+var gPos = loadWallFromURL ? 1 : 0
+var rad = 6
+var scaleUVX = 3
+var scaleUVY = 2
+const SyncWall = (dir = 1) => {
+  var geometryData = {
+    normalVecs: [],
+    vertices: [],
+    normals: [],
+    uvs: [],
+  }
+  var sd = 24
+  var uvx, uvy, repUV = 4
+  path.map((v, i) => {
+    for(var j = 0; j < sd; j++){
+
+      x = S(p=Math.PI*2/sd*j) * rad
+      y = C(p) * rad
+      z = 0
+      q = Math.atan2(y, z) + v.p2a
+      d = Math.hypot(y, z)
+      y = S(q) * d
+      z = C(q) * d
+      q = Math.atan2(x, z) + v.p1a
+      d = Math.hypot(x, z)
+      x = S(q) * d
+      z = C(q) * d
+      x += v.x1
+      y += v.y1
+      z += v.z1
+      geometryData.vertices.push(x, y, z)
+      geometryData.normals.push(0,0,0,0,0,0)
+      geometryData.normalVecs.push(0,0,0)
+      uvx = p / Math.PI / 2
+      uvy =(i+gPos)/iPc*repUV
+      geometryData.uvs.push(uvx, uvy)
+
+      x = S(p=Math.PI*2/sd*(j+1)) * rad
+      y = C(p) * rad
+      z = 0
+      q = Math.atan2(y, z) + v.p2a
+      d = Math.hypot(y, z)
+      y = S(q) * d
+      z = C(q) * d
+      q = Math.atan2(x, z) + v.p1a
+      d = Math.hypot(x, z)
+      x = S(q) * d
+      z = C(q) * d
+      x += v.x1
+      y += v.y1
+      z += v.z1
+      geometryData.vertices.push(x, y, z)
+      geometryData.normals.push(0,0,0,0,0,0)
+      geometryData.normalVecs.push(0,0,0)
+      uvx = p / Math.PI / 2
+      uvy =(i+gPos)/iPc*repUV
+      geometryData.uvs.push(uvx, uvy)
+
+      x = S(p=Math.PI*2/sd*(j+1)) * rad
+      y = C(p) * rad
+      z = 0
+      q = Math.atan2(y, z) + v.p2b
+      d = Math.hypot(y, z)
+      y = S(q) * d
+      z = C(q) * d
+      q = Math.atan2(x, z) + v.p1b
+      d = Math.hypot(x, z)
+      x = S(q) * d
+      z = C(q) * d
+      x += v.x2
+      y += v.y2
+      z += v.z2
+      geometryData.vertices.push(x, y, z)
+      geometryData.normals.push(0,0,0,0,0,0)
+      geometryData.normalVecs.push(0,0,0)
+      uvx = p / Math.PI / 2
+      uvy = (i+gPos+1)/iPc*repUV
+      geometryData.uvs.push(uvx, uvy)
+
+      x = S(p=Math.PI*2/sd*(j+1)) * rad
+      y = C(p) * rad
+      z = 0
+      q = Math.atan2(y, z) + v.p2b
+      d = Math.hypot(y, z)
+      y = S(q) * d
+      z = C(q) * d
+      q = Math.atan2(x, z) + v.p1b
+      d = Math.hypot(x, z)
+      x = S(q) * d
+      z = C(q) * d
+      x += v.x2
+      y += v.y2
+      z += v.z2
+      geometryData.vertices.push(x, y, z)
+      geometryData.normals.push(0,0,0,0,0,0)
+      geometryData.normalVecs.push(0,0,0)
+      uvx = p / Math.PI / 2
+      uvy = (i+gPos+1)/iPc*repUV
+      geometryData.uvs.push(uvx, uvy)
+
+      x = S(p=Math.PI*2/sd*j) * rad
+      y = C(p) * rad
+      z = 0
+      q = Math.atan2(y, z) + v.p2b
+      d = Math.hypot(y, z)
+      y = S(q) * d
+      z = C(q) * d
+      q = Math.atan2(x, z) + v.p1b
+      d = Math.hypot(x, z)
+      x = S(q) * d
+      z = C(q) * d
+      x += v.x2
+      y += v.y2
+      z += v.z2
+      geometryData.vertices.push(x, y, z)
+      geometryData.normals.push(0,0,0,0,0,0)
+      geometryData.normalVecs.push(0,0,0)
+      uvx = p / Math.PI / 2
+      uvy = (i+gPos+1)/iPc*repUV
+      geometryData.uvs.push(uvx, uvy)
+
+      x = S(p=Math.PI*2/sd*j) * rad
+      y = C(p) * rad
+      z = 0
+      q = Math.atan2(y, z) + v.p2a
+      d = Math.hypot(y, z)
+      y = S(q) * d
+      z = C(q) * d
+      q = Math.atan2(x, z) + v.p1a
+      d = Math.hypot(x, z)
+      x = S(q) * d
+      z = C(q) * d
+      x += v.x1
+      y += v.y1
+      z += v.z1
+      geometryData.vertices.push(x, y, z)
+      geometryData.normals.push(0,0,0,0,0,0)
+      geometryData.normalVecs.push(0,0,0)
+      uvx = p / Math.PI / 2
+      uvy =(i+gPos)/iPc*repUV
+      geometryData.uvs.push(uvx, uvy)
+    }
+  })
+  gPos+=dir
+  return geometryData
+}
+
+var wallShape
+var geoOptions = {
+  shapeType: 'custom shape',
+  name: 'wall',
+  url: loadWallFromURL ? 'https://srmcgann.github.io/Coordinates/custom shapes/wall.json' : '',
+  //url: loadWallFromURL ? 'https://srmcgann.github.io/tempp/wall.json' : '',
+  geometryData: loadWallFromURL ? '' : SyncWall(),
+  //map: 'https://srmcgann.github.io/Coordinates/resources/grid_grey_dark_po2_lowres.jpg',
+  map: 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg',
+  alpha: .9,
+  scaleUVX,
+  scaleUVY,
+  averageNormals: true,
+  showNormals: false,
+  flipNormals: false,
+  syncNormals: true,
+  colorMix: .2,
+  color: 0x4400ff,
+  downloadShape: !loadWallFromURL,
+}
+if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  //Coordinates.SyncNormals(geometry, true, false, false)
+
+  if(rotateUVs) for(var i = 0; i < geometry.uvs.length; i+=2){
+    var tx = geometry.uvs[i+0]
+    geometry.uvs[i+0] = geometry.uvs[i+1]
+    geometry.uvs[i+1] = tx
+  }
+  wallShape = geometry
+  shapes.push(geometry)
+  await wallShader.ConnectGeometry(geometry)
+})  
+
+var FPSControlsOptions = {
+  flyMode: true,
+  mSpeed: 1,
+  useKeys: false,
+  showCrosshair: false,
+  crossharSel: 2,
+  crosshairSize: .5,
+}
+if(1) Coordinates.LoadFPSControls(renderer, FPSControlsOptions)
+
+const Advance = (shape, dir = 1) => {
+  if(dir == -1 && lastDir == 1) gPos-=2
+  if(dir == 1 && lastDir == -1) gPos+=2
+  lastDir = dir
+  if(dir == 1){
+    path.shift()
+    var l = path.length-1
+    x1 = path[l].x2
+    y1 = path[l].y2
+    z1 = path[l].z2
+    p1a = path[l].p1b
+    p2a = path[l].p2b
+    x = 0
+    y = S(p2a) * len
+    z = C(p2a) * len
+    q = Math.atan2(x, z) + p1a
+    d = Math.hypot(x, z)
+    x = S(q) * d
+    z = C(q) * d
+    x2 = x + x1
+    y2 = y + y1
+    z2 = z + z1
+    p1v /= 1.2
+    p1v += (Rn() - .5) / 8
+    p2v /= 1.2
+    p2v += (Rn() - .5) / 8
+    p1b = p1a + p1v
+    p2b = (p2a / 1.1) + p2v
+    var obj = { x1, y1, z1, x2, y2, z2, p1a, p2a, p1b, p2b, len }
+    path.push(obj)
+  } else {
+    path.pop()
+    var l = 0
+    x2 = path[l].x1
+    y2 = path[l].y1
+    z2 = path[l].z1
+    p1b = path[l].p1a
+    p2b = path[l].p2a
+    x = 0
+    y = S(p2b) * len
+    z = C(p2b) * len
+    q = Math.atan2(x, z) + p1b
+    d = Math.hypot(x, z)
+    x = S(q) * d
+    z = C(q) * d
+    x1 = -x + x2
+    y1 = -y + y2
+    z1 = -z + z2
+    p1v /= 1.2
+    p1v += (Rn() - .5) / 8
+    p2v /= 1.2
+    p2v += (Rn() - .5) / 8
+    p1a = p1b + p1v
+    p2a = (p2b / 1.1) + p2v
+    var obj = { x1, y1, z1, x2, y2, z2, p1a, p2a, p1b, p2b, len }
+    path = [obj, ...path]
+  }
+
+  path.forEach((v, i) => {
+    axisShape.vertices[i*6+0] = v.x1
+    axisShape.vertices[i*6+1] = v.y1
+    axisShape.vertices[i*6+2] = -v.z1
+    axisShape.vertices[i*6+3] = v.x2
+    axisShape.vertices[i*6+4] = v.y2
+    axisShape.vertices[i*6+5] = -v.z2
+  })
+
+  var geometryData = SyncWall(dir)
+
+  Coordinates.SyncNormals(shape, true, false, false)
+  for(var i = 0; i < geometryData.vertices.length; i+=3){
+    shape.vertices[i+0] = geometryData.vertices[i+0]
+    shape.vertices[i+1] = geometryData.vertices[i+1]
+    shape.vertices[i+2] = geometryData.vertices[i+2]
+    //shape.normalVecs[i+0] = geometryData.normalVecs[i+0]
+    //shape.normalVecs[i+1] = geometryData.normalVecs[i+1]
+    //shape.normalVecs[i+2] = geometryData.normalVecs[i+2]
+  }
+  /*
+    for(var i = 0; i < geometryData.normals.length; i+=3){
+      shape.normals[i+0] = geometryData.normals[i+0]
+      shape.normals[i+1] = geometryData.normals[i+1]
+      shape.normals[i+2] = geometryData.normals[i+2]
+    }
+    */
+  for(var i = 0; i < geometryData.uvs.length; i+=2){
+    if(rotateUVs) {
+      shape.uvs[i+0] = geometryData.uvs[i+1] * scaleUVX
+      shape.uvs[i+1] = geometryData.uvs[i+0] * scaleUVY
+    }else{
+      shape.uvs[i+0] = geometryData.uvs[i+0] * scaleUVX
+      shape.uvs[i+1] = geometryData.uvs[i+1] * scaleUVY
+    }
+  }
+}
+
+renderer.z = renderer.width > 1e3 ? 10 : 20
+renderer.y = -2
+renderer.pitch = .25
+var tempRpos = {
+  x: renderer.x,
+  y: renderer.y,
+  z: renderer.z,
+  roll: renderer.roll,
+  pitch: renderer.pitch,
+  yaw: renderer.yaw,
+}
+
+window.Draw = () => {
+  DoKeys()
+  var t = renderer.t
+
+  if(autoDriveTimer<t){
+    console.log(1)
+    accel = keys[17] ? 3 : 1
+    segProgv += spd * accel
+  }
+  renderer.Clear()
+  shapes.forEach(shape => {
+    switch(shape.name){
+      case 'background':
+        //shape.yaw += .005
+        renderer.Draw(shape)
+        break
+      case 'axis':
+        if(showAxis) {
+          shape.y = -rad / 1.1
+          renderer.Draw(shape)
+        }
+        break
+      case 'wall':
+        //if(!((t*60|0)%advFreq)) Advance(shape)
+
+        if(followMode){
+          segProg += segProgv
+          segProgv /= 1.1
+          while(segProg >= 1){
+            segProg -= 1
+            Advance(wallShape)
+          }
+          while(segProg < 0){
+            segProg += 1
+            Advance(wallShape, -1)
+          }
+        }
+        if(followMode) {
+
+          var l = path.length/2|0
+          renderer.x = -(path[l].x1 + (path[l].x2 - path[l].x1) * segProg)
+          renderer.y = -(path[l].y1 + (path[l].y2 - path[l].y1) * segProg)
+          renderer.z = -(path[l].z1 + (path[l].z2 - path[l].z1) * segProg)
+          l += lastDir == 1 ? 2 : -2
+          renderer.pitch += ((-(path[l].p2a + (path[l].p2b - path[l].p2a) * segProg))*(lastDir == 1 ? 1 : -1) - renderer.pitch) / 20
+          renderer.yaw += ((-(path[l].p1a + (path[l].p1b - path[l].p1a) * segProg))+(lastDir == 1 ? 0 : Math.PI) - renderer.yaw) / 20
+        }
+
+        renderer.Draw(shape)
+        break
+      default:
+        renderer.Draw(shape)
+        break
+    }
+  })
+}
+
+</script>
+  </body>
+</html>
