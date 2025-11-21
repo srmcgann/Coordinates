@@ -15,7 +15,7 @@
 <script type="module">
 
   import * as Coordinates from
-  "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+  "https://srmcgann.github.io/Coordinates/coordinates.js"
   //"https://whr.rf.gd/coordinates.js"
 
   var rendererOptions = {
@@ -37,16 +37,16 @@
   Coordinates.AnimationLoop(renderer, 'Draw')
 
   var shaderOptions = [
-    {lighting: {type: 'ambientLight', value: .5}},
+    {lighting: {type: 'ambientLight', value: .1}},
     { uniform: {
       type: 'phong',
-      value: .5
+      value: .8
     } },
     { uniform: {
       type: 'reflection',
       map: refTexture,
       enabled: true,
-      value: .15
+      value: .05
     } },
   ]
   var shader = await Coordinates.BasicShader(renderer, shaderOptions)
@@ -62,6 +62,70 @@
 
 
   var shapes = []
+  
+  var turtlePrototype = {
+    x: 0,
+    y: 0,
+    z: 0,
+    roll: 0,
+    pitch: 0,
+    yaw: 0,
+    p1: 0,
+    p2: 0,
+    size: 1,
+    health: 1,
+    vel: .05,
+  }
+  
+  const SpawnTurtle = (x=0, y=0, z=-1) => {
+    var turtle = structuredClone(turtlePrototype)
+    turtle.p1 = 0
+    turtle.z = -.001
+    turtles.push(turtle)
+  }
+  
+  var turtles = []
+  var iTc = 1
+  Array(iTc).fill().map((v, i) => {
+    SpawnTurtle()
+  })
+
+  var geometryData = {
+    vertices: [],
+    normals: [],
+    uvs: [],
+    normalVecs: [],
+  }
+  for(var j = 0; j < 3; j++){
+    var ls = j == 0 ? 2 : 1
+    x = S(p=Math.PI*2/3*j) * ls
+    y = C(p) * ls
+    z = 0
+    geometryData.vertices.push(x, y, z)
+    geometryData.uvs.push(0, 0)
+    geometryData.normalVecs.push(0, 0, 0)
+    geometryData.normals.push(0, 0, 0, 0, 0, 0)
+  }
+  var pointArray = []
+  turtles.forEach((v, i) => {
+    pointArray.push([v.x,v.y,v.z])
+  })
+  
+  var geoOptions = {
+    shapeType: 'custom shape',
+    geometryData: geometryData,
+    syncNormals: true,
+    name: 'turtles',
+    color: 0xffffff,
+    colorMix: .5,
+  }
+  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+    Coordinates.ShapeFromArray(geometry, pointArray).then(async res => {
+      shapes.push(res)
+      await backgroundShader.ConnectGeometry(res)
+    })
+  })
+  
 
   var geoOptions = {
     shapeType: 'dodecahedron',
@@ -78,25 +142,26 @@
   })  
   var heightmap = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
   var geoOptions = {
-    shapeType: 'obj',
+    shapeType: 'sphere',
     name: 'planet',
-    url: 'https://srmcgann.github.io/Coordinates/resources/objs/sphere_highpoly.obj',
-    map: heightmap,
-    heightmap,
-    //heightmapIntensity: 10,
-    //maxHeightmap: 1,
-    scaleUVX: 8,
-    scaleUVY: 8,
+    url: 'https://srmcgann.github.io/Coordinates/resources/objs/turtlePlanet/turtlePlanet.obj',
+    //map: 'https://srmcgann.github.io/Coordinates/resources/objs/turtlePlanet/turtlePlanet.png',
+    //scaleUVX: 8,
+    //scaleUVY: 8,
     scaleX: 12,
     scaleY: 12,
     scaleZ: 12,
-    colorMix: 0,
+    color: 0x224433,
+    colorMix: .25,
   }
-  await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+  if(1) await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
     shapes.push(geometry)
     await shader.ConnectGeometry(geometry)
   })  
   
+  const GetRad = (x, y, z) => {
+    return 12
+  }
 
   if(1) Coordinates.LoadFPSControls(renderer, {
     flyMode: true,
@@ -119,8 +184,62 @@
           //shape.yaw += .005
           renderer.Draw(shape)
         break
+        case 'turtles':
+          shape.shapeData.map((data, idx) => {
+            x = turtles[idx].x
+            y = turtles[idx].y
+            z = turtles[idx].z
+            
+            var l = idx * 3
+            var ax = 0
+            var ay = 0
+            var az = 0
+            var ct = 0, cx = 0, cy = 0, cz = 0
+            var a = []
+            for(var j = 0; j < 3; j++){
+              var x1 = shape.vertices[l+0+j*3] //+ data.wx
+              var y1 = shape.vertices[l+1+j*3] //+ data.wy
+              var z1 = shape.vertices[l+2+j*3] //+ data.wz
+              a.push([x1, y1, z1])
+              if(!j){
+                cx = x1
+                cy = y1
+                cz = z1
+              }
+              ax += x1
+              ay += y1
+              az += z1
+              ct++
+            }
+            ax /= ct
+            ay /= ct
+            az /= ct
+            
+            var ls = GetRad(x, y, z)
+            
+            d = Math.hypot(x, y, z) + .0001
+            x/=d
+            y/=d
+            z/=d
+            
+            d = Math.hypot(cx-ax, cy-ay, cz-az) + .0001
+            var vx = (cx-ax) / d * turtles[idx].vel
+            var vy = (cy-ay) / d * turtles[idx].vel
+            var vz = (cz-az) / d * turtles[idx].vel
+            
+            var nx = turtles[idx].x = (x *= ls) + vx
+            var ny = turtles[idx].y = (y *= ls) + vy
+            var nz = turtles[idx].z = (z *= ls) + vz
+            data.x = nx
+            data.y = ny
+            data.z = nz
+            data.roll = turtles[idx].p1
+            data.yaw = Math.atan2(ax, az) + Math.PI
+            data.pitch = Math.atan2(ay, az) + Math.PI
+          })
+          renderer.Draw(shape)
+        break
         case 'planet':
-          shape.yaw = t / 16
           renderer.Draw(shape)
         break
         default:
