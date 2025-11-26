@@ -3013,8 +3013,8 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   }else{
     ar = R_ryp(vx, vy, vz, {
       roll: -renderer.roll * (geometry.isParticle ? -1: 1),
-      pitch: renderer.pitch * (geometry.isParticle ? -1: 1),
-      yaw: renderer.yaw * (geometry.isParticle ? 1: 1),
+      pitch: renderer.pitch * (geometry.isParticle ? 1: -1),
+      yaw: renderer.yaw * (geometry.isParticle ? 1: -1),
     }, false)
     vx = -ar[0] * (geometry.isParticle ? -1: 1)
     vy = -ar[1] * (geometry.isParticle ? 1: 1)
