@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>fatboi liquid</title>
+    <style>
+      html, body{
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-image: background-size: 100% 100%;
+        background-color: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+      .loadingText{
+        position: absolute;
+        color: #888;
+        font-family: monospace;
+        font-size: 64px;
+        width: 400px;
+        display: block;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loadingText" id="loadingTextDiv">loading....</div>
+    <script type="module">
+      window.loaded = false
+      var loop = () => {
+        var el = document.querySelector('#loadingTextDiv')
+        el.innerHTML = 'loading' + ('.').repeat(((new Date()).getTime()/100*6)%8)
+        if(!window.loaded) requestAnimationFrame(loop)
+      }
+      loop()
+
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+      var rendererOptions = {
+        ambientLight: .5, margin: 0,
+        fov: 1e3, width: 1920, height: 1080,
+        //fov: 1e3/2, width: 1920/2, height: 1080/2,
+        // uncomment above for lower-res, higher-performance canvas
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: .3 } },
+        { uniform: {
+          type: 'phong',
+          value: .5
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          value: .25,
+        } }
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: .5 } },
+        { uniform: {
+          type: 'phong',
+          value: .25
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          value: .65,
+        } }
+      ]
+      var liquidShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: 1 } },
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } },
+      ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      const baseURL = 'https://srmcgann.github.io/objs'
+      var geoOptions = {
+        shapeType: 'obj',
+        url: baseURL + '/funnel_fatboi_liquid.zip',
+        map: baseURL + '/funnel_fatboi_texture.png',
+        //syncNormals: true,
+        averageNormals: false,
+        //equirectangular: true,
+        colorMix: .2,
+        alpha: .9,
+        //showNormals: true,
+        color: 0x44aaff,
+      }
+      var animation = await Coordinates.LoadAnimationFromZip(renderer, geoOptions, liquidShader)
+
+      var background
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        size: 1e3,
+        subs: 2,
+        colorMix: 0,
+        map: refTexture
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then( async geometry => {
+        background = geometry
+        await backgroundShader.ConnectGeometry(geometry)
+      })
+      
+      var funnelShape
+      var geoOptions = {
+        shapeType: 'obj',
+        colorMix: 0,
+        url: baseURL + '/funnel_fatboi.obj',
+        map: baseURL + '/funnel_fatboi_texture.png',
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then( async geometry => {
+        funnelShape = geometry
+        await shader.ConnectGeometry(geometry)
+      })
+
+      renderer.z = 6
+      
+      Coordinates.LoadFPSControls(renderer, {
+        flyMode: true,
+        mSpeed: .2,
+        rSpeed: .5,
+        crossharSel: 2,
+        crosshairSize: .5,
+      })
+      window.Draw = () => {
+        var t = renderer.t
+        if(renderer.cameraMode != 'fps'){
+          renderer.yaw = t / 32
+        }
+        renderer.Clear()
+        if(animation.loaded){
+          animation.geometries.map(geo => {
+            //Coordinates.SyncNormals(geo, false, false, false)
+          })
+        }
+        Coordinates.DrawAnimation(renderer, animation, {
+          loopMode: 'cycle',
+          animationSpeed: .4,
+        })
+        //renderer.yaw += .01
+        //renderer.roll += .007
+        //renderer.pitch += .005
+        renderer.Draw(funnelShape)
+        renderer.Draw(background)
+      }
+    </script>
+  </body>
+</html>
