@@ -599,7 +599,35 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locFog, 0.0)
               ctx.uniform3f(dset.locFogColor, ...renderer.fogColor)
             }
-            
+            dset.optionalAttributes.map((attribute) => {
+              if(typeof attribute?.loc !== ''){
+                switch(attribute.name){
+                  case 'custom':
+                    if(attribute.buffer == '') {
+                      attribute.buffer = ctx.createBuffer()
+                    }
+                    if(attribute.indexBuffer == '') {
+                      attribute.indexBuffer= ctx.createBuffer()
+                      attribute.Indices = new Uint32Array( Array(attribute.value.length/attribute.stride).fill().map((v,i)=>i) )
+                    }
+ 
+                    ctx.bindBuffer(ctx.ARRAY_BUFFER, attribute.buffer)
+                    ctx.bufferData(ctx.ARRAY_BUFFER, attribute.value, ctx.STATIC_DRAW)
+                    ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, attribute.indexBuffer)
+                    ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, attribute.Indices, ctx.STATIC_DRAW)
+                    
+                    //attribute.loc = ctx.getAttribLocation(dset.program, attribute.attributeName)
+                    ctx.vertexAttribPointer(attribute.loc,
+                                            attribute.stride,
+                                            attribute.dataType,
+                                            attribute.normalized, 0, 0)
+                    ctx.enableVertexAttribArray(attribute.loc)
+                    ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+                    ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+                  break
+                }
+              }
+            })
             dset.optionalUniforms.map((uniform) => {
               if(typeof uniform?.loc === 'object'){
                 if(uniform.dataType == 'uniform4f'){
@@ -3359,6 +3387,7 @@ const BasicShader = async (renderer, options=[]) => {
     program: null,
     heightMapURL: null,
     optionalUniforms: [],
+    optionalAttributes: [],
     optionalLighting: [],
   }
   
@@ -3379,6 +3408,42 @@ const BasicShader = async (renderer, options=[]) => {
               }
             break
             default:
+            break
+          }
+        break
+        case 'attribute':
+          switch(option[key].type.toLowerCase()){
+            case 'custom':
+              if(typeof option[key]?.enabled == 'undefined' || !!option[key].enabled){
+                var attributeOption = {
+                  name: option[key].type,
+                  attributeName: typeof option[key].name == 'undefined' ?
+                                 '' : option[key].name,
+                  loc:  '',
+                  buffer: '',
+                  indexBuffer: '',
+                  Indices: '',
+                  stride: typeof option[key].stride == 'undefined' ?
+                                         3 : option[key].stride,
+                  value:  typeof option[key].value == 'undefined' ?
+                                         0 : option[key].value,
+                  dataType: typeof option[key].dataType == 'undefined' ?
+                                         gl.FLOAT :
+                                         option[key].dataType,
+                  normalized: typeof option[key].normalized == 'undefined' ?
+                                         false : option[key].normalized,
+                  vertDeclaration:     typeof option[key].vertDeclaration == 'undefined' ?
+                                         `` : option[key].vertDeclaration,
+                  vertCode:            typeof option[key].vertCode == 'undefined' ?
+                                         `` : option[key].vertCode,
+                  fragDeclaration:     typeof option[key].fragDeclaration == 'undefined' ?
+                                         `` : option[key].fragDeclaration,
+                  fragCode:            typeof option[key].fragCode == 'undefined' ?
+                                         `` : option[key].fragCode,
+                }
+
+                dataset.optionalAttributes.push( attributeOption )
+              }
             break
           }
         break
@@ -3680,11 +3745,22 @@ const BasicShader = async (renderer, options=[]) => {
     let uFragCode= ''
     dataset.optionalUniforms.map(v=>{ uFragCode += ("\n" + v.fragCode + "\n") })
 
+    let aVertDeclaration = ''
+    dataset.optionalAttributes.map(v=>{ aVertDeclaration += ("\n" + v.vertDeclaration + "\n") })
+    let aVertCode= ''
+    dataset.optionalAttributes.map(v=>{ aVertCode += ("\n" + v.vertCode + "\n") })
+
+    let aFragDeclaration = ''
+    dataset.optionalAttributes.map(v=>{ aFragDeclaration += ("\n" + v.fragDeclaration + "\n") })
+    let aFragCode= ''
+    dataset.optionalAttributes.map(v=>{ aFragCode += ("\n" + v.fragCode + "\n") })
+
     ret.vert = `
       precision highp float;
       #define M_PI 3.14159265358979323
       attribute vec2 uv;
       ${uVertDeclaration}
+      ${aVertDeclaration}
       
       uniform float t;
       uniform vec3 color;
@@ -3949,6 +4025,7 @@ const BasicShader = async (renderer, options=[]) => {
         }
         
         ${uVertCode}
+        ${aVertCode}
         
         float camz = cpz / 1e3 * fov;
         
@@ -4026,7 +4103,10 @@ const BasicShader = async (renderer, options=[]) => {
         precision mediump float;
       #endif
       #define M_PI 3.14159265358979323
+      
       ${uFragDeclaration}
+      ${aFragDeclaration}
+      
       uniform float t;
       //uniform float factor;
       uniform vec2 resolution;
@@ -4254,6 +4334,7 @@ const BasicShader = async (renderer, options=[]) => {
               vec2 coords = Coords(0.0, nVi);
               
               ${uFragCode}
+              ${aFragCode}
               
               vec4 texel = texture2D( baseTexture, coords);
               texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
@@ -4363,6 +4444,20 @@ const BasicShader = async (renderer, options=[]) => {
         gl.enableVertexAttribArray(dset.locNormalVec)
         if(!fromNullShader){
           if(!geometry.isLight){
+            dset.optionalAttributes.map(async (attribute) => {
+              switch(attribute.name){
+                case 'custom':
+                  attribute.loc = gl.getAttribLocation(dset.program, attribute.attributeName)
+                  /*
+                  if(attribute.dataType == 'attribute4f'){
+                    gl[attribute.dataType](attribute.loc, ...attribute.value)
+                  }else{
+                    gl[attribute.dataType](attribute.loc, attribute.value)
+                  }
+                  */
+                break
+              }
+            })
             dset.optionalUniforms.map(async (uniform) => {
               switch(uniform.name){
                case 'fog':
