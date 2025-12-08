@@ -1996,7 +1996,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
           uvs.push(...v.texCoord)
         })
       break
-      case 'rectangle':
+      case 'rectangle': case 'rect':
+        shapeType = 'rectangle'
         shape = await Rectangle(size, subs, sphereize, flipNormals, shapeType)
         shape.geometry.map(v => {
           vertices.push(...v.position)
