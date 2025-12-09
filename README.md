@@ -195,8 +195,8 @@ for a slightly more full-featured boilerplate example, the below may be used
   
   var geoOptions = {
     shapeType: 'torus',
-    map: 'https://srmcgann.github.io/temppp/woodgrain_lowres.jpg',
-    heightmap: 'https://srmcgann.github.io/temppp/woodgrain_lowres.jpg',
+    map: 'https://srmcgann.github.io/Coordinates/resources/woodgrain_lowres.jpg',
+    heightmap: 'https://srmcgann.github.io/Coordinates/resources/woodgrain_lowres.jpg',
     heightmapIntensity: 20,
     maxheightmap: 4,
     name: 'main',
@@ -258,6 +258,7 @@ for a slightly more full-featured boilerplate example, the below may be used
   </body>
 </html>
 ```
+
 
 
 
