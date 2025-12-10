@@ -7651,8 +7651,8 @@ const LoadFPSControls = async (renderer, options) => {
 
 const ShouldDisableDepth = shape => {
   //return false
-  return shape.isParticle || shape.isLine ||
-         shape.isLight || shape.isSprite// ||shape.disableDepthTest
+  return (!shape.isParticle) && (!shape.isLine) &&
+         (shape.isLight || shape.isSprite)// ||shape.disableDepthTest
 }
 
 const ShouldEnableDepth = shape => {
