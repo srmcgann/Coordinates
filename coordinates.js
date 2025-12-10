@@ -224,6 +224,13 @@ const Renderer = async options => {
       ctx.cullFace(geometry.cullFace == 'back' ? ctx.BACK : ctx.FRONT)
     }else{
       ctx.disable(ctx.CULL_FACE)
+      ctx.enable(ctx.BLEND)
+      ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE)
+    }
+    if(geometry.disableDepthTest){
+      ctx.disable(ctx.DEPTH_TEST)
+    }else{
+      ctx.enable(ctx.DEPTH_TEST)
     }
     if(geometry.alpha != 1 ||
        geometry.isLine ||
@@ -234,11 +241,10 @@ const Renderer = async options => {
       ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE)
       ctx.enable(ctx.BLEND)
       //if(geometry.alpha == 1) {
-      //  ctx.disable(ctx.DEPTH_TEST)
       //  ctx.cullFace(ctx.FRONT)
       //}
     }else{
-      ctx.disable(ctx.CULL_FACE)
+      //ctx.disable(ctx.CULL_FACE)
       if(geometry.shapeType != 'sprite' ||
          (geometry.shapeType != 'point light' && geometry.showSource)) ctx.disable(ctx.BLEND)
     }
@@ -3723,6 +3729,7 @@ const BasicShader = async (renderer, options=[]) => {
   
   
   if(renderer.contextType != '2d') {
+  
     //gl.clear(gl.COLOR_BUFFER_BIT)
     //gl.disable(gl.CULL_FACE)
     gl.cullFace(gl.BACK)
@@ -7651,15 +7658,9 @@ const LoadFPSControls = async (renderer, options) => {
 
 const ShouldDisableDepth = shape => {
   //return false
-  return (!shape.isParticle) && (!shape.isLine) &&
-         (shape.isLight || shape.isSprite)// ||shape.disableDepthTest
+  return ((!shape.isParticle) && (!shape.isLine) &&
+         (shape.isLight || shape.isSprite)) || shape.disableDepthTest
 }
-
-const ShouldEnableDepth = shape => {
-  return !(shape.isParticle || shape.isLine ||
-         shape.isLight || shape.isSprite ||shape.disableDepthTest)
-}
-
 
 const AnimationLoop = (renderer, func) => {
   const loop = async () => {
