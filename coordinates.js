@@ -1546,6 +1546,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var showBounding             = false
   var isShapeArray             = false
   var isSprite                 = 0.0
+  var shapeArrayIsSprite       = false
   var isLight                  = 0.0
   var isParticle               = 0.0
   var isLine                   = 0.0
@@ -2616,7 +2617,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     heightmapIsDataArray, heightmapDataArrayFormat,
     heightmapDataArrayWidth, heightmapDataArrayHeight,
     rebindTextures, exportAsOBJ, downloadAsOBJ,
-    resolved, isShapeArray
+    resolved, isShapeArray, shapeArrayIsSprite,
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -5056,6 +5057,11 @@ const ProcessShapeArray = shape => {
   var data = shape.shapeData
   var tx, ty, tz, x, y, z, p, d
   
+  if(shape.isSprite){
+    shape.shapeArrayIsSprite = true
+    shape.isSprite = false
+  }
+  
   const SyncShapeData = shpIdx => {
     data[shpIdx].mx = data[shpIdx].x
     data[shpIdx].my = data[shpIdx].y
@@ -5094,59 +5100,73 @@ const ProcessShapeArray = shape => {
       tx = data[shpIdx].ox
       ty = data[shpIdx].oy
       tz = data[shpIdx].oz
+      var roll, pitch, yaw, rotationMode
+      //console.log(shape)
+      if(shape.shapeArrayIsSprite){
+        //console.log(3)
+        roll  = -shape.renderer.roll - shape.roll
+        pitch = shape.renderer.pitch + shape.pitch
+        yaw   = -shape.renderer.yaw - shape.yaw
+        rotationMode = 1
+      }else{
+        roll  = data[shpIdx].roll
+        pitch = data[shpIdx].pitch
+        yaw   = data[shpIdx].yaw
+        rotationMode = shape.rotationMode
+      }
       for(var k = 0; k < shape.stride; k+=3){
         for(var m = 2; m-->0;){
           var l = m ? 'vstate' : 'nvstate'
           x = shape[l][i + k + 0] - tx * m
           y = shape[l][i + k + 1] - ty * m
           z = shape[l][i + k + 2] - tz * m
-          switch(shape.rotationMode){
+          switch(rotationMode){
             case 0:
-              p = Math.atan2(x, y) + data[shpIdx].roll
+              p = Math.atan2(x, y) + roll
               d = Math.hypot(x, y)
               x = S(p) * d
               y = C(p) * d
               z = z
-              p = Math.atan2(x, z) + data[shpIdx].yaw
+              p = Math.atan2(x, z) + yaw
               d = Math.hypot(x, z)
               x = S(p) * d
               y = y
               z = C(p) * d
-              p = Math.atan2(y, z) + data[shpIdx].pitch
+              p = Math.atan2(y, z) + pitch
               d = Math.hypot(y, z)
               x = x
               y = S(p) * d
               z = C(p) * d
             break
             case 1:
-              p = Math.atan2(y, z) + data[shpIdx].pitch
+              p = Math.atan2(y, z) + pitch
               d = Math.hypot(y, z)
               x = x
               y = S(p) * d
               z = C(p) * d
-              p = Math.atan2(x, z) + data[shpIdx].yaw
+              p = Math.atan2(x, z) + yaw
               d = Math.hypot(x, z)
               x = S(p) * d
               y = y
               z = C(p) * d
-              p = Math.atan2(x, y) + data[shpIdx].roll
+              p = Math.atan2(x, y) + roll
               d = Math.hypot(x, y)
               x = S(p) * d
               y = C(p) * d
               z = z
             break
             case 2: case 3:
-              p = Math.atan2(x, y) + data[shpIdx].roll
+              p = Math.atan2(x, y) + roll
               d = Math.hypot(x, y)
               x = S(p) * d
               y = C(p) * d
               z = z
-              p = Math.atan2(y, z) + data[shpIdx].pitch
+              p = Math.atan2(y, z) + pitch
               d = Math.hypot(y, z)
               x = x
               y = S(p) * d
               z = C(p) * d
-              p = Math.atan2(x, z) + data[shpIdx].yaw
+              p = Math.atan2(x, z) + yaw
               d = Math.hypot(x, z)
               x = S(p) * d
               y = y
@@ -5163,51 +5183,51 @@ const ProcessShapeArray = shape => {
             z = shape.nstate[(i + k) * 2 + 2 + m * 3] - tz
             switch(shape.rotationMode){
               case 0:
-                p = Math.atan2(x, y) + data[shpIdx].roll
+                p = Math.atan2(x, y) + roll
                 d = Math.hypot(x, y)
                 x = S(p) * d
                 y = C(p) * d
                 z = z
-                p = Math.atan2(x, z) + data[shpIdx].yaw
+                p = Math.atan2(x, z) + yaw
                 d = Math.hypot(x, z)
                 x = S(p) * d
                 y = y
                 z = C(p) * d
-                p = Math.atan2(y, z) + data[shpIdx].pitch
+                p = Math.atan2(y, z) + pitch
                 d = Math.hypot(y, z)
                 x = x
                 y = S(p) * d
                 z = C(p) * d
               break
               case 1:
-                p = Math.atan2(y, z) + data[shpIdx].pitch
+                p = Math.atan2(y, z) + pitch
                 d = Math.hypot(y, z)
                 x = x
                 y = S(p) * d
                 z = C(p) * d
-                p = Math.atan2(x, z) + data[shpIdx].yaw
+                p = Math.atan2(x, z) + yaw
                 d = Math.hypot(x, z)
                 x = S(p) * d
                 y = y
                 z = C(p) * d
-                p = Math.atan2(x, y) + data[shpIdx].roll
+                p = Math.atan2(x, y) + roll
                 d = Math.hypot(x, y)
                 x = S(p) * d
                 y = C(p) * d
                 z = z
               break
               case 2: case 3:
-                p = Math.atan2(x, y) + data[shpIdx].roll
+                p = Math.atan2(x, y) + roll
                 d = Math.hypot(x, y)
                 x = S(p) * d
                 y = C(p) * d
                 z = z
-                p = Math.atan2(y, z) + data[shpIdx].pitch
+                p = Math.atan2(y, z) + pitch
                 d = Math.hypot(y, z)
                 x = x
                 y = S(p) * d
                 z = C(p) * d
-                p = Math.atan2(x, z) + data[shpIdx].yaw
+                p = Math.atan2(x, z) + yaw
                 d = Math.hypot(x, z)
                 x = S(p) * d
                 y = y
@@ -5273,7 +5293,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     'roll', 'pitch', 'yaw', 'color', 'colorMix',
     'showNormals', 'exportShape', 'downloadShape',
     'normalAssocs', 'equirectangular', 'flipNormals',
-    'textureMode', 'isSprite', 'isLight', 'playbackSpeed',
+    'textureMode', 'isLight', 'playbackSpeed',
     'disableDepthTest', 'lum', 'alpha', 'involveCache',
     'isParticle', 'isLine', 'penumbra', 'wireframe',
     'canvasTextureMix', 'showBounding',
@@ -5285,7 +5305,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     'heightmapIsDataArray', 'heightmapDataArrayFormat',
     'heightmapDataArrayWidth', 'heightmapDataArrayHeight',
     'rebindTextures', 'exportAsOBJ', 'downloadAsOBJ',
-    'resolved','map', 'video', 'muted',
+    'resolved','map', 'video', 'muted'
   ]).forEach(key => { opts[key] = shape[key] })
   opts.name = shape.name
   Object.keys(options).forEach((key, idx) => {
@@ -5294,6 +5314,15 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
   })
   if(shape.canvasTexture) opts.canvasTexture = shape.canvasTexture
   opts.shapeType ='custom shape'
+  if(shape.isSprite) {
+    shape.shapeArrayIsSprite = true
+    opts.shapeArrayIsSprite = true
+    opts.isSprite = false
+    //shape.isSprite = false
+  }else{
+    //shape.shapeArrayIsSprite = false
+    //opts.shapeArrayIsSprite = false
+  }
   opts.geometryData = geometryData
   await LoadGeometry(shape.renderer, opts).then(async geometry => {
     for(var i = 0; i < geometry.vertices.length; i+= stride){
@@ -5312,6 +5341,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     geometry.shapeType    = tshptyp
     geometry.stride       = stride
     geometry.isShapeArray = true
+    if(opts.shapeArrayIsSprite) geometry.shapeArrayIsSprite = true
     ret = geometry
   })
   return ret
@@ -7792,7 +7822,6 @@ const AnimationLoop = (renderer, func) => {
       }
     }
   }
-  console.log(renderer.attachToBody)
   if(renderer.attachToBody && renderer.context.mode == 'webgl2'){
     renderer.ready = true
     loop()
