@@ -3002,13 +3002,13 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   vy *= -1
   
   ar = R_ryp(vx, vy, vz, {
-    roll:  -geometry.roll * (geometry.isParticle ? 1: -1) + .0001,
-    pitch: -geometry.pitch * (geometry.isParticle ? 1: 1),
-    yaw:   -geometry.yaw * (geometry.isParticle ? -1: 1),
+    roll:  -geometry.roll * (geometry.isParticle || geometry.isLine ? 1: -1) + .0001,
+    pitch: -geometry.pitch * (geometry.isParticle || geometry.isLine ? 1: 1),
+    yaw:   -geometry.yaw * (geometry.isParticle || geometry.isLine? -1: 1),
   }, false)
   vx = -ar[0]
   vy = ar[1]
-  vz = -ar[2]  * (geometry.isParticle ? -1: 1)
+  vz = -ar[2]  * (geometry.isParticle || geometry.isLine ? 1: 1)
 
   if(geometry.isLight){
     ar = R_rpy(vx, vy, vz, {
@@ -3027,7 +3027,7 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
 
   vx += -geometry.x
   vy += geometry.y
-  vz += -geometry.z * (geometry.isParticle ? -1: 1)
+  vz += -geometry.z * (geometry.isParticle || geometry.isLine ? -1: 1)
   var posx, posy, posz
   if(renderer.cameraMode.toLowerCase() == 'fps'){
     vx += -cpx
@@ -3048,13 +3048,13 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
     cpz = 0
   }else{
     ar = R_ypr(vx, vy, vz, {
-      roll: renderer.roll * (geometry.isParticle ? 1: 1),
-      pitch: renderer.pitch * (geometry.isParticle ? 1: 1),
-      yaw: renderer.yaw * (geometry.isParticle ? 1: 1),
+      roll: renderer.roll * (geometry.isParticle || geometry.isLine ? 1: 1),
+      pitch: renderer.pitch * (geometry.isParticle || geometry.isLine ? 1: 1),
+      yaw: renderer.yaw * (geometry.isParticle || geometry.isLine ? 1: 1),
     }, false)
-    vx = -ar[0] * (geometry.isParticle ? -1: 1)
-    vy = -ar[1] * (geometry.isParticle ? 1: 1)
-    vz = -ar[2] * (geometry.isParticle ? -1: 1)
+    vx = -ar[0] * (geometry.isParticle || geometry.isLine ? -1: 1)
+    vy = -ar[1] * (geometry.isParticle || geometry.isLine ? 1: 1)
+    vz = -ar[2] * (geometry.isParticle || geometry.isLine ? -1: 1)
   }
   
   posx = vx
