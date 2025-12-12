@@ -3052,9 +3052,9 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
       pitch: renderer.pitch * (geometry.isParticle || geometry.isLine ? 1: 1),
       yaw: renderer.yaw * (geometry.isParticle || geometry.isLine ? 1: 1),
     }, false)
-    vx = -ar[0] * (geometry.isParticle || geometry.isLine ? -1: 1)
+    vx = -ar[0] * (geometry.isParticle || geometry.isLine ? 1: 1)
     vy = -ar[1] * (geometry.isParticle || geometry.isLine ? 1: 1)
-    vz = -ar[2] * (geometry.isParticle || geometry.isLine ? -1: 1)
+    vz = -ar[2] * (geometry.isParticle || geometry.isLine ? 1: 1)
   }
   
   posx = vx
