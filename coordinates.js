@@ -3544,27 +3544,48 @@ const BasicShader = async (renderer, options=[]) => {
                     uniform float refOmitEquirectangular;
                     uniform float refFlipRefs;
                     uniform sampler2D reflectionMap;
+
+                    vec3 Reflect(vec3 a, vec3 n){
+                      float d1 = sqrt(a.x * a.x + a.y * a.y + a.z * a.z) + 0.00001;
+                      float d2 = sqrt(n.x * n.x + n.y * n.y + n.z * n.z) + 0.00001;
+                      a.x = a.x / d1;
+                      a.y = a.y / d1;
+                      a.z = a.z / d1;
+                      n.x = n.x / d2;
+                      n.y = n.y / d2;
+                      n.z = n.z / d2;
+                      float dot = -a.x*n.x + -a.y*n.y + -a.z*n.z;
+                      float rx = -a.x - 2.0 * n.x * dot;
+                      float ry = -a.y - 2.0 * n.y * dot;
+                      float rz = -a.z - 2.0 * n.z * dot;
+                      return vec3(-rx, -ry, -rz);
+                    }
+      
                   `,
                   fragCode:            `
                     //light.rgb *= .5;
                     //light.rgb += .05;
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
-                      float pitch = cameraMode == 1.0 ? -camOri.y : camOri.y;
-                      vec3 reflectionPos = R_rpy(nV, vec3(0.0,
-                                                      pitch, -camOri.z));
+                      //float pitch = cameraMode == 1.0 ? -camOri.y : camOri.y;
+                      vec3 ar = Reflect(vec3(
+                        camPos.x - fPosi.x,
+                        camPos.y - fPosi.y,
+                        camPos.z - fPosi.z
+                      ), nVi);
+                      vec3 reflectionPos = ar; //R_rpy(ar, vec3(0.0, pitch, -camOri.z));
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
-                      refP1 = -atan(px, pz) / M_PI / 4.0;
-                      refP2 = acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
-                      if(refFlipRefs == 1.0) refP2 = 1.0 - refP2;
+                      refP1 = 0.5-atan(px, pz) / M_PI / 2.0 + .075;
+                      refP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
+                      if(refFlipRefs == 0.0) refP2 = 1.0 - refP2;
                     } else {
                       refP1 = vUv.x;
                       refP2 = vUv.y;
                     }
                     
-                    vec2 refCoords = vec2(1.0 - refP1 * 2.0 + refTheta, refP2);
+                    vec2 refCoords = vec2(refP1 + refTheta, refP2);
                     vec4 refCol = vec4(texture2D(reflectionMap, refCoords).rgb * 1.25, reflection / 1.0);
                     mixColor = merge(mixColor, refCol);
                     baseColorIp = 1.0 - reflection; //min(1.0, 2.0 - reflection);
