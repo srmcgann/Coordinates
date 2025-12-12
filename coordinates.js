@@ -3558,7 +3558,7 @@ const BasicShader = async (renderer, options=[]) => {
                       float rx = -a.x - 2.0 * n.x * dot;
                       float ry = -a.y - 2.0 * n.y * dot;
                       float rz = -a.z - 2.0 * n.z * dot;
-                      return vec3(-rx, -ry, -rz);
+                      return vec3(-rx*d1, -ry*d1, -rz*d1);
                     }
       
                   `,
@@ -3568,18 +3568,17 @@ const BasicShader = async (renderer, options=[]) => {
                     float refP1, refP2;
                     if(refOmitEquirectangular != 1.0){
                       //float pitch = cameraMode == 1.0 ? -camOri.y : camOri.y;
-                      vec3 ar = Reflect(vec3(
-                        camPos.x - fPosi.x,
-                        camPos.y - fPosi.y,
-                        camPos.z - fPosi.z
+                      vec3 reflectionPos = Reflect(vec3(
+                        fPosi.x - camPos.x * fov,
+                        fPosi.y - camPos.y * fov,
+                        fPosi.z - camPos.z * fov
                       ), nVi);
-                      vec3 reflectionPos = ar; //R_rpy(ar, vec3(0.0, pitch, -camOri.z));
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
-                      refP1 = 0.5-atan(px, pz) / M_PI / 2.0 + .075;
+                      refP1 = 0.5+atan(px, pz) / M_PI / 2.0;
                       refP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
-                      if(refFlipRefs == 0.0) refP2 = 1.0 - refP2;
+                      if(refFlipRefs == 1.0) refP2 = 1.0 - refP2;
                     } else {
                       refP1 = vUv.x;
                       refP2 = vUv.y;
@@ -4146,6 +4145,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float isLight;
       uniform float isParticle;
       uniform float isLine;
+      uniform float fov;
       uniform float cameraMode;
       uniform vec4 pointLightPos[16];
       uniform vec4 pointLightCol[16];
