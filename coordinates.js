@@ -558,7 +558,7 @@ const Renderer = async options => {
                     })
                   }else{
                     console.log('resource found in cache. using it')
-                    cacheItem = cache.textures.filter(v=>v.url == geometry.map)
+                    cacheItem = cache.textures.filter(v=>v.url == geometry.map)[0]
                     geometry.image = cacheItem.resource
                     dset.texture = ctx.createTexture() //cacheItem.texture
                     ctx.activeTexture(ctx.TEXTURE0)
@@ -702,7 +702,7 @@ const Renderer = async options => {
                         
                       }else{
                         console.log('resource found in cache. using it')
-                        cacheItem = cache.textures.filter(v=>v.url == uniform.map)
+                        cacheItem = cache.textures.filter(v=>v.url == uniform.map)[0]
                         uniform.image = cacheItem.resource
                         uniform.refTexture = ctx.createTexture() //cacheItem.texture
                         BindImage(ctx, uniform.image,
