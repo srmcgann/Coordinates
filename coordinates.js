@@ -536,11 +536,13 @@ const Renderer = async options => {
               break
               case 'image':
                 if(geometry.rebindTextures){
+                  geometry.rebindTextures = false
                   console.log('rebinding shape texture...')
                   if(cache.textures.filter(v=>v.url == geometry.map).length == 0 ||
-                     !cache.textures.filter(v=>v.url == geometry.map)[0].image?.width){
+                     !cache.textures.filter(v=>v.url == geometry.map)[0].resource?.width){
                     var image = new Image()
                     geometry.image = image
+                    dset.texture = ctx.createTexture()
                     cache.textures.push({
                       url: geometry.map,
                       resource: image,
@@ -557,8 +559,9 @@ const Renderer = async options => {
                   }else{
                     console.log('resource found in cache. using it')
                     cacheItem = cache.textures.filter(v=>v.url == geometry.map)
-                    geometry.image = cacheItem.image
-                    dset.texture = cacheItem.texture
+                    geometry.image = cacheItem.resource
+                    dset.texture = ctx.createTexture() //cacheItem.texture
+                    ctx.activeTexture(ctx.TEXTURE0)
                     BindImage(ctx, image,
                       dset.texture, geometry.textureMode, renderer.t, geometry)
                   }
@@ -676,10 +679,12 @@ const Renderer = async options => {
                   
                     ctx.activeTexture(ctx.TEXTURE1)
                     if(uniform.textureMode == 'image' && uniform.rebindTextures){
+                      uniform.rebindTextures = false
                       console.log('rebinding reflection texture')
                       if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
-                         !cache.textures.filter(v=>v.url == uniform.map)[0].image?.width){
+                         !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
                         var image = new Image()
+                        uniform.refTexture = ctx.createTexture()
                         uniform.image = image
                         cache.textures.push({
                           url: uniform.map,
@@ -695,19 +700,14 @@ const Renderer = async options => {
                           image.src = URL.createObjectURL(data)
                         })
                         
-                        uniform.rebindTextures = false
                       }else{
                         console.log('resource found in cache. using it')
                         cacheItem = cache.textures.filter(v=>v.url == uniform.map)
-                        uniform.image = cacheItem.image
-                        uniform.refTexture = cacheItem.texture
+                        uniform.image = cacheItem.resource
+                        uniform.refTexture = ctx.createTexture() //cacheItem.texture
                         BindImage(ctx, uniform.image,
                           uniform.refTexture, uniform.textureMode, renderer.t, uniform)
                       }
-                      
-                      //ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
-                      //ctx.activeTexture(ctx.TEXTURE1)
-                       //BindImage(ctx, uniform.image,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
                     }
                     if(uniform.textureMode == 'video'){
                        BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
@@ -886,7 +886,6 @@ const Renderer = async options => {
         }
       }
     }
-    geometry.rebindTextures = false
   }
   renderer['Draw'] = Draw
 
@@ -2912,6 +2911,8 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
     }
   }else{
     if(typeof texImage != 'undefined' && texImage.width && texImage.height){
+        console.log(binding)
+      gl.bindTexture(gl.TEXTURE_2D, binding)
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage)
     }
   }
