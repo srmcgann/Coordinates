@@ -536,6 +536,7 @@ const Renderer = async options => {
               break
               case 'image':
                 if(geometry.rebindTextures){
+                  console.log('rebinding shape texture...')
                   if(cache.textures.filter(v=>v.url == geometry.map).length == 0 ||
                      !cache.textures.filter(v=>v.url == geometry.map)[0].image?.width){
                     var image = new Image()
@@ -554,6 +555,7 @@ const Renderer = async options => {
                       image.src = URL.createObjectURL(data)
                     })
                   }else{
+                    console.log('resource found in cache. using it')
                     cacheItem = cache.textures.filter(v=>v.url == geometry.map)
                     geometry.image = cacheItem.image
                     dset.texture = cacheItem.texture
@@ -674,6 +676,7 @@ const Renderer = async options => {
                   
                     ctx.activeTexture(ctx.TEXTURE1)
                     if(uniform.textureMode == 'image' && uniform.rebindTextures){
+                      console.log('rebinding reflection texture')
                       if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
                          !cache.textures.filter(v=>v.url == uniform.map)[0].image?.width){
                         var image = new Image()
@@ -694,6 +697,7 @@ const Renderer = async options => {
                         
                         uniform.rebindTextures = false
                       }else{
+                        console.log('resource found in cache. using it')
                         cacheItem = cache.textures.filter(v=>v.url == uniform.map)
                         uniform.image = cacheItem.image
                         uniform.refTexture = cacheItem.texture
