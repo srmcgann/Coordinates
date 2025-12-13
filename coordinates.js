@@ -2911,7 +2911,6 @@ const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry
     }
   }else{
     if(typeof texImage != 'undefined' && texImage.width && texImage.height){
-        console.log(binding)
       gl.bindTexture(gl.TEXTURE_2D, binding)
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texImage)
     }
