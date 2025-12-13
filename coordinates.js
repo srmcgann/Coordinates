@@ -536,7 +536,30 @@ const Renderer = async options => {
               break
               case 'image':
                 if(geometry.rebindTextures){
-                  BindImage(ctx, geometry.image,  dset.texture, geometry.textureMode, renderer.t, geometry)
+                  if(cache.textures.filter(v=>v.url == geometry.map).length == 0 ||
+                     !cache.textures.filter(v=>v.url == geometry.map)[0].image?.width){
+                    var image = new Image()
+                    geometry.image = image
+                    cache.textures.push({
+                      url: geometry.map,
+                      resource: image,
+                      texture: dset.texture
+                    })
+                    image.onload = async () => {
+                      ctx.activeTexture(ctx.TEXTURE0)
+                      BindImage(ctx, image,
+                        dset.texture, geometry.textureMode, renderer.t, geometry)
+                    }
+                    fetch(geometry.map).then(res=>res.blob()).then(data => {
+                      image.src = URL.createObjectURL(data)
+                    })
+                  }else{
+                    cacheItem = cache.textures.filter(v=>v.url == geometry.map)
+                    geometry.image = cacheItem.image
+                    dset.texture = cacheItem.texture
+                    BindImage(ctx, image,
+                      dset.texture, geometry.textureMode, renderer.t, geometry)
+                  }
                 }
               break
             }
@@ -648,11 +671,39 @@ const Renderer = async options => {
                     ctx.uniform3f(dset.locFogColor, ...HexToRGB(uniform.color))
                   break
                   case 'reflection':
+                  
                     ctx.activeTexture(ctx.TEXTURE1)
-                    if(uniform.textureMode == 'image' && geometry.rebindTextures){
+                    if(uniform.textureMode == 'image' && uniform.rebindTextures){
+                      if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
+                         !cache.textures.filter(v=>v.url == uniform.map)[0].image?.width){
+                        var image = new Image()
+                        uniform.image = image
+                        cache.textures.push({
+                          url: uniform.map,
+                          resource: image,
+                          texture: uniform.refTexture
+                        })
+                        image.onload = async () => {
+                          ctx.activeTexture(ctx.TEXTURE1)
+                          BindImage(ctx, uniform.image,
+                          uniform.refTexture, uniform.textureMode, renderer.t, uniform)
+                        }
+                        fetch(uniform.map).then(res=>res.blob()).then(data => {
+                          image.src = URL.createObjectURL(data)
+                        })
+                        
+                        uniform.rebindTextures = false
+                      }else{
+                        cacheItem = cache.textures.filter(v=>v.url == uniform.map)
+                        uniform.image = cacheItem.image
+                        uniform.refTexture = cacheItem.texture
+                        BindImage(ctx, uniform.image,
+                          uniform.refTexture, uniform.textureMode, renderer.t, uniform)
+                      }
+                      
                       //ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
                       //ctx.activeTexture(ctx.TEXTURE1)
-                       BindImage(ctx, uniform.image,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
+                       //BindImage(ctx, uniform.image,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
                     }
                     if(uniform.textureMode == 'video'){
                        BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
@@ -5122,9 +5173,7 @@ const ProcessShapeArray = shape => {
       ty = data[shpIdx].oy
       tz = data[shpIdx].oz
       var roll, pitch, yaw, rotationMode
-      //console.log(shape)
       if(shape.shapeArrayIsSprite){
-        //console.log(3)
         roll  = -shape.renderer.roll - shape.roll
         pitch = shape.renderer.pitch + shape.pitch
         yaw   = -shape.renderer.yaw - shape.yaw
