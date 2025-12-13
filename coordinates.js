@@ -562,7 +562,7 @@ const Renderer = async options => {
                     geometry.image = cacheItem.resource
                     dset.texture = ctx.createTexture() //cacheItem.texture
                     ctx.activeTexture(ctx.TEXTURE0)
-                    BindImage(ctx, image,
+                    BindImage(ctx, geometry.image,
                       dset.texture, geometry.textureMode, renderer.t, geometry)
                   }
                 }
