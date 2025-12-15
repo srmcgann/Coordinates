@@ -726,7 +726,6 @@ const Renderer = async options => {
                     ctx.activeTexture(ctx.TEXTURE5)
                     if(uniform.textureMode == 'image' && uniform.rebindTextures){
                       uniform.rebindTextures = false
-                      console.log('rebinding refraction texture')
                       if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
                          !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
                         var image = new Image()
@@ -765,6 +764,9 @@ const Renderer = async options => {
                     console.log(uniform)
                     ctx.bindTexture(ctx.TEXTURE_2D, uniform.refractionTexture)
                     
+                    ctx.uniform1f(uniform.locAngleOfRefraction,
+                         uniform.angleOfRefraction)
+                           
                     ctx.uniform1f(uniform.locRefractionOmitEquirectangular,
                          ( geometry.shapeType == 'rectangle' ||
                            geometry.shapeType == 'point light' ||
@@ -3629,8 +3631,8 @@ const BasicShader = async (renderer, options=[]) => {
                     vec3 Reflect(vec3 a, vec3 n){
                       float d1 = sqrt(a.x * a.x + a.y * a.y + a.z * a.z) + 0.00001;
                       float d2 = sqrt(n.x * n.x + n.y * n.y + n.z * n.z) + 0.00001;
-                      a.x = a.x / d1;
                       a.y = a.y / d1;
+                      a.x = a.x / d1;
                       a.z = a.z / d1;
                       n.x = n.x / d2;
                       n.y = n.y / d2;
@@ -3693,7 +3695,7 @@ const BasicShader = async (renderer, options=[]) => {
                   flatShading:         typeof option[key].flatShading == 'undefined' ?
                                          false : option[key].flatShading,
                   flipRefractions:     typeof option[key].flipRefractions == 'undefined' ? 0 : option[key].flipRefractions,
-                  angleOfRefraction:   typeof option[key].angleOfRefraction == 'undefined' ? 0 :option[key].angleOfRefraction,
+                  angleOfRefraction:   typeof option[key].angleOfRefraction == 'undefined' ? .1 :option[key].angleOfRefraction,
                   theta:               typeof option[key].theta == 'undefined' ?0:option[key].theta,
                   flatShadingUniform:  'refFlatShading',
                   dataType:            'uniform1f',
@@ -3710,9 +3712,11 @@ const BasicShader = async (renderer, options=[]) => {
                     vec3 refractioncOri = vec3(camOri.x, pitch, camOri.z);
 
                     refractionNV = Quat(nVec, vec3(refractioncOri.x, refractioncOri.y,0.0), 0);
-                    refractionCamPos = Quat(camPos, vec3(refractioncOri.x, refractioncOri.y,0.0), 0);
-
                     refractionNV = Quat(refractionNV, vec3(refractioncOri.x, 0.0, refractioncOri.z), 0);
+                    
+                    
+
+                    refractionCamPos = Quat(camPos, vec3(refractioncOri.x, refractioncOri.y,0.0), 0);
                     refractionCamPos = Quat(refractionCamPos, vec3(refractioncOri.x, 0.0, refractioncOri.z), 0);
 
                   `,
@@ -3726,15 +3730,32 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 refractionNV;
                     varying vec3 refractionCamPos;
 
-                    vec3 Refract(vec3 a, vec3 n){
+                    vec3 Refract(vec3 a, vec3 n, vec3 norm, float ip){
+                      ip /= M_PI;
                       float d1 = sqrt(a.x * a.x + a.y * a.y + a.z * a.z) + 0.00001;
                       float d2 = sqrt(n.x * n.x + n.y * n.y + n.z * n.z) + 0.00001;
-                      a.x = a.x / d1;
-                      a.y = a.y / d1;
-                      a.z = a.z / d1;
-                      n.x = n.x / d2;
-                      n.y = n.y / d2;
-                      n.z = n.z / d2;
+                      float d3 = sqrt(norm.x * norm.x + 
+                                      norm.y * norm.y +
+                                      norm.z * norm.z) + 0.00001;
+
+                      a.x /= d1;
+                      a.y /= d1;
+                      a.z /= d1;
+                      n.x /= d2;
+                      n.y /= d2;
+                      n.z /= d2;
+                      norm.x /= d3;
+                      norm.y /= d3;
+                      norm.z /= d3;
+                      
+                      float a1 = a.x;
+                      float a2 = a.y;
+                      float a3 = a.z;
+                      float b1 = n.x;
+                      float b2 = n.y;
+                      float b3 = n.z;
+                      n = vec3( a2*b3 - a3-b2, a3*b1 - a1-b3, a1*b2 - a2-b1 );
+                      n = n*(1.0-ip) + norm*ip;
                       float dot = -a.x*n.x + -a.y*n.y + -a.z*n.z;
                       float rx = -a.x - 2.0 * n.x * dot;
                       float ry = -a.y - 2.0 * n.y * dot;
@@ -3748,12 +3769,14 @@ const BasicShader = async (renderer, options=[]) => {
                     //light.rgb += .05;
                     float refractionP1, refractionP2;
                     if(refractionOmitEquirectangular != 1.0){
-                      //float pitch = cameraMode == 1.0 ? -camOri.y : camOri.y;
-                      vec3 refractionPos = Refract(vec3(
+                      
+                      vec3 testVec = vec3(
                         fPos.x - refractionCamPos.x * fov,
                         fPos.y - refractionCamPos.y * fov,
                         fPos.z - refractionCamPos.z * fov
-                      ), refractionNV);
+                      );
+                      
+                      vec3 refractionPos = Refract(testVec, fPos, refractionNV, angleOfRefraction);
                       float px = refractionPos.x;
                       float py = refractionPos.y;
                       float pz = refractionPos.z;
@@ -4691,6 +4714,7 @@ const BasicShader = async (renderer, options=[]) => {
                 break
                 case 'refraction':
                   var url = uniform.map
+                  uniform.locAngleOfRefraction = gl.getUniformLocation(dset.program, 'angleOfRefraction')
                   if(url){
                     let l
                     let suffix = (l=url.split('.'))[l.length-1].toLowerCase()
