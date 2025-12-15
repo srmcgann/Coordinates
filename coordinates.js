@@ -761,7 +761,6 @@ const Renderer = async options => {
                     ctx.uniform1i(uniform.locRefractionTexture, 5)
                     ctx.uniform1f(uniform.locRefractionTheta, uniform.theta)
                     
-                    console.log(uniform)
                     ctx.bindTexture(ctx.TEXTURE_2D, uniform.refractionTexture)
                     
                     ctx.uniform1f(uniform.locAngleOfRefraction,
@@ -3611,11 +3610,11 @@ const BasicShader = async (renderer, options=[]) => {
                     float pitch = cameraMode == 1.0 ? camOri.y : -camOri.y;
                     vec3 refcOri = vec3(camOri.x, pitch, camOri.z);
 
-                    refNV = Quat(nVec, vec3(refcOri.x, refcOri.y,0.0), 0);
-                    refCamPos = Quat(camPos, vec3(refcOri.x, refcOri.y,0.0), 0);
+                    refNV = Quat(nVec, vec3(refcOri.x, refcOri.y,0.0), 1);
+                    refNV = Quat(refNV, vec3(0.0, 0.0, refcOri.z), 1);
 
-                    refNV = Quat(refNV, vec3(refcOri.x, 0.0, refcOri.z), 0);
-                    refCamPos = Quat(refCamPos, vec3(refcOri.x, 0.0, refcOri.z), 0);
+                    refCamPos = Quat(camPos, vec3(refcOri.x, refcOri.y,0.0), 1);
+                    refCamPos = Quat(refCamPos, vec3(0.0, 0.0, refcOri.z), 1);
 
                   `,
                   fragDeclaration:     `
@@ -3631,8 +3630,8 @@ const BasicShader = async (renderer, options=[]) => {
                     vec3 Reflect(vec3 a, vec3 n){
                       float d1 = sqrt(a.x * a.x + a.y * a.y + a.z * a.z) + 0.00001;
                       float d2 = sqrt(n.x * n.x + n.y * n.y + n.z * n.z) + 0.00001;
-                      a.y = a.y / d1;
                       a.x = a.x / d1;
+                      a.y = a.y / d1;
                       a.z = a.z / d1;
                       n.x = n.x / d2;
                       n.y = n.y / d2;
@@ -3708,16 +3707,27 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 refractionCamPos;
                   `,
                   vertCode:            ` 
-                    float pitch = cameraMode == 1.0 ? camOri.y : -camOri.y;
-                    vec3 refractioncOri = vec3(camOri.x, pitch, camOri.z);
-
-                    refractionNV = Quat(nVec, vec3(refractioncOri.x, refractioncOri.y,0.0), 0);
-                    refractionNV = Quat(refractionNV, vec3(refractioncOri.x, 0.0, refractioncOri.z), 0);
+                  
+                    vec3 refractioncOri;
                     
-                    
+                    if(cameraMode == 1.0) {
+                      refractioncOri = vec3(camOri.x, camOri.y, camOri.z);
+                    }else{
+                      refractioncOri = -vec3(camOri.x, camOri.y, -camOri.z);
+                    }
 
-                    refractionCamPos = Quat(camPos, vec3(refractioncOri.x, refractioncOri.y,0.0), 0);
-                    refractionCamPos = Quat(refractionCamPos, vec3(refractioncOri.x, 0.0, refractioncOri.z), 0);
+                    if(cameraMode == 1.0){
+                      refractionNV = Quat(nVec, vec3(refractioncOri.x, refractioncOri.y,0.0), 1);
+                      refractionNV = Quat(refractionNV, vec3(0.0, 0.0, refractioncOri.z), 1);
+
+                      refractionCamPos = -camPos;
+                    }else{
+                      refractionNV = Quat(nVec, vec3(refractioncOri.x, refractioncOri.y,0.0), 1);
+                      refractionNV = Quat(refractionNV, vec3(0.0, 0.0, refractioncOri.z), 1);
+
+                      refractionCamPos = Quat(camPos, vec3(refractioncOri.x, refractioncOri.y,0.0), 1);
+                      refractionCamPos = Quat(refractionCamPos, vec3(0.0, 0.0, refractioncOri.z), 1);
+                    }
 
                   `,
                   fragDeclaration:     `
@@ -3730,13 +3740,12 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 refractionNV;
                     varying vec3 refractionCamPos;
 
-                    vec3 Refract(vec3 a, vec3 n, vec3 norm, float ip){
-                      ip /= M_PI;
+                    vec3 Refract(vec3 a, vec3 n, float ip){
+                      
                       float d1 = sqrt(a.x * a.x + a.y * a.y + a.z * a.z) + 0.00001;
-                      float d2 = sqrt(n.x * n.x + n.y * n.y + n.z * n.z) + 0.00001;
-                      float d3 = sqrt(norm.x * norm.x + 
-                                      norm.y * norm.y +
-                                      norm.z * norm.z) + 0.00001;
+                      float d2 = sqrt(n.x * n.x + 
+                                      n.y * n.y +
+                                      n.z * n.z) + 0.00001;
 
                       a.x /= d1;
                       a.y /= d1;
@@ -3744,23 +3753,16 @@ const BasicShader = async (renderer, options=[]) => {
                       n.x /= d2;
                       n.y /= d2;
                       n.z /= d2;
-                      norm.x /= d3;
-                      norm.y /= d3;
-                      norm.z /= d3;
+
                       
-                      float a1 = a.x;
-                      float a2 = a.y;
-                      float a3 = a.z;
-                      float b1 = n.x;
-                      float b2 = n.y;
-                      float b3 = n.z;
-                      n = vec3( a2*b3 - a3-b2, a3*b1 - a1-b3, a1*b2 - a2-b1 );
-                      n = n*(1.0-ip) + norm*ip;
                       float dot = -a.x*n.x + -a.y*n.y + -a.z*n.z;
                       float rx = -a.x - 2.0 * n.x * dot;
                       float ry = -a.y - 2.0 * n.y * dot;
                       float rz = -a.z - 2.0 * n.z * dot;
-                      return vec3(-rx*d1, -ry*d1, -rz*d1);
+
+                      return vec3(-rx*d1 * ip + a.x*d1 * (1.0 - ip),
+                                  -ry*d1 * ip + a.y*d1 * (1.0 - ip),
+                                  -rz*d1 * ip + a.z*d1 * (1.0 - ip));
                     }
       
                   `,
@@ -3776,12 +3778,17 @@ const BasicShader = async (renderer, options=[]) => {
                         fPos.z - refractionCamPos.z * fov
                       );
                       
-                      vec3 refractionPos = Refract(testVec, fPos, refractionNV, angleOfRefraction);
+                      vec3 refractionPos = Refract(testVec, refractionNV, angleOfRefraction);
                       float px = refractionPos.x;
                       float py = refractionPos.y;
                       float pz = refractionPos.z;
-                      refractionP1 = 0.5+atan(px, pz) / M_PI / 2.0;
-                      refractionP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
+                      refractionP1 = atan(px, pz) / M_PI / 2.0;
+                      if(cameraMode == 1.0){
+                        refractionP2 = acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
+                      }else{
+                        refractionP1 += 0.5;
+                        refractionP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
+                      }
                       if(refractionFlipRefs == 1.0) refractionP2 = 1.0 - refractionP2;
                     } else {
                       refractionP1 = vUv.x;
