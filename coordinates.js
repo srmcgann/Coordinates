@@ -3694,7 +3694,7 @@ const BasicShader = async (renderer, options=[]) => {
                   flatShading:         typeof option[key].flatShading == 'undefined' ?
                                          false : option[key].flatShading,
                   flipRefractions:     typeof option[key].flipRefractions == 'undefined' ? 0 : option[key].flipRefractions,
-                  angleOfRefraction:   typeof option[key].angleOfRefraction == 'undefined' ? .1 :option[key].angleOfRefraction,
+                  angleOfRefraction:   typeof option[key].angleOfRefraction == 'undefined' ? .25 :option[key].angleOfRefraction,
                   theta:               typeof option[key].theta == 'undefined' ?0:option[key].theta,
                   flatShadingUniform:  'refFlatShading',
                   dataType:            'uniform1f',
