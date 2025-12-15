@@ -3607,6 +3607,7 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 refCamPos;
                   `,
                   vertCode:            ` 
+                  /*
                     float pitch = cameraMode == 1.0 ? camOri.y : -camOri.y;
                     vec3 refcOri = vec3(camOri.x, pitch, camOri.z);
 
@@ -3615,7 +3616,29 @@ const BasicShader = async (renderer, options=[]) => {
 
                     refCamPos = Quat(camPos, vec3(refcOri.x, refcOri.y,0.0), 1);
                     refCamPos = Quat(refCamPos, vec3(0.0, 0.0, refcOri.z), 1);
+*/
 
+                    vec3 refcOri;
+                    
+                    if(cameraMode == 1.0) {
+                      refcOri = vec3(camOri.x, camOri.y, camOri.z);
+                    }else{
+                      refcOri = -vec3(camOri.x, camOri.y, -camOri.z);
+                    }
+
+                    if(cameraMode == 1.0){
+                      refNV = Quat(nVec, vec3(refcOri.x, refcOri.y,0.0), 1);
+                      refNV = Quat(refNV, vec3(0.0, 0.0, refcOri.z), 1);
+
+                      refCamPos = -camPos;
+                    }else{
+                      refNV = Quat(nVec, vec3(refcOri.x, refcOri.y,0.0), 1);
+                      refNV = Quat(refNV, vec3(0.0, 0.0, refcOri.z), 1);
+
+                      refCamPos = Quat(camPos, vec3(refcOri.x, refcOri.y,0.0), 1);
+                      refCamPos = Quat(refCamPos, vec3(0.0, 0.0, refcOri.z), 1);
+                    }
+                    
                   `,
                   fragDeclaration:     `
                     uniform float reflection;
@@ -3658,8 +3681,21 @@ const BasicShader = async (renderer, options=[]) => {
                       float px = reflectionPos.x;
                       float py = reflectionPos.y;
                       float pz = reflectionPos.z;
+                      
+                      
                       refP1 = 0.5+atan(px, pz) / M_PI / 2.0;
-                      refP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
+                      /*
+                      refP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI; */
+                      
+                      
+                      if(cameraMode == 1.0){
+                        refP2 = acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
+                      }else{
+                        refP1 += 0.5;
+                        refP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
+                      }
+                      
+                      
                       if(refFlipRefs == 1.0) refP2 = 1.0 - refP2;
                     } else {
                       refP1 = vUv.x;
