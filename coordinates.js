@@ -403,10 +403,10 @@ const Renderer = async options => {
                 var d = renderer.fov
                 var s = geometry.size * (penumbraPass ? 4 : 1) / 50
                 for(var i = 0; i<geometry.vertices.length; i+=6){
-                  X1 = geometry.vertices[i+0]
+                  X1 = -geometry.vertices[i+0]
                   Y1 = geometry.vertices[i+1]
                   Z1 = geometry.vertices[i+2]
-                  X2 = geometry.vertices[i+3]
+                  X2 = -geometry.vertices[i+3]
                   Y2 = geometry.vertices[i+4]
                   Z2 = geometry.vertices[i+5]
                   
@@ -3070,19 +3070,21 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   
   vy *= -1
   
-  ar = R_ryp(vx, vy, vz, {
-    roll:  -geometry.roll * (geometry.isParticle || geometry.isLine ? 1: -1) + .0001,
-    pitch: -geometry.pitch * (geometry.isParticle || geometry.isLine ? 1: 1),
-    yaw:   -geometry.yaw * (geometry.isParticle || geometry.isLine? -1: 1),
-  }, false)
-  vx = -ar[0]
-  vy = ar[1]
-  vz = -ar[2]  * (geometry.isParticle || geometry.isLine ? 1: 1)
+  if(!(geometry.isLight || geometry.isSprite)){
+    ar = R_ryp(vx, vy, vz, {
+      roll:  geometry.roll * (geometry.isParticle || geometry.isLine ? 1: 1) + .0001,
+      pitch: geometry.pitch * (geometry.isParticle || geometry.isLine ? 1: 1),
+      yaw:   geometry.yaw * (geometry.isParticle || geometry.isLine? 1: 1),
+    }, false)
+    vx = -ar[0]
+    vy = ar[1]
+    vz = -ar[2]  * (geometry.isParticle || geometry.isLine ? 1: 1)
+  }
 
-  if(geometry.isLight){
-    ar = R_rpy(vx, vy, vz, {
-      roll:  renderer.roll,
-      pitch: renderer.pitch,
+  if(geometry.isLight || geometry.isSprite){
+    ar = R_pyr(vx, vy, vz, {
+      roll:  renderer.roll * (renderer.cameraMode.toLowerCase() == 'fps' ? -1 : 1),
+      pitch: -renderer.pitch * (renderer.cameraMode.toLowerCase() == 'fps' ? -1 : 1),
       yaw:  -renderer.yaw,
     }, false)
     vx = ar[0]
@@ -3103,7 +3105,7 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
     vy += cpy
     vz += -cpz
     
-    ar = R_ypr(vx, vy, vz, {
+    ar = R_ryp(vx, vy, vz, {
       roll: renderer.roll,
       pitch: -renderer.pitch,
       yaw: renderer.yaw,
@@ -3116,8 +3118,8 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
     cpy = 0
     cpz = 0
   }else{
-    ar = R_ypr(vx, vy, vz, {
-      roll: renderer.roll * (geometry.isParticle || geometry.isLine ? 1: 1),
+    ar = R_ryp(vx, vy, vz, {
+      roll: -renderer.roll * (geometry.isParticle || geometry.isLine ? 1: 1),
       pitch: renderer.pitch * (geometry.isParticle || geometry.isLine ? 1: 1),
       yaw: renderer.yaw * (geometry.isParticle || geometry.isLine ? 1: 1),
     }, false)
