@@ -3609,16 +3609,6 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 refCamPos;
                   `,
                   vertCode:            ` 
-                  /*
-                    float pitch = cameraMode == 1.0 ? camOri.y : -camOri.y;
-                    vec3 refcOri = vec3(camOri.x, pitch, camOri.z);
-
-                    refNV = Quat(nVec, vec3(refcOri.x, refcOri.y,0.0), 1);
-                    refNV = Quat(refNV, vec3(0.0, 0.0, refcOri.z), 1);
-
-                    refCamPos = Quat(camPos, vec3(refcOri.x, refcOri.y,0.0), 1);
-                    refCamPos = Quat(refCamPos, vec3(0.0, 0.0, refcOri.z), 1);
-*/
 
                     vec3 refcOri;
                     
@@ -3685,10 +3675,7 @@ const BasicShader = async (renderer, options=[]) => {
                       float pz = reflectionPos.z;
                       
                       
-                      refP1 = 0.5+atan(px, pz) / M_PI / 2.0;
-                      /*
-                      refP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI; */
-                      
+                      refP1 = 0.5+atan(px, pz) / M_PI / 2.0 + 0.5;
                       
                       if(cameraMode == 1.0){
                         refP2 = acos( py / (.001 + sqrt(px * px + py * py + pz * pz))) / M_PI;
