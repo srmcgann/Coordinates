@@ -5388,7 +5388,7 @@ const ProcessShapeArray = shape => {
           switch(m){
             case 0: l = 'nvstate'; break
             case 1: l = 'vstate'; break
-            case 2: l = 'fsvstate'; break
+            case 2: l = 'fsnvstate'; break
           }
           //var l = m ? 'vstate' : 'nvstate'
           x = shape[l][i + k + 0] - tx * m
