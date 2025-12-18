@@ -903,7 +903,6 @@ const Renderer = async options => {
             ctx.uniform1f(dset.locRenderNormals, geometry.showNormals ? 1 : 0)
             if(geometry.showNormals && geometry?.normals?.length){
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
-              //ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
               ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
               dset.locNormal = ctx.getAttribLocation(dset.program, "normal")
@@ -2340,9 +2339,42 @@ const LoadGeometry = async (renderer, geoOptions) => {
       
     }
   }
+
+  // create parallel normal array for flat shading, if used
+  switch(shapeType){
+    case 'particles':
+    case 'lines':
+    case 'point light':
+    case 'sprite':
+      // normal-irrelevant shape types
+    break
+    default:
+      // all other shapes
+      var x1, y1, z1, x2, y2, z2, x3, y3, z3, ax, ay, az
+      for(var i = 0; i < vertices.length; i+=9){
+        x1 = vertices[i+0]
+        y1 = vertices[i+1]
+        z1 = vertices[i+2]
+        x2 = vertices[i+3]
+        y2 = vertices[i+4]
+        z2 = vertices[i+5]
+        x3 = vertices[i+6]
+        y3 = vertices[i+7]
+        z3 = vertices[i+8]
+        var ar = Normal([[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]])
+        for(var m = 0; m < 3; m++){
+          flatShadingNormalVecs[i+0+m*3] = ar[3]-ar[0]
+          flatShadingNormalVecs[i+1+m*3] = ar[4]-ar[1]
+          flatShadingNormalVecs[i+2+m*3] = ar[5]-ar[2]
+        }
+      }
+    break
+  }
+
+  
   
   if(averageNormals && !syncNormals) {
-    AverageNormals(vertices, normals, shapeType, normalVecs, flatShadingNormalVecs)
+    AverageNormals(vertices, normals, shapeType, normalVecs, flipNormals, flatShadingNormalVecs)
   }
 
   if(shapeType == 'dynamic' || preComputeNormalAssocs) {
@@ -2373,13 +2405,13 @@ const LoadGeometry = async (renderer, geoOptions) => {
     !isParticle && !isLine && !averageNormals &&
      (!resolvedFromCache || !resolved)){
     normalVecs            = []
-    flatShadingNormalVecs = []
+    //flatShadingNormalVecs = []
     for(var i=0; i<normals.length; i+=6){
       let X = normals[i+3] - normals[i+0]
       let Y = normals[i+4] - normals[i+1]
       let Z = normals[i+5] - normals[i+2]
       normalVecs.push(X,Y,Z)
-      flatShadingNormalVecs.push(X,Y,Z)
+      //flatShadingNormalVecs.push(X,Y,Z)
     }
   }
 
@@ -2750,39 +2782,6 @@ const LoadGeometry = async (renderer, geoOptions) => {
 
   if(equirectangular == -1) equirectangular = false
   if(equirectangularHeightmap == -1) equirectangularHeightmap = false
-
-  // create parallel normal array for flat shading, if used
-  switch(geometry.shapeType){
-    case 'particles':
-    case 'lines':
-    case 'point light':
-    case 'sprite':
-      // normal-irrelevant shape types
-    break
-    default:
-      // all other shapes
-      var x1, y1, z1, x2, y2, z2, x3, y3, z3, ax, ay, az
-      for(var i = 0; i < normalVecs.length; i+=9){
-        x1 = normalVecs[i+0]
-        y1 = normalVecs[i+1]
-        z1 = normalVecs[i+2]
-        x2 = normalVecs[i+3]
-        y2 = normalVecs[i+4]
-        z2 = normalVecs[i+5]
-        x3 = normalVecs[i+6]
-        y3 = normalVecs[i+7]
-        z3 = normalVecs[i+8]
-        ax = (x1 + x2 + x3) / 3
-        ay = (y1 + y2 + y3) / 3
-        az = (z1 + z2 + z3) / 3
-        for(var m = 0; m < 3; m++){
-          flatShadingNormalVecs[i+0+m*3] = ax
-          flatShadingNormalVecs[i+1+m*3] = ay
-          flatShadingNormalVecs[i+2+m*3] = az
-        }
-      }
-    break
-  }
 
   var updateGeometry = {
     x, y, z, rows, cols,
@@ -3519,7 +3518,8 @@ const ShowBounding = (shape, renderer, draw=true,
   ])
 }
 
-const AverageNormals = (verts, normals, shapeType, normalVecs, flipNormals, flatShadingNormalVecs) => {
+const AverageNormals = (verts, normals, shapeType, normalVecs=[],
+                        flipNormals=false, flatShadingNormalVecs=[]) => {
   var nrmls = []
   var isPolyhedron = IsPolyhedron(shapeType)
   // expects triangles
@@ -3535,9 +3535,9 @@ const AverageNormals = (verts, normals, shapeType, normalVecs, flipNormals, flat
     nrmls[i*2+0] = verts[i+0]
     nrmls[i*2+1] = verts[i+1]
     nrmls[i*2+2] = verts[i+2]
-    nrmls[i*2+3] = verts[i+0] - (n[3] - n[0]) * fn
-    nrmls[i*2+4] = verts[i+1] - (n[4] - n[1]) * fn
-    nrmls[i*2+5] = verts[i+2] - (n[5] - n[2]) * fn
+    nrmls[i*2+3] = verts[i+0] - (n[3] - n[0])
+    nrmls[i*2+4] = verts[i+1] - (n[4] - n[1])
+    nrmls[i*2+5] = verts[i+2] - (n[5] - n[2])
   }
   
   var ret = []
@@ -3576,15 +3576,24 @@ const AverageNormals = (verts, normals, shapeType, normalVecs, flipNormals, flat
     modSrc[i+4] = ay /= ct
     modSrc[i+5] = az /= ct
   }
-  modSrc.map((v,i)=>nrmls[i]=v)
-  var flp = shapeType == 'cylinder' || shapeType == 'torus' || shapeType == 'torus knot' ? -1 : 1
+  nrmls = modSrc
+  fn *= shapeType == 'cylinder' ||
+        shapeType == 'torus' ||
+        shapeType == 'torus knot' ? -1 : 1
   for(var i = 0; i < nrmls.length; i += 6){
-    for(var m=3; m--;) {
-      normals[i+m*2] = nrmls[i+m*2]
-      normals[i+m*2+1] = nrmls[i+m*2] -
-                           (nrmls[i+m*2] + nrmls[i+m*2+1]) * fn // * flp
-        normalVecs[i/2+m] = (nrmls[i+3+m] - nrmls[i+m]) * fn * flp
-    }
+    normals[i+0] = nrmls[i+0]
+    normals[i+1] = nrmls[i+1]
+    normals[i+2] = nrmls[i+2]
+    var nx = (nrmls[i+3]-nrmls[i+0]) * fn
+    var ny = (nrmls[i+4]-nrmls[i+1]) * fn
+    var nz = (nrmls[i+5]-nrmls[i+2]) * fn
+    normals[i+3] = nrmls[i+0] + nx
+    normals[i+4] = nrmls[i+1] + ny
+    normals[i+5] = nrmls[i+2] + nz
+    var j = i/2
+    normalVecs[j+0] = nx
+    normalVecs[j+1] = ny
+    normalVecs[j+2] = nz
   }
 }
 
@@ -3987,6 +3996,7 @@ const BasicShader = async (renderer, options=[]) => {
                     uniform float phong;
                     uniform float phongTheta;
                     uniform float phongFlatShading;
+                    vec3 phongPos;
                   `,
                   fragCode:            `
                     if(isLight == 0.0 &&
@@ -3997,15 +4007,13 @@ const BasicShader = async (renderer, options=[]) => {
                       float phongP1, phongP2;
                       float px, py, pz;
                       if(phongFlatShading != 0.0){
-                        px = fsnVec.x;
-                        py = fsnVec.y;
-                        pz = fsnVec.z;
+                        phongPos = R_rpy(fsnVec, vec3(camOri.x, 0.0, 0.0));
                       }else{
-                        vec3 phongPos = R_rpy(nV, vec3(camOri.x, 0.0, 0.0));
-                        px = phongPos.x;
-                        py = phongPos.y;
-                        pz = phongPos.z;
+                        phongPos = R_rpy(nVec, vec3(camOri.x, 0.0, 0.0));
                       }
+                      px = phongPos.x;
+                      py = phongPos.y;
+                      pz = phongPos.z;
 
                       phongP1 = atan(px, pz) + phongTheta;
                       phongP2 = -acos( py / (.001 + sqrt(px * px + py * py + pz * pz)))-.2;
@@ -4249,8 +4257,6 @@ const BasicShader = async (renderer, options=[]) => {
           cz = position.z + offset.z;
         }
         
-        fsnVec = flatShadingNormalVec;
-        
         if(useHeightMap != 0.0 && renderNormals == 0.0){
           nVeci = normalVec;
           vec4 h;
@@ -4260,11 +4266,11 @@ const BasicShader = async (renderer, options=[]) => {
             float p;
             float p2;
             vec3 cpos = vec3(cx, cy, cz);
-            p = flatShading == 1.0 ? atan(fsnVec.x, fsnVec.z): atan(cpos.x, cpos.z);
+            p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z);
             float p1;
             p1 = p / M_PI / 2.0;
             p2 = flatShading == 1.0 ?
-                  acos(fsnVec.y / (sqrt(fsnVec.x*fsnVec.x + fsnVec.y*fsnVec.y + fsnVec.z*fsnVec.z)+.00001)) / M_PI   :
+                  acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
                   acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) / M_PI;
             uvi = vec2(p1, p2);
           } else {
@@ -4294,6 +4300,8 @@ const BasicShader = async (renderer, options=[]) => {
         float cpy = camPos.y;
         float cpz = camPos.z;
         
+        fsnVec = flatShadingNormalVec;
+        
         if(cameraMode == 1.0){  // 'FPS' mode
           if(isSprite != 0.0 || isLight != 0.0){
             geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z), 0);
@@ -4301,23 +4309,30 @@ const BasicShader = async (renderer, options=[]) => {
             pos = Quat(pos,  vec3(0.0, camOri.y, 0.0), 0);
             pos = Quat(pos,  vec3(0.0, 0.0, camOri.z), 0);
             pos = Quat(pos,  vec3(camOri.x, 0.0, 0.0), 0);
+            pos.x += cpx;
+            pos.y += cpy;
+            pos.z += cpz;
+            pos = Quat(pos,  vec3(-camOri.x, -camOri.y, -camOri.z), 0);
+            nVec = Quat(nVeci, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            nVec = Quat(nVec, vec3(0.0, -camOri.y, -camOri.z), 0);
+
+            fsnVec = Quat(fsnVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            fsnVec = Quat(fsnVec, vec3(0.0, -camOri.y, -camOri.z), 0);
+
           }else{
             geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z), 0);
             pos = Quat(vec3(cx, cy, cz), vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            pos.x += cpx;
+            pos.y += cpy;
+            pos.z += cpz;
+            pos = Quat(pos,  vec3(-camOri.x, -camOri.y, -camOri.z), 0);
+
+            nVec = Quat(nVeci, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            nVec = Quat(nVec, vec3(0.0, -camOri.y, -camOri.z), 0);
+
+            fsnVec = Quat(fsnVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            fsnVec = Quat(fsnVec, vec3(0.0, -camOri.y, -camOri.z), 0);
           }
-          
-          pos.x += cpx;
-          pos.y += cpy;
-          pos.z += cpz;
-          
-          pos = Quat(pos,  vec3(-camOri.x, -camOri.y, -camOri.z), 0);
-          
-          nVec = Quat(nVeci, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-          nVec = Quat(nVec, vec3(0.0, -camOri.y, -camOri.z), 0);
-          
-          fsnVec = Quat(fsnVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-          fsnVec = Quat(fsnVec, vec3(0.0, -camOri.y, -camOri.z), 0);
-          
           cpx = 0.0;
           cpy = 0.0;
           cpz = 0.0;
@@ -4326,19 +4341,22 @@ const BasicShader = async (renderer, options=[]) => {
           if(isSprite != 0.0 || isLight != 0.0){
             geo = Quat(geoPos, vec3(camOri.x, camOri.y, -camOri.z), 0);
             pos = vec3(cx, cy, cz);
+            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+            nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            nVec = Quat(nVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
           }else{
             geo = Quat(geoPos, vec3(camOri.x, camOri.y, -camOri.z), 0);
             pos = vec3(cx, cy, cz);
             pos = Quat(pos, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
             pos = Quat(pos, vec3(camOri.x, camOri.y, -camOri.z), 0);
+            
+            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+            nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            nVec = Quat(nVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
+
+            fsnVec = Quat(fsnVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            fsnVec = Quat(fsnVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
           }
-          nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-          nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-          nVec = Quat(nVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
-
-          fsnVec = Quat(fsnVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-          fsnVec = Quat(fsnVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
-
           fPos = pos;
         }
         
