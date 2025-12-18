@@ -669,6 +669,7 @@ const Renderer = async options => {
                 }else{
                   ctx[uniform.dataType](uniform.loc, uniform.value)
                 }
+                uniform.locFlatShading = ctx.getUniformLocation(dset.program, uniform.flatShadingUniform)
                 ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
                 switch(uniform.name){
                   case 'fog':
@@ -775,6 +776,7 @@ const Renderer = async options => {
                   case 'phong':
                     uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
                     ctx.uniform1f(uniform.locPhongTheta, uniform.theta + Math.PI)
+                    //ctx.uniform1f(uniform.locPhongFlatShading, uniform.theta + Math.PI)
                   break
                   case 'custom':
                     if(uniform.uniformName){
@@ -836,7 +838,7 @@ const Renderer = async options => {
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
               ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
-              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
+              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nVecIndices, ctx.STATIC_DRAW)
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
               dset.locNormalVec= ctx.getAttribLocation(dset.program, "normalVec")
@@ -846,6 +848,23 @@ const Renderer = async options => {
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
               ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
             }        
+            
+            //normals (for flat shading)
+            
+            if(geometry.flatShadingNormalVecs.length){
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.flatShadingNormalVec_buffer)
+              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.flatShadingNormalVecs, ctx.STATIC_DRAW)
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.FlatShadingNormalVec_Index_Buffer)
+              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.fsnVecIndices, ctx.STATIC_DRAW)
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.flatShadingNormalVec_buffer)
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.FlatShadingNormalVec_Index_Buffer)
+              dset.locFlatShadingNormalVec= ctx.getAttribLocation(dset.program, "flatShadingNormalVec")
+              ctx.vertexAttribPointer(dset.locFlatShadingNormalVec, 3, ctx.FLOAT, false, 0, 0)
+              ctx.enableVertexAttribArray(dset.locFlatShadingNormalVec)
+
+              ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+              ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+            }
             
 
             // vertices
@@ -1271,10 +1290,11 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
                 LoadGeometry(renderer, options).then(async (geo) => {
                   ret.geometries[idx/1|0] = geo
                   await shader.ConnectGeometry(geo)
-                  var vertices   = []
-                  var normals    = []
-                  var normalVecs = []
-                  var uvs        = []
+                  var vertices              = []
+                  var normals               = []
+                  var normalVecs            = []
+                  var flatShadingNormalVecs = []
+                  var uvs                   = []
                   for(var i = 0; i < geo.vertices.length; i++)
                     vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
                   for(var i = 0; i < geo.uvs.length; i++)
@@ -1286,7 +1306,9 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
                   }
                   for(var i = 0; i < geo.normalVecs.length; i++)
                     normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
-                  var object = { vertices, uvs, normals, normalVecs }
+                  for(var i = 0; i < geo.flatShadingNormalVecs.length; i++)
+                    flatShadingNormalVecs.push(Math.round(geo.flatShadingNormalVecs[i]*1e3)/1e3)
+                  var object = { vertices, uvs, normals, normalVecs, flatShadingNormalVecs }
                   var textReader = new zip.TextReader(JSON.stringify(object))
                   var ct = (''+(idx+1)).padStart(4, '0')
                   zipWriter.add(`frame_${ct}.json`, textReader)
@@ -1415,28 +1437,56 @@ const GeoToOBJ = geo => {
   }
   */
   if(geo?.normalVecs) {
-    normals = geo.normalVecs
-    //var ct = 0, a = []
-    var l = geo.resolved ? 1: -1
-    for(var i = 0; i < normals.length; i += 3) {
-      var nx = Math.round(normals[i+0]*1e4)/1e4 * l
-      var ny = -Math.round(normals[i+1]*1e4)/1e4 * l
-      var nz = -Math.round(normals[i+2]*1e4)/1e4 * l
-      //var x = geo.vertices[i+0]
-      //var y = geo.vertices[i+1]
-      //var z = geo.vertices[i+2]
-      //if(Math.hypot(nx+x,ny+y,nz+z) > Math.hypot(x,y,z)){
-      //  nx *= -1
-      //  ny *= -1
-      //  nz *= -1
-      //}
-      ret += `vn ${nx} ${ny} ${nz}\n`
-      //a.push(i/3)
-      //if(++ct == 3){
-      //  ct = 0
-      //  faceNormals.push(a)
-      //  a = []
-      //}
+    if(geo?.flatShading && geo?.flatShadingNormalVecs){
+      if(geo?.flatShadingNormalVecs) {
+        normals = geo.flatShadingNormalVecs
+        //var ct = 0, a = []
+        var l = geo.resolved ? 1: -1
+        for(var i = 0; i < normals.length; i += 3) {
+          var nx = Math.round(normals[i+0]*1e4)/1e4 * l
+          var ny = -Math.round(normals[i+1]*1e4)/1e4 * l
+          var nz = -Math.round(normals[i+2]*1e4)/1e4 * l
+          //var x = geo.vertices[i+0]
+          //var y = geo.vertices[i+1]
+          //var z = geo.vertices[i+2]
+          //if(Math.hypot(nx+x,ny+y,nz+z) > Math.hypot(x,y,z)){
+          //  nx *= -1
+          //  ny *= -1
+          //  nz *= -1
+          //}
+          ret += `vn ${nx} ${ny} ${nz}\n`
+          //a.push(i/3)
+          //if(++ct == 3){
+          //  ct = 0
+          //  faceNormals.push(a)
+          //  a = []
+          //}
+        }
+      }
+    } else {
+      normals = geo.normalVecs
+      //var ct = 0, a = []
+      var l = geo.resolved ? 1: -1
+      for(var i = 0; i < normals.length; i += 3) {
+        var nx = Math.round(normals[i+0]*1e4)/1e4 * l
+        var ny = -Math.round(normals[i+1]*1e4)/1e4 * l
+        var nz = -Math.round(normals[i+2]*1e4)/1e4 * l
+        //var x = geo.vertices[i+0]
+        //var y = geo.vertices[i+1]
+        //var z = geo.vertices[i+2]
+        //if(Math.hypot(nx+x,ny+y,nz+z) > Math.hypot(x,y,z)){
+        //  nx *= -1
+        //  ny *= -1
+        //  nz *= -1
+        //}
+        ret += `vn ${nx} ${ny} ${nz}\n`
+        //a.push(i/3)
+        //if(++ct == 3){
+        //  ct = 0
+        //  faceNormals.push(a)
+        //  a = []
+        //}
+      }
     }
   }
   if(geo?.uvs) {
@@ -1485,10 +1535,11 @@ const DownloadCustomShape = geo => {
     console.log('downloading custom shape, detected preComputeNormalAssocs')
     var normalAssocs = []
   }
-  var vertices = []
-  var normals = []
-  var normalVecs = []
-  var uvs = []
+  var vertices              = []
+  var normals               = []
+  var normalVecs            = []
+  var flatShadingNormalVecs = []
+  var uvs                   = []
   for(var i = 0; i< geo.vertices.length; i++)
     vertices.push(Math.round(geo.vertices[i]*1e3)/1e3)
 
@@ -1523,15 +1574,18 @@ const DownloadCustomShape = geo => {
   for(var i = 0; i< geo.normalVecs.length; i++)
     normalVecs.push(Math.round(geo.normalVecs[i]*1e3)/1e3)
 
+  for(var i = 0; i< geo.flatShadingNormalVecs.length; i++)
+    flatShadingNormalVecs.push(Math.round(geo.flatShadingNormalVecs[i]*1e3)/1e3)
+
   if(geo.preComputeNormalAssocs){
     for(var i = 0; i< geo.normalAssocs.length; i++)
       normalAssocs.push(geo.normalAssocs[i])
   }
   
   if(geo.preComputeNormalAssocs){
-    var object = { vertices, uvs, normals, normalVecs, normalAssocs}
+    var object = { vertices, uvs, normals, normalVecs, normalAssocs, flatShadingNormalVecs}
   }else{
-    var object = { vertices, uvs, normals, normalVecs}
+    var object = { vertices, uvs, normals, normalVecs, flatShadingNormalVecs}
   }
 
   var link      = document.createElement('a')
@@ -1556,9 +1610,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var vertex_buffer, Vertex_Index_Buffer
   var offset_buffer, Offset_Index_Buffer
   var normal_buffer, Normal_Index_Buffer, video
+  var flatShadingNormalVec_buffer, FlatShadingNormalVec_Index_Buffer
   var normalVec_buffer, NormalVec_Index_Buffer
   var uv_buffer, UV_Index_Buffer, name, shapeType
-  var vIndices, nIndices, nVecIndices, uvIndices, oIndices
+  var vIndices, nIndices, nVecIndices, fsnVecIndices, uvIndices, oIndices
   var canvasTexture, canvasTextureMix, showBounding
   var boundingColor, normalAssocs
   const gl = renderer.gl
@@ -1798,11 +1853,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   //if(sphereize) averageNormals = true
 
-  var uvs               = []
-  var normals           = []
-  var vertices          = []
-  var offsets           = []
-  var normalVecs        = []
+  var uvs                   = []
+  var normals               = []
+  var vertices              = []
+  var offsets               = []
+  var normalVecs            = []
+  var flatShadingNormalVecs = []
 
   var fileURL, hint
   var resolvedFromCache = false
@@ -1867,16 +1923,22 @@ const LoadGeometry = async (renderer, geoOptions) => {
             if(involveCache && (cacheItem = cache.geometry.filter(v=>v.url==fileURL)).length){
               console.log(`found geometry (${hint}) in cache... using it`)
               var data          = cacheItem[0].data
-              if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
-              vertices          = new Float32Array(data.vertices)
-              normals           = new Float32Array(data.normals)
-              normalVecs        = new Float32Array(data.normalVecs)
-              uvs               = new Float32Array(data.uvs)
-              resolvedFromCache = true
+              if(data?.normalAssocs) normalAssocs = data.normalAssocs
+              if(data?.flatShadingNormalVecs) {
+                flatShadingNormalVecs = new Float32Array(data.flatShadingNormalVecs)
+              }
+              vertices              = new Float32Array(data.vertices)
+              normals               = new Float32Array(data.normals)
+              normalVecs            = new Float32Array(data.normalVecs)
+              uvs                   = new Float32Array(data.uvs)
+              resolvedFromCache     = true
               resolved = true
             }else{
               await fetch(fileURL).then(res=>res.json()).then(data => {
-                if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
+                if(data?.normalAssocs) normalAssocs = data.normalAssocs
+                if(data?.flatShadingNormalVecs) {
+                  flatShadingNormalVecs = data.flatShadingNormalVecs.map(v=>-v)
+                }
                 vertices    = data.vertices
                 normals     = data.normals
                 normalVecs  = data.normalVecs.map(v=>-v)
@@ -1904,7 +1966,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
            (cacheItem = cache.customShapes.filter(v=>v.url==url)).length){
           console.log(`found custom shape in cache... using it`)
           var data   = cacheItem[0].data
-          if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
+          if(data?.normalAssocs) normalAssocs = data.normalAssocs
+          if(data?.flatShadingNormalVecs) flatShadingNormalVecs = data.flatShadingNormalVecs
           vertices   = data.vertices
           normals    = data.normals
           normalVecs = data.normalVecs
@@ -1915,7 +1978,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
         if(!resolved){
           if(typeof geometryData.vertices != 'undefined' &&
              geometryData.vertices.length){
-            if(typeof geometryData.normalAssocs != 'undefined') normalAssocs = geometryData.normalAssocs
+            if(geometryData?.normalAssocs) normalAssocs = geometryData.normalAssocs
+            if(geometryData?.flatShadingNormalVecs) flatShadingNormalVecs = geometryData.flatShadingNormalVecs
             vertices    = geometryData.vertices
             normals     = geometryData.normals
             normalVecs  = geometryData.normalVecs
@@ -1924,7 +1988,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
             //cache.customShapes.push({data: structuredClone(geometryData), url})
           }else{
             await fetch(fileURL).then(res=>res.json()).then(data=>{
-              if(typeof data.normalAssocs != 'undefined') normalAssocs = data.normalAssocs
+              if(data?.normalAssocs) normalAssocs = data.normalAssocs
+              if(data?.flatShadingNormalVecs) flatShadingNormalVecs = data.flatShadingNormalVecs
               vertices     = data.vertices
               normals      = data.normals
               normalVecs   = data.normalVecs
@@ -2277,7 +2342,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
   
   if(averageNormals && !syncNormals) {
-    AverageNormals(vertices, normals, shapeType, normalVecs)
+    AverageNormals(vertices, normals, shapeType, normalVecs, flatShadingNormalVecs)
   }
 
   if(shapeType == 'dynamic' || preComputeNormalAssocs) {
@@ -2307,12 +2372,14 @@ const LoadGeometry = async (renderer, geoOptions) => {
   if(!resolved && (1 || shapeType != 'custom shape') &&
     !isParticle && !isLine && !averageNormals &&
      (!resolvedFromCache || !resolved)){
-    normalVecs    = []
+    normalVecs            = []
+    flatShadingNormalVecs = []
     for(var i=0; i<normals.length; i+=6){
       let X = normals[i+3] - normals[i+0]
       let Y = normals[i+4] - normals[i+1]
       let Z = normals[i+5] - normals[i+2]
       normalVecs.push(X,Y,Z)
+      flatShadingNormalVecs.push(X,Y,Z)
     }
   }
 
@@ -2343,6 +2410,13 @@ const LoadGeometry = async (renderer, geoOptions) => {
         normalVecs[i+0] = ar[0]
         normalVecs[i+1] = ar[1]
         normalVecs[i+2] = ar[2]
+        x = flatShadingNormalVecs[i+0]
+        y = flatShadingNormalVecs[i+1]
+        z = flatShadingNormalVecs[i+2]
+        var ar = R_pyr(x, y, z, {roll:objRoll, pitch:objPitch, yaw:objYaw})
+        flatShadingNormalVecs[i+0] = ar[0]
+        flatShadingNormalVecs[i+1] = ar[1]
+        flatShadingNormalVecs[i+2] = ar[2]
       }
     }
   }
@@ -2374,6 +2448,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
       normalVecs[i+0] *= -1
       normalVecs[i+1] *= -1
       normalVecs[i+2] *= -1
+    }
+    for(var i=0; i<flatShadingNormalVecs.length; i+=3){
+      flatShadingNormalVecs[i+0] *= -1
+      flatShadingNormalVecs[i+1] *= -1
+      flatShadingNormalVecs[i+2] *= -1
     }
   }
   
@@ -2451,6 +2530,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       normals: [],
       normalVecs: [],
       uvs: [],
+      flatShadingNormalVecs: [],
     }
     vertices.map(v => processedOutput.vertices.push(Math.round(v*1e3) / 1e3))
     if(geometry.preComputeNormalAssocs){
@@ -2474,7 +2554,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
       processedOutput.normals.push(X1,Y1,Z1, X2,Y2,Z2)
     }
     for(var i = 0; i < normalVecs.length; i++){
-      processedOutput.normalVecs.push((flipNormals ? 11 : 1) * Math.round(normalVecs[i]*1e3) / 1e3)
+      processedOutput.normalVecs.push((flipNormals ? -1 : 1) * Math.round(normalVecs[i]*1e3) / 1e3)
+    }
+    for(var i = 0; i < flatShadingNormalVecs.length; i++){
+      processedOutput.flatShadingNormalVecs.push((flipNormals ? -1 : 1) * Math.round(flatShadingNormalVecs[i]*1e3) / 1e3)
     }
     if(geometry.equirectangular){
       for(var i = 0; i< geometry.vertices.length; i+=3){
@@ -2571,7 +2654,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     closeButton.innerHTML = 'close'
     popup.appendChild(closeButton)
     
-    var str = GeoToOBJ({ vertices, normalVecs, uvs, shapeType, averageNormals })
+    var str = GeoToOBJ({ vertices, normalVecs, uvs, shapeType, averageNormals, flatShadingNormalVecs })
     str = str.replaceAll('\n', '<br>')
     output.innerHTML = str
     document.body.appendChild(popup)
@@ -2579,10 +2662,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
 
 
   if(!resolvedFromCache){
-    vertices   = new Float32Array(vertices)
-    normals    = new Float32Array(normals)
-    normalVecs = new Float32Array(normalVecs)
-    uvs        = new Float32Array(uvs)
+    vertices              = new Float32Array(vertices)
+    normals               = new Float32Array(normals)
+    normalVecs            = new Float32Array(normalVecs)
+    flatShadingNormalVecs = new Float32Array(flatShadingNormalVecs)
+    uvs                   = new Float32Array(uvs)
   }
   
   // link geometry buffers
@@ -2631,6 +2715,17 @@ const LoadGeometry = async (renderer, geoOptions) => {
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, nVecIndices, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
   
+  //normals, indices (for flat shading)
+  flatShadingNormalVec_buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, flatShadingNormalVec_buffer)
+  gl.bufferData(gl.ARRAY_BUFFER, flatShadingNormalVecs, gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  fsnVecIndices = new Uint32Array( Array(flatShadingNormalVecs.length/3).fill().map((v,i)=>i) )
+  FlatShadingNormalVec_Index_Buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, FlatShadingNormalVec_Index_Buffer)
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, fsnVecIndices, gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  
   //normal lines for drawing, indices
   normal_buffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
@@ -2655,6 +2750,39 @@ const LoadGeometry = async (renderer, geoOptions) => {
 
   if(equirectangular == -1) equirectangular = false
   if(equirectangularHeightmap == -1) equirectangularHeightmap = false
+
+  // create parallel normal array for flat shading, if used
+  switch(geometry.shapeType){
+    case 'particles':
+    case 'lines':
+    case 'point light':
+    case 'sprite':
+      // normal-irrelevant shape types
+    break
+    default:
+      // all other shapes
+      var x1, y1, z1, x2, y2, z2, x3, y3, z3, ax, ay, az
+      for(var i = 0; i < normalVecs.length; i+=9){
+        x1 = normalVecs[i+0]
+        y1 = normalVecs[i+1]
+        z1 = normalVecs[i+2]
+        x2 = normalVecs[i+3]
+        y2 = normalVecs[i+4]
+        z2 = normalVecs[i+5]
+        x3 = normalVecs[i+6]
+        y3 = normalVecs[i+7]
+        z3 = normalVecs[i+8]
+        ax = (x1 + x2 + x3) / 3
+        ay = (y1 + y2 + y3) / 3
+        az = (z1 + z2 + z3) / 3
+        for(var m = 0; m < 3; m++){
+          flatShadingNormalVecs[i+0+m*3] = ax
+          flatShadingNormalVecs[i+1+m*3] = ay
+          flatShadingNormalVecs[i+2+m*3] = az
+        }
+      }
+    break
+  }
 
   var updateGeometry = {
     x, y, z, rows, cols,
@@ -2686,6 +2814,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
     heightmapDataArrayWidth, heightmapDataArrayHeight,
     rebindTextures, exportAsOBJ, downloadAsOBJ,
     resolved, isShapeArray, shapeArrayIsSprite,
+    flatShadingNormalVecs, fsnVecIndices,
+    flatShadingNormalVec_buffer,
+    FlatShadingNormalVec_Index_Buffer,
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
@@ -2976,6 +3107,10 @@ const SyncNormals = (shape, averageNormals=true, flipNormals=false,
        shape.normalVecs.length != shape.vertices.length) {
     shape.normalVecs = Array(shape.vertices.length).fill(0)
   }
+  if(typeof shape.flatShadingNormalVecs == 'undefined' ||
+       shape.flatShadingNormalVecs.length != shape.vertices.length) {
+    shape.flatShadingNormalVecs = Array(shape.vertices.length).fill(0)
+  }
   if(typeof shape.uvs == 'undefined' ||
        shape.uvs.length != shape.vertices.length/3*2) {
     shape.uvs = Array(shape.vertices.length/3*2).fill(0)
@@ -3005,9 +3140,9 @@ const SyncNormals = (shape, averageNormals=true, flipNormals=false,
       shape.normals[idx*18+m*6+3] = shape.vertices[idx*9+m*3+0] + (nrm[3] - nrm[0]) * fn
       shape.normals[idx*18+m*6+4] = shape.vertices[idx*9+m*3+1] + (nrm[4] - nrm[1]) * fn
       shape.normals[idx*18+m*6+5] = shape.vertices[idx*9+m*3+2] + (nrm[5] - nrm[2]) * fn
-      shape.normalVecs[idx*9+m*3+0] = (nrm[3] - nrm[0]) * fn
-      shape.normalVecs[idx*9+m*3+1] = (nrm[4] - nrm[1]) * fn
-      shape.normalVecs[idx*9+m*3+2] = (nrm[5] - nrm[2]) * fn
+      shape.flatShadingNormalVecs[idx*9+m*3+0] = shape.normalVecs[idx*9+m*3+0] = (nrm[3] - nrm[0]) * fn
+      shape.flatShadingNormalVecs[idx*9+m*3+1] = shape.normalVecs[idx*9+m*3+1] = (nrm[4] - nrm[1]) * fn
+      shape.flatShadingNormalVecs[idx*9+m*3+2] = shape.normalVecs[idx*9+m*3+2] = (nrm[5] - nrm[2]) * fn
     }
   })
   if(averageNormals){
@@ -3384,7 +3519,7 @@ const ShowBounding = (shape, renderer, draw=true,
   ])
 }
 
-const AverageNormals = (verts, normals, shapeType, normalVecs, flipNormals) => {
+const AverageNormals = (verts, normals, shapeType, normalVecs, flipNormals, flatShadingNormalVecs) => {
   var nrmls = []
   var isPolyhedron = IsPolyhedron(shapeType)
   // expects triangles
@@ -3607,6 +3742,7 @@ const BasicShader = async (renderer, options=[]) => {
                   vertDeclaration:     `
                     varying vec3 refNV;
                     varying vec3 refCamPos;
+                    uniform float refFlatShading;
                   `,
                   vertCode:            ` 
 
@@ -3617,14 +3753,14 @@ const BasicShader = async (renderer, options=[]) => {
                     }else{
                       refcOri = -vec3(camOri.x, camOri.y, -camOri.z);
                     }
-
+                    refNV = refFlatShading == 1.0 ? fsnVec : nVec;
                     if(cameraMode == 1.0){
-                      refNV = Quat(nVec, vec3(refcOri.x, refcOri.y,0.0), 1);
+                      refNV = Quat(refNV, vec3(refcOri.x, refcOri.y,0.0), 1);
                       refNV = Quat(refNV, vec3(0.0, 0.0, refcOri.z), 1);
 
                       refCamPos = -camPos;
                     }else{
-                      refNV = Quat(nVec, vec3(refcOri.x, refcOri.y,0.0), 1);
+                      refNV = Quat(refNV, vec3(refcOri.x, refcOri.y,0.0), 1);
                       refNV = Quat(refNV, vec3(0.0, 0.0, refcOri.z), 1);
 
                       refCamPos = Quat(camPos, vec3(refcOri.x, refcOri.y,0.0), 1);
@@ -3721,15 +3857,12 @@ const BasicShader = async (renderer, options=[]) => {
                   flipRefractions:     typeof option[key].flipRefractions == 'undefined' ? 0 : option[key].flipRefractions,
                   angleOfRefraction:   typeof option[key].angleOfRefraction == 'undefined' ? .25 :option[key].angleOfRefraction,
                   theta:               typeof option[key].theta == 'undefined' ?0:option[key].theta,
-                  flatShadingUniform:  'refFlatShading',
+                  flatShadingUniform:  'refractionFlatShading',
                   dataType:            'uniform1f',
-                  vertDeclaration:     `
-                  `,
-                  vertCode:            ` 
-                  `,
                   vertDeclaration:     `
                     varying vec3 refractionNV;
                     varying vec3 refractionCamPos;
+                    uniform float refractionFlatShading;
                   `,
                   vertCode:            ` 
                   
@@ -3741,13 +3874,15 @@ const BasicShader = async (renderer, options=[]) => {
                       refractioncOri = -vec3(camOri.x, camOri.y, -camOri.z);
                     }
 
+                    refractionNV = refractionFlatShading == 1.0 ? fsnVec : nVec;
+
                     if(cameraMode == 1.0){
-                      refractionNV = Quat(nVec, vec3(refractioncOri.x, refractioncOri.y,0.0), 1);
+                      refractionNV = Quat(refractionNV, vec3(refractioncOri.x, refractioncOri.y,0.0), 1);
                       refractionNV = Quat(refractionNV, vec3(0.0, 0.0, refractioncOri.z), 1);
 
                       refractionCamPos = -camPos;
                     }else{
-                      refractionNV = Quat(nVec, vec3(refractioncOri.x, refractioncOri.y,0.0), 1);
+                      refractionNV = Quat(refractionNV, vec3(refractioncOri.x, refractioncOri.y,0.0), 1);
                       refractionNV = Quat(refractionNV, vec3(0.0, 0.0, refractioncOri.z), 1);
 
                       refractionCamPos = Quat(camPos, vec3(refractioncOri.x, refractioncOri.y,0.0), 1);
@@ -3757,7 +3892,6 @@ const BasicShader = async (renderer, options=[]) => {
                   `,
                   fragDeclaration:     `
                     uniform float refraction;
-                    uniform float refractionFlatShading;
                     uniform float refractionTheta;
                     uniform float refractionOmitEquirectangular;
                     uniform float refractionFlipRefs;
@@ -3863,9 +3997,9 @@ const BasicShader = async (renderer, options=[]) => {
                       float phongP1, phongP2;
                       float px, py, pz;
                       if(phongFlatShading != 0.0){
-                        px = nVec.x;
-                        py = nVec.y;
-                        pz = nVec.z;
+                        px = fsnVec.x;
+                        py = fsnVec.y;
+                        pz = fsnVec.z;
                       }else{
                         vec3 phongPos = R_rpy(nV, vec3(camOri.x, 0.0, 0.0));
                         px = phongPos.x;
@@ -3975,10 +4109,12 @@ const BasicShader = async (renderer, options=[]) => {
       attribute vec3 position;
       attribute vec3 normal;
       attribute vec3 normalVec;
+      attribute vec3 flatShadingNormalVec;
       varying float depth;
       varying vec2 vUv;
       varying vec2 uvi;
       varying vec3 nVec;
+      varying vec3 fsnVec;
       varying vec3 nVeci;
       varying vec3 fPos;
       varying vec3 fPosi;
@@ -4113,6 +4249,8 @@ const BasicShader = async (renderer, options=[]) => {
           cz = position.z + offset.z;
         }
         
+        fsnVec = flatShadingNormalVec;
+        
         if(useHeightMap != 0.0 && renderNormals == 0.0){
           nVeci = normalVec;
           vec4 h;
@@ -4122,11 +4260,11 @@ const BasicShader = async (renderer, options=[]) => {
             float p;
             float p2;
             vec3 cpos = vec3(cx, cy, cz);
-            p = flatShading == 1.0 ? atan(nVeci.x, nVeci.z): atan(cpos.x, cpos.z);
+            p = flatShading == 1.0 ? atan(fsnVec.x, fsnVec.z): atan(cpos.x, cpos.z);
             float p1;
             p1 = p / M_PI / 2.0;
             p2 = flatShading == 1.0 ?
-                  acos(nVeci.y / (sqrt(nVeci.x*nVeci.x + nVeci.y*nVeci.y + nVeci.z*nVeci.z)+.00001)) / M_PI   :
+                  acos(fsnVec.y / (sqrt(fsnVec.x*fsnVec.x + fsnVec.y*fsnVec.y + fsnVec.z*fsnVec.z)+.00001)) / M_PI   :
                   acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) / M_PI;
             uvi = vec2(p1, p2);
           } else {
@@ -4163,23 +4301,23 @@ const BasicShader = async (renderer, options=[]) => {
             pos = Quat(pos,  vec3(0.0, camOri.y, 0.0), 0);
             pos = Quat(pos,  vec3(0.0, 0.0, camOri.z), 0);
             pos = Quat(pos,  vec3(camOri.x, 0.0, 0.0), 0);
-            pos.x += cpx;
-            pos.y += cpy;
-            pos.z += cpz;
-            pos = Quat(pos,  vec3(-camOri.x, -camOri.y, -camOri.z), 0);
-            nVec = Quat(nVeci, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-            nVec = Quat(nVec, vec3(0.0, -camOri.y, -camOri.z), 0);
-
           }else{
             geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z), 0);
             pos = Quat(vec3(cx, cy, cz), vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-            pos.x += cpx;
-            pos.y += cpy;
-            pos.z += cpz;
-            pos = Quat(pos,  vec3(-camOri.x, -camOri.y, -camOri.z), 0);
-            nVec = Quat(nVeci, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-            nVec = Quat(nVec, vec3(0.0, -camOri.y, -camOri.z), 0);
           }
+          
+          pos.x += cpx;
+          pos.y += cpy;
+          pos.z += cpz;
+          
+          pos = Quat(pos,  vec3(-camOri.x, -camOri.y, -camOri.z), 0);
+          
+          nVec = Quat(nVeci, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+          nVec = Quat(nVec, vec3(0.0, -camOri.y, -camOri.z), 0);
+          
+          fsnVec = Quat(fsnVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+          fsnVec = Quat(fsnVec, vec3(0.0, -camOri.y, -camOri.z), 0);
+          
           cpx = 0.0;
           cpy = 0.0;
           cpz = 0.0;
@@ -4188,19 +4326,19 @@ const BasicShader = async (renderer, options=[]) => {
           if(isSprite != 0.0 || isLight != 0.0){
             geo = Quat(geoPos, vec3(camOri.x, camOri.y, -camOri.z), 0);
             pos = vec3(cx, cy, cz);
-            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-            nVec = Quat(nVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
           }else{
             geo = Quat(geoPos, vec3(camOri.x, camOri.y, -camOri.z), 0);
             pos = vec3(cx, cy, cz);
             pos = Quat(pos, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
             pos = Quat(pos, vec3(camOri.x, camOri.y, -camOri.z), 0);
-            
-            nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
-            nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
-            nVec = Quat(nVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
           }
+          nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
+          nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+          nVec = Quat(nVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
+
+          fsnVec = Quat(fsnVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+          fsnVec = Quat(fsnVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
+
           fPos = pos;
         }
         
@@ -4331,6 +4469,7 @@ const BasicShader = async (renderer, options=[]) => {
       varying vec2 vUv;
       varying vec2 uvi;
       varying vec3 nVec;
+      varying vec3 fsnVec;
       varying vec3 nVeci;
       varying vec3 fPos;
       varying vec3 fPosi;
@@ -4350,11 +4489,11 @@ const BasicShader = async (renderer, options=[]) => {
           float p;
           float p2;
           vec3 cpos = fPosi;
-          p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z) * 1.0;
+          p = flatShading == 1.0 ? atan(fsnVec.x, fsnVec.z): atan(cpos.x, cpos.z) * 1.0;
           float p1;
           p1 = p / M_PI / 2.0;
           p2 = flatShading == 1.0 ?
-                acos(nV.y / (sqrt(nV.x*nV.x + nV.y*nV.y + nV.z*nV.z)+.00001)) / M_PI   :
+                acos(fsnVec.y / (sqrt(fsnVec.x*fsnVec.x + fsnVec.y*fsnVec.y + fsnVec.z*fsnVec.z)+.00001)) / M_PI   :
                 p2 = acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) / M_PI;
           ret = vec2(p1, p2);
         }else{
@@ -4465,11 +4604,11 @@ const BasicShader = async (renderer, options=[]) => {
                     float p;
                     float p2;
                     vec3 cpos = fPosi;
-                    p = flatShading == 1.0 ? atan(nV.x, nV.z): atan(cpos.x, cpos.z) * 1.0;
+                    p = flatShading == 1.0 ? atan(fsnVec.x, fsnVec.z): atan(cpos.x, cpos.z) * 1.0;
                     float p1;
                     p1 = p / M_PI / 2.0;
                     p2 = flatShading == 1.0 ?
-                          acos(nV.y / (sqrt(nV.x*nV.x + nV.y*nV.y + nV.z*nV.z)+.00001)) / M_PI   :
+                          acos(fsnVec.y / (sqrt(fsnVec.x*nV.x + fsnVec.y*nV.y + fsnVec.z*nV.z)+.00001)) / M_PI   :
                           p2 = acos(cpos.y / (sqrt(cpos.x*cpos.x + cpos.y*cpos.y + cpos.z*cpos.z)+.00001)) / M_PI;
                     tx += p1;
                     ty += p2;
@@ -4624,6 +4763,13 @@ const BasicShader = async (renderer, options=[]) => {
         dset.locNormalVec = gl.getAttribLocation(dset.program, "normalVec")
         gl.vertexAttribPointer(dset.locNormalVec, 3, gl.FLOAT, true, 0, 0)
         gl.enableVertexAttribArray(dset.locNormalVec)
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, geometry.flatShadingNormalVec_buffer)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.FlatShadingNormalVec_Index_Buffer)
+        dset.locFlatShadingNormalVec = gl.getAttribLocation(dset.program, "flatShadingNormalVec")
+        gl.vertexAttribPointer(dset.locFlatShadingNormalVec, 3, gl.FLOAT, true, 0, 0)
+        gl.enableVertexAttribArray(dset.locFlatShadingNormalVec)
+        
         if(!fromNullShader){
           if(!geometry.isLight){
             dset.optionalAttributes.map(async (attribute) => {
@@ -5219,8 +5365,14 @@ const ProcessShapeArray = shape => {
         rotationMode = shape.rotationMode
       }
       for(var k = 0; k < shape.stride; k+=3){
-        for(var m = 2; m-->0;){
-          var l = m ? 'vstate' : 'nvstate'
+        for(var m = 3; m-->0;){
+          var l
+          switch(m){
+            case 0: l = 'nvstate'; break
+            case 1: l = 'vstate'; break
+            case 2: l = 'fsvstate'; break
+          }
+          //var l = m ? 'vstate' : 'nvstate'
           x = shape[l][i + k + 0] - tx * m
           y = shape[l][i + k + 1] - ty * m
           z = shape[l][i + k + 2] - tz * m
@@ -5277,7 +5429,12 @@ const ProcessShapeArray = shape => {
               z = C(p) * d
             break
           }
-          var l = m ? 'vertices' : 'normalVecs'
+          switch(m){
+            case 0: l = 'normalVecs'; break
+            case 1: l = 'vertices'; break
+            case 2: l = 'flatShadingNormalVecs'; break
+          }
+          //var l = m ? 'vertices' : 'normalVecs'
           shape[l][i + k + 0] = x + (tx + data[shpIdx].x) * m
           shape[l][i + k + 1] = y + (ty + data[shpIdx].y) * m
           shape[l][i + k + 2] = z + (tz + data[shpIdx].z) * m
@@ -5352,12 +5509,13 @@ const ProcessShapeArray = shape => {
 
 const ShapeFromArray = async (shape, pointArray, options={}) => {
   
-  var geometryData = { vertices: [], normals: [], normalVecs: [], uvs: [] }
+  var geometryData = { vertices: [], normals: [], normalVecs: [], uvs: [], flatShadingNormalVecs: [] }
   var stride    = shape.vertices.length
   var v         = shape.vertices
   var n         = shape.normals
   var uv        = shape.uvs
   var nv        = shape.normalVecs
+  var fsnv      = shape.flatShadingNormalVecs
   var stride    = shape.vertices.length
   var shapeData = []
   pointArray.map((par, i) => {
@@ -5366,10 +5524,11 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     var tz = par[2]
     for(var j = 0; j < v.length; j+=3){
       geometryData.vertices.push(tx+v[j+0], ty+v[j+1], tz+v[j+2])
-      if(n)  geometryData.normals.push(tx+n[j*2+0], ty+n[j*2+1], tz+n[j*2+2])
-      if(n)  geometryData.normals.push(tx+n[j*2+3], ty+n[j*2+4], tz+n[j*2+5])
-      if(uv) geometryData.uvs.push(uv[j/3*2+0], tx+uv[j/3*2+1])
-      if(nv) geometryData.normalVecs.push(nv[j+0], nv[j+1], nv[j+2])
+      if(n)    geometryData.normals.push(tx+n[j*2+0], ty+n[j*2+1], tz+n[j*2+2])
+      if(n)    geometryData.normals.push(tx+n[j*2+3], ty+n[j*2+4], tz+n[j*2+5])
+      if(uv)   geometryData.uvs.push(uv[j/3*2+0], tx+uv[j/3*2+1])
+      if(nv)   geometryData.normalVecs.push(nv[j+0], nv[j+1], nv[j+2])
+      if(fsnv) geometryData.flatShadingNormalVecs.push(fsnv[j+0], fsnv[j+1], fsnv[j+2])
     }
     shapeData.push({
       ox: tx, oy: ty, oz: tz,
@@ -5437,10 +5596,11 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
       }
     }
     
-    geometry.vstate  = structuredClone(geometry.vertices)
-    geometry.nstate  = structuredClone(geometry.normals)
-    geometry.uvs     = structuredClone(geometry.uvs)
-    geometry.nvstate = structuredClone(geometry.normalVecs)
+    geometry.vstate    = structuredClone(geometry.vertices)
+    geometry.nstate    = structuredClone(geometry.normals)
+    geometry.uvs       = structuredClone(geometry.uvs)
+    geometry.nvstate   = structuredClone(geometry.normalVecs)
+    geometry.fsnvstate = structuredClone(geometry.flatShadingNormalVecs)
     
     geometry.shapeType    = tshptyp
     geometry.stride       = stride
