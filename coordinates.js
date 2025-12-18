@@ -5323,6 +5323,52 @@ const BasicShader = async (renderer, options=[]) => {
   return ret
 }
 
+const ApplyShapeData = shape => {
+  if(!shape?.shapeData || !shape?.shapeData.length) return
+  var l1, l2
+  shape.shapeData.map((subShape, sidx) => {
+    subShape.moffsetx = 0
+    subShape.moffsety = 0
+    subShape.moffsetz = 0
+    subShape.mpitch = 0
+    subShape.mroll = 0
+    subShape.myaw = 0
+    subShape.mx = 0
+    subShape.my = 0
+    subShape.mz = 0
+    subShape.offsetx = 0
+    subShape.offsety = 0
+    subShape.offsetz = 0
+    subShape.ox = subShape.wx
+    subShape.oy = subShape.wy
+    subShape.oz = subShape.wz
+    subShape.x = 0
+    subShape.y = 0
+    subShape.z = 0
+    subShape.roll = 0
+    subShape.pitch = 0
+    subShape.yaw = 0
+    for(var m = 3; m--;){
+      switch(m){
+        case 0:
+          l1 = 'normalVecs';
+          l2 = 'nstate';
+        break
+        case 1:
+          l1 = 'vertices';
+          l2 = 'vstate';
+        break
+        case 2:
+          l1 = 'flatShadingNormalVecs';
+          l2 = 'fsnvstate';
+        break
+      }
+      shape[l2] = shape[l1]
+      shape[l1] = new Float32Array(shape[l1])
+    }
+  })
+}
+
 const ProcessShapeArray = shape => {
   var data = shape.shapeData
   var tx, ty, tz, x, y, z, p, d
@@ -5390,7 +5436,6 @@ const ProcessShapeArray = shape => {
             case 1: l = 'vstate'; break
             case 2: l = 'fsnvstate'; break
           }
-          //var l = m ? 'vstate' : 'nvstate'
           x = shape[l][i + k + 0] - tx * m
           y = shape[l][i + k + 1] - ty * m
           z = shape[l][i + k + 2] - tz * m
@@ -8500,6 +8545,7 @@ export {
   ShapeToLines,
   ShowBounding,
   ProcessShapeArray,
+  ApplyShapeData,
   GetShaderCoord,
   Reflect,
   Normal,
