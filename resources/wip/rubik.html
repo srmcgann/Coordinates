@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      html, body{
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-image: background-size: 100% 100%;
+        background-color: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+      .loadingText{
+        position: absolute;
+        color: #888;
+        font-family: monospace;
+        font-size: 64px;
+        width: 400px;
+        display: block;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loadingText" id="loadingTextDiv">loading....</div>
+    <script type="module">
+
+      window.addEventListener('load', () => { window.loaded = true } ) 
+      window.loaded = false
+      var loop = () => {
+        var el = document.querySelector('#loadingTextDiv')
+        el.innerHTML = 'loading' + ('.').repeat(((new Date()).getTime()/100*6)%8)
+        if(!window.loaded) {
+          requestAnimationFrame(loop)
+        } else {
+          document.querySelector('#loadingTextDiv').remove()
+        }
+      }
+      loop()
+
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      //"https://textfile.root.sx/coordinates.js"
+
+      var buttonTextureWidth = 1500
+      var buttonTextureHeight = 300
+      var rendererOptions = {
+        width: buttonTextureWidth,
+        height: buttonTextureHeight,
+        attachToBody: false,
+        context: {
+          mode: '2d',
+          options: {
+            willReadFrequently: true
+          }
+        }
+      }
+      var scratchCanvas = await Coordinates.Renderer(rendererOptions)
+
+      var rendererOptions = {
+        ambientLight: .5, margin: 0,
+        fov: 1200, width: 1920, height: 1080,
+        //fov: 1e3/2, width: 1920/2, height: 1080/2,
+        // uncomment above for lower-res, higher-performance canvas
+      }
+      var renderer = await Coordinates.Renderer(rendererOptions)
+
+      var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
+
+      var S = Math.sin
+      var C = Math.cos
+      var Rn = Math.random
+
+      var x, y, z, p, q, d
+
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var c = Coordinates.Overlay.c
+      var ctx = Coordinates.Overlay.ctx
+
+      var overlay = new Image()
+      var overlayURL = 'https://srmcgann.github.io/objs/rubik/overlay.png'
+      fetch(overlayURL).then(res=>res.blob()).then(data => {
+        overlay.src = URL.createObjectURL(data)
+      })
+
+      var shaderOptions = [
+        { lighting: {type: 'ambientLight', value: .1}
+        },
+        { uniform: {
+          type: 'phong',
+          value: .2,
+          theta: -Math.PI / 3.5
+        } },
+        { uniform: {
+          type: 'reflection',
+          value: .2,
+          enabled: true,
+          map: 'https://srmcgann.github.io/Coordinates/resources/nebugrid_po2.jpg',
+          theta: -Math.PI / 6
+        } }
+      ]
+      var buttonShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        {lighting: {type: 'ambientLight', value: 1}},
+        { uniform: {
+          type: 'phong',
+          flatShading: true,
+          value: .05
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          enabled: true,
+          value: .1
+        } },
+        { uniform: {
+          type: 'refraction',
+          map: refTexture,
+          enabled: false,
+          angleOfRefraction: .4,
+          value: .3
+        } },
+      ]
+      var shader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        {lighting: {type: 'ambientLight', value: .25}},
+        { uniform: {
+          type: 'phong',
+          flatShading: true,
+          value: .05
+        } },
+        { uniform: {
+          type: 'reflection',
+          map: refTexture,
+          enabled: false,
+          value: .1
+        } },
+        { uniform: {
+          type: 'refraction',
+          map: refTexture,
+          enabled: false,
+          angleOfRefraction: .4,
+          value: .3
+        } },
+      ]
+      var cursorShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shaderOptions = [
+        {lighting: {type: 'ambientLight', value: .2}},
+        { uniform: {
+          type: 'phong',
+          value: 0
+        } }
+      ]
+      var backgroundShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      var shapes = []
+
+      /*
+      var sprites = [
+        {
+          name: 'front',
+          shape: '',
+        },
+        {
+          name: 'left',
+          shape: '',
+        },
+        {
+          name: 'top',
+          shape: '',
+        },
+      ]
+
+
+
+      var geoOptions = {
+        shapeType: 'sprite',
+        x: -1,
+        z: -6, y: -3, size: 4,
+        scaleY: -1/3.14473684210526331,
+        //map: 'https://srmcgann.github.io/objs/rubik/front.png',
+        map: 'https://i.postimg.cc/QMWqM8GS/front-dark.png',
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        sprites.filter(v=>v.name=='front')[0].shape = geometry
+      })
+
+      var geoOptions = {
+        shapeType: 'sprite',
+        x: -8, size: 4,
+        scaleY: -1/3.14473684210526331,
+        //map: 'https://srmcgann.github.io/objs/rubik/left.png',
+        map: 'https://i.postimg.cc/LsMJz2gD/left.png',
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        sprites.filter(v=>v.name=='left')[0].shape = geometry
+      })
+
+      var geoOptions = {
+        shapeType: 'sprite',
+        y: 6, size: 4,
+        scaleY: -1/3.14473684210526331,
+        //map: 'https://srmcgann.github.io/objs/rubik/top.png',
+        map: 'https://i.postimg.cc/qqfBdGch/top.png',
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        sprites.filter(v=>v.name=='top')[0].shape = geometry
+      })
+      */
+      
+      var buttonShape
+
+      var geoOptions = {
+        shapeType: 'obj',
+        name: 'button',
+        url: 'https://srmcgann.github.io/objs/button/button.obj',
+        scaleX: -4,
+        scaleY: 6,
+        scaleZ: 10,
+        rotationMode: 1,
+        showBounding: false,
+        //flatShading: true,
+        //dataArrayWidth: cl,
+        //dataArrayHeight: rw,
+        //dataArrayFormat: renderer.gl.RGB,
+        //map: dataArray,
+        canvasTexture: scratchCanvas.c,
+        colorMix: .5,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        buttonShape = geometry
+        await buttonShader.ConnectGeometry(geometry)
+      })
+      
+      var buttonTexture = new Image()
+      var url = 'https://i.postimg.cc/W38rcfmD/temp-Button-Grey.png'
+      await fetch(url).then(res=>res.blob()).then(data => {
+        buttonTexture.src = URL.createObjectURL(data)
+      })
+
+
+      var geoOptions = {
+        shapeType: 'dodecahedron',
+        name: 'background',
+        sphereize: 1,
+        subs: 4,
+        map: refTexture,
+        size: 5e3,
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await backgroundShader.ConnectGeometry(geometry)
+      })  
+
+      var sp = 3 * (2**.5)/2.166
+
+      var pointArray = []
+      Array(9*3).fill().map((v, i) => {
+        if(i!=13){
+          x = ((i%3)-3/2+.5) * sp
+          y = (((i/3|0)%3)-3/2+.5) * sp
+          z = ((i/9|0)-3/2+.5) * sp
+          pointArray.push([x, y, z])
+        }
+      })
+
+      var rubikShape
+      var geoOptions = {
+        shapeType: 'obj',
+        url: 'https://srmcgann.github.io/objs/rubik/rubik.obj',
+        map: 'https://srmcgann.github.io/objs/rubik/rubik.png',
+        name: 'rubiks cube',
+        colorMix: 0,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        Coordinates.ShapeFromArray(geometry, pointArray).then(async res => {
+          rubikShape = res
+          shapes.push(res)
+          await shader.ConnectGeometry(res)
+        })
+      })  
+
+      var cursorShape, baseCursorShape
+      var geoOptions = {
+        shapeType: 'obj',
+        url: 'https://srmcgann.github.io/objs/rubik/face_cursor.obj',
+        name: 'cursor',
+        disableDepthTest: true,
+        scaleZ: -1,
+        cullFace: 'front',
+        alpha: .9,
+        colorMix: .8,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        baseCursorShape = structuredClone(geometry.vertices)
+        cursorShape = geometry
+        shapes.push(geometry)
+        await cursorShader.ConnectGeometry(geometry)
+      })  
+
+      var shuffleTTL = 0
+      const Shuffle = () => {
+        shuffleTTL = renderer.t + 3
+        ChooseMove()
+      }
+
+      if(0) Coordinates.LoadFPSControls(renderer, {
+        flyMode: true,
+        mSpeed: 1,
+        crossharSel: 2,
+        crosshairSize: .5,
+      })
+
+      //uncomment above to enable mouse/keyboard controls
+
+      var solving
+      const SolveCube = () => {
+        console.log('solving cube')
+        solving = true
+      }
+
+      const SelectFace = () => {
+
+      }
+
+      var comp0, comp1, comp2, comp3, comp4, comp5, comp6
+      var a, b, theta, phase
+
+      const Shift = ( face, dir=1 ) => {
+        var speed = shuffleTTL > renderer.t ? .25 : .1
+        var set, spd
+        phase = Math.min(1, phase)
+        if(phase < 1){
+          spd = Math.min(speed, 1-phase)
+        }else{
+          return false
+        }
+        switch(face){
+          case 'front':
+            set = [
+              [-1, -1,  -1],
+              [0,  -1,  -1],
+              [1,  -1,  -1],
+              [-1,  0,  -1],
+              [0,   0,  -1],
+              [1,   0,  -1],
+              [-1,  1,  -1],
+              [0,   1,  -1],
+              [1,   1,  -1],
+            ]
+            comp0 = 'roll'
+            comp1 = 'x'
+            comp2 = 'y'
+            comp3 = 'ox'
+            comp4 = 'oy'
+            comp5 = 'wx'
+            comp6 = 'wy'
+            break
+          case 'left':
+            set = [
+              [-1,  -1, -1],
+              [-1,  0,  -1],
+              [-1,  1,  -1],
+              [-1,  -1,  0],
+              [-1,  0,   0],
+              [-1,  1,   0],
+              [-1,  -1,  1],
+              [-1,  0,   1],
+              [-1,  1,   1],
+            ]
+            comp0 = 'pitch'
+            comp1 = 'y'
+            comp2 = 'z'
+            comp3 = 'oy'
+            comp4 = 'oz'
+            comp5 = 'wy'
+            comp6 = 'wz'
+            break
+          case 'right':
+            set = [
+              [1,  -1, -1],
+              [1,  0,  -1],
+              [1,  1,  -1],
+              [1,  -1,  0],
+              [1,  0,   0],
+              [1,  1,   0],
+              [1,  -1,  1],
+              [1,  0,   1],
+              [1,  1,   1],
+            ]
+            dir *= -1
+            comp0 = 'pitch'
+            comp1 = 'y'
+            comp2 = 'z'
+            comp3 = 'oy'
+            comp4 = 'oz'
+            comp5 = 'wy'
+            comp6 = 'wz'
+            break
+          case 'back':
+            set = [
+              [-1, -1,  1],
+              [0,  -1,  1],
+              [1,  -1,  1],
+              [-1,  0,  1],
+              [0,   0,  1],
+              [1,   0,  1],
+              [-1,  1,  1],
+              [0,   1,  1],
+              [1,   1,  1],
+            ]
+            dir *= -1
+            comp0 = 'roll'
+            comp1 = 'x'
+            comp2 = 'y'
+            comp3 = 'ox'
+            comp4 = 'oy'
+            comp5 = 'wx'
+            comp6 = 'wy'
+            break
+          case 'bottom':
+            set = [
+              [-1, -1, -1],
+              [0,  -1, -1],
+              [1,  -1, -1],
+              [-1, -1,  0],
+              [0,  -1,  0],
+              [1,  -1,  0],
+              [-1, -1,  1],
+              [0,  -1,  1],
+              [1,  -1,  1],
+            ]
+            comp0 = 'yaw'
+            comp1 = 'x'
+            comp2 = 'z'
+            comp3 = 'ox'
+            comp4 = 'oz'
+            comp5 = 'wx'
+            comp6 = 'wz'
+            break
+          case 'top':
+            set = [
+              [-1, 1, -1],
+              [0,  1, -1],
+              [1,  1, -1],
+              [-1, 1,  0],
+              [0,  1,  0],
+              [1,  1,  0],
+              [-1, 1,  1],
+              [0,  1,  1],
+              [1,  1,  1],
+            ]
+            dir *= -1
+            comp0 = 'yaw'
+            comp1 = 'x'
+            comp2 = 'z'
+            comp3 = 'ox'
+            comp4 = 'oz'
+            comp5 = 'wx'
+            comp6 = 'wz'
+            break
+        }
+        theta = Math.PI/2 * dir * spd
+        rubikShape.shapeData.map((subShape, sidx) => {
+          x = subShape.wx
+          y = subShape.wy
+          z = subShape.wz
+          px = Math.round(x/sp)
+          py = Math.round(y/sp)
+          pz = Math.round(z/sp)
+          set.forEach(v=>{
+            if(px == v[0] && py == v[1] && pz == v[2]){
+              subShape[comp0] += theta
+              a = subShape[comp5]
+              b = subShape[comp6]
+              p = Math.atan2(a, b) + theta
+              d = Math.hypot(a, b)
+              subShape[comp1] = S(p) * d - subShape[comp3]
+              subShape[comp2] = C(p) * d - subShape[comp4]
+            }
+          })
+        })
+        phase += speed
+        return true
+      }
+
+
+      var px, py, pz, curMove=''
+
+      var faces = [
+        'front',
+        'left',
+        'right',
+        'top',
+        'bottom',
+        'back',
+      ]
+
+      const ChooseMove = () => {
+        if(shuffleTTL > renderer.t){
+          Coordinates.ApplyShapeData(rubikShape)
+          curMove = [
+            faces[faces.length*Rn()|0],
+            Rn() < .5 ? 1 : -1
+          ]
+          phase = 0
+        }
+      }
+
+      var c = Coordinates.Overlay.c
+      var ctx = Coordinates.Overlay.ctx
+
+      var keys, keyTimers
+      var keyTimerInterval = .25
+
+      const DoKeys = () => {
+        peekView = ''
+        keys.map((state, key) => {
+          if(state && keyTimers[key] < renderer.t){
+            switch(key){
+              case 13:  // enter
+                clickState = true
+                setTimeout(() => {
+                  buttonText = clickState ? 'no osc [o]' : 'osc [o]'
+                  buttonColor = clickState ? 0x00ffff : 0xff8800
+                }, 500)
+                keyTimers[key] = renderer.t + keyTimerInterval
+
+                Init(true)
+                keyTimers[key] = renderer.t + keyTimerInterval
+              break
+              case 79:  // o
+                clickState = !clickState
+                setTimeout(() => {
+                  buttonText = clickState ? 'no osc [o]' : 'osc [o]'
+                  buttonColor = clickState ? 0x00ffff : 0xff8800
+                }, 500)
+                keyTimers[key] = renderer.t + keyTimerInterval
+              break
+              case 87:  // w
+                peekView = 'top'
+              break
+              case 65:  // a
+                peekView = 'left'
+              break
+              case 83:  // s
+                peekView = 'bottom'
+              break
+              case 68:  // d
+                peekView = 'right'
+              break
+              case 88:  // x
+                peekView = 'back'
+              break
+              case 109:
+                if(shuffleTTL < renderer.t &&
+                   !numlock && (phase == 0 || phase == 1)){
+                  Coordinates.ApplyShapeData(rubikShape)
+                  var dir = curCursorView == 'top' ||
+                      curCursorView == 'bottom' ? -1 : 1
+                  curMove = [ curCursorView, -dir]
+                  phase = 0
+                  keyTimers[key] = renderer.t + keyTimerInterval
+                }
+              break
+              case 107:
+                if(shuffleTTL < renderer.t &&
+                   !numlock && (phase == 0 || phase == 1)){
+                  Coordinates.ApplyShapeData(rubikShape)
+                  var dir = curCursorView == 'top' ||
+                      curCursorView == 'bottom' ? -1 : 1
+                  curMove = [ curCursorView, dir]
+                  phase = 0
+                  keyTimers[key] = renderer.t + keyTimerInterval
+                }
+              break
+              case 32:
+                if(shuffleTTL < renderer.t && !solving) {
+                  Shuffle()
+                  keyTimers[key] = renderer.t + keyTimerInterval
+                }
+                break
+              case 71:
+                if(shuffleTTL < renderer.t) {
+                  SolveCube()
+                  keyTimers[key] = renderer.t + keyTimerInterval
+                }
+              break
+              case 100:
+                curView = 'left'
+                keyTimers[key] = renderer.t + keyTimerInterval
+                if(numlock){
+                  orbitYaw = 0
+                  orbitPitch = 0
+                }
+              break
+              case 96:
+                curView = 'front'
+                keyTimers[key] = renderer.t + keyTimerInterval
+                if(numlock){
+                  orbitYaw = 0
+                  orbitPitch = 0
+                }
+              break
+              case 102:
+                curView = 'right'
+                keyTimers[key] = renderer.t + keyTimerInterval
+                if(numlock){
+                  orbitYaw = 0
+                  orbitPitch = 0
+                }
+              break
+              case 104:
+                curView = 'top'
+                keyTimers[key] = renderer.t + keyTimerInterval
+                if(numlock){
+                  orbitYaw = 0
+                  orbitPitch = 0
+                }
+              break
+              case 98:
+                curView = 'bottom'
+                keyTimers[key] = renderer.t + keyTimerInterval
+                if(numlock){
+                  orbitYaw = 0
+                  orbitPitch = 0
+                }
+              break
+              case 101:
+                curView = 'back'
+                keyTimers[key] = renderer.t + keyTimerInterval
+                if(numlock){
+                  orbitYaw = 0
+                  orbitPitch = 0
+                }
+              break
+
+              case 37:
+                curCursorView = 'left'
+                keyTimers[key] = renderer.t + keyTimerInterval
+              break
+              case 45:
+                curCursorView = 'front'
+                keyTimers[key] = renderer.t + keyTimerInterval
+              break
+              case 39:
+                curCursorView = 'right'
+                keyTimers[key] = renderer.t + keyTimerInterval
+              break
+              case 38:
+                curCursorView = 'top'
+                keyTimers[key] = renderer.t + keyTimerInterval
+              break
+              case 40:
+                curCursorView = 'bottom'
+                keyTimers[key] = renderer.t + keyTimerInterval
+              break
+              case 12:
+                curCursorView = 'back'
+                keyTimers[key] = renderer.t + keyTimerInterval
+              break
+            }
+          }
+        })
+      }
+
+      c.tabIndex = 0
+      var mx = 0
+      var my = 0
+      var mb = false
+      
+      window.onmouseup = e => {
+        if(e.which == 1) mb = 0
+        c.focus()
+      }
+      
+      window.onmousedown = e => {
+      var bounding = Coordinates.ShowBounding(buttonShape, renderer, false)
+      if(e.which == 1 &&
+         !Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
+          mb = true
+          mx = renderer.mouseX
+          my = renderer.mouseY
+
+          if(!clickState){
+            clickState = true
+            setTimeout(() => {
+              buttonText = clickState ? 'no osc [o]' : 'osc [o]'
+              buttonColor = clickState ? 0x00ffff : 0xff8800
+            }, 500)
+          }
+        }
+        c.focus()
+      }
+      window.onmousemove = e => {
+        if(e.which == 1){
+          var deltax = renderer.mouseX - mx
+          var deltay = renderer.mouseY - my
+          orbitYaw -= deltax / 100
+          orbitPitch += deltay / 100
+          mx = renderer.mouseX
+          my = renderer.mouseY
+        }
+      }
+      
+      c.focus()
+      c.onkeydown = e => {
+        console.log(e.keyCode)
+        keyHasBeenPressed = true
+        numlock = e.getModifierState('NumLock')
+        keys[e.keyCode] = true
+      }
+      c.onkeyup = e => {
+        keys[e.keyCode] = false
+      }
+
+      var curView, curCursorView
+
+      var camPitch, camYaw, cursorYaw, cursorPitch, tracking = .1
+      var keyHasBeenPressed, numlock, peekView, doOscillate
+      var orbitYaw, orbitPitch
+
+      const Init = (reset = false) => {
+      
+        if(!reset){
+          //Shuffle()
+          ChooseMove()
+          solving = false
+          keys = Array(256).fill(false)
+          keyTimers = Array(256).fill(0)
+          keyTimerInterval = .5
+          keyHasBeenPressed = false
+          curCursorView = 'front'
+          phase = 1
+        }
+        
+        numlock = true
+        orbitYaw = 0
+        orbitPitch = 0
+        doOscillate = true
+        peekView = ''
+        camPitch = 0
+        camYaw = 0
+        cursorPitch = 0
+        cursorYaw = 0
+        curView = 'front'
+      }
+      Init()
+
+      var tgtOris = [
+        {
+          name: 'front',
+          yaw: 0, pitch: 0,
+          cursorYaw: 0, cursorPitch: 0
+        },
+        {
+          name: 'left',
+          yaw: -Math.PI/2, pitch: 0,
+          cursorYaw: -Math.PI/2, cursorPitch: 0,
+        },
+        { name: 'right',
+         yaw: Math.PI/2, pitch: 0,
+         cursorYaw: Math.PI/2, cursorPitch: 0,
+        },
+        {
+          name: 'top',
+          yaw: 0, pitch: -Math.PI/2,
+          cursorYaw: 0, cursorPitch: -Math.PI/2,
+        },
+        {
+          name: 'bottom',
+          yaw: 0, pitch: Math.PI/2,
+          cursorYaw: 0, cursorPitch: Math.PI/2,
+        },
+        {
+          name: 'back',
+          yaw: Math.PI, pitch: 0,
+          cursorYaw: Math.PI, cursorPitch: 0,
+        },
+      ]
+
+      const ProcessButtonTexture = (buttonText, fs=100) => {
+        if(typeof scratchCanvas != 'undefined'){
+          var w = scratchCanvas.c.width
+          var h = scratchCanvas.c.height
+          
+          scratchCanvas.ctx.drawImage(buttonTexture, 0, 0, w, h)
+          var fs
+          scratchCanvas.ctx.font = fs + 'px monospace'
+          scratchCanvas.ctx.fillStyle = '#000'
+          scratchCanvas.ctx.textAlign = 'center'
+          scratchCanvas.ctx.shadowColor = '#888'
+          scratchCanvas.ctx.shadowBlur = fs / 10
+          scratchCanvas.ctx.scale(2.0, 1.0)
+          for(var m=8; m--;)
+            scratchCanvas.ctx.fillText(buttonText, w/4,h/2+fs/4.5)
+            
+          scratchCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
+        }
+      }
+      buttonTexture.onload = ProcessButtonTexture
+      
+      var clickReady = true
+      var clickState = true
+      var oCState = clickState
+      var oRot = 0, rt = 0
+      var buttonText = clickState ? 'no osc [o]' : 'osc [o]'
+      var buttonColor = clickState ? 0x00ffff : 0xff8800
+
+
+      var offsetz = 0
+      
+      window.Draw = () => {
+
+        var t = renderer.t
+        renderer.Clear()
+
+        renderer.z = 12
+
+        if(!curMove || !Shift(...curMove)) ChooseMove()
+
+        DoKeys()
+        var cView = peekView ? peekView : curView
+
+        //ctx.clearRect(0,0,c.width,c.height)
+        ctx.drawImage(overlay,0,0,c.width,c.height)
+
+        if(1 || keyHasBeenPressed){
+          ctx.fillStyle = '#FF0'
+          ctx.font = 'italic ' + (fs = 36) + 'px verdana'
+          ctx.textAlign = 'right'
+
+          ctx.fillText('   VIEW:', c.width-280, 150+fs)
+          ctx.textAlign = 'left'
+          ctx.fillStyle = '#0F8'
+          ctx.font = 'bold ' + (fs = 36) + 'px verdana'
+          ctx.fillText(cView.toUpperCase(), c.width-270, 150+fs)
+
+          ctx.fillStyle = '#FF0'
+          ctx.font = 'italic ' + (fs = 36) + 'px verdana'
+          ctx.textAlign = 'right'
+          ctx.fillText('   MODE:', c.width-280, 200+fs)
+          ctx.textAlign = 'left'
+          ctx.fillStyle = '#0F8'
+          ctx.font = 'bold ' + (fs = 36) + 'px verdana'
+          ctx.fillText(numlock?'CUBE':'CURSOR', c.width-270, 200+fs)
+        }
+
+        ctx.textAlign = 'center'
+        if(shuffleTTL > t){
+          ctx.fillStyle = '#0f8'
+          var fs
+          ctx.font = (fs = 64) + 'px verdana'
+          var str = '|' + ('-').repeat((t*20|0)%10) + 'shuffling' + ('-').repeat((t*20|0)%10) + '|'
+          ctx.fillText(str, c.width/2, 100 + fs)
+          var str = '|' + ('-').repeat((t*20|0)%10) + '---------' + ('-').repeat((t*20|0)%10) + '|'
+          ctx.fillText(str, c.width/2, c.height - 200 + fs)
+        }
+
+        if(renderer.cameraMode != 'fps'){
+          var tgtYaw = tgtOris.filter(v=>v.name==cView)[0].yaw
+          var tgtPitch = -tgtOris.filter(v=>v.name==cView)[0].pitch
+          
+          var vx = tgtYaw - camYaw
+          var vy = tgtPitch - camPitch
+          offsetz = Math.hypot(vx, vy)
+          vx = Math.min(tracking, Math.abs(vx)) * (vx<0?-1:1)
+          vy = Math.min(tracking, Math.abs(vy)) * (vy<0?-1:1)
+          camYaw += vx
+          camPitch += vy
+          //renderer.yaw = C(t) * .1 - .5 + camYaw
+          //renderer.pitch = S(t) * .1 - .25 + camPitch
+        }
+        
+        var oscx, oscy
+        doOscillate = !clickState
+        if(peekView || !doOscillate){
+          oscx = 0
+          oscy = 0
+        }else{
+          oscx = S(t*2) * .5
+          oscy = C(t*2) * .5
+        }
+        
+        if(!peekView){
+          oscx += orbitYaw
+          oscy += orbitPitch
+        }
+        
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'button':
+              ProcessButtonTexture(buttonText)
+              shape.pitch = 0
+              var bounding = Coordinates.ShowBounding(shape, renderer, false)
+              //shape.z = (renderer.mouseButton == 1) ? 1 : 0
+              if(Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
+                if(renderer.mouseButton == 1){
+                  if(clickReady) {
+                    clickState = !clickState
+                    setTimeout(() => {
+                      buttonText = clickState ? 'no osc [o]' : 'osc [o]'
+                      buttonColor = clickState ? 0x00ffff : 0xff8800
+                    }, 500)
+                  }
+                   clickReady = false
+                }else{
+                 clickReady = true
+                oCState = clickState
+                }
+                if(!oRot) Coordinates.ShowBounding(shape, renderer, true,
+                                                   -1, true, 0, 20)
+                //shape.z = .5
+              }else{
+                //shape.z = 0
+              }
+              if(oRot || oCState!=clickState){
+                oRot+=.04
+                if(oRot >= 1){
+                  oCState = clickState
+                  oRot = 0
+                }
+              }
+              shape.yaw = Math.PI*2*oRot**6 + .5
+              //shape.pitch = -Math.PI*oRot*2
+              shape.color = buttonColor
+              shape.boundingColor = clickState ? 0x00ffff : 0xff8800
+              //shape.yaw = .5
+              shape.x = 26
+              shape.y = 3
+              shape.z = 10
+              renderer.Draw(shape)
+            break
+            case 'background':
+              //shape.yaw += .005
+              shape.yaw = oscx
+              shape.pitch = oscy
+              renderer.Draw(shape)
+              break
+            case 'cursor':
+              if(!numlock){
+              
+                var cCursorView
+                if(phase < 1){
+                  cCursorView = curMove[0]
+                }else{
+                  cCursorView = curCursorView
+                }
+                shape.x= rubikShape.x
+                shape.y = rubikShape.y
+                shape.z = rubikShape.z
+                shape.yaw = rubikShape.yaw
+                shape.pitch = rubikShape.pitch
+                shape.color = Coordinates.HSVToHex(100,1,.5+C(t*20)/2)
+                      
+                tgtYaw = tgtOris.filter(v=>v.name==cCursorView)[0].yaw
+                tgtPitch = -tgtOris.filter(v=>v.name==cCursorView)[0].pitch
+                for(var i = 0; i < baseCursorShape.length; i+=3){
+                  x = baseCursorShape[i+0]
+                  y = baseCursorShape[i+1]
+                  z = baseCursorShape[i+2]
+
+                  var rl = rubikShape.roll + 
+        (curMove[0] == cCursorView ? Math.PI/2 * phase * curMove[1]:0)
+        * (cCursorView == 'top' ||
+        cCursorView == 'bottom' ? -1 : 1)
+               
+                  p = Math.atan2(x, y) + rl
+                  d = Math.hypot(x, y)
+                  x = S(p) * d
+                  y = C(p) * d
+                  
+                  p = Math.atan2(y, z) + tgtPitch
+                  d = Math.hypot(y, z)
+                  y = S(p) * d
+                  z = C(p) * d
+                  
+                  p = Math.atan2(x, z) + tgtYaw
+                  d = Math.hypot(x, z)
+                  x = S(p) * d
+                  z = -C(p) * d
+               
+                  shape.vertices[i+0] = x
+                  shape.vertices[i+1] = y
+                  shape.vertices[i+2] = z
+                }
+                
+                shape.z = -C(offsetz * Math.PI) * 2
+                renderer.Draw(shape)
+              }
+              break
+            case 'rubiks cube':
+              shape.yaw = camYaw + oscx
+              shape.pitch = camPitch + oscy
+              shape.z = -C(offsetz * Math.PI) * 2
+              renderer.Draw(shape)
+              break
+            default:
+              //renderer.Draw(shape)
+              break
+          }
+        })
+        //sprites.forEach(sprite => {
+        //  if(sprite.shape) renderer.Draw(sprite.shape)
+        //})
+      }
+      window.onload = () => loaded = true
+    </script>
+  </body>
+</html>
