@@ -28,7 +28,6 @@
   <body>
     <div class="loadingText" id="loadingTextDiv">loading....</div>
     <script type="module">
-
       window.addEventListener('load', () => { window.loaded = true } ) 
       window.loaded = false
       var loop = () => {
@@ -46,6 +45,7 @@
       "https://srmcgann.github.io/Coordinates/coordinates.min.js"
       //"https://textfile.root.sx/coordinates.js"
 
+      /*
       var buttonTextureWidth = 1500
       var buttonTextureHeight = 300
       var rendererOptions = {
@@ -60,6 +60,7 @@
         }
       }
       var scratchCanvas = await Coordinates.Renderer(rendererOptions)
+      */
 
       var rendererOptions = {
         ambientLight: .5, margin: 0,
@@ -88,6 +89,7 @@
         overlay.src = URL.createObjectURL(data)
       })
 
+      /*
       var shaderOptions = [
         { lighting: {type: 'ambientLight', value: .1}
         },
@@ -105,18 +107,19 @@
         } }
       ]
       var buttonShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      */
 
       var shaderOptions = [
         {lighting: {type: 'ambientLight', value: 1}},
         { uniform: {
           type: 'phong',
           flatShading: true,
-          value: .05
+          value: .1
         } },
         { uniform: {
           type: 'reflection',
           map: refTexture,
-          enabled: true,
+          enabled: false,
           value: .1
         } },
         { uniform: {
@@ -164,60 +167,59 @@
       var shapes = []
 
       /*
-      var sprites = [
-        {
-          name: 'front',
-          shape: '',
-        },
-        {
-          name: 'left',
-          shape: '',
-        },
-        {
-          name: 'top',
-          shape: '',
-        },
-      ]
+            var sprites = [
+              {
+                name: 'front',
+                shape: '',
+              },
+              {
+                name: 'left',
+                shape: '',
+              },
+              {
+                name: 'top',
+                shape: '',
+              },
+            ]
 
 
 
-      var geoOptions = {
-        shapeType: 'sprite',
-        x: -1,
-        z: -6, y: -3, size: 4,
-        scaleY: -1/3.14473684210526331,
-        //map: 'https://srmcgann.github.io/objs/rubik/front.png',
-        map: 'https://i.postimg.cc/QMWqM8GS/front-dark.png',
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        sprites.filter(v=>v.name=='front')[0].shape = geometry
-      })
+            var geoOptions = {
+              shapeType: 'sprite',
+              x: -1,
+              z: -6, y: -3, size: 4,
+              scaleY: -1/3.14473684210526331,
+              //map: 'https://srmcgann.github.io/objs/rubik/front.png',
+              map: 'https://i.postimg.cc/QMWqM8GS/front-dark.png',
+            }
+            await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+              sprites.filter(v=>v.name=='front')[0].shape = geometry
+            })
 
-      var geoOptions = {
-        shapeType: 'sprite',
-        x: -8, size: 4,
-        scaleY: -1/3.14473684210526331,
-        //map: 'https://srmcgann.github.io/objs/rubik/left.png',
-        map: 'https://i.postimg.cc/LsMJz2gD/left.png',
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        sprites.filter(v=>v.name=='left')[0].shape = geometry
-      })
+            var geoOptions = {
+              shapeType: 'sprite',
+              x: -8, size: 4,
+              scaleY: -1/3.14473684210526331,
+              //map: 'https://srmcgann.github.io/objs/rubik/left.png',
+              map: 'https://i.postimg.cc/LsMJz2gD/left.png',
+            }
+            await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+              sprites.filter(v=>v.name=='left')[0].shape = geometry
+            })
 
-      var geoOptions = {
-        shapeType: 'sprite',
-        y: 6, size: 4,
-        scaleY: -1/3.14473684210526331,
-        //map: 'https://srmcgann.github.io/objs/rubik/top.png',
-        map: 'https://i.postimg.cc/qqfBdGch/top.png',
-      }
-      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-        sprites.filter(v=>v.name=='top')[0].shape = geometry
-      })
-      */
-      
-      var buttonShape
+            var geoOptions = {
+              shapeType: 'sprite',
+              y: 6, size: 4,
+              scaleY: -1/3.14473684210526331,
+              //map: 'https://srmcgann.github.io/objs/rubik/top.png',
+              map: 'https://i.postimg.cc/qqfBdGch/top.png',
+            }
+            await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+              sprites.filter(v=>v.name=='top')[0].shape = geometry
+            })
+            */
 
+      /*var buttonShape
       var geoOptions = {
         shapeType: 'obj',
         name: 'button',
@@ -240,12 +242,13 @@
         buttonShape = geometry
         await buttonShader.ConnectGeometry(geometry)
       })
-      
+
       var buttonTexture = new Image()
       var url = 'https://i.postimg.cc/W38rcfmD/temp-Button-Grey.png'
       await fetch(url).then(res=>res.blob()).then(data => {
         buttonTexture.src = URL.createObjectURL(data)
       })
+      */
 
 
       var geoOptions = {
@@ -327,10 +330,6 @@
       const SolveCube = () => {
         console.log('solving cube')
         solving = true
-      }
-
-      const SelectFace = () => {
-
       }
 
       var comp0, comp1, comp2, comp3, comp4, comp5, comp6
@@ -517,11 +516,54 @@
         }
       }
 
+      const FaceToBottom = () => {
+        if(numlock) return
+
+        Coordinates.ApplyShapeData(rubikShape)
+        const DoRotation = (theta, axis) => {
+          console.log(theta, axis)
+          a = axis == 'roll' ? 'x' : 'y'
+          b = axis == 'roll' ? 'y' : 'z'
+          rubikShape.shapeData.map((subShape, sidx) => {
+            x = subShape.wx
+            y = subShape.wy
+            z = subShape.wz
+            subShape[axis] += theta
+            var a_ = subShape['w'+a]
+            var b_ = subShape['w'+b]
+            p = Math.atan2(a_, b_) + theta
+            d = Math.hypot(a_, b_)
+            subShape[a] = S(p) * d - subShape['o'+a]
+            subShape[b] = C(p) * d - subShape['o'+b]
+          })
+        }
+        var a, b, theta
+        switch(curCursorView){
+          case 'bottom': break
+          case 'left':
+            DoRotation(-Math.PI/2, 'roll')
+          break
+          case 'front':
+            DoRotation(Math.PI/2, 'pitch')
+          break
+          case 'right':
+            DoRotation(Math.PI/2, 'roll')
+          break
+          case 'back':
+            DoRotation(-Math.PI/2, 'pitch')
+          break
+          case 'top':
+            DoRotation(Math.PI, 'pitch')
+          break
+        }
+        curCursorView = 'bottom'
+      }
+
       var c = Coordinates.Overlay.c
       var ctx = Coordinates.Overlay.ctx
 
       var keys, keyTimers
-      var keyTimerInterval = .25
+      var keyTimerInterval = .05
 
       const DoKeys = () => {
         peekView = ''
@@ -529,39 +571,55 @@
           if(state && keyTimers[key] < renderer.t){
             switch(key){
               case 13:  // enter
-                clickState = true
-                setTimeout(() => {
-                  buttonText = clickState ? 'no osc [o]' : 'osc [o]'
-                  buttonColor = clickState ? 0x00ffff : 0xff8800
-                }, 500)
+                enterKeyHasBeenPressed = true
+                numlock = true
+                var cs = buttons.filter(v=>v.name == 'oscillation')[0].clickState
+                buttons.filter(v=>v.name == 'oscillation')[0].clickState = false
+                doOscillate = !cs
+                curView = 'front'
+                if(numlock){
+                  orbitYaw = 0
+                  orbitPitch = 0
+                }
+                // Init(true)
                 keyTimers[key] = renderer.t + keyTimerInterval
-
-                Init(true)
-                keyTimers[key] = renderer.t + keyTimerInterval
-              break
+                break
               case 79:  // o
+                var cs = buttons.filter(v=>v.name == 'oscillation')[0].clickState
+                buttons.filter(v=>v.name == 'oscillation')[0].clickState = !cs
+                doOscillate = !cs
+                /*
                 clickState = !clickState
                 setTimeout(() => {
-                  buttonText = clickState ? 'no osc [o]' : 'osc [o]'
+                  buttonText = clickState ? 'osc [o]' : 'no osc [o]'
                   buttonColor = clickState ? 0x00ffff : 0xff8800
                 }, 500)
+                */
                 keyTimers[key] = renderer.t + keyTimerInterval
-              break
+                break
+              case 66:  // b
+                FaceToBottom()
+                keyTimers[key] = renderer.t + keyTimerInterval
+                break
               case 87:  // w
                 peekView = 'top'
-              break
+                break
+              case 77:  // m
+                numlock = !numlock
+                keyTimers[key] = renderer.t + keyTimerInterval
+                break
               case 65:  // a
                 peekView = 'left'
-              break
+                break
               case 83:  // s
                 peekView = 'bottom'
-              break
+                break
               case 68:  // d
                 peekView = 'right'
-              break
+                break
               case 88:  // x
                 peekView = 'back'
-              break
+                break
               case 109:
                 if(shuffleTTL < renderer.t &&
                    !numlock && (phase == 0 || phase == 1)){
@@ -572,7 +630,7 @@
                   phase = 0
                   keyTimers[key] = renderer.t + keyTimerInterval
                 }
-              break
+                break
               case 107:
                 if(shuffleTTL < renderer.t &&
                    !numlock && (phase == 0 || phase == 1)){
@@ -583,7 +641,7 @@
                   phase = 0
                   keyTimers[key] = renderer.t + keyTimerInterval
                 }
-              break
+                break
               case 32:
                 if(shuffleTTL < renderer.t && !solving) {
                   Shuffle()
@@ -595,80 +653,92 @@
                   SolveCube()
                   keyTimers[key] = renderer.t + keyTimerInterval
                 }
-              break
+                break
               case 100:
+                enterKeyHasBeenPressed = true
                 curView = 'left'
                 keyTimers[key] = renderer.t + keyTimerInterval
                 if(numlock){
                   orbitYaw = 0
                   orbitPitch = 0
                 }
-              break
+                break
               case 96:
+                enterKeyHasBeenPressed = true
                 curView = 'front'
                 keyTimers[key] = renderer.t + keyTimerInterval
                 if(numlock){
                   orbitYaw = 0
                   orbitPitch = 0
                 }
-              break
+                break
               case 102:
+                enterKeyHasBeenPressed = true
                 curView = 'right'
                 keyTimers[key] = renderer.t + keyTimerInterval
                 if(numlock){
                   orbitYaw = 0
                   orbitPitch = 0
                 }
-              break
+                break
               case 104:
+                enterKeyHasBeenPressed = true
                 curView = 'top'
                 keyTimers[key] = renderer.t + keyTimerInterval
                 if(numlock){
                   orbitYaw = 0
                   orbitPitch = 0
                 }
-              break
+                break
               case 98:
+                enterKeyHasBeenPressed = true
                 curView = 'bottom'
                 keyTimers[key] = renderer.t + keyTimerInterval
                 if(numlock){
                   orbitYaw = 0
                   orbitPitch = 0
                 }
-              break
+                break
               case 101:
+                enterKeyHasBeenPressed = true
                 curView = 'back'
                 keyTimers[key] = renderer.t + keyTimerInterval
                 if(numlock){
                   orbitYaw = 0
                   orbitPitch = 0
                 }
-              break
+                break
 
               case 37:
+                numlock = false
                 curCursorView = 'left'
                 keyTimers[key] = renderer.t + keyTimerInterval
-              break
+                break
               case 45:
+                numlock = false
                 curCursorView = 'front'
                 keyTimers[key] = renderer.t + keyTimerInterval
-              break
+                break
               case 39:
+                numlock = false
                 curCursorView = 'right'
                 keyTimers[key] = renderer.t + keyTimerInterval
-              break
+                break
               case 38:
+                numlock = false
                 curCursorView = 'top'
                 keyTimers[key] = renderer.t + keyTimerInterval
-              break
+                break
               case 40:
+                numlock = false
                 curCursorView = 'bottom'
                 keyTimers[key] = renderer.t + keyTimerInterval
-              break
+                break
               case 12:
+                numlock = false
                 curCursorView = 'back'
                 keyTimers[key] = renderer.t + keyTimerInterval
-              break
+                break
             }
           }
         })
@@ -678,76 +748,90 @@
       var mx = 0
       var my = 0
       var mb = false
-      
+
       window.onmouseup = e => {
-        if(e.which == 1) mb = 0
+        if(e.which == 1) {
+          mb = 0
+          clicked = false
+        }
         c.focus()
       }
-      
+
       window.onmousedown = e => {
-      var bounding = Coordinates.ShowBounding(buttonShape, renderer, false)
-      if(e.which == 1 &&
-         !Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
-          mb = true
+        mouseButtonHasBeenClicked = true
+        if(e.which == 1 && !highlighted){
           mx = renderer.mouseX
           my = renderer.mouseY
+          mb = true
+        }
+        /*
+        var bounding = Coordinates.ShowBounding(buttonShape, renderer, false)
+        if(e.which == 1 &&
+           !Coordinates.PointInPoly2D(renderer.mouseX, renderer.mouseY, bounding)){
 
           if(!clickState){
             clickState = true
             setTimeout(() => {
-              buttonText = clickState ? 'no osc [o]' : 'osc [o]'
+              buttonText = clickState ? 'osc [o]' : 'no osc [o]'
               buttonColor = clickState ? 0x00ffff : 0xff8800
             }, 500)
           }
         }
+        */
         c.focus()
       }
       window.onmousemove = e => {
-        if(e.which == 1){
+        if(mb){
           var deltax = renderer.mouseX - mx
           var deltay = renderer.mouseY - my
           orbitYaw -= deltax / 100
           orbitPitch += deltay / 100
-          mx = renderer.mouseX
-          my = renderer.mouseY
         }
+        mx = renderer.mouseX
+        my = renderer.mouseY
       }
-      
+
       c.focus()
       c.onkeydown = e => {
         console.log(e.keyCode)
         keyHasBeenPressed = true
-        numlock = e.getModifierState('NumLock')
+        //numlock = e.getModifierState('NumLock')
         keys[e.keyCode] = true
       }
       c.onkeyup = e => {
         keys[e.keyCode] = false
+        keyTimers[e.keyCode] = 0
       }
 
       var curView, curCursorView
 
       var camPitch, camYaw, cursorYaw, cursorPitch, tracking = .1
       var keyHasBeenPressed, numlock, peekView, doOscillate
-      var orbitYaw, orbitPitch
+      var orbitYaw, orbitPitch, mouseButtonHasBeenClicked
+      var enterKeyHasBeenPressed, highlighted, clicked
 
       const Init = (reset = false) => {
-      
+
         if(!reset){
           //Shuffle()
           ChooseMove()
+          clicked = false
           solving = false
           keys = Array(256).fill(false)
           keyTimers = Array(256).fill(0)
           keyTimerInterval = .5
           keyHasBeenPressed = false
+          mouseButtonHasBeenClicked = false
+          enterKeyHasBeenPressed = false
           curCursorView = 'front'
           phase = 1
+          highlighted = false
         }
-        
+
         numlock = true
         orbitYaw = 0
         orbitPitch = 0
-        doOscillate = true
+        doOscillate = false
         peekView = ''
         camPitch = 0
         camYaw = 0
@@ -759,23 +843,23 @@
 
       var tgtOris = [
         {
-          name: 'front',
-          yaw: 0, pitch: 0,
-          cursorYaw: 0, cursorPitch: 0
+          name: 'back',
+          yaw: Math.PI, pitch: 0,
+          cursorYaw: Math.PI, cursorPitch: 0,
         },
         {
-          name: 'left',
-          yaw: -Math.PI/2, pitch: 0,
-          cursorYaw: -Math.PI/2, cursorPitch: 0,
+          name: 'top',
+          yaw: 0, pitch: -Math.PI/2,
+          cursorYaw: 0, cursorPitch: -Math.PI/2,
         },
         { name: 'right',
          yaw: Math.PI/2, pitch: 0,
          cursorYaw: Math.PI/2, cursorPitch: 0,
         },
         {
-          name: 'top',
-          yaw: 0, pitch: -Math.PI/2,
-          cursorYaw: 0, cursorPitch: -Math.PI/2,
+          name: 'front',
+          yaw: 0, pitch: 0,
+          cursorYaw: 0, cursorPitch: 0
         },
         {
           name: 'bottom',
@@ -783,17 +867,17 @@
           cursorYaw: 0, cursorPitch: Math.PI/2,
         },
         {
-          name: 'back',
-          yaw: Math.PI, pitch: 0,
-          cursorYaw: Math.PI, cursorPitch: 0,
+          name: 'left',
+          yaw: -Math.PI/2, pitch: 0,
+          cursorYaw: -Math.PI/2, cursorPitch: 0,
         },
       ]
 
-      const ProcessButtonTexture = (buttonText, fs=100) => {
+      /*const ProcessButtonTexture = (buttonText, fs=100) => {
         if(typeof scratchCanvas != 'undefined'){
           var w = scratchCanvas.c.width
           var h = scratchCanvas.c.height
-          
+
           scratchCanvas.ctx.drawImage(buttonTexture, 0, 0, w, h)
           var fs
           scratchCanvas.ctx.font = fs + 'px monospace'
@@ -804,21 +888,145 @@
           scratchCanvas.ctx.scale(2.0, 1.0)
           for(var m=8; m--;)
             scratchCanvas.ctx.fillText(buttonText, w/4,h/2+fs/4.5)
-            
+
           scratchCanvas.ctx.setTransform(1, 0, 0, 1, 0, 0)
         }
       }
       buttonTexture.onload = ProcessButtonTexture
-      
+
       var clickReady = true
       var clickState = true
       var oCState = clickState
       var oRot = 0, rt = 0
-      var buttonText = clickState ? 'no osc [o]' : 'osc [o]'
+      var buttonText = clickState ? 'osc [o]' : 'no osc [o]'
       var buttonColor = clickState ? 0x00ffff : 0xff8800
 
 
+        {
+          name: 'back',
+          yaw: Math.PI, pitch: 0,
+          cursorYaw: Math.PI, cursorPitch: 0,
+        },
+        {
+          name: 'top',
+          yaw: 0, pitch: -Math.PI/2,
+          cursorYaw: 0, cursorPitch: -Math.PI/2,
+        },
+        { name: 'right',
+         yaw: Math.PI/2, pitch: 0,
+         cursorYaw: Math.PI/2, cursorPitch: 0,
+        },
+        {
+          name: 'front',
+          yaw: 0, pitch: 0,
+          cursorYaw: 0, cursorPitch: 0
+        },
+        {
+          name: 'bottom',
+          yaw: 0, pitch: Math.PI/2,
+          cursorYaw: 0, cursorPitch: Math.PI/2,
+        },
+        {
+          name: 'left',
+          yaw: -Math.PI/2, pitch: 0,
+          cursorYaw: -Math.PI/2, cursorPitch: 0,
+        },
+        */
+
+      var ctLookup = [
+        [ 4, 4, 2, 5, 0, 2, 5, 1, 1 ],
+        [ 3, 5, 5, 3, 0, 0, 2, 2, 0 ],
+        [ 4, 3, 3, 4, 0, 1, 0, 0, 1 ],
+        [ 2, 1, 1, 2, 0, 5, 4, 4, 5 ],
+        [ 2, 2, 3, 0, 0, 3, 0, 5, 5 ],
+        [ 1, 0, 0, 1, 0, 4, 3, 3, 4 ],
+      ]
+
+      var clickTargets = []
+      for(var i = 0; i < 6; i++){
+        var a = [], b=[], l, ls = 4.2
+        for(var j = 0; j < 4; j++){
+          a = [S(p=Math.PI*2/4*j+Math.PI/4)*ls/1.75, C(p)*ls/1.75, ls*2**.5/2]
+          b.push([a[(i+0)%3]*(l=i<3?1:-1), a[(i+1)%3]*l, a[(i+2)%3]*l])
+        }
+        clickTargets.push([b, i])
+        for(var k = 0; k < 9; k++){
+          var tx = ((k%3)-3/2+.5) * ls/2.1
+          var ty = ((k/3|0)-3/2+.5) * ls/2.1
+          if(k!=4){
+            b = []
+            for(var j = 0; j < 4; j++){
+              a = [S(p=Math.PI*2/4*j+Math.PI/4)*ls/2.95+tx, C(p)*ls/2.95+ty, ls*2**.5/2]
+              b.push([a[(i+0)%3]*(l=i<3?1:-1), a[(i+1)%3]*l, a[(i+2)%3]*l])
+            }
+            clickTargets.push([b, ctLookup[i][k]])
+          }
+        }
+      }
+
       var offsetz = 0
+      var oscx, oscy
+      var defaultOscx = -Math.PI/4 + Math.PI
+      var defaultOscy = Math.PI/5
+      
+      var buttons = [
+        /*{
+          name: 'set mode',
+          style: 'toggle',
+          text: 'MODE [m]',
+          clickState: false,
+          fontColor: '#fff',
+          buttonColor: '#40f',
+          highlightColor: '#f00',
+          script: 'numlock = !numlock',
+          enabled: true,
+        },*/
+        {
+          name: 'oscillation',
+          style: 'toggle',
+          text: 'oscillate [o]',
+          clickState: false,
+          fontColor: '#fff',
+          buttonColor: '#028',
+          highlightColor: '#804',
+          script: 'doOscillate = !doOscillate',
+          enabled: true,
+        },
+        {
+          name: 'set cube bottom',
+          style: 'one click',
+          text: 'face -> bottom [b]',
+          clickState: false,
+          fontColor: '#fff',
+          buttonColor: '#028',
+          highlightColor: '#804',
+          script: 'FaceToBottom()',
+          enabled: true,
+        },
+        /*
+        {
+          name: 'disabled button',
+          style: 'one click',
+          text: 'disabled button',
+          clickState: false,
+          fontColor: '#888',
+          buttonColor: '#333',
+          highlightColor: '#333',
+          script: '',
+          enabled: false,
+        },
+        {
+          name: 'disabled button',
+          style: 'one click',
+          text: 'disabled button',
+          clickState: false,
+          fontColor: '#888',
+          buttonColor: '#333',
+          highlightColor: '#333',
+          script: '',
+          enabled: false,
+        },*/
+      ]
       
       window.Draw = () => {
 
@@ -840,20 +1048,21 @@
           ctx.font = 'italic ' + (fs = 36) + 'px verdana'
           ctx.textAlign = 'right'
 
-          ctx.fillText('   VIEW:', c.width-280, 150+fs)
+          ctx.fillText('   VIEW:', c.width/2-20, 150+fs)
           ctx.textAlign = 'left'
           ctx.fillStyle = '#0F8'
           ctx.font = 'bold ' + (fs = 36) + 'px verdana'
-          ctx.fillText(cView.toUpperCase(), c.width-270, 150+fs)
+          ctx.fillText(oscx||oscy ? 'ORBIT' : cView.toUpperCase(), c.width/2-10, 150+fs)
 
-          ctx.fillStyle = '#FF0'
+          /*ctx.fillStyle = '#FF0'
           ctx.font = 'italic ' + (fs = 36) + 'px verdana'
           ctx.textAlign = 'right'
-          ctx.fillText('   MODE:', c.width-280, 200+fs)
+          ctx.fillText('   MODE:', c.width/2-20, 200+fs)
           ctx.textAlign = 'left'
           ctx.fillStyle = '#0F8'
           ctx.font = 'bold ' + (fs = 36) + 'px verdana'
-          ctx.fillText(numlock?'CUBE':'CURSOR', c.width-270, 200+fs)
+          ctx.fillText(numlock?'CUBE':'CURSOR', c.width/2-10, 200+fs)
+          */
         }
 
         ctx.textAlign = 'center'
@@ -862,15 +1071,15 @@
           var fs
           ctx.font = (fs = 64) + 'px verdana'
           var str = '|' + ('-').repeat((t*20|0)%10) + 'shuffling' + ('-').repeat((t*20|0)%10) + '|'
-          ctx.fillText(str, c.width/2, 100 + fs)
+          ctx.fillText(str, c.width/2, 50 + fs)
           var str = '|' + ('-').repeat((t*20|0)%10) + '---------' + ('-').repeat((t*20|0)%10) + '|'
-          ctx.fillText(str, c.width/2, c.height - 200 + fs)
+          ctx.fillText(str, c.width/2, c.height - 250 + fs)
         }
 
         if(renderer.cameraMode != 'fps'){
           var tgtYaw = tgtOris.filter(v=>v.name==cView)[0].yaw
           var tgtPitch = -tgtOris.filter(v=>v.name==cView)[0].pitch
-          
+
           var vx = tgtYaw - camYaw
           var vy = tgtPitch - camPitch
           offsetz = Math.hypot(vx, vy)
@@ -881,25 +1090,27 @@
           //renderer.yaw = C(t) * .1 - .5 + camYaw
           //renderer.pitch = S(t) * .1 - .25 + camPitch
         }
-        
-        var oscx, oscy
-        doOscillate = !clickState
+
+        //doOscillate = false //!clickState
         if(peekView || !doOscillate){
-          oscx = 0
-          oscy = 0
-        }else{
-          oscx = S(t*2) * .5
-          oscy = C(t*2) * .5
+          var showDefault = !peekView &&
+            !(enterKeyHasBeenPressed || mouseButtonHasBeenClicked)
+          oscx = showDefault ? defaultOscx : 0
+          oscy = showDefault ? defaultOscy : 0
+        }else if(!peekView){
+          oscx = S(t/2) * .5
+          oscy = C(t/2) * .5
         }
-        
+
         if(!peekView){
           oscx += orbitYaw
           oscy += orbitPitch
         }
-        
+
         shapes.forEach(shape => {
           switch(shape.name){
             case 'button':
+            /*
               ProcessButtonTexture(buttonText)
               shape.pitch = 0
               var bounding = Coordinates.ShowBounding(shape, renderer, false)
@@ -909,14 +1120,14 @@
                   if(clickReady) {
                     clickState = !clickState
                     setTimeout(() => {
-                      buttonText = clickState ? 'no osc [o]' : 'osc [o]'
+                      buttonText = clickState ? 'osc [o]' : 'no osc [o]'
                       buttonColor = clickState ? 0x00ffff : 0xff8800
                     }, 500)
                   }
-                   clickReady = false
+                  clickReady = false
                 }else{
-                 clickReady = true
-                oCState = clickState
+                  clickReady = true
+                  oCState = clickState
                 }
                 if(!oRot) Coordinates.ShowBounding(shape, renderer, true,
                                                    -1, true, 0, 20)
@@ -940,16 +1151,17 @@
               shape.y = 3
               shape.z = 10
               renderer.Draw(shape)
+              */
             break
             case 'background':
               //shape.yaw += .005
               shape.yaw = oscx
               shape.pitch = oscy
               renderer.Draw(shape)
-              break
+            break
             case 'cursor':
               if(!numlock){
-              
+
                 var cCursorView
                 if(phase < 1){
                   cCursorView = curMove[0]
@@ -961,8 +1173,8 @@
                 shape.z = rubikShape.z
                 shape.yaw = rubikShape.yaw
                 shape.pitch = rubikShape.pitch
-                shape.color = Coordinates.HSVToHex(100,1,.5+C(t*20)/2)
-                      
+                shape.color = Coordinates.HSVToHex(0,0,.5)
+
                 tgtYaw = tgtOris.filter(v=>v.name==cCursorView)[0].yaw
                 tgtPitch = -tgtOris.filter(v=>v.name==cCursorView)[0].pitch
                 for(var i = 0; i < baseCursorShape.length; i+=3){
@@ -971,50 +1183,186 @@
                   z = baseCursorShape[i+2]
 
                   var rl = rubikShape.roll + 
-        (curMove[0] == cCursorView ? Math.PI/2 * phase * curMove[1]:0)
-        * (cCursorView == 'top' ||
-        cCursorView == 'bottom' ? -1 : 1)
-               
+                      (curMove[0] == cCursorView ? Math.PI/2 * phase * curMove[1]:0)
+                  * (cCursorView == 'top' ||
+                     cCursorView == 'bottom' ? -1 : 1)
+
                   p = Math.atan2(x, y) + rl
                   d = Math.hypot(x, y)
                   x = S(p) * d
                   y = C(p) * d
-                  
+
                   p = Math.atan2(y, z) + tgtPitch
                   d = Math.hypot(y, z)
                   y = S(p) * d
                   z = C(p) * d
-                  
+
                   p = Math.atan2(x, z) + tgtYaw
                   d = Math.hypot(x, z)
                   x = S(p) * d
                   z = -C(p) * d
-               
+
                   shape.vertices[i+0] = x
                   shape.vertices[i+1] = y
                   shape.vertices[i+2] = z
                 }
-                
+
                 shape.z = -C(offsetz * Math.PI) * 2
                 renderer.Draw(shape)
               }
-              break
+            break
             case 'rubiks cube':
               shape.yaw = camYaw + oscx
               shape.pitch = camPitch + oscy
               shape.z = -C(offsetz * Math.PI) * 2
               renderer.Draw(shape)
-              break
+            break
             default:
               //renderer.Draw(shape)
-              break
+            break
           }
         })
         //sprites.forEach(sprite => {
         //  if(sprite.shape) renderer.Draw(sprite.shape)
         //})
+        
+        ctx.fillStyle = '#4f88'
+        var forSort = []
+        clickTargets.map((v, i) => {
+          var a = []
+          v[0].map((q, j) => {
+            x = q[0]
+            y = q[1]
+            z = q[2]
+            var ar = Coordinates.GetShaderCoord(x, y, z, rubikShape, renderer)
+            a.push(ar)
+          })
+          if(Coordinates.PointInPoly2D(mx, my, a)){
+            forSort.push([a, v[1]])
+          }
+        })
+        if(forSort.length){
+          numlock = false
+          forSort.sort((a, b)=>{
+            var az = 0
+            var bz = 0
+            a[0].map(v => {
+              az += v[2]
+            })
+            b[0].map(v => {
+              bz += v[2]
+            })
+            return az-bz
+          })
+          //if(mb) {
+            curCursorView = tgtOris[forSort[0][1]].name
+          //}else{
+          //  numlock = false
+         // }
+          
+          /*
+          ctx.beginPath()
+          forSort[0][0].map(q=>{
+            ctx.lineTo(...q)
+          })
+          ctx.fill()
+          */
+          
+        }else{
+          numlock = true
+        }
+        
+        
+        /*
+        {
+          name: 'oscillation',
+          x: c.width - 500,
+          y: 100,
+          style: 'toggle',
+          text1: 'oscillate [o]',
+          text2: 'no osc [o]',
+          clickState: false,
+        },
+        */
+        
+        var buttonWidth = 250
+        var bwidth, bheight
+        highlighted = false
+        var fillColor, fontColor, highlight
+        const SetColors = button => {
+          highlight = mx > x && mx < x + bwidth &&
+                        my > y && my < y + bheight
+          if(highlight) highlighted = true
+          if(button.enabled){
+            fillColor = highlight ?
+                button.highlightColor : button.buttonColor
+            fontColor = button.fontColor
+          }else{
+            fontColor = '#888'
+            fillColor = '#333'
+          }
+        }
+        buttons.map((button, bidx) => {
+          ctx.font = 'italic ' + (fs = 24) + 'px verdana'
+          x = c.width - 400
+          y = 100 + bidx* fs * 2
+          bwidth = buttonWidth + fs*2
+          bheight = fs*1.5
+          switch(button.name){
+            case 'set mode':
+              SetColors(button)
+              ctx.textAlign = 'center'
+              var text = `${button.text} : ${numlock ? 'CUBE' : 'CURSOR'}`
+              ctx.fillStyle = fillColor
+              ctx.fillRect(x, y, bwidth, bheight)
+              ctx.fillStyle = fontColor
+              ctx.fillText(text, x + bwidth/2, y + fs*1.1)
+            break
+            case 'oscillation':
+              SetColors(button)
+              ctx.textAlign = 'center'
+              var text = `${button.text} : ${button.clickState ? 'on' : 'off'}`
+              ctx.fillStyle = fillColor
+              ctx.fillRect(x, y, bwidth, bheight)
+              ctx.fillStyle = fontColor
+              ctx.fillText(text, x + bwidth/2, y + fs*1.1)
+            break
+            case 'set cube bottom':
+              buttons[bidx].enabled = !numlock
+              SetColors(button)
+              ctx.textAlign = 'center'
+              var text = button.text
+              ctx.fillStyle = fillColor
+              ctx.fillRect(x, y, bwidth, bheight)
+              ctx.fillStyle = fontColor
+              ctx.fillText(text, x + bwidth/2, y + fs*1.1)
+            break
+            default:
+              SetColors(button)
+              ctx.textAlign = 'center'
+              var text = button.text
+              ctx.fillStyle = fillColor
+              ctx.fillRect(x, y, bwidth, bheight)
+              ctx.fillStyle = fontColor
+              ctx.fillText(text, x + bwidth/2, y + fs*1.1)
+            break
+          }
+          if(highlight && !clicked && renderer.mouseButton !== -1 &&
+             typeof renderer.mouseButton != 'undefined') {
+            clicked = true
+            switch(button.style){
+              case 'one click':
+              break
+              case 'toggle':
+                button.clickState = !button.clickState
+              break
+            }
+            eval(button.script)
+          }
+        })
       }
       window.onload = () => loaded = true
+
     </script>
   </body>
 </html>
