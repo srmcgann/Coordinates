@@ -8160,7 +8160,6 @@ const AnimationLoop = (renderer, func) => {
     renderer.ready = true
     loop()
   }
-  console.log(renderer)
   if(renderer.attachToBody && renderer.context.mode == '2d'){
     renderer.ready = true
     loop2D()
