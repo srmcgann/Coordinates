@@ -8020,6 +8020,13 @@ const ShouldDisableDepth = shape => {
 }
 
 const AnimationLoop = (renderer, func) => {
+  
+  const loop2D = async () => {
+    if(renderer.ready && typeof window[func] != 'undefined') await window[func]()
+    renderer.t = ((new Date()).getTime() - InitialTime) * .001
+    requestAnimationFrame(loop2D)
+  }
+  
   const loop = async () => {
     Overlay.margin = renderer.margin
     Overlay.rsz()
@@ -8152,6 +8159,11 @@ const AnimationLoop = (renderer, func) => {
   if(renderer.attachToBody && renderer.context.mode == 'webgl2'){
     renderer.ready = true
     loop()
+  }
+  console.log(renderer)
+  if(renderer.attachToBody && renderer.context.mode == '2d'){
+    renderer.ready = true
+    loop2D()
   }
 }
 
