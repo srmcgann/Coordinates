@@ -2238,6 +2238,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
     }
   }
+  
+  // floating point correction (eliminates 'line' at some borders)
+  uvs.map(v=> v -= .001 )
 
   if(offsetUVX != 0 || offsetUVY != 0) {
     for(var i = 0; i<uvs.length; i+=2){
