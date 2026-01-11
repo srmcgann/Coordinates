@@ -645,16 +645,18 @@ const Renderer = async options => {
                       attribute.Indices = new Uint32Array( Array(attribute.value.length/attribute.stride).fill().map((v,i)=>i) )
                     }
  
+ 
                     ctx.bindBuffer(ctx.ARRAY_BUFFER, attribute.buffer)
-                    ctx.bufferData(ctx.ARRAY_BUFFER, attribute.value, ctx.STATIC_DRAW)
+                    ctx.bufferData(ctx.ARRAY_BUFFER, new Float32Array(attribute.value), ctx.STATIC_DRAW)
                     ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, attribute.indexBuffer)
                     ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, attribute.Indices, ctx.STATIC_DRAW)
                     
-                    //attribute.loc = ctx.getAttribLocation(dset.program, attribute.attributeName)
+                    attribute.loc = ctx.getAttribLocation(dset.program, attribute.attributeName)
                     ctx.vertexAttribPointer(attribute.loc,
                                             attribute.stride,
                                             attribute.dataType,
                                             attribute.normalized, 0, 0)
+                                            
                     ctx.enableVertexAttribArray(attribute.loc)
                     ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
                     ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
