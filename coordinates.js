@@ -314,8 +314,8 @@ const Renderer = async options => {
         if(!sortedPass && (geometry.isLine || geometry.isParticle)) {
           var queueType
           switch(geometry.shapeType){
-            case 'particles' :               queueType= 'particleQueue'; break
-            case 'lines'     :               queueType = 'lineQueue'; break
+            case 'particles' : queueType= 'particleQueue'; break
+            case 'lines'     : queueType = 'lineQueue'; break
           }
           renderer[queueType] = [{
             x: geometry.x,
@@ -357,6 +357,38 @@ const Renderer = async options => {
             var bounding = ShowBounding(geometry, renderer, geometry.showBounding, equirectangularPlugin, omitSplitCheck, m)
           }
           
+          dset.optionalAttributes.map((attribute) => {
+            if(typeof attribute?.loc !== ''){
+              switch(attribute.name){
+                case 'custom':
+                  if(attribute.buffer == '') {
+                    attribute.buffer = ctx.createBuffer()
+                  }
+                  if(attribute.indexBuffer == '') {
+                    attribute.indexBuffer= ctx.createBuffer()
+                    attribute.Indices = new Uint32Array( Array(attribute.value.length/attribute.stride).fill().map((v,i)=>i) )
+                  }
+
+                  //console.log('reached custom attribute block')
+                  ctx.bindBuffer(ctx.ARRAY_BUFFER, attribute.buffer)
+                  ctx.bufferData(ctx.ARRAY_BUFFER, new Float32Array(attribute.value), ctx.STATIC_DRAW)
+                  ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, attribute.indexBuffer)
+                  ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, attribute.Indices, ctx.STATIC_DRAW)
+                  
+                  attribute.loc = ctx.getAttribLocation(dset.program, attribute.attributeName)
+                  ctx.vertexAttribPointer(attribute.loc,
+                                          attribute.stride,
+                                          attribute.dataType,
+                                          attribute.normalized, 0, 0)
+                                          
+                  ctx.enableVertexAttribArray(attribute.loc)
+                  ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+                  ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+                break
+              }
+            }
+          })
+            
           if(geometry.shapeType == 'particles' || geometry.isParticle ||
              geometry.shapeType == 'lines' || geometry.isLine) {
 
@@ -633,37 +665,7 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locFog, 0.0)
               ctx.uniform3f(dset.locFogColor, ...renderer.fogColor)
             }
-            dset.optionalAttributes.map((attribute) => {
-              if(typeof attribute?.loc !== ''){
-                switch(attribute.name){
-                  case 'custom':
-                    if(attribute.buffer == '') {
-                      attribute.buffer = ctx.createBuffer()
-                    }
-                    if(attribute.indexBuffer == '') {
-                      attribute.indexBuffer= ctx.createBuffer()
-                      attribute.Indices = new Uint32Array( Array(attribute.value.length/attribute.stride).fill().map((v,i)=>i) )
-                    }
- 
- 
-                    ctx.bindBuffer(ctx.ARRAY_BUFFER, attribute.buffer)
-                    ctx.bufferData(ctx.ARRAY_BUFFER, new Float32Array(attribute.value), ctx.STATIC_DRAW)
-                    ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, attribute.indexBuffer)
-                    ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, attribute.Indices, ctx.STATIC_DRAW)
-                    
-                    attribute.loc = ctx.getAttribLocation(dset.program, attribute.attributeName)
-                    ctx.vertexAttribPointer(attribute.loc,
-                                            attribute.stride,
-                                            attribute.dataType,
-                                            attribute.normalized, 0, 0)
-                                            
-                    ctx.enableVertexAttribArray(attribute.loc)
-                    ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-                    ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-                  break
-                }
-              }
-            })
+            
             dset.optionalUniforms.map((uniform) => {
               if(typeof uniform?.loc === 'object'){
                 if(uniform.dataType == 'uniform4f'){
@@ -4499,6 +4501,7 @@ const BasicShader = async (renderer, options=[]) => {
       varying float skip;
       varying float hasPhong;
       vec3 rgeoPos;
+      vec4 mixColor;
       float rheightMapIntensity;
       float rmaxHeightmap;
 
@@ -4592,13 +4595,18 @@ const BasicShader = async (renderer, options=[]) => {
 
 
         if(isParticle != 0.0 || isLine != 0.0){
-          gl_FragColor = merge(gl_FragColor, vec4(color.rgb, alpha));
+
+          mixColor = vec4(color.rgb, alpha);
+
+          ${aFragCode}
+
+          gl_FragColor = merge(gl_FragColor, mixColor);
         }else{
           float mixColorIp = colorMix;
           float mixColorIp2 = 1.0;
           float baseColorIp = 1.0 - mixColorIp;
           float baseColorIp2 = 1.0 - mixColorIp2;
-          vec4 mixColor = vec4(color.rgb, mixColorIp);
+          mixColor = vec4(color.rgb, mixColorIp);
           vec4 mixColor2 = vec4(color.rgb, mixColorIp2);
           vec4 light = hasPhong == 1.0 ? GetPointLight() :
                 vec4(ambientLight, ambientLight, ambientLight, 1.0);
