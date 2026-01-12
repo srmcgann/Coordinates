@@ -4603,7 +4603,8 @@ const BasicShader = async (renderer, options=[]) => {
 
           ${aFragCode}
 
-          gl_FragColor = merge(gl_FragColor, vec4(mixColor.rgb, alpha));
+          gl_FragColor = merge(gl_FragColor, 
+                           vec4(mixColor.rgb, mixColor.a * alpha));
         }else{
           float mixColorIp = colorMix;
           float mixColorIp2 = 1.0;
