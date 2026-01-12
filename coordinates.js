@@ -314,8 +314,8 @@ const Renderer = async options => {
         if(!sortedPass && (geometry.isLine || geometry.isParticle)) {
           var queueType
           switch(geometry.shapeType){
-            case 'particles' : queueType= 'particleQueue'; break
-            case 'lines'     : queueType = 'lineQueue'; break
+            case 'particles' :               queueType= 'particleQueue'; break
+            case 'lines'     :               queueType = 'lineQueue'; break
           }
           renderer[queueType] = [{
             x: geometry.x,
@@ -340,6 +340,41 @@ const Renderer = async options => {
 
         ctx.texParameteri(ctx.TEXTURE_2D, ctx.TEXTURE_MAG_FILTER,
           geometry.flatShading ? ctx.NEAREST : ctx.LINEAR);
+          
+          
+        dset.optionalAttributes.map((attribute) => {
+          if(typeof attribute?.loc !== ''){
+            switch(attribute.name){
+              case 'custom':
+                if(attribute.buffer == '') {
+                  attribute.buffer = ctx.createBuffer()
+                }
+                if(attribute.indexBuffer == '') {
+                  attribute.indexBuffer= ctx.createBuffer()
+                  attribute.Indices = new Uint32Array( Array(attribute.value.length/attribute.stride).fill().map((v,i)=>i) )
+                }
+
+                ctx.bindBuffer(ctx.ARRAY_BUFFER, attribute.buffer)
+                ctx.bufferData(ctx.ARRAY_BUFFER, new Float32Array(attribute.value), ctx.STATIC_DRAW)
+                ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, attribute.indexBuffer)
+                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, attribute.Indices, ctx.STATIC_DRAW)
+                
+                if((attribute.loc = ctx.getAttribLocation(dset.program, attribute.attributeName)) != -1){
+                  ctx.vertexAttribPointer(attribute.loc,
+                                          attribute.stride,
+                                          attribute.dataType,
+                                          attribute.normalized, 0, 0)
+                                          
+                  ctx.enableVertexAttribArray(attribute.loc)
+                  ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
+                  ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
+                }
+              break
+            }
+          }
+        })
+
+          
         for(var m = 0; m < ((equirectangularPlugin && !omitSplitCheck) ? 2 : 1); m++){
           
           // rotation mode
@@ -357,41 +392,9 @@ const Renderer = async options => {
             var bounding = ShowBounding(geometry, renderer, geometry.showBounding, equirectangularPlugin, omitSplitCheck, m)
           }
           
-          dset.optionalAttributes.map((attribute) => {
-            if(typeof attribute?.loc !== ''){
-              switch(attribute.name){
-                case 'custom':
-                  if(attribute.buffer == '') {
-                    attribute.buffer = ctx.createBuffer()
-                  }
-                  if(attribute.indexBuffer == '') {
-                    attribute.indexBuffer= ctx.createBuffer()
-                    attribute.Indices = new Uint32Array( Array(attribute.value.length/attribute.stride).fill().map((v,i)=>i) )
-                  }
-
-                  //console.log('reached custom attribute block')
-                  ctx.bindBuffer(ctx.ARRAY_BUFFER, attribute.buffer)
-                  ctx.bufferData(ctx.ARRAY_BUFFER, new Float32Array(attribute.value), ctx.STATIC_DRAW)
-                  ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, attribute.indexBuffer)
-                  ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, attribute.Indices, ctx.STATIC_DRAW)
-                  
-                  attribute.loc = ctx.getAttribLocation(dset.program, attribute.attributeName)
-                  ctx.vertexAttribPointer(attribute.loc,
-                                          attribute.stride,
-                                          attribute.dataType,
-                                          attribute.normalized, 0, 0)
-                                          
-                  ctx.enableVertexAttribArray(attribute.loc)
-                  ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
-                  ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
-                break
-              }
-            }
-          })
-            
           if(geometry.shapeType == 'particles' || geometry.isParticle ||
              geometry.shapeType == 'lines' || geometry.isLine) {
-
+               
             renderer.ctx.blendFunc(ctx.ONE, ctx.SRC_ALPHA);
             renderer.ctx.enable(ctx.BLEND)
             
@@ -600,7 +603,7 @@ const Renderer = async options => {
                 }
               break
             }
-            
+
             if(typeof geometry.canvasTexture != 'undefined'){
               ctx.activeTexture(ctx.TEXTURE2)
               BindImage(ctx, geometry.canvasTexture, dset.supplementalTexture, 'canvas', renderer.t, geometry)
@@ -665,7 +668,7 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locFog, 0.0)
               ctx.uniform3f(dset.locFogColor, ...renderer.fogColor)
             }
-            
+
             dset.optionalUniforms.map((uniform) => {
               if(typeof uniform?.loc === 'object'){
                 if(uniform.dataType == 'uniform4f'){
@@ -3662,14 +3665,10 @@ const BasicShader = async (renderer, options=[]) => {
                                          option[key].dataType,
                   normalized: typeof option[key].normalized == 'undefined' ?
                                          false : option[key].normalized,
-                  vertDeclaration:     typeof option[key].vertDeclaration == 'undefined' ?
-                                         `` : option[key].vertDeclaration,
-                  vertCode:            typeof option[key].vertCode == 'undefined' ?
-                                         `` : option[key].vertCode,
-                  fragDeclaration:     typeof option[key].fragDeclaration == 'undefined' ?
-                                         `` : option[key].fragDeclaration,
-                  fragCode:            typeof option[key].fragCode == 'undefined' ?
-                                         `` : option[key].fragCode,
+                  vertDeclaration:     typeof option[key].vertDeclaration == 'undefined' ? `` : option[key].vertDeclaration,
+                  vertCode:            typeof option[key].vertCode == 'undefined' ? `` : option[key].vertCode,
+                  fragDeclaration:     typeof option[key].fragDeclaration == 'undefined' ? `` : option[key].fragDeclaration,
+                  fragCode:            typeof option[key].fragCode == 'undefined' ? `` : option[key].fragCode,
                 }
 
                 dataset.optionalAttributes.push( attributeOption )
@@ -4077,7 +4076,7 @@ const BasicShader = async (renderer, options=[]) => {
     dataset.optionalAttributes.map(v=>{ aVertDeclaration += ("\n" + v.vertDeclaration + "\n") })
     let aVertCode= ''
     dataset.optionalAttributes.map(v=>{ aVertCode += ("\n" + v.vertCode + "\n") })
-
+    
     let aFragDeclaration = ''
     dataset.optionalAttributes.map(v=>{ aFragDeclaration += ("\n" + v.fragDeclaration + "\n") })
     let aFragCode= ''
@@ -4086,9 +4085,7 @@ const BasicShader = async (renderer, options=[]) => {
     ret.vert = `
       precision highp float;
       #define M_PI 3.14159265358979323
-      attribute vec2 uv;
-      ${uVertDeclaration}
-      ${aVertDeclaration}
+      
       
       uniform float t;
       uniform vec3 color;
@@ -4120,6 +4117,8 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float heightMapIntensity;
       uniform sampler2D heightMap;
       uniform float angleOfRefraction;
+
+      attribute vec2 uv;
       attribute vec3 offset;
       attribute vec3 position;
       attribute vec3 normal;
@@ -4135,7 +4134,11 @@ const BasicShader = async (renderer, options=[]) => {
       varying vec3 fPosi;
       varying float skip;
       varying float hasPhong;
-      
+
+      ${uVertDeclaration}
+      ${aVertDeclaration}
+
+
       vec3 pFunc(vec3 pt, float cosa, float sina,
                           float cosb, float sinb,
                           float cosc, float sinc){
@@ -4447,9 +4450,6 @@ const BasicShader = async (renderer, options=[]) => {
       #endif
       #define M_PI 3.14159265358979323
       
-      ${uFragDeclaration}
-      ${aFragDeclaration}
-      
       uniform float t;
       //uniform float factor;
       uniform vec2 resolution;
@@ -4484,6 +4484,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 geoPos;
       uniform vec3 geoOri;
       uniform float angleOfRefraction;
+      vec4 mixColor;
       
         // fog //
       uniform vec3 fogColor;
@@ -4501,9 +4502,11 @@ const BasicShader = async (renderer, options=[]) => {
       varying float skip;
       varying float hasPhong;
       vec3 rgeoPos;
-      vec4 mixColor;
       float rheightMapIntensity;
       float rmaxHeightmap;
+
+      ${uFragDeclaration}
+      ${aFragDeclaration}
 
       vec4 merge (vec4 col1, vec4 col2){
         return vec4((col1.rgb * col1.a) + (col2.rgb * col2.a), 1.0);
@@ -4596,11 +4599,11 @@ const BasicShader = async (renderer, options=[]) => {
 
         if(isParticle != 0.0 || isLine != 0.0){
 
-          mixColor = vec4(color.rgb, alpha);
+          mixColor = vec4(color.rgb, 1.0);
 
           ${aFragCode}
 
-          gl_FragColor = merge(gl_FragColor, mixColor);
+          gl_FragColor = merge(gl_FragColor, vec4(mixColor.rgb, alpha));
         }else{
           float mixColorIp = colorMix;
           float mixColorIp2 = 1.0;
@@ -4806,7 +4809,15 @@ const BasicShader = async (renderer, options=[]) => {
             dset.optionalAttributes.map(async (attribute) => {
               switch(attribute.name){
                 case 'custom':
-                  attribute.loc = gl.getAttribLocation(dset.program, attribute.attributeName)
+                  if(geometry.isLine || geometry.shapeType == 'lines'){
+                    var a = []
+                    for(var i = 0; i < attribute.value.length; i+=attribute.stride)
+                      for(var j = 0; j < 6; j++)
+                        for(var m=0; m<attribute.stride; m++)
+                          a.push(attribute.value[i+m])
+                    attribute.value = a
+                  }
+                
                   /*
                   if(attribute.dataType == 'attribute4f'){
                     gl[attribute.dataType](attribute.loc, ...attribute.value)
@@ -8607,4 +8618,3 @@ export {
   GenHash,
   IsArray,
 }
-
