@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coordinates boilerplate example</title>
+    <style>
+      body, html{
+        background: #000;
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+
+      var renderer = await Coordinates.Renderer({
+        ambientLight: 1,
+      })
+      
+      Coordinates.AnimationLoop(renderer, 'Draw')
+
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .5,
+        }},
+      ]
+      var cubeShader = await Coordinates.BasicShader(renderer, shaderOptions)
+      
+      // create line segment geometry
+      var S = Math.sin
+      var C = Math.cos
+      var x, y, z, p, d
+
+      var shapes = [], geometryData = []
+      var sd = 32, ls = 11
+      for(var i = 0; i < sd; i++){
+
+        x = S(p=Math.PI*2/sd*i + Math.PI/sd) * ls
+        y = C(p) * ls
+        z = 0
+        geometryData.push([x, y, z])
+
+        x = S(p=Math.PI*2/sd*(i+1) + Math.PI/sd) * ls
+        y = C(p) * ls
+        z = 0
+        geometryData.push([x, y, z])
+        
+      }
+
+      // populate colors array for custom attribute
+      var colors = []
+      Array(sd).fill().map((v, i) => {
+        var rgb   = Coordinates.HSVToRGB(360/sd*i, 1, 1)
+        var red   = rgb[0] / 256
+        var green = rgb[1] / 256
+        var blue  = rgb[2] / 256
+        colors.push(red, green, blue, 1)
+      })
+      
+      // create custom attribute shader
+      var shaderOptions = [
+        { attribute: {
+          type: 'custom',
+          enabled: true,         // can be disabled (removed from shader)
+          value: colors,         // buffer data
+          name: 'customColors',  // attribute name to inject into shader
+          stride: 4,             // in this case, we're passing RGBA floats
+          dataType: renderer.ctx.FLOAT,
+          vertDeclaration: `     // vertex shader code, pre main
+            attribute vec4 customColors;
+            varying vec4 attribCols;
+          `,
+          vertCode:        `     // vertex shader code, in main function
+            attribCols = customColors;
+          `,
+          fragDeclaration: `     // fragment shader code, pre main
+            varying vec4 attribCols;
+          `,
+          fragCode: `            // fragment shader code, in main function
+            mixColor = attribCols;
+          `,
+        }},
+      ]
+      var customAttributeShader = await Coordinates.BasicShader(renderer, shaderOptions)
+
+      
+
+      // create lines shape
+      var geoOptions = {
+        shapeType: 'lines',
+        name: 'lines shape',
+        geometryData,
+        size: 3,
+        alpha: 1,
+        penumbra: .3,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await customAttributeShader.ConnectGeometry(geometry)
+      })
+      
+      var geoOptions = {
+        shapeType: 'cube',
+        name: 'cube shape',
+        size: 5,
+        color: 0xffffff,
+      }
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        shapes.push(geometry)
+        await cubeShader.ConnectGeometry(geometry)
+      })  
+
+      
+      renderer.z = 10
+      window.Draw = () => {
+        renderer.Clear()
+        var t = renderer.t
+        shapes.forEach(shape => {
+          switch(shape.name){
+            case 'lines shape':
+              shape.yaw = .5
+              shape.pitch = 1.2
+              shape.roll = t
+              renderer.Draw(shape)
+            break
+            case 'cube shape':
+              shape.yaw += .01
+              shape.pitch += .005
+              renderer.Draw(shape)
+            break
+          }
+        })
+      }
+      
+    </script>
+  </body>
+</html>
