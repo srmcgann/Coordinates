@@ -39,6 +39,8 @@ Check back for updated links. The documentation is under active development at t
 
 [Glow](https://whr.rf.gd/coordocs/?s=71RvokfzW&p=1) make a shape glow via config, or at draw-time
 
+[Custom Attributes](https://whr.rf.gd/coordocs/?s=sjzh5nyAK&p=1) make a shape glow via config, or at draw-time
+
 ---
 
 for quick reference, a sample of boilerplate...
@@ -258,6 +260,7 @@ for a slightly more full-featured boilerplate example, the below may be used
   </body>
 </html>
 ```
+
 
 
 
