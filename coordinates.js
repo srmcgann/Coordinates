@@ -67,6 +67,7 @@ const Renderer = async options => {
   var optionalPlugins = []
   var hasFog          = false
   var fog             = 0
+  var framecount      = 0
   var fogColor        = [0,0,0]
   var dataArray       = {
     data: [],
@@ -100,6 +101,7 @@ const Renderer = async options => {
         case 'width': width = options[key]; break
         case 'height': height = options[key]; break
         case 'alpha': alpha = options[key]; break
+        case 'framecount': frameCount = options[key]; break
         case 'x': x = options[key]; break
         case 'y': y = options[key]; break
         case 'z': z = options[key]; break
@@ -8061,6 +8063,7 @@ const AnimationLoop = (renderer, func) => {
     Overlay.height = renderer.height
     Overlay.c.width = renderer.c.width
     Overlay.c.height = renderer.c.height
+    renderer.frameCount ++
     
     if(renderer.ready && typeof window[func] != 'undefined') await window[func]()
     //if(typeof window[func] != 'undefined') await window[func]()
