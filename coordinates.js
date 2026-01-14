@@ -4691,11 +4691,12 @@ const BasicShader = async (renderer, options=[]) => {
               
               vec2 coords = Coords(0.0, nVi);
               
+              vec4 texel = texture2D( baseTexture, coords);
+              texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
+              
               ${uFragCode}
               ${aFragCode}
               
-              vec4 texel = texture2D( baseTexture, coords);
-              texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
               float fv;
               if(isSprite != 0.0 || isLight != 0.0){
                 if(fog != 0.0){
