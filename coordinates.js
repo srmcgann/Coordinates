@@ -188,7 +188,7 @@ const Renderer = async options => {
     pointLights, pointLightCols, dataArray, glowQueue,
     alphaQueue, particleQueue, lineQueue, active,
     cameraMode, showCrosshair, crosshairSel,
-    crosshairMap, pageX, pageY, mouseX, mouseY,
+    crosshairMap, pageX, pageY, mouseX, mouseY, frameCount,
     mouseButton, rsz, margin, optionalPlugins, fogColor
     
     // functions
