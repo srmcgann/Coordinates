@@ -67,7 +67,7 @@ const Renderer = async options => {
   var optionalPlugins = []
   var hasFog          = false
   var fog             = 0
-  var framecount      = 0
+  var frameCount      = 0
   var fogColor        = [0,0,0]
   var dataArray       = {
     data: [],
