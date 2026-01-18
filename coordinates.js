@@ -782,6 +782,56 @@ const Renderer = async options => {
                            geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
 
                   break
+                  case 'refraction2':
+                    ctx.activeTexture(ctx.TEXTURE6)
+                    if(uniform.textureMode == 'image' && uniform.rebindTextures){
+                      uniform.rebindTextures = false
+                      if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
+                         !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
+                        var image = new Image()
+                        uniform.refraction2Texture = ctx.createTexture()
+                        uniform.image = image
+                        cache.textures.push({
+                          url: uniform.map,
+                          resource: image,
+                          texture: uniform.refraction2Texture
+                        })
+                        image.onload = async () => {
+                          ctx.activeTexture(ctx.TEXTURE6)
+                          BindImage(ctx, uniform.image,
+                          uniform.refraction2Texture, uniform.textureMode, renderer.t, uniform)
+                        }
+                        fetch(uniform.map).then(res=>res.blob()).then(data => {
+                          image.src = URL.createObjectURL(data)
+                        })
+                        
+                      }else{
+                        console.log('resource found in cache. using it')
+                        cacheItem = cache.textures.filter(v=>v.url == uniform.map)[0]
+                        uniform.image = cacheItem.resource
+                        uniform.refraction2Texture= ctx.createTexture() //cacheItem.texture
+                        BindImage(ctx, uniform.image,
+                          uniform.refraction2Texture, uniform.textureMode, renderer.t, uniform)
+                      }
+                    }
+                    if(uniform.textureMode == 'video'){
+                       BindImage(ctx, uniform.video,  uniform.refraction2Texture, uniform.textureMode, renderer.t, uniform)
+                    }
+                    ctx.activeTexture(ctx.TEXTURE6)
+                    ctx.uniform1i(uniform.locRefraction2Texture, 6)
+                    ctx.uniform1f(uniform.locRefraction2Theta, uniform.theta)
+                    
+                    ctx.bindTexture(ctx.TEXTURE_2D, uniform.refraction2Texture)
+                    
+                    ctx.uniform1f(uniform.locAngleOfRefraction2,
+                         uniform.angleOfRefraction2)
+                           
+                    ctx.uniform1f(uniform.locRefraction2OmitEquirectangular,
+                         ( geometry.shapeType == 'rectangle' ||
+                           geometry.shapeType == 'point light' ||
+                           geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
+
+                  break
                   case 'phong':
                     uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
                     ctx.uniform1f(uniform.locPhongTheta, uniform.theta + Math.PI)
@@ -3698,8 +3748,6 @@ const BasicShader = async (renderer, options=[]) => {
                                          0 : option[key].value,
                   flatShading:         typeof option[key].flatShading == 'undefined' ?
                                          false : option[key].flatShading,
-                  flipReflections:     typeof option[key].flipReflections == 'undefined' ? 0 : option[key].flipReflections,
-                  flipRefractions:     typeof option[key].flipRefractions == 'undefined' ? 0 : option[key].flipRefractions,
                   dataType:            typeof option[key].dataType == 'undefined' ?
                                          'uniform1f' : option[key].dataType,
                   vertDeclaration:     typeof option[key].vertDeclaration == 'undefined' ?
@@ -3880,6 +3928,7 @@ const BasicShader = async (renderer, options=[]) => {
                     varying vec3 refractionNV;
                     varying vec3 refractionCamPos;
                     uniform float refractionFlatShading;
+                    uniform float angleOfRefraction;
                   `,
                   vertCode:            ` 
                   
@@ -3913,6 +3962,7 @@ const BasicShader = async (renderer, options=[]) => {
                     uniform float refractionOmitEquirectangular;
                     uniform float refractionFlipRefs;
                     uniform sampler2D refractionMap;
+                    uniform float angleOfRefraction;
                     varying vec3 refractionNV;
                     varying vec3 refractionCamPos;
 
@@ -3943,8 +3993,6 @@ const BasicShader = async (renderer, options=[]) => {
       
                   `,
                   fragCode:            `
-                    //light.rgb *= .5;
-                    //light.rgb += .05;
                     float refractionP1, refractionP2;
                     if(refractionOmitEquirectangular != 1.0){
                       
@@ -3976,6 +4024,104 @@ const BasicShader = async (renderer, options=[]) => {
                     mixColor = merge(mixColor, refractionCol);
                     baseColorIp = 1.0 - refraction; //min(1.0, 2.0 - refraction);
                     //light += refraction/ 4.0;
+                  `,
+                }
+                dataset.optionalUniforms.push( uniformOption )
+              }
+            break
+            case 'refraction2':
+              if(typeof option[key]?.enabled == 'undefined' ||
+                 !!option[key].enabled){
+                var uniformOption = {
+                  name:                option[key].type,
+                  playbackSpeed:       typeof option[key].playbackSpeed == 'undefined' ?
+                                         1 : option[key].playbackSpeed,
+                  involveCache:        typeof option[key].involveCache == 'undefined' ?
+                                         true : option[key].involveCache,
+                  muted:               typeof option[key].muted == 'undefined' ?
+                                         true : option[key].muted,
+                  map:                 option[key].map,
+                  loc:                 '',
+                  value:               typeof option[key].value == 'undefined' ? .5 : option[key].value,
+                  flatShading:         typeof option[key].flatShading == 'undefined' ? false : option[key].flatShading,
+                  flipRefractions:     typeof option[key].flipRefraction2s == 'undefined' ? 0 : option[key].flipRefraction2s,
+                  angleOfRefraction2:   typeof option[key].angleOfRefraction == 'undefined' ? .25 :option[key].angleOfRefraction,
+                  theta:               typeof option[key].theta == 'undefined' ?0:option[key].theta,
+                  flatShadingUniform:  'refraction2FlatShading',
+                  dataType:            'uniform1f',
+                  vertDeclaration:     `
+                    varying vec3 refraction2NV;
+                    varying vec3 refraction2CamPos;
+                    uniform float refraction2FlatShading;
+                    uniform float angleOfRefraction2;
+                  `,
+                  vertCode:            ` 
+                  `,
+                  fragDeclaration:     `
+                    uniform float refraction2;
+                    uniform float refraction2Theta;
+                    uniform float refraction2OmitEquirectangular;
+                    uniform float refraction2FlipRefs;
+                    uniform sampler2D refraction2Map;
+                    uniform float angleOfRefraction2;
+                    varying vec3 refraction2NV;
+                    varying vec3 refraction2CamPos;
+
+                    vec2 GetRef2Coords(vec3 fPos, vec3 camOri){
+                      
+                      float p1, p2;
+                      float rx = rasterPos.x;
+                      float ry = rasterPos.y;
+                      float x1 = rx*resolution.x/resolution.y;
+                      float y1 = cos(camOri.y) * ry;
+                      float z1 = sin(camOri.y) * ry;
+
+                      //float p = atan(x1, y1) - camOri.x;
+                      //float d = sqrt( x1 * x1 + y1 * y1 );
+                      //x1 = sin(p) * d;
+                      //y1 = cos(p) * d;
+
+                      float v = 0.83 / (900.0/fov);
+                      float x2 = 0.0;
+                      float y2 = sin(-camOri.y) * v;
+                      float z2 = cos(-camOri.y) * v;
+                      
+                      // to-do fix roll
+                      //p = atan(x2, y2) - camOri.x;
+                      //d = sqrt( x2 * x2 + y2 * y2 );
+                      //x2 = sin(p) * d;
+                      //y2 = cos(p) * d;
+
+                      float val = angleOfRefraction2 * (1.0+nVec.z);
+                      float x3 = (x1 - x2) + val;
+                      float y3 = (y1 - y2) + val;
+                      float z3 = (z1 - z2) + val;
+                      
+                      float ref2dist = sqrt(
+                        x3 * x3 +
+                        y3 * y3 +
+                        z3 * z3
+                      );
+                      
+                      p1 = -atan(x3, z3) / M_PI / 2.0;
+                      p2 = acos(y3 / ref2dist) / M_PI;
+                      
+                      return vec2(p1+.5 - camOri.z / M_PI/2.0, p2);
+                      
+                    }
+
+                  `,
+                  fragCode:            `
+                    vec2 ref2coords = GetRef2Coords(fPos, camOri);
+                    
+                    if(refraction2OmitEquirectangular != 1.0){
+                      mixColor = vec4(texture2D(refraction2Map,
+                        ref2coords).rgb, refraction2);
+                    }else{
+                      mixColor = vec4(texture2D(refraction2Map,
+                        ref2coords).rgb, refraction2);
+                    }
+                    baseColorIp = 1.0 - refraction2;                    
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -4118,7 +4264,8 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float useHeightMap;
       uniform float heightMapIntensity;
       uniform sampler2D heightMap;
-      uniform float angleOfRefraction;
+      //uniform float angleOfRefraction;
+      //uniform float angleOfRefraction2;
 
       attribute vec2 uv;
       attribute vec3 offset;
@@ -4126,6 +4273,7 @@ const BasicShader = async (renderer, options=[]) => {
       attribute vec3 normal;
       attribute vec3 normalVec;
       attribute vec3 flatShadingNormalVec;
+      varying vec3 rasterPos;
       varying float depth;
       varying vec2 vUv;
       varying vec2 uvi;
@@ -4385,6 +4533,7 @@ const BasicShader = async (renderer, options=[]) => {
           X = (position.x + offset.x) / resolution.x * fov;
           Y = (position.y + offset.y) / resolution.y * fov;
           Z = position.z + offset.z;
+          rasterPos = vec3(X, Y, Z);
           gl_Position = vec4(X, Y, Z/10000.0, 1.0);
           depth = pow(1.0 + sqrt(X*X + Y*Y + Z*Z), 1.0) / 100.0;
           skip = 0.0;
@@ -4394,6 +4543,7 @@ const BasicShader = async (renderer, options=[]) => {
             X = pos.x + cpx + geo.x;
             Y = pos.y + cpy + geo.y;
             Z = pos.z + cpz + geo.z;
+            rasterPos = vec3(X, Y, Z);
             float dist = sqrt(X*X + Y*Y + Z*Z);
             float p1;
             if(omitSplitCheck == 0.0){
@@ -4429,6 +4579,7 @@ const BasicShader = async (renderer, options=[]) => {
             Y = (pos.y + cpy + geo.y) / Z / resolution.y * fov;
             if(Z > 0.0) {
               gl_PointSize = 100.0 * pointSize / Z;
+              rasterPos = vec3(X, Y, Z);
               gl_Position = vec4(X, Y, Z/10000.0, 1.0);
               float nx = pos.x + cpx + geo.x;
               float ny = pos.y + cpy + geo.y;
@@ -4485,7 +4636,8 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 camOri;
       uniform vec3 geoPos;
       uniform vec3 geoOri;
-      uniform float angleOfRefraction;
+      //uniform float angleOfRefraction;
+      //uniform float angleOfRefraction2;
       vec4 mixColor;
       
         // fog //
@@ -4494,6 +4646,7 @@ const BasicShader = async (renderer, options=[]) => {
         /////////
         
       varying float depth;
+      varying vec3 rasterPos;
       varying vec2 vUv;
       varying vec2 uvi;
       varying vec3 nVec;
@@ -5036,6 +5189,107 @@ const BasicShader = async (renderer, options=[]) => {
                   gl.uniform1i(uniform.locRefractionTexture, 5)
                   gl.activeTexture(gl.TEXTURE5)
                   gl.bindTexture(gl.TEXTURE_2D, uniform.refractionTexture)
+                break
+                case 'refraction2':
+                  var url = uniform.map
+                  uniform.locAngleOfRefraction2 = gl.getUniformLocation(dset.program, 'angleOfRefraction2')
+                  if(url){
+                    let l
+                    let suffix = (l=url.split('.'))[l.length-1].toLowerCase()
+                    uniform.refraction2Texture = gl.createTexture()
+                    uniform.locRefraction2Theta = gl.getUniformLocation(dset.program, "refraction2Theta")
+                    switch(suffix){
+                      case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
+                        uniform.textureMode = 'video'
+                        if(involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
+                          console.log('found video in cache... using it')
+                          uniform.video = cacheItem[0].resource
+                          //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                          ret.datasets.push({texture: cacheItem[0].texture, iURL: url })
+                          //gl.activeTexture(gl.TEXTURE6)
+                          //BindImage(gl, uniform.video, uniform.refraction2Texture, uniform.textureMode, -1, {url})
+                        }else{
+                          uniform.video = document.createElement('video')
+                          uniform.video.muted = true
+                          uniform.video.playbackRate = uniform.playbackSpeed
+                          uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                          ret.datasets.push({
+                            texture: uniform.refraction2Texture, iURL: url })
+                          uniform.video.loop = true
+                          if(!uniform.muted && !audioConsent) {
+                            audioConsent = true
+                            GenericPopup('play audio OK?', true, ()=>{
+                              cache.textures.filter(v=>v.url == url)[0].resource.muted = false
+                              cache.textures.filter(v=>v.url == url)[0].resource.currentTime = 0
+                              //cache.textures.filter(v=>v.url == url)[0].resource.playbackRate = cache.textures.filter(v=>v.url == url)[0].resource.defaultPlaybackRate = uniform.playbackSpeed
+                              cache.textures.filter(v=>v.url == url)[0].resource.play()
+                            })
+                          }
+                          uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                          uniform.video.oncanplay = async () => {
+                            uniform.video.play()
+                          }
+                          gl.activeTexture(gl.TEXTURE6)
+                          BindImage(gl, uniform.video, uniform.refraction2Texture, uniform.textureMode, -1, {url})
+                          cache.textures.push({
+                            url,
+                            resource: uniform.video,
+                            texture: uniform.refraction2Texture
+                          })
+                          await fetch(url).then(res=>res.blob()).then(data => {
+                            uniform.video.src = URL.createObjectURL(data)
+                          })
+                        }
+                      break
+                      default:
+                        uniform.textureMode = 'image'
+                        if(0&&involveCache && (cacheItem=cache.textures.filter(v=>v.url==url)).length){
+                          console.log('found image in cache... using it')
+                          var image = cacheItem[0].resource
+                          ret.datasets.push({texture: cacheItem[0].texture, iURL: url })
+                          gl.activeTexture(gl.TEXTURE6)
+                          BindImage(gl, image, uniform.refraction2Texture, uniform.textureMode, -1, {url})
+                        }else{
+                          var image = new Image()
+                          ret.datasets.push({
+                            texture: uniform.refraction2Texture, iURL: url })
+                          gl.uniform1f(uniform.locRefraction2FlipRefs , uniform.flipRefraction2s)
+                          gl.bindTexture(gl.TEXTURE_2D, uniform.refraction2Texture)
+                          image.onload = () =>{
+                            gl.activeTexture(gl.TEXTURE6)
+                            BindImage(gl, image, uniform.refraction2Texture, uniform.textureMode, -1, {url})
+                          }
+                          uniform.image = image
+                          cache.textures.push({
+                            url,
+                            resource: image,
+                            texture: uniform.refraction2Texture
+                          })
+                          await fetch(url).then(res=>res.blob()).then(data => {
+                            image.src = URL.createObjectURL(data)
+                          })
+                        }                        
+                      break
+                    }
+                  }
+                  gl.useProgram(dset.program)
+                  gl.activeTexture(gl.TEXTURE6)
+                  uniform.locRefraction2OmitEquirectangular = gl.getUniformLocation(dset.program, "refraction2OmitEquirectangular")
+                  gl.uniform1f(uniform.locRefraction2OmitEquirectangular,
+                     ( geometry.shapeType == 'rectangle' ||
+                       geometry.shapeType == 'point light' ||
+                       geometry.shapeType == 'sprite' ||
+                       geometry.shapeType == 'particles' ||
+                       geometry.shapeType == 'lines') ? 1.0 : 0.0)
+                    //gl.uniform1f(uniform.locRefraction2FlipRefs , uniform.refraction2Texture)
+                    //gl.bindTexture(gl.TEXTURE_2D, uniform.refraction2Texture)
+                  uniform.locRefraction2FlipRefs = gl.getUniformLocation(dset.program, "refraction2FlipRefs")
+                  gl.uniform1f(uniform.locRefraction2FlipRefs , uniform.flipRefraction2s)
+                  uniform.locRefraction2Texture = gl.getUniformLocation(dset.program, "refraction2Map")
+                  gl.bindTexture(gl.TEXTURE_2D, uniform.refraction2Texture)
+                  gl.uniform1i(uniform.locRefraction2Texture, 6)
+                  gl.activeTexture(gl.TEXTURE6)
+                  gl.bindTexture(gl.TEXTURE_2D, uniform.refraction2Texture)
                 break
                 case 'phong':
                   uniform.locPhongTheta = gl.getUniformLocation(dset.program, uniform.theta)
