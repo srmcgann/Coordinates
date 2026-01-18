@@ -824,7 +824,7 @@ const Renderer = async options => {
                     ctx.bindTexture(ctx.TEXTURE_2D, uniform.refraction2Texture)
                     
                     ctx.uniform1f(uniform.locAngleOfRefraction2,
-                         uniform.angleOfRefraction2)
+                         uniform.angleOfRefraction)
                            
                     ctx.uniform1f(uniform.locRefraction2OmitEquirectangular,
                          ( geometry.shapeType == 'rectangle' ||
@@ -4020,10 +4020,8 @@ const BasicShader = async (renderer, options=[]) => {
                     }
                     
                     vec2 refractionCoords = vec2(refractionP1 + refractionTheta, refractionP2);
-                    vec4 refractionCol = vec4(texture2D(refractionMap, refractionCoords).rgb * 1.25, refraction/ 1.0);
+                    vec4 refractionCol = vec4(texture2D(refractionMap, refractionCoords).rgb * 1.25, refraction);
                     mixColor = merge(mixColor, refractionCol);
-                    baseColorIp = 1.0 - refraction; //min(1.0, 2.0 - refraction);
-                    //light += refraction/ 4.0;
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -4092,10 +4090,12 @@ const BasicShader = async (renderer, options=[]) => {
                       //x2 = sin(p) * d;
                       //y2 = cos(p) * d;
 
-                      float val = angleOfRefraction2 * (1.0+nVec.z);
-                      float x3 = (x1 - x2) + val;
-                      float y3 = (y1 - y2) + val;
-                      float z3 = (z1 - z2) + val;
+                      float val = 1.0 +
+                             pow(.5 * (-1.0-nVec.z), 6.0)*1e4*angleOfRefraction2;
+                      float x3 = (x1/val - x2);
+                      float y3 = (y1/val - y2);
+                      float z3 = (z1/val - z2);
+                      
                       
                       float ref2dist = sqrt(
                         x3 * x3 +
@@ -4115,13 +4115,12 @@ const BasicShader = async (renderer, options=[]) => {
                     vec2 ref2coords = GetRef2Coords(fPos, camOri);
                     
                     if(refraction2OmitEquirectangular != 1.0){
-                      mixColor = vec4(texture2D(refraction2Map,
-                        ref2coords).rgb, refraction2);
+                      mixColor = merge(mixColor, vec4(texture2D(refraction2Map,
+                        ref2coords).rgb * 1.25, refraction2));
                     }else{
-                      mixColor = vec4(texture2D(refraction2Map,
-                        ref2coords).rgb, refraction2);
+                      mixColor = merge(mixColor, vec4(texture2D(refraction2Map,
+                        ref2coords).rgb * 1.25, refraction2));
                     }
-                    baseColorIp = 1.0 - refraction2;                    
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -4764,9 +4763,7 @@ const BasicShader = async (renderer, options=[]) => {
           float mixColorIp = colorMix;
           float mixColorIp2 = 1.0;
           float baseColorIp = 1.0 - mixColorIp;
-          float baseColorIp2 = 1.0 - mixColorIp2;
           mixColor = vec4(color.rgb, mixColorIp);
-          vec4 mixColor2 = vec4(color.rgb, mixColorIp2);
           vec4 light = hasPhong == 1.0 ? GetPointLight() :
                 vec4(ambientLight, ambientLight, ambientLight, 1.0);
           float colorMag = 1.0;
@@ -4864,10 +4861,6 @@ const BasicShader = async (renderer, options=[]) => {
                 texel.a = baseColorIp / 2.0;
                 vec4 col = merge(mixColor, texel);
                 col.a = 1.0;
-                if(baseColorIp2 != 0.0){
-                  mixColor2.a = baseColorIp2;
-                  col = merge(mixColor2, col); // refractions
-                }
                 col.rgb *= light.rgb;
                 
                 
