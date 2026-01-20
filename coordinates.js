@@ -3919,10 +3919,8 @@ const BasicShader = async (renderer, options=[]) => {
                     }
                     
                     vec2 refCoords = vec2(refP1 + refTheta, refP2);
-                    vec4 refCol = vec4(texture2D(reflectionMap, refCoords).rgb * 1.25, reflection / 1.0);
-                    mixColor = merge(mixColor, refCol);
-                    baseColorIp = 1.0 - reflection; //min(1.0, 2.0 - reflection);
-                    //light += reflection / 4.0;
+                    vec4 refCol = vec4(texture2D(reflectionMap, refCoords).rgb * 1.25, reflection);
+                    addInColor = merge(addInColor, refCol);
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -4046,8 +4044,9 @@ const BasicShader = async (renderer, options=[]) => {
                     }
                     
                     vec2 refractionCoords = vec2(refractionP1 + refractionTheta, refractionP2);
-                    vec4 refractionCol = vec4(texture2D(refractionMap, refractionCoords).rgb * 1.25, refraction);
-                    mixColor = merge(mixColor, refractionCol);
+                    addInColor = merge(addInColor,
+                      vec4(texture2D(refractionMap,
+                        refractionCoords).rgb * 1.25, refraction));
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -4068,7 +4067,7 @@ const BasicShader = async (renderer, options=[]) => {
                   flatShading:         typeof option[key].flatShading == 'undefined' ? false : option[key].flatShading,
                   flipRefractions:     typeof option[key].flipRefraction2s == 'undefined' ? 0 : option[key].flipRefraction2s,
                   omitEquirectangular2:   typeof option[key].omitEquirectangular == 'undefined' ? 0 : option[key].omitEquirectangular,
-                  angleOfRefraction2:   typeof option[key].angleOfRefraction == 'undefined' ? .25 :option[key].angleOfRefraction,
+                  angleOfRefraction:   typeof option[key].angleOfRefraction == 'undefined' ? .25 :option[key].angleOfRefraction,
                   theta:               typeof option[key].theta == 'undefined' ?0:option[key].theta,
                   flatShadingUniform:  'refraction2FlatShading',
                   dataType:            'uniform1f',
@@ -4097,10 +4096,10 @@ const BasicShader = async (renderer, options=[]) => {
                       float p1, p2;
                       float rx = rasterPos.x;
                       float ry = rasterPos.y;
-                      if(refraction2OmitEquirectangular == 1.0){
-                        p1 = rasterPos.x/resolution.x;
-                        p2 = rasterPos.y/resolution.y;
-                      }else{
+                      //if(refraction2OmitEquirectangular == 1.0){
+                      //  p1 = rasterPos.x/resolution.x;
+                      //  p2 = rasterPos.y/resolution.y;
+                      //}else{
                         float x1 = rx*resolution.x/resolution.y;
                         float y1 = cos(camOri.y) * ry;
                         float z1 = sin(camOri.y) * ry;
@@ -4122,7 +4121,7 @@ const BasicShader = async (renderer, options=[]) => {
                         //y2 = cos(p) * d;
 
                         float val = 1.0 +
-                               pow(.5 * (-1.0-nVec.z), 6.0)*1e4*angleOfRefraction2;
+                               pow(.5 * (-1.0-nVec.z), 3.0)*100.0*angleOfRefraction2;
                         float x3 = (x1/val - x2);
                         float y3 = (y1/val - y2);
                         float z3 = (z1/val - z2);
@@ -4136,10 +4135,9 @@ const BasicShader = async (renderer, options=[]) => {
                       
                         p1 = -atan(x3, z3) / M_PI / 2.0;
                         p2 = acos(y3 / ref2dist) / M_PI;
-                      }
+                      //}
                       
                       return vec2(p1+.5 - camOri.z / M_PI/2.0, p2);
-                      
                     }
 
                   `,
@@ -4147,7 +4145,8 @@ const BasicShader = async (renderer, options=[]) => {
                     vec2 ref2coords = GetRef2Coords(fPos,
                              camOri, refraction2OmitEquirectangular);
                     
-                      mixColor = merge(mixColor, vec4(texture2D(refraction2Map,
+                    addInColor = merge(addInColor, 
+                      vec4(texture2D(refraction2Map,
                         ref2coords).rgb * 1.25, refraction2));
                   `,
                 }
@@ -4666,6 +4665,7 @@ const BasicShader = async (renderer, options=[]) => {
       //uniform float angleOfRefraction;
       //uniform float angleOfRefraction2;
       vec4 mixColor;
+      vec4 addInColor;
       
         // fog //
       uniform vec3 fogColor;
@@ -4778,7 +4778,6 @@ const BasicShader = async (renderer, options=[]) => {
         rheightMapIntensity = heightMapIntensity / factor;
         rmaxHeightmap = maxHeightmap / factor;
 
-
         if(isParticle != 0.0 || isLine != 0.0){
 
           mixColor = vec4(color.rgb, 1.0);
@@ -4788,10 +4787,9 @@ const BasicShader = async (renderer, options=[]) => {
           gl_FragColor = merge(gl_FragColor, 
                            vec4(mixColor.rgb, mixColor.a * alpha));
         }else{
-          float mixColorIp = colorMix;
-          float mixColorIp2 = 1.0;
-          float baseColorIp = 1.0 - mixColorIp;
-          mixColor = vec4(color.rgb, mixColorIp);
+
+          addInColor = vec4(0.0, 0.0, 0.0, 0.0);
+          
           vec4 light = hasPhong == 1.0 ? GetPointLight() :
                 vec4(ambientLight, ambientLight, ambientLight, 1.0);
           float colorMag = 1.0;
@@ -4865,8 +4863,7 @@ const BasicShader = async (renderer, options=[]) => {
                 nV = nVec;
                 nVi = nVeci;
               }
-              
-              
+
               vec2 coords = Coords(0.0, nVi);
               
               vec4 texel = texture2D( baseTexture, coords);
@@ -4874,7 +4871,7 @@ const BasicShader = async (renderer, options=[]) => {
               
               ${uFragCode}
               ${aFragCode}
-              
+
               float fv;
               if(isSprite != 0.0 || isLight != 0.0){
                 if(fog != 0.0){
@@ -4886,8 +4883,12 @@ const BasicShader = async (renderer, options=[]) => {
                 }
               }else{
                 
-                texel.a = baseColorIp / 2.0;
-                vec4 col = merge(mixColor, texel);
+                texel.a /= 2.0;
+                vec4 col = merge(addInColor, texel);
+                float ip = max(0.0, 1.0 - colorMix);
+                col = merge(vec4(col.rgb, ip),
+                        vec4(color.rgb, colorMix));
+
                 col.a = 1.0;
                 col.rgb *= light.rgb;
                 
