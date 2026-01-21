@@ -798,6 +798,10 @@ const Renderer = async options => {
                     ctx.uniform1f(uniform.locRefraction2Theta, uniform.theta)
                     
                     ctx.bindTexture(ctx.TEXTURE_2D, uniform.refraction2Texture)
+
+                    uniform.locRefractionExponent = ctx.getUniformLocation(dset.program, 'refractionExponent2')
+                    ctx.uniform1f(uniform.locRefractionExponent,
+                                     uniform.refractionExponent)
                     
                     ctx.uniform1f(uniform.locAngleOfRefraction2,
                          uniform.angleOfRefraction)
@@ -807,6 +811,7 @@ const Renderer = async options => {
                            geometry.shapeType == 'point light' ||
                            geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
 
+                    
                   break
                   case 'phong':
                     uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
@@ -4066,85 +4071,83 @@ const BasicShader = async (renderer, options=[]) => {
                   value:               typeof option[key].value == 'undefined' ? .5 : option[key].value,
                   flatShading:         typeof option[key].flatShading == 'undefined' ? false : option[key].flatShading,
                   flipRefractions:     typeof option[key].flipRefraction2s == 'undefined' ? 0 : option[key].flipRefraction2s,
+                  refractionExponent:     typeof option[key].refractionExponent == 'undefined' ? 3.0 : option[key].refractionExponent,
                   omitEquirectangular2:   typeof option[key].omitEquirectangular == 'undefined' ? 0 : option[key].omitEquirectangular,
                   angleOfRefraction:   typeof option[key].angleOfRefraction == 'undefined' ? .25 :option[key].angleOfRefraction,
                   theta:               typeof option[key].theta == 'undefined' ?0:option[key].theta,
                   flatShadingUniform:  'refraction2FlatShading',
                   dataType:            'uniform1f',
                   vertDeclaration:     `
-                    varying vec3 refraction2NV;
-                    varying vec3 refraction2CamPos;
-                    uniform float refraction2FlatShading;
-                    uniform float angleOfRefraction2;
                   `,
                   vertCode:            ` 
                   `,
                   fragDeclaration:     `
+                    uniform float refractionExponent2;
                     uniform float refraction2;
                     uniform float refraction2Theta;
                     uniform float refraction2OmitEquirectangular;
                     uniform float refraction2FlipRefs;
                     uniform sampler2D refraction2Map;
                     uniform float angleOfRefraction2;
-                    varying vec3 refraction2NV;
-                    varying vec3 refraction2CamPos;
-
-                    vec2 GetRef2Coords(vec3 fPos,
-                               vec3 camOri,
-                               float refraction2OmitEquirectangular){
-                      
-                      float p1, p2;
-                      float rx = rasterPos.x;
-                      float ry = rasterPos.y;
-                      //if(refraction2OmitEquirectangular == 1.0){
-                      //  p1 = rasterPos.x/resolution.x;
-                      //  p2 = rasterPos.y/resolution.y;
-                      //}else{
-                        float x1 = rx*resolution.x/resolution.y;
-                        float y1 = cos(camOri.y) * ry;
-                        float z1 = sin(camOri.y) * ry;
-
-                        //float p = atan(x1, y1) - camOri.x;
-                        //float d = sqrt( x1 * x1 + y1 * y1 );
-                        //x1 = sin(p) * d;
-                        //y1 = cos(p) * d;
-
-                        float v = 0.83 / (900.0/fov);
-                        float x2 = 0.0;
-                        float y2 = sin(-camOri.y) * v;
-                        float z2 = cos(-camOri.y) * v;
-                        
-                        // to-do fix roll
-                        //p = atan(x2, y2) - camOri.x;
-                        //d = sqrt( x2 * x2 + y2 * y2 );
-                        //x2 = sin(p) * d;
-                        //y2 = cos(p) * d;
-
-                        float val = 1.0 -
-                               pow(.5 * (-1.0-nVec.z), 2.0)*30.0*angleOfRefraction2;
-                        float x3 = (x1/val - x2);
-                        float y3 = (y1/val - y2);
-                        float z3 = (z1/val - z2);
-                        
-                        
-                        float ref2dist = sqrt(
-                          x3 * x3 +
-                          y3 * y3 +
-                          z3 * z3
-                        );
-                      
-                        p1 = -atan(x3, z3) / M_PI / 2.0;
-                        p2 = acos(y3 / ref2dist) / M_PI;
-                      //}
-                      
-                      return vec2(p1+.5 - camOri.z / M_PI/2.0, p2);
-                    }
 
                   `,
                   fragCode:            `
-                    vec2 ref2coords = GetRef2Coords(fPos,
-                             camOri, refraction2OmitEquirectangular);
+                  
+                    float ref2p1, ref2p2;
+                    float ref2rx = rasterPos.x;
+                    float ref2ry = rasterPos.y;
+                    if(refraction2OmitEquirectangular == 1.0){
+                      ref2p1 = rasterPos.x/resolution.x;
+                      ref2p2 = rasterPos.y/resolution.y;
+                    }else{
+                      float ref2Pitch = camOri.y * (cameraMode == 1.0 ? -1.0 : 1.0);
+                      float ref2x1 = ref2rx*resolution.x/resolution.y;
+                      float ref2y1 = cos(ref2Pitch) * ref2ry;
+                      float ref2z1 = sin(ref2Pitch) * ref2ry;
+
+                      //float p = atan(ref2x1, ref2y1) - camOri.x;
+                      //float d = sqrt( ref2x1 * ref2x1 + ref2y1 * ref2y1 );
+                      //ref2x1 = sin(p) * d;
+                      //ref2y1 = cos(p) * d;
+
+                      float ref2v = 0.83 / (900.0/fov);
+                      float ref2x2 = 0.0;
+                      float ref2y2 = sin(-ref2Pitch) *ref2v;
+                      float ref2z2 = cos(-ref2Pitch) *ref2v;
+                      
+                      // to-do fix roll
+                      //p = atan(ref2x2, ref2y2) - camOri.x;
+                      //d = sqrt( ref2x2 * ref2x2 + ref2y2 * ref2y2 );
+                      //ref2x2 = sin(p) * d;
+                      //ref2y2 = cos(p) * d;
+                      
+                      
+                      //float ref2val = 1.0 -
+                      //       pow(.5 * (-1.5-nVec.z),  refractionExponent2) *
+                      //         pow(refractionExponent2 * 10.0, 2.0) * //angleOfRefraction2;
+                      
+                      float ref2val = 1.0 -
+                         pow(.5 * (-1.66-nVec.z), 7.0) *
+                           50.0 * 
+                           angleOfRefraction2;
+                               
+                      float ref2x3 = (ref2x1 / ref2val - ref2x2);
+                      float ref2y3 = (ref2y1 / ref2val - ref2y2);
+                      float ref2z3 = (ref2z1 / ref2val - ref2z2);
+                      
+                      
+                      float ref2dist = sqrt(
+                        ref2x3 * ref2x3 +
+                        ref2y3 * ref2y3 +
+                        ref2z3 * ref2z3
+                      );
                     
+                      ref2p1 = -(atan(ref2x3, ref2z3) + refraction2Theta) / M_PI / 2.0;
+                      ref2p2 = acos(ref2y3 / ref2dist) / M_PI;
+                    }
+                    
+                    vec2 ref2coords = vec2(ref2p1+.5 - camOri.z / M_PI/2.0, ref2p2);
+                  
                     addInColor = merge(addInColor, 
                       vec4(texture2D(refraction2Map,
                         ref2coords).rgb * 1.25, refraction2));
@@ -4290,8 +4293,6 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float useHeightMap;
       uniform float heightMapIntensity;
       uniform sampler2D heightMap;
-      //uniform float angleOfRefraction;
-      //uniform float angleOfRefraction2;
 
       attribute vec2 uv;
       attribute vec3 offset;
@@ -4662,8 +4663,6 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 camOri;
       uniform vec3 geoPos;
       uniform vec3 geoOri;
-      //uniform float angleOfRefraction;
-      //uniform float angleOfRefraction2;
       vec4 mixColor;
       vec4 addInColor;
       
@@ -5230,11 +5229,12 @@ const BasicShader = async (renderer, options=[]) => {
                 case 'refraction2':
                   var url = uniform.map
                   uniform.locAngleOfRefraction2 = gl.getUniformLocation(dset.program, 'angleOfRefraction2')
+                  uniform.locRefractionExponent = gl.getUniformLocation(dset.program, 'refractionExponent2')
+                  uniform.locRefraction2Theta = gl.getUniformLocation(dset.program, "refraction2Theta")
                   if(url){
                     let l
                     let suffix = (l=url.split('.'))[l.length-1].toLowerCase()
                     uniform.refraction2Texture = gl.createTexture()
-                    uniform.locRefraction2Theta = gl.getUniformLocation(dset.program, "refraction2Theta")
                     switch(suffix){
                       case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
                         uniform.textureMode = 'video'
