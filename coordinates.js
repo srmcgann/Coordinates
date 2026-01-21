@@ -4120,8 +4120,8 @@ const BasicShader = async (renderer, options=[]) => {
                         //x2 = sin(p) * d;
                         //y2 = cos(p) * d;
 
-                        float val = 1.0 +
-                               pow(.5 * (-1.0-nVec.z), 3.0)*100.0*angleOfRefraction2;
+                        float val = 1.0 -
+                               pow(.5 * (-1.0-nVec.z), 2.0)*30.0*angleOfRefraction2;
                         float x3 = (x1/val - x2);
                         float y3 = (y1/val - y2);
                         float z3 = (z1/val - z2);
