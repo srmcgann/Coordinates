@@ -798,6 +798,10 @@ const Renderer = async options => {
                     ctx.uniform1f(uniform.locRefraction2Theta, uniform.theta)
                     
                     ctx.bindTexture(ctx.TEXTURE_2D, uniform.refraction2Texture)
+
+                    uniform.locRefractionExponent = ctx.getUniformLocation(dset.program, 'refractionExponent2')
+                    ctx.uniform1f(uniform.locRefractionExponent,
+                                     uniform.refractionExponent)
                     
                     ctx.uniform1f(uniform.locAngleOfRefraction2,
                          uniform.angleOfRefraction)
@@ -807,6 +811,7 @@ const Renderer = async options => {
                            geometry.shapeType == 'point light' ||
                            geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
 
+                    
                   break
                   case 'phong':
                     uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
@@ -4066,33 +4071,37 @@ const BasicShader = async (renderer, options=[]) => {
                   value:               typeof option[key].value == 'undefined' ? .5 : option[key].value,
                   flatShading:         typeof option[key].flatShading == 'undefined' ? false : option[key].flatShading,
                   flipRefractions:     typeof option[key].flipRefraction2s == 'undefined' ? 0 : option[key].flipRefraction2s,
+                  refractionExponent:     typeof option[key].refractionExponent == 'undefined' ? 3.0 : option[key].refractionExponent,
                   omitEquirectangular2:   typeof option[key].omitEquirectangular == 'undefined' ? 0 : option[key].omitEquirectangular,
                   angleOfRefraction:   typeof option[key].angleOfRefraction == 'undefined' ? .25 :option[key].angleOfRefraction,
                   theta:               typeof option[key].theta == 'undefined' ?0:option[key].theta,
                   flatShadingUniform:  'refraction2FlatShading',
                   dataType:            'uniform1f',
                   vertDeclaration:     `
-                    varying vec3 refraction2NV;
-                    varying vec3 refraction2CamPos;
-                    uniform float refraction2FlatShading;
-                    uniform float angleOfRefraction2;
                   `,
                   vertCode:            ` 
                   `,
                   fragDeclaration:     `
+                    uniform float refractionExponent2;
                     uniform float refraction2;
                     uniform float refraction2Theta;
                     uniform float refraction2OmitEquirectangular;
                     uniform float refraction2FlipRefs;
                     uniform sampler2D refraction2Map;
                     uniform float angleOfRefraction2;
-                    varying vec3 refraction2NV;
-                    varying vec3 refraction2CamPos;
 
-                    vec2 GetRef2Coords(vec3 fPos,
-                               vec3 camOri,
-                               float refraction2OmitEquirectangular){
+
+                    //float myPow(float val, float exp){
                       
+                    //}
+
+                    vec2 GetRef2Coords(
+                           vec3 fPos,
+                           vec3 camOri,
+                           float refraction2OmitEquirectangular,
+                           float expo
+                         ){
+                           
                       float p1, p2;
                       float rx = rasterPos.x;
                       float ry = rasterPos.y;
@@ -4119,12 +4128,19 @@ const BasicShader = async (renderer, options=[]) => {
                         //d = sqrt( x2 * x2 + y2 * y2 );
                         //x2 = sin(p) * d;
                         //y2 = cos(p) * d;
-
+                        
+                        
+                        //float val = 1.0 -
+                        //       pow(.5 * (-1.5-nVec.z),  expo) *
+                        //         pow(expo * 10.0, 2.0) * angleOfRefraction2;
+                        
                         float val = 1.0 -
-                               pow(.5 * (-1.0-nVec.z), 2.0)*30.0*angleOfRefraction2;
-                        float x3 = (x1/val - x2);
-                        float y3 = (y1/val - y2);
-                        float z3 = (z1/val - z2);
+                               pow(.5 * (-1.5-nVec.z),  9.0) *
+                                 500.0 * angleOfRefraction2;
+                                 
+                        float x3 = (x1 / val - x2);
+                        float y3 = (y1 / val - y2);
+                        float z3 = (z1 / val - z2);
                         
                         
                         float ref2dist = sqrt(
@@ -4133,8 +4149,9 @@ const BasicShader = async (renderer, options=[]) => {
                           z3 * z3
                         );
                       
-                        p1 = -atan(x3, z3) / M_PI / 2.0;
-                        p2 = acos(y3 / ref2dist) / M_PI;
+                        p1 = -(atan(x3, z3) + refraction2Theta) / M_PI / 2.0;
+                        p2 = acos(y3 / ref2dist) / M_PI * 
+                              (cameraMode == 1.0 ? -1.0 : 1.0);
                       //}
                       
                       return vec2(p1+.5 - camOri.z / M_PI/2.0, p2);
@@ -4142,12 +4159,18 @@ const BasicShader = async (renderer, options=[]) => {
 
                   `,
                   fragCode:            `
-                    vec2 ref2coords = GetRef2Coords(fPos,
-                             camOri, refraction2OmitEquirectangular);
-                    
+                  
+                    vec2 ref2coords = GetRef2Coords(
+                      fPos,
+                      camOri,
+                      refraction2OmitEquirectangular,
+                      refractionExponent2
+                    );
+                             
                     addInColor = merge(addInColor, 
                       vec4(texture2D(refraction2Map,
                         ref2coords).rgb * 1.25, refraction2));
+                        
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
@@ -5230,11 +5253,12 @@ const BasicShader = async (renderer, options=[]) => {
                 case 'refraction2':
                   var url = uniform.map
                   uniform.locAngleOfRefraction2 = gl.getUniformLocation(dset.program, 'angleOfRefraction2')
+                  uniform.locRefractionExponent = gl.getUniformLocation(dset.program, 'refractionExponent2')
+                  uniform.locRefraction2Theta = gl.getUniformLocation(dset.program, "refraction2Theta")
                   if(url){
                     let l
                     let suffix = (l=url.split('.'))[l.length-1].toLowerCase()
                     uniform.refraction2Texture = gl.createTexture()
-                    uniform.locRefraction2Theta = gl.getUniformLocation(dset.program, "refraction2Theta")
                     switch(suffix){
                       case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
                         uniform.textureMode = 'video'
