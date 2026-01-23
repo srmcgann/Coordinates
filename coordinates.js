@@ -68,6 +68,7 @@ const Renderer = async options => {
   var hasFog          = false
   var fog             = 0
   var frameCount      = 0
+  var rotationMode    = 0
   var fogColor        = [0,0,0]
   var dataArray       = {
     data: [],
@@ -111,6 +112,7 @@ const Renderer = async options => {
         case 'fov': fov = options[key]; break
         case 'fog': fog = options[key]; break
         case 'fogcolor': fogColor = options[key]; break
+        case 'rotationmode': rotationMode = options[key]; break
         case 'clearcolor': clearColor = options[key]; break
         case 'attachtobody': attachToBody = !!options[key]; break
         case 'exportgpuspecs': exportGPUSpecs = !!options[key]; break
@@ -189,7 +191,8 @@ const Renderer = async options => {
     alphaQueue, particleQueue, lineQueue, active,
     cameraMode, showCrosshair, crosshairSel,
     crosshairMap, pageX, pageY, mouseX, mouseY, frameCount,
-    mouseButton, rsz, margin, optionalPlugins, fogColor
+    mouseButton, rsz, margin, optionalPlugins, fogColor,
+    rotationMode
     
     // functions
     // ...
@@ -343,7 +346,9 @@ const Renderer = async options => {
         ctx.texParameteri(ctx.TEXTURE_2D, ctx.TEXTURE_MAG_FILTER,
           geometry.flatShading ? ctx.NEAREST : ctx.LINEAR);
           
-          
+        ctx.uniform1i(ctx.getUniformLocation( dset.program, 'camRotationMode'),
+                      renderer.rotationMode)
+                      
         dset.optionalAttributes.map((attribute) => {
           if(typeof attribute?.loc !== ''){
             switch(attribute.name){
@@ -4089,43 +4094,63 @@ const BasicShader = async (renderer, options=[]) => {
                     uniform float refraction2FlipRefs;
                     uniform sampler2D refraction2Map;
                     uniform float angleOfRefraction2;
-
                   `,
                   fragCode:            `
                   
-                    float ref2p1, ref2p2;
+                    float ref2p1, ref2p2, d;
                     float ref2rx = rasterPos.x;
                     float ref2ry = rasterPos.y;
                     if(refraction2OmitEquirectangular == 1.0){
                       ref2p1 = rasterPos.x/resolution.x;
                       ref2p2 = rasterPos.y/resolution.y;
                     }else{
+                      float ar = resolution.x/resolution.y;
                       float ref2Pitch = camOri.y * (cameraMode == 1.0 ? -1.0 : 1.0);
-                      float ref2x1 = ref2rx*resolution.x/resolution.y;
-                      float ref2y1 = cos(ref2Pitch) * ref2ry;
-                      float ref2z1 = sin(ref2Pitch) * ref2ry;
+                      float ref2x1 = ref2rx*ar;
+                      float ref2y1 = cos(0.0) * ref2ry;
+                      float ref2z1 = sin(0.0) * ref2ry;
 
-                      //float p = atan(ref2x1, ref2y1) - camOri.x;
-                      //float d = sqrt( ref2x1 * ref2x1 + ref2y1 * ref2y1 );
-                      //ref2x1 = sin(p) * d;
-                      //ref2y1 = cos(p) * d;
+                      // roll
+                      p = atan(ref2x1, ref2y1) - camOri.x;
+                      d = sqrt( ref2x1 * ref2x1 + ref2y1 * ref2y1 );
+                      ref2x1 = sin(p) * d;
+                      ref2y1 = cos(p) * d;
+
+                      // pitch
+                      float p = atan(ref2y1, ref2z1) - camOri.y;
+                      float d = sqrt( ref2y1 * ref2y1 + ref2z1 * ref2z1 );
+                      ref2y1 = sin(p) * d;
+                      ref2z1 = cos(p) * d;
+
+                      // yaw
+                      p = atan(-ref2x1, -ref2z1) + camOri.z + .5;
+                      d = sqrt( ref2x1 * ref2x1 + ref2z1 * ref2z1 );
+                      ref2x1 = sin(p) * d;
+                      ref2z1 = cos(p) * d;
 
                       float ref2v = 0.83 / (900.0/fov);
                       float ref2x2 = 0.0;
-                      float ref2y2 = sin(-ref2Pitch) *ref2v;
-                      float ref2z2 = cos(-ref2Pitch) *ref2v;
+                      float ref2y2 = sin(0.0) *ref2v;
+                      float ref2z2 = cos(0.0) *ref2v;
                       
-                      // to-do fix roll
-                      //p = atan(ref2x2, ref2y2) - camOri.x;
-                      //d = sqrt( ref2x2 * ref2x2 + ref2y2 * ref2y2 );
-                      //ref2x2 = sin(p) * d;
-                      //ref2y2 = cos(p) * d;
+                      // roll
+                      p = atan(ref2x2, ref2y2) - camOri.x;
+                      d = sqrt( ref2x2 * ref2x2 + ref2y2 * ref2y2 );
+                      ref2x2 = sin(p) * d;
+                      ref2y2 = cos(p) * d;
                       
+                      // pitch
+                      p = atan(ref2y2, ref2z2) - camOri.y;
+                      d = sqrt( ref2y2 * ref2y2 + ref2z2 * ref2z2 );
+                      ref2y2 = sin(p) * d;
+                      ref2z2 = cos(p) * d;
                       
-                      //float ref2val = 1.0 -
-                      //       pow(.5 * (-1.5-nVec.z),  refractionExponent2) *
-                      //         pow(refractionExponent2 * 10.0, 2.0) * //angleOfRefraction2;
-                      
+                      // yaw
+                      p = atan(-ref2x2, -ref2z2) + camOri.z + .5;
+                      d = sqrt( ref2x2 * ref2x2 + ref2z2 * ref2z2 );
+                      ref2x2 = sin(p) * d;
+                      ref2z2 = cos(p) * d;
+
                       float ref2val = 1.0 -
                          pow(.5 * (-1.66-nVec.z), 7.0) *
                            50.0 * 
@@ -4135,18 +4160,24 @@ const BasicShader = async (renderer, options=[]) => {
                       float ref2y3 = (ref2y1 / ref2val - ref2y2);
                       float ref2z3 = (ref2z1 / ref2val - ref2z2);
                       
+                      //p = atan(ref2x3, ref2y3) - camOri.x;
+                      //d = sqrt(ref2x3*ref2x3 + ref2y3*ref2y3);
+                      //ref2x3 = .5 + sin(p) * d;
+                      //ref2y3 = .5 + cos(p) * d;
                       
                       float ref2dist = sqrt(
                         ref2x3 * ref2x3 +
                         ref2y3 * ref2y3 +
                         ref2z3 * ref2z3
                       );
+                      
                     
                       ref2p1 = -(atan(ref2x3, ref2z3) + refraction2Theta) / M_PI / 2.0;
                       ref2p2 = acos(ref2y3 / ref2dist) / M_PI;
                     }
                     
-                    vec2 ref2coords = vec2(ref2p1+.5 - camOri.z / M_PI/2.0, ref2p2);
+                    
+                    vec2 ref2coords = vec2(ref2p1+.5/M_PI/2.0, ref2p2);
                   
                     addInColor = merge(addInColor, 
                       vec4(texture2D(refraction2Map,
@@ -4275,6 +4306,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 geoPos;
       uniform vec3 geoOri;
       uniform int rotationMode;
+      uniform int camRotationMode;
       uniform float omitSplitCheck;
       uniform float splitCheckPass;
       uniform float pointSize;
@@ -4315,7 +4347,6 @@ const BasicShader = async (renderer, options=[]) => {
       ${uVertDeclaration}
       ${aVertDeclaration}
 
-
       vec3 pFunc(vec3 pt, float cosa, float sina,
                           float cosb, float sinb,
                           float cosc, float sinc){
@@ -4339,18 +4370,62 @@ const BasicShader = async (renderer, options=[]) => {
         float cosa, sina, cosb, sinb, cosc, sinc;
         vec3 ret = vec3(pos.x, pos.y, pos.z);
         if(rotationMode == 0 || isGeo == 0){
-          cosa = cos(-rot.x); sina = sin(-rot.x);
-          cosb = cos(0.0);    sinb = sin(0.0);
-          cosc = cos(0.0);    sinc = sin(0.0);
-          ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
-          cosa = cos(0.0);    sina = sin(0.0);
-          cosb = cos(-rot.z); sinb = sin(-rot.z);
-          cosc = cos(0.0);    sinc = sin(0.0);
-          ret = pFunc(ret,    cosa, sina, cosb, sinb, cosc, sinc);
-          cosa = cos(0.0);    sina = sin(0.0);
-          cosb = cos(0.0);    sinb = sin(0.0);
-          cosc = cos(rot.y);  sinc = sin(rot.y);
-          ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+          if(camRotationMode == 0){
+            cosa = cos(-rot.x); sina = sin(-rot.x);
+            cosb = cos(0.0);    sinb = sin(0.0);
+            cosc = cos(0.0);    sinc = sin(0.0);
+            ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+            cosa = cos(0.0);    sina = sin(0.0);
+            cosb = cos(-rot.z); sinb = sin(-rot.z);
+            cosc = cos(0.0);    sinc = sin(0.0);
+            ret = pFunc(ret,    cosa, sina, cosb, sinb, cosc, sinc);
+            cosa = cos(0.0);    sina = sin(0.0);
+            cosb = cos(0.0);    sinb = sin(0.0);
+            cosc = cos(rot.y);  sinc = sin(rot.y);
+            ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+          }
+          if(camRotationMode == 1){
+            cosa = cos(0.0);    sina = sin(0.0);
+            cosb = cos(0.0);    sinb = sin(0.0);
+            cosc = cos(rot.y);  sinc = sin(rot.y);
+            ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+            cosa = cos(0.0);    sina = sin(0.0);
+            cosb = cos(-rot.z); sinb = sin(-rot.z);
+            cosc = cos(0.0);    sinc = sin(0.0);
+            ret = pFunc(ret,    cosa, sina, cosb, sinb, cosc, sinc);
+            cosa = cos(-rot.x); sina = sin(-rot.x);
+            cosb = cos(0.0);    sinb = sin(0.0);
+            cosc = cos(0.0);    sinc = sin(0.0);
+            ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+          }
+          if(camRotationMode == 2){
+            cosa = cos(-rot.x); sina = sin(-rot.x);
+            cosb = cos(0.0);    sinb = sin(0.0);
+            cosc = cos(0.0);    sinc = sin(0.0);
+            ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+            cosa = cos(0.0);    sina = sin(0.0);
+            cosb = cos(0.0);    sinb = sin(0.0);
+            cosc = cos(rot.y);  sinc = sin(rot.y);
+            ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+            cosa = cos(0.0);    sina = sin(0.0);
+            cosb = cos(-rot.z); sinb = sin(-rot.z);
+            cosc = cos(0.0);    sinc = sin(0.0);
+            ret = pFunc(ret,    cosa, sina, cosb, sinb, cosc, sinc);
+          }
+          if(camRotationMode == 3){
+            cosa = cos(0.0);    sina = sin(0.0);
+            cosb = cos(-rot.z); sinb = sin(-rot.z);
+            cosc = cos(0.0);    sinc = sin(0.0);
+            ret = pFunc(ret,    cosa, sina, cosb, sinb, cosc, sinc);
+            cosa = cos(0.0);    sina = sin(0.0);
+            cosb = cos(0.0);    sinb = sin(0.0);
+            cosc = cos(rot.y);  sinc = sin(rot.y);
+            ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+            cosa = cos(-rot.x); sina = sin(-rot.x);
+            cosb = cos(0.0);    sinb = sin(0.0);
+            cosc = cos(0.0);    sinc = sin(0.0);
+            ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+          }
         }
         if(rotationMode == 1 && isGeo == 1){
           cosa = cos(0.0);    sina = sin(0.0);
@@ -4381,18 +4456,18 @@ const BasicShader = async (renderer, options=[]) => {
           ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
         }
         if(rotationMode == 3 && isGeo == 1){
-          cosa = cos(-rot.x); sina = sin(-rot.x);
-          cosb = cos(0.0);    sinb = sin(0.0);
-          cosc = cos(0.0);    sinc = sin(0.0);
-          ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
-          cosa = cos(0.0);    sina = sin(0.0);
-          cosb = cos(0.0);    sinb = sin(0.0);
-          cosc = cos(rot.y);  sinc = sin(rot.y);
-          ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
           cosa = cos(0.0);    sina = sin(0.0);
           cosb = cos(-rot.z); sinb = sin(-rot.z);
           cosc = cos(0.0);    sinc = sin(0.0);
           ret = pFunc(ret,    cosa, sina, cosb, sinb, cosc, sinc);
+          cosa = cos(0.0);    sina = sin(0.0);
+          cosb = cos(0.0);    sinb = sin(0.0);
+          cosc = cos(rot.y);  sinc = sin(rot.y);
+          ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
+          cosa = cos(-rot.x); sina = sin(-rot.x);
+          cosb = cos(0.0);    sinb = sin(0.0);
+          cosc = cos(0.0);    sinc = sin(0.0);
+          ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc);
         }
         return ret;
       }
@@ -4641,6 +4716,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float isLine;
       uniform float fov;
       uniform float cameraMode;
+      uniform int camRotationMode;
       uniform vec4 pointLightPos[16];
       uniform vec4 pointLightCol[16];
       uniform int pointLightCount;
