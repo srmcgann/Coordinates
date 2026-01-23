@@ -3856,15 +3856,18 @@ const BasicShader = async (renderer, options=[]) => {
                     }
                     refNV = refFlatShading == 1.0 ? fsnVec : nVec;
                     if(cameraMode == 1.0){
-                      refNV = Quat(refNV, vec3(refcOri.x, refcOri.y,0.0), 1);
+                      refNV = Quat(refNV, vec3(refcOri.x, 0.0,0.0), 1);
+                      refNV = Quat(refNV, vec3(0.0, refcOri.y, 0.0), 1);
                       refNV = Quat(refNV, vec3(0.0, 0.0, refcOri.z), 1);
 
                       refCamPos = -camPos;
                     }else{
-                      refNV = Quat(refNV, vec3(refcOri.x, refcOri.y,0.0), 1);
+                      refNV = Quat(refNV, vec3(refcOri.x, 0.0,0.0), 1);
+                      refNV = Quat(refNV, vec3(0.0, refcOri.y, 0.0), 1);
                       refNV = Quat(refNV, vec3(0.0, 0.0, refcOri.z), 1);
 
-                      refCamPos = Quat(camPos, vec3(refcOri.x, refcOri.y,0.0), 1);
+                      refCamPos = Quat(camPos, vec3(refcOri.x, 0.0, 0.0), 1);
+                      refCamPos = Quat(refCamPos, vec3(0.0, refcOri.y, 0.0), 1);
                       refCamPos = Quat(refCamPos, vec3(0.0, 0.0, refcOri.z), 1);
                     }
                     
@@ -4105,7 +4108,6 @@ const BasicShader = async (renderer, options=[]) => {
                       ref2p2 = rasterPos.y/resolution.y;
                     }else{
                       float ar = resolution.x/resolution.y;
-                      float ref2Pitch = camOri.y * (cameraMode == 1.0 ? -1.0 : 1.0);
                       float ref2x1 = ref2rx*ar;
                       float ref2y1 = cos(0.0) * ref2ry;
                       float ref2z1 = sin(0.0) * ref2ry;
@@ -4117,7 +4119,13 @@ const BasicShader = async (renderer, options=[]) => {
                       ref2y1 = cos(p) * d;
 
                       // pitch
-                      float p = atan(ref2y1, ref2z1) - camOri.y;
+                      float p;
+                      if(cameraMode == 1.0){
+                        p = atan(ref2y1, ref2z1) + camOri.y;
+                      }else{
+                        p = atan(ref2y1, ref2z1) - camOri.y;
+                      }
+
                       float d = sqrt( ref2y1 * ref2y1 + ref2z1 * ref2z1 );
                       ref2y1 = sin(p) * d;
                       ref2z1 = cos(p) * d;
@@ -4140,7 +4148,7 @@ const BasicShader = async (renderer, options=[]) => {
                       ref2y2 = cos(p) * d;
                       
                       // pitch
-                      p = atan(ref2y2, ref2z2) - camOri.y;
+                      p = atan(ref2y2, ref2z2) - camOri.y * (cameraMode == 1.0 ? -1.0: 1.0);
                       d = sqrt( ref2y2 * ref2y2 + ref2z2 * ref2z2 );
                       ref2y2 = sin(p) * d;
                       ref2z2 = cos(p) * d;
