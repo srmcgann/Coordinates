@@ -15,7 +15,7 @@
     <script type="module">
 
       import * as Coordinates from
-      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      "./coordinates.js"
 
       var rendererOptions = {
         ambientLight: .25, clearColor: 0x000000, margin: 0,
@@ -48,10 +48,10 @@
         colorMix: .25,
         
         glow: true,
-        glowColor: Coordinates.HSVToHex(50, 1, 1),
-        glowAlpha: .25,
+        glowColor: Coordinates.HSVToHex(-100, 1, 1),
+        glowAlpha: .8,
         glowIncludeShape: false,
-        glowResolution: 1,
+        glowResolution: .5,
         glowRadius: .5,
       }
       await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
