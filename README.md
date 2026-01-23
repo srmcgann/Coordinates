@@ -19,6 +19,8 @@ Check back for updated links. The documentation is under active development at t
 - [Main overview (section 6)](https://whr.rf.gd/coordocs/?s=F1YNUKnAD&p=1)
 
 ## other sections
+[Refractions & Reflections](https://whr.rf.gd/coordocs/?s=HQJEbC8Yg&p=1) shader lighting effects & example
+
 [ShapeFromArray](https://whr.rf.gd/coordocs/?s=fqAGEVGSC&p=1) speed / grouping
 
 [raw shapes](https://whr.rf.gd/coordocs/?s=gsPYtHhNC&p=1) manual and procedural shapes
@@ -260,6 +262,7 @@ for a slightly more full-featured boilerplate example, the below may be used
   </body>
 </html>
 ```
+
 
 
 
