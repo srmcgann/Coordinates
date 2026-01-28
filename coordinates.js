@@ -1684,8 +1684,6 @@ const DownloadCustomShape = geo => {
       normalAssocs.push(geo.normalAssocs[i])
   }
 
-  console.log('shape array?', geo.isShapeArray)
-  console.log(geo)
   if(geo.isShapeArray){
     shapeData = geo.shapeData
     if(geo?.stride){
@@ -3092,7 +3090,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   if(geometry.downloadShape && !isFromZip) {
     setTimeout(()=>{
       DownloadCustomShape(geometry)
-    },0)
+    }, 0)
   }
   if(geometry.downloadAsOBJ && !isFromZip) {
     setTimeout(()=>{
@@ -6174,7 +6172,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     })
     delete options.shapeData
   }
-  var tcan, tshptyp = shape.shapeType, ret, opts = { shapeData }
+  var tcan, tshptyp = shape.shapeType, ret, opts = { }
   if(shape.canvasTexture) tcan = shape.canvasTexture
   ;([
     'x', 'y', 'z', 'rows', 'cols', 'size', 'url',
@@ -6232,6 +6230,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     geometry.isShapeArray = true
     if(opts.shapeArrayIsSprite) geometry.shapeArrayIsSprite = true
     ret = geometry
+    ret.shapeData = shapeData
   })
   return ret
 }
