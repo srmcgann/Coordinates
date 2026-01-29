@@ -5882,37 +5882,13 @@ const BasicShader = async (renderer, options=[]) => {
 }
 
 const ApplyShapeData = shape => {
+  
+  
   if(!shape?.shapeData || !shape?.shapeData.length) return
   var l1, l2, x, y, z, p, d
+  
+  ProcessShapeArray(shape)
   shape.shapeData.map((subShape, sidx) => {
-    for(var i = shape.stride * sidx; i < shape.stride * (sidx+1); i+=3){
-      x = shape.vstate[i+0]
-      y = shape.vstate[i+1]
-      z = shape.vstate[i+2]
-      
-      //roll
-      var p = Math.atan2(x, y)
-      var d = Math.hypot(x, y)
-      x = S(p) * d
-      y = C(p) * d
-      
-      //pitch
-      var p = Math.atan2(y, z)
-      var d = Math.hypot(y, z)
-      y = S(p) * d
-      z = C(p) * d
-      
-      //yaw
-      var p = Math.atan2(x, z)
-      var d = Math.hypot(x, z)
-      x = S(p) * d + subShape.offsetx
-      y += subShape.offsety
-      z = C(p) * d + subShape.offsetz
-      
-      shape.vstate[i+0] = x
-      shape.vstate[i+1] = y
-      shape.vstate[i+2] = z
-    }
     subShape.moffsetx = 0
     subShape.moffsety = 0
     subShape.moffsetz = 0
