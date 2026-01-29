@@ -5883,7 +5883,7 @@ const BasicShader = async (renderer, options=[]) => {
 
 const ApplyShapeData = shape => {
   if(!shape?.shapeData || !shape?.shapeData.length) return
-  var l1, l2
+  var l1, l2, x, y, z, p, d
   shape.shapeData.map((subShape, sidx) => {
     for(var i = shape.stride * sidx; i < shape.stride * (sidx+1); i+=3){
       x = shape.vstate[i+0]
