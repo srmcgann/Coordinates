@@ -1,6 +1,6 @@
 // 'Coordinates', a webgl framework
 // Scott McGann - whitehotrobot@gmail.com
-// all rights reserved - ©2025
+// all rights reserved - ©2026
 
 const ModuleBase = 'https://srmcgann.github.io/Coordinates'
 
