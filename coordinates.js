@@ -919,6 +919,17 @@ const Renderer = async options => {
             ctx.uniform1f(dset.locRenderNormals,   0)
 
 
+            // dynamically resize UVs, if needed
+            
+            if(geometry.oScaleUVX != geometry.scaleUVX ||
+               geometry.oScaleUVY != geometry.scaleUVY){
+              geometry.oScaleUVX = geometry.scaleUVX
+              geometry.oScaleUVY = geometry.scaleUVY
+              for(var i = 0; i < geometry.uvs.length; i+=2){
+                geometry.uvs[i+0] = geometry.oUvs[i+0] * geometry.scaleUVX
+                geometry.uvs[i+1] = geometry.oUvs[i+1] * geometry.scaleUVY
+              }
+            }
 
             // bind buffers
             ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
@@ -1834,6 +1845,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var heightmapDataArrayFormat = gl.RGBA
   var lum                      = 1
   var alpha                    = 1
+  var oScaleUVX                = 1
+  var oScaleUVY                = 1
   var geometryData             = []  // for dynamic shape
   var texCoords                = []  // for dynamic shape
   
@@ -1998,6 +2011,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   //if(sphereize) averageNormals = true
 
   var uvs                   = []
+  var oUvs                  = []
   var normals               = []
   var vertices              = []
   var offsets               = []
@@ -2453,6 +2467,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
       uvs[i+1] += offsetUVY
     }
   }
+
+  oUvs = new Float32Array(uvs)
+  oScaleUVX = scaleUVX
+  oScaleUVY = scaleUVY
   
   if(scaleUVX != 1 || scaleUVY != 1) {
     for(var i = 0; i<uvs.length; i+=2){
@@ -3060,9 +3078,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
     rebindTextures, exportAsOBJ, downloadAsOBJ,
     resolved, isShapeArray, shapeArrayIsSprite,
     flatShadingNormalVecs, fsnVecIndices,
-    flatShadingNormalVec_buffer,
+    flatShadingNormalVec_buffer, scaleUVX, scaleUVY,
     FlatShadingNormalVec_Index_Buffer, fsnvstate,
-    nstate, vstate, nvstate, shapeData, stride
+    nstate, vstate, nvstate, shapeData, stride,
+    oUvs, oScaleUVX, oScaleUVY
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
