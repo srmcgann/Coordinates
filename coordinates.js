@@ -623,221 +623,223 @@ const Renderer = async options => {
             }
 
             dset.optionalUniforms.map((uniform) => {
-              if(typeof uniform?.loc === 'object'){
-                if(uniform.dataType == 'uniform4f'){
-                  ctx[uniform.dataType](uniform.loc, ...uniform.value)
-                }else{
-                  ctx[uniform.dataType](uniform.loc, uniform.value)
-                }
-                uniform.locFlatShading = ctx.getUniformLocation(dset.program, uniform.flatShadingUniform)
-                ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
-                switch(uniform.name){
-                  case 'fog':
-                    ctx.uniform1f(dset.locFog, uniform.value)
-                    ctx.uniform3f(dset.locFogColor, ...HexToRGB(uniform.color))
-                  break
-                  case 'reflection':
-                    ctx.activeTexture(ctx.TEXTURE1)
-                    if(uniform.canvasTexture){
-                      if(typeof uniform.refTexture == 'undefined'){
-                        uniform.refTexture = ctx.createTexture()
-                      }
-                      ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
-                      BindImage(ctx, uniform.canvasTexture,  uniform.refTexture,'canvas', renderer.t, uniform)
-                    }else{
-                      if(uniform.textureMode == 'image' && uniform.rebindTextures){
-                        uniform.rebindTextures = false
-                        console.log('rebinding reflection texture')
-                        if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
-                           !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
-                          var image = new Image()
+              if(uniform.enabled){
+                if(typeof uniform?.loc === 'object'){
+                  if(uniform.dataType == 'uniform4f'){
+                    ctx[uniform.dataType](uniform.loc, ...uniform.value)
+                  }else{
+                    ctx[uniform.dataType](uniform.loc, uniform.value)
+                  }
+                  uniform.locFlatShading = ctx.getUniformLocation(dset.program, uniform.flatShadingUniform)
+                  ctx.uniform1f(uniform.locFlatShading,   uniform.flatShading ? 1.0 : 0.0)
+                  switch(uniform.name){
+                    case 'fog':
+                      ctx.uniform1f(dset.locFog, uniform.value)
+                      ctx.uniform3f(dset.locFogColor, ...HexToRGB(uniform.color))
+                    break
+                    case 'reflection':
+                      ctx.activeTexture(ctx.TEXTURE1)
+                      if(uniform.canvasTexture){
+                        if(typeof uniform.refTexture == 'undefined'){
                           uniform.refTexture = ctx.createTexture()
-                          uniform.image = image
-                          cache.textures.push({
-                            url: uniform.map,
-                            resource: image,
-                            texture: uniform.refTexture
-                          })
-                          image.onload = async () => {
-                            ctx.activeTexture(ctx.TEXTURE1)
-                            BindImage(ctx, uniform.image,
-                            uniform.refTexture, uniform.textureMode, renderer.t, uniform)
-                          }
-                          fetch(uniform.map).then(res=>res.blob()).then(data => {
-                            image.src = URL.createObjectURL(data)
-                          })
-                          
-                        }else{
-                          console.log('resource found in cache. using it')
-                          cacheItem = cache.textures.filter(v=>v.url == uniform.map)[0]
-                          uniform.image = cacheItem.resource
-                          uniform.refTexture = ctx.createTexture() //cacheItem.texture
-                          BindImage(ctx, uniform.image,
-                            uniform.refTexture, uniform.textureMode, renderer.t, uniform)
                         }
-                      }
-                      if(uniform.textureMode == 'video'){
-                         BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
-                      }
-                    }
-                    ctx.activeTexture(ctx.TEXTURE1)
-                    ctx.uniform1i(uniform.locRefTexture, 1)
-                    ctx.uniform1f(uniform.locRefTheta, uniform.theta)
-                    ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
-                    
-                    ctx.uniform1f(uniform.locRefOmitEquirectangular,
-                         ( geometry.shapeType == 'rectangle' ||
-                           geometry.shapeType == 'point light' ||
-                           geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
-                  break
-                  case 'refraction':
-                    ctx.activeTexture(ctx.TEXTURE5)
-                    if(uniform.canvasTexture){
-                      if(typeof uniform.refractionTexture == 'undefined'){
-                        uniform.refractionTexture = ctx.createTexture()
-                      }
-                      ctx.bindTexture(ctx.TEXTURE_2D, uniform.refractionTexture)
-                      BindImage(ctx, uniform.canvasTexture,  uniform.refractionTexture, 'canvas', renderer.t, uniform)
-                    }else{
-                      if(uniform.textureMode == 'image' && uniform.rebindTextures){
-                        uniform.rebindTextures = false
-                        if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
-                           !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
-                          var image = new Image()
-                          uniform.refractionTexture = ctx.createTexture()
-                          uniform.image = image
-                          cache.textures.push({
-                            url: uniform.map,
-                            resource: image,
-                            texture: uniform.refractionTexture
-                          })
-                          image.onload = async () => {
-                            ctx.activeTexture(ctx.TEXTURE5)
-                            BindImage(ctx, uniform.image,
-                            uniform.refractionTexture, uniform.textureMode, renderer.t, uniform)
-                          }
-                          fetch(uniform.map).then(res=>res.blob()).then(data => {
-                            image.src = URL.createObjectURL(data)
-                          })
-                          
-                        }else{
-                          console.log('resource found in cache. using it')
-                          cacheItem = cache.textures.filter(v=>v.url == uniform.map)[0]
-                          uniform.image = cacheItem.resource
-                          uniform.refractionTexture= ctx.createTexture() //cacheItem.texture
-                          BindImage(ctx, uniform.image,
-                            uniform.refractionTexture, uniform.textureMode, renderer.t, uniform)
-                        }
-                      }
-                      if(uniform.textureMode == 'video'){
-                         BindImage(ctx, uniform.video,  uniform.refractionTexture, uniform.textureMode, renderer.t, uniform)
-                      }
-                    }
-                    ctx.activeTexture(ctx.TEXTURE5)
-                    ctx.uniform1i(uniform.locRefractionTexture, 5)
-                    ctx.uniform1f(uniform.locRefractionTheta, uniform.theta)
-                    
-                    ctx.bindTexture(ctx.TEXTURE_2D, uniform.refractionTexture)
-                    
-                    ctx.uniform1f(uniform.locAngleOfRefraction,
-                         uniform.angleOfRefraction)
-                           
-                    ctx.uniform1f(uniform.locRefractionOmitEquirectangular,
-                         ( geometry.shapeType == 'rectangle' ||
-                           geometry.shapeType == 'point light' ||
-                           geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
-
-                  break
-                  case 'refraction2':
-                    ctx.activeTexture(ctx.TEXTURE6)
-                    if(uniform.canvasTexture){
-                      if(typeof uniform.refraction2Texture == 'undefined'){
-                        uniform.refraction2Texture = ctx.createTexture()
-                      }
-                      ctx.bindTexture(ctx.TEXTURE_2D, uniform.refraction2Texture)
-                      BindImage(ctx, uniform.canvasTexture,  uniform.refraction2Texture, 'canvas', renderer.t, uniform)
-                    }else{
-                      if(uniform.textureMode == 'image' && uniform.rebindTextures){
-                        uniform.rebindTextures = false
-                        if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
-                           !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
-                          var image = new Image()
-                          uniform.refraction2Texture = ctx.createTexture()
-                          uniform.image = image
-                          cache.textures.push({
-                            url: uniform.map,
-                            resource: image,
-                            texture: uniform.refraction2Texture
-                          })
-                          image.onload = async () => {
-                            ctx.activeTexture(ctx.TEXTURE6)
-                            BindImage(ctx, uniform.image,
-                            uniform.refraction2Texture, uniform.textureMode, renderer.t, uniform)
-                          }
-                          fetch(uniform.map).then(res=>res.blob()).then(data => {
-                            image.src = URL.createObjectURL(data)
-                          })
-                          
-                        }else{
-                          console.log('resource found in cache. using it')
-                          cacheItem = cache.textures.filter(v=>v.url == uniform.map)[0]
-                          uniform.image = cacheItem.resource
-                          uniform.refraction2Texture= ctx.createTexture() //cacheItem.texture
-                          BindImage(ctx, uniform.image,
-                            uniform.refraction2Texture, uniform.textureMode, renderer.t, uniform)
-                        }
-                      }
-                      if(uniform.textureMode == 'video'){
-                         BindImage(ctx, uniform.video,  uniform.refraction2Texture, uniform.textureMode, renderer.t, uniform)
-                      }
-                    }
-                    ctx.activeTexture(ctx.TEXTURE6)
-                    
-                    uniform.locRefractionOmitEquirectangular = 
-                       ctx.getUniformLocation(dset.program, "refraction2OmitEquirectangular")
-                    ctx.uniform1f(uniform.locRefractionOmitEquirectangular,
-                                     uniform.omitEquirectangular ? 1 : 0)
-                    
-                    
-                    ctx.uniform1i(uniform.locRefraction2Texture, 6)
-                    ctx.uniform1f(uniform.locRefraction2Theta, uniform.theta)
-                    
-                    ctx.bindTexture(ctx.TEXTURE_2D, uniform.refraction2Texture)
-
-                    uniform.locRefractionExponent = ctx.getUniformLocation(dset.program, 'refractionExponent2')
-                    ctx.uniform1f(uniform.locRefractionExponent,
-                                     uniform.refractionExponent)
-                    
-                    ctx.uniform1f(uniform.locAngleOfRefraction2,
-                         uniform.angleOfRefraction)
-                           
-                    ctx.uniform1f(uniform.locRefraction2OmitEquirectangular,
-                         ( geometry.shapeType == 'rectangle' ||
-                           geometry.shapeType == 'point light' ||
-                           geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
-
-                    
-                  break
-                  case 'phong':
-                    uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
-                    ctx.uniform1f(uniform.locPhongTheta, uniform.theta + Math.PI)
-                    //ctx.uniform1f(uniform.locPhongFlatShading, uniform.theta + Math.PI)
-                  break
-                  case 'custom':
-                    if(uniform.uniformName){
-                      var ar = uniform.value
-                      if(uniform.uniformName.indexOf('[0]') != -1){ // if uniform value is an array
-                      //if(IsArray(ar)){
-                        uniform.locCustomUniform =
-                           ctx.getUniformLocation(dset.program, uniform.uniformName)
-                        ctx[uniform.dataType](uniform.locCustomUniform, uniform.value)
+                        ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
+                        BindImage(ctx, uniform.canvasTexture,  uniform.refTexture,'canvas', renderer.t, uniform)
                       }else{
-                        uniform.locCustomUniform =
-                           ctx.getUniformLocation(dset.program, uniform.uniformName)
-                        ctx[uniform.dataType](uniform.locCustomUniform, ...uniform.value)
+                        if(uniform.textureMode == 'image' && uniform.rebindTextures){
+                          uniform.rebindTextures = false
+                          console.log('rebinding reflection texture')
+                          if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
+                             !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
+                            var image = new Image()
+                            uniform.refTexture = ctx.createTexture()
+                            uniform.image = image
+                            cache.textures.push({
+                              url: uniform.map,
+                              resource: image,
+                              texture: uniform.refTexture
+                            })
+                            image.onload = async () => {
+                              ctx.activeTexture(ctx.TEXTURE1)
+                              BindImage(ctx, uniform.image,
+                              uniform.refTexture, uniform.textureMode, renderer.t, uniform)
+                            }
+                            fetch(uniform.map).then(res=>res.blob()).then(data => {
+                              image.src = URL.createObjectURL(data)
+                            })
+                            
+                          }else{
+                            console.log('resource found in cache. using it')
+                            cacheItem = cache.textures.filter(v=>v.url == uniform.map)[0]
+                            uniform.image = cacheItem.resource
+                            uniform.refTexture = ctx.createTexture() //cacheItem.texture
+                            BindImage(ctx, uniform.image,
+                              uniform.refTexture, uniform.textureMode, renderer.t, uniform)
+                          }
+                        }
+                        if(uniform.textureMode == 'video'){
+                           BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
+                        }
                       }
-                    }
-                  break
+                      ctx.activeTexture(ctx.TEXTURE1)
+                      ctx.uniform1i(uniform.locRefTexture, 1)
+                      ctx.uniform1f(uniform.locRefTheta, uniform.theta)
+                      ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
+                      
+                      ctx.uniform1f(uniform.locRefOmitEquirectangular,
+                           ( geometry.shapeType == 'rectangle' ||
+                             geometry.shapeType == 'point light' ||
+                             geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
+                    break
+                    case 'refraction':
+                      ctx.activeTexture(ctx.TEXTURE5)
+                      if(uniform.canvasTexture){
+                        if(typeof uniform.refractionTexture == 'undefined'){
+                          uniform.refractionTexture = ctx.createTexture()
+                        }
+                        ctx.bindTexture(ctx.TEXTURE_2D, uniform.refractionTexture)
+                        BindImage(ctx, uniform.canvasTexture,  uniform.refractionTexture, 'canvas', renderer.t, uniform)
+                      }else{
+                        if(uniform.textureMode == 'image' && uniform.rebindTextures){
+                          uniform.rebindTextures = false
+                          if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
+                             !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
+                            var image = new Image()
+                            uniform.refractionTexture = ctx.createTexture()
+                            uniform.image = image
+                            cache.textures.push({
+                              url: uniform.map,
+                              resource: image,
+                              texture: uniform.refractionTexture
+                            })
+                            image.onload = async () => {
+                              ctx.activeTexture(ctx.TEXTURE5)
+                              BindImage(ctx, uniform.image,
+                              uniform.refractionTexture, uniform.textureMode, renderer.t, uniform)
+                            }
+                            fetch(uniform.map).then(res=>res.blob()).then(data => {
+                              image.src = URL.createObjectURL(data)
+                            })
+                            
+                          }else{
+                            console.log('resource found in cache. using it')
+                            cacheItem = cache.textures.filter(v=>v.url == uniform.map)[0]
+                            uniform.image = cacheItem.resource
+                            uniform.refractionTexture= ctx.createTexture() //cacheItem.texture
+                            BindImage(ctx, uniform.image,
+                              uniform.refractionTexture, uniform.textureMode, renderer.t, uniform)
+                          }
+                        }
+                        if(uniform.textureMode == 'video'){
+                           BindImage(ctx, uniform.video,  uniform.refractionTexture, uniform.textureMode, renderer.t, uniform)
+                        }
+                      }
+                      ctx.activeTexture(ctx.TEXTURE5)
+                      ctx.uniform1i(uniform.locRefractionTexture, 5)
+                      ctx.uniform1f(uniform.locRefractionTheta, uniform.theta)
+                      
+                      ctx.bindTexture(ctx.TEXTURE_2D, uniform.refractionTexture)
+                      
+                      ctx.uniform1f(uniform.locAngleOfRefraction,
+                           uniform.angleOfRefraction)
+                             
+                      ctx.uniform1f(uniform.locRefractionOmitEquirectangular,
+                           ( geometry.shapeType == 'rectangle' ||
+                             geometry.shapeType == 'point light' ||
+                             geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
+
+                    break
+                    case 'refraction2':
+                      ctx.activeTexture(ctx.TEXTURE6)
+                      if(uniform.canvasTexture){
+                        if(typeof uniform.refraction2Texture == 'undefined'){
+                          uniform.refraction2Texture = ctx.createTexture()
+                        }
+                        ctx.bindTexture(ctx.TEXTURE_2D, uniform.refraction2Texture)
+                        BindImage(ctx, uniform.canvasTexture,  uniform.refraction2Texture, 'canvas', renderer.t, uniform)
+                      }else{
+                        if(uniform.textureMode == 'image' && uniform.rebindTextures){
+                          uniform.rebindTextures = false
+                          if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
+                             !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
+                            var image = new Image()
+                            uniform.refraction2Texture = ctx.createTexture()
+                            uniform.image = image
+                            cache.textures.push({
+                              url: uniform.map,
+                              resource: image,
+                              texture: uniform.refraction2Texture
+                            })
+                            image.onload = async () => {
+                              ctx.activeTexture(ctx.TEXTURE6)
+                              BindImage(ctx, uniform.image,
+                              uniform.refraction2Texture, uniform.textureMode, renderer.t, uniform)
+                            }
+                            fetch(uniform.map).then(res=>res.blob()).then(data => {
+                              image.src = URL.createObjectURL(data)
+                            })
+                            
+                          }else{
+                            console.log('resource found in cache. using it')
+                            cacheItem = cache.textures.filter(v=>v.url == uniform.map)[0]
+                            uniform.image = cacheItem.resource
+                            uniform.refraction2Texture= ctx.createTexture() //cacheItem.texture
+                            BindImage(ctx, uniform.image,
+                              uniform.refraction2Texture, uniform.textureMode, renderer.t, uniform)
+                          }
+                        }
+                        if(uniform.textureMode == 'video'){
+                           BindImage(ctx, uniform.video,  uniform.refraction2Texture, uniform.textureMode, renderer.t, uniform)
+                        }
+                      }
+                      ctx.activeTexture(ctx.TEXTURE6)
+                      
+                      uniform.locRefractionOmitEquirectangular = 
+                         ctx.getUniformLocation(dset.program, "refraction2OmitEquirectangular")
+                      ctx.uniform1f(uniform.locRefractionOmitEquirectangular,
+                                       uniform.omitEquirectangular ? 1 : 0)
+                      
+                      
+                      ctx.uniform1i(uniform.locRefraction2Texture, 6)
+                      ctx.uniform1f(uniform.locRefraction2Theta, uniform.theta)
+                      
+                      ctx.bindTexture(ctx.TEXTURE_2D, uniform.refraction2Texture)
+
+                      uniform.locRefractionExponent = ctx.getUniformLocation(dset.program, 'refractionExponent2')
+                      ctx.uniform1f(uniform.locRefractionExponent,
+                                       uniform.refractionExponent)
+                      
+                      ctx.uniform1f(uniform.locAngleOfRefraction2,
+                           uniform.angleOfRefraction)
+                             
+                      ctx.uniform1f(uniform.locRefraction2OmitEquirectangular,
+                           ( geometry.shapeType == 'rectangle' ||
+                             geometry.shapeType == 'point light' ||
+                             geometry.shapeType == 'sprite' ) ? 1.0 : 0.0)
+
+                      
+                    break
+                    case 'phong':
+                      uniform.locPhongTheta = ctx.getUniformLocation(dset.program, 'phongTheta')
+                      ctx.uniform1f(uniform.locPhongTheta, uniform.theta + Math.PI)
+                      //ctx.uniform1f(uniform.locPhongFlatShading, uniform.theta + Math.PI)
+                    break
+                    case 'custom':
+                      if(uniform.uniformName){
+                        var ar = uniform.value
+                        if(uniform.uniformName.indexOf('[0]') != -1){ // if uniform value is an array
+                        //if(IsArray(ar)){
+                          uniform.locCustomUniform =
+                             ctx.getUniformLocation(dset.program, uniform.uniformName)
+                          ctx[uniform.dataType](uniform.locCustomUniform, uniform.value)
+                        }else{
+                          uniform.locCustomUniform =
+                             ctx.getUniformLocation(dset.program, uniform.uniformName)
+                          ctx[uniform.dataType](uniform.locCustomUniform, ...uniform.value)
+                        }
+                      }
+                    break
+                  }
                 }
               }
             })
