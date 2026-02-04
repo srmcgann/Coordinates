@@ -4380,6 +4380,7 @@ const BasicShader = async (renderer, options=[]) => {
                 var uniformOption = {
                   name:                option[key].type,
                   loc:                 '',
+                  enabled:             typeof option[key].enabled== 'undefined' ?  true : !!option[key].enabled,
                   value:               typeof option[key].value == 'undefined' ?
                                          .3 : option[key].value,
                   flatShading:         typeof option[key].flatShading == 'undefined' ?
