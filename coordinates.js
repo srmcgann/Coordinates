@@ -613,8 +613,6 @@ const Renderer = async options => {
               }
             })
             
-            //ctx.useProgram( sProg )
-            
             ctx.useProgram( sProg )
             
             if(!renderer.hasFog){
@@ -3948,6 +3946,7 @@ const BasicShader = async (renderer, options=[]) => {
               if(typeof option[key]?.enabled == 'undefined' || !!option[key].enabled){
                 var uniformOption = {
                   name:                option[key].type,
+                  enabled:             typeof option[key].enabled== 'undefined' ?  true : !!option[key].enabled,
                   playbackSpeed:       typeof option[key].playbackSpeed == 'undefined' ?
                                          1 : option[key].playbackSpeed,
                   uniformName:         typeof option[key].name == 'undefined' ?
@@ -3981,6 +3980,7 @@ const BasicShader = async (renderer, options=[]) => {
                  !!option[key].enabled){
                 var uniformOption = {
                   name:                option[key].type,
+                  enabled:             typeof option[key].enabled== 'undefined' ?  true : !!option[key].enabled,
                   loc:                 '',
                   value:               typeof option[key].value == 'undefined' ?
                                          .5 : option[key].value,
@@ -4003,6 +4003,7 @@ const BasicShader = async (renderer, options=[]) => {
                 var uniformOption = {
                   name:                option[key].type,
                   playbackSpeed:       typeof option[key].playbackSpeed == 'undefined' ? 1 : option[key].playbackSpeed,
+                  enabled:             typeof option[key].enabled== 'undefined' ?  true : !!option[key].enabled,
                   canvasTexture:  typeof option[key].canvasTexture == 'undefined' ? '' : option[key].canvasTexture,
                   involveCache:        typeof option[key].involveCache == 'undefined' ? true : option[key].involveCache,
                   muted:               typeof option[key].muted == 'undefined' ?   true : option[key].muted,
@@ -4123,6 +4124,7 @@ const BasicShader = async (renderer, options=[]) => {
                   playbackSpeed:       typeof option[key].playbackSpeed == 'undefined' ?
                                          1 : option[key].playbackSpeed,
                   involveCache:        typeof option[key].involveCache == 'undefined' ? true : option[key].involveCache,
+                  enabled:             typeof option[key].enabled== 'undefined' ?  true : !!option[key].enabled,
                   canvasTexture:        typeof option[key].canvasTexture == 'undefined' ? '' : option[key].canvasTexture,
                   muted:               typeof option[key].muted == 'undefined' ?
                                          true : option[key].muted,
@@ -4246,6 +4248,7 @@ const BasicShader = async (renderer, options=[]) => {
                  !!option[key].enabled){
                 var uniformOption = {
                   name:                option[key].type,
+                  enabled:             typeof option[key].enabled== 'undefined' ?  true : !!option[key].enabled,
                   playbackSpeed:       typeof option[key].playbackSpeed == 'undefined' ?  1 : option[key].playbackSpeed,
                   involveCache:        typeof option[key].involveCache == 'undefined' ? true : option[key].involveCache,
                   canvasTexture:  typeof option[key].canvasTexture == 'undefined' ? '' : option[key].canvasTexture,
