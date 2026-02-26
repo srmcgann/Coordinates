@@ -547,6 +547,13 @@ const Renderer = async options => {
                 ctx.vertexAttribPointer(dset.locOffset, 3, ctx.FLOAT, false, 0, 0)
                 ctx.enableVertexAttribArray(dset.locOffset)
               }
+              
+              if(geometry.textureMode == 'canvas'){
+                ctx.activeTexture(ctx.TEXTURE2)
+                BindImage(ctx, geometry.canvasTexture, dset.supplementalTexture, 'canvas', renderer.t, geometry)
+                ctx.uniform1i(dset.locSupplementalTexture, 2)
+                ctx.uniform1f(dset.locSupplementalTextureMix, geometry.canvasTextureMix)
+              }
 
               if(geometry.isLine){  // draw lines or particles
                 ctx.drawElements(ctx.TRIANGLES, tvertices.length/3|0, ctx.UNSIGNED_INT,0)
