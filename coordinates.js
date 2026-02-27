@@ -4957,6 +4957,7 @@ const BasicShader = async (renderer, options=[]) => {
       float rheightMapIntensity;
       float rmaxHeightmap;
       float cMix;
+      float sMix;
 
       ${uFragDeclaration}
       ${aFragDeclaration}
@@ -5137,12 +5138,13 @@ const BasicShader = async (renderer, options=[]) => {
 
               vec2 coords = Coords(0.0, nVi);
               cMix = colorMix;
+              sMix = supplementalTextureMix;
               
               ${uFragCode}
               ${aFragCode}
               
               vec4 texel = texture2D( baseTexture, coords);
-              texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, supplementalTextureMix));
+              texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, sMix));
 
               float fv;
               if(isSprite != 0.0 || isLight != 0.0){
