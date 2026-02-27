@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Coordinates boilerplate example</title>
+    <title>Coordinates custom shader example</title>
     <style>
       body, html{
-        background: #000;
+        background: #333;
         margin: 0;
         min-height: 100vh;
         overflow: hidden;
@@ -12,238 +12,79 @@
     </style>
   </head>
   <body>
-<script type="module">
+    <script type="module">
+    
+      import * as Coordinates from
+      "https://srmcgann.github.io/Coordinates/coordinates.min.js"
+    
+      var renderer = await Coordinates.Renderer()
+      Coordinates.AnimationLoop(renderer, 'Draw')
+      
+      renderer.z = 10
 
-import * as Coordinates from
-"https://srmcgann.github.io/Coordinates/coordinates.min.js"
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .5
+        } },
+      ]
+      var mainShader = await Coordinates.BasicShader(renderer, shaderOptions)
 
-var rendererOptions = {
-  ambientLight: .5, margin: 0,
-  fov: 1e3, width: 1920/8, height: 1080/8,
-  context: {
-    mode: 'webgl2',
-    options: {
-      alpha                   : true,
-      antialias               : false,
-      imageSmoothingEnabled   : false,
-      desynchronized          : true,
-      willReadFrequently      : true,
-      premultipliedAlpha      : false,
-    }
-  },
-}
-var renderer = await Coordinates.Renderer(rendererOptions)
-rendererOptions.attachToBody = false
-rendererOptions.context = {
-  mode: '2d',
-  options: {
-    willReadFrequently: true,
-    antialias               : false,
-    imageSmoothingEnabled   : false,
-  },
-}
-var canvas = await Coordinates.Renderer(rendererOptions)
-var w = canvas.c.width
-var h = canvas.c.height
-
-var refTexture = 'https://srmcgann.github.io/Coordinates/resources/bumpmap_equirectangular_po2.jpg'
-
-var S = Math.sin
-var C = Math.cos
-var Rn = Math.random
-
-var x, y, z, p, q, d
-
-Coordinates.AnimationLoop(renderer, 'Draw')
-
-var shaderOptions = [
-  {lighting: {type: 'ambientLight', value: .33}},
-  { uniform: {
-    type: 'phong',
-    value: .6
-  } },
-  { uniform: {
-    type: 'reflection',
-    map: refTexture,
-    enabled: false,
-    value: .1
-  } },
-]
-var shader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-
-
-var iPc = canvas.c.width * canvas.c.height | 0
-var colors = []
-Array(iPc).fill().map((v, i) => {
-  colors.push(0,0,1, 1)
-})
-
-var width = 4*(16/9)
-var height = 4
-var leftMargin = -width/2
-var topMargin = 2
-var shaderOptions = [
-  {lighting: {type: 'ambientLight', value: .535445*2}},
-  { attribute: {
-    type: 'custom',
-    enabled: true,
-    value: colors,
-    name: 'customColors',
-    stride: 4,
-    dataType: renderer.ctx.FLOAT,
-    vertDeclaration: `
-            attribute vec4 customColors;
-            varying vec4 attribCols;
+      var shaderOptions = [
+        { uniform: {
+          type: 'phong',
+          value: .5
+        } },
+        { uniform: {
+          type: 'custom',
+          name: 'newColor',
+          dataType: 'uniform4f',
+          value: [0, 0, .5, 1],  // [red, green, blue, alpha]
+          vertDeclaration: "",
+          vertCode:        "",
+          fragDeclaration: 'uniform vec4 newColor;',
+          fragCode:        `
+             addInColor = vec4(0.0, 0.0, 1.0, 1.0);
+             cMix = 0.0;
           `,
-    vertCode:        `
-            attribCols = customColors;
-          `,
-    fragDeclaration: `
-            varying vec4 attribCols;
-            vec4 GetColor(float x, float y){
-              return texture2D( supplementalTexture, vec2(x, y)/resolution);
-            }
-          `,
-    fragCode: `
-            mixColor = attribCols;
-            float aWidth = ${width*1.0005};
-            float aHeight = ${height*1.00166};
-            float aLeft = ${leftMargin|0}.0;
-            float aTop = ${topMargin|0}.0;
-            float lWidth = ${w|0}.0;
-            float lHeight = ${h|0}.0;
-            float lar = lWidth / lHeight;
-            vec2 lCoords = vec2(fPosi.x / aWidth / 1.0 + 0.5,
-                                0.5 - fPosi.y / aHeight);
-            float tx = (lCoords.x * lWidth);
-            float ty = (lCoords.y * lHeight + .25);
-
-
-            vec4 lTexel = GetColor(tx, ty);
-            float offset = .5;
-            vec4 l = GetColor(tx - offset, ty);
-            vec4 r = GetColor(tx + offset, ty);
-            vec4 u = GetColor(tx, ty - offset);
-            vec4 d = GetColor(tx, ty + offset);
-            vec4 lu = GetColor(tx - offset, ty - offset);
-            vec4 ur = GetColor(tx + offset, ty - offset);
-            vec4 rd = GetColor(tx + offset, ty + offset);
-            vec4 ld = GetColor(tx - offset, ty + offset);
-
-
-            lTexel.r = l.r;
-            lTexel.g = l.g;
-            lTexel.b = l.b;
-            lTexel.a = 1.0;
-
-            mixColor.r = lTexel.r;
-            mixColor.g = lTexel.g;
-            mixColor.b = lTexel.b;
-            mixColor.a = lTexel.a;
-
-            //mixColor.r = 0.0;
-            //mixColor.g = 0.0;
-            //mixColor.b = 0.0;
-            //mixColor.a = 0.0;
-
-
-
-
-            //if(fPosi.x <= 0.0){
-            //  vec4 lTex = texture2D( supplementalTexture, lCoords);
-            //  if(lTex.r > .5){
-            //    mixColor = vec4(0.0, 0.0, 1.0, 1.0);
-            //  }
-            //}
-          `,
-  }},
-]
-var customAttributeShader = await Coordinates.BasicShader(renderer, shaderOptions)
-
-var shapes = []
-var geoOptions = {
-  shapeType: 'particles',
-  name: 'particles',
-  geometryData: Array(iPc).fill().map((v, i) =>{
-    x = (-2 + (i%w)/w*4) * 16/8.994 + .0075
-    y = 2 - (i/w|0)/h*4.0075
-    z = 0
-    return [x, y, z]
-  }),
-  canvasTexture: canvas.c,
-  size: .06,
-  alpha: 1,
-  color: 0x00ff44,
-  colorMix: 0,
-}
-await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-  shapes.push(geometry)
-  await customAttributeShader.ConnectGeometry(geometry)
-})  
-
-var geoOptions = {
-  shapeType: 'cube',
-  name: 'main',
-  size: 3,
-  color: 0x111111,
-  alpha: .9,
-  disableDepthTest: true,
-  colorMix: .5,
-}
-if(0)await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
-  shapes.push(geometry)
-  await shader.ConnectGeometry(geometry)
-})
-
-
-if(0) Coordinates.LoadFPSControls(renderer, {
-  flyMode: true,
-  crossharSel: 2,
-  crosshairSize: .5,
-})
-
-var c = canvas.c
-var ctx = canvas.ctx
-var customColors = customAttributeShader.datasets[0].optionalAttributes[0].value
-const Process = () => {
-  ctx.clearRect(0, 0, w, h)
-  ctx.drawImage(renderer.c, 0,0,w,h)
-
-  // inject shader data
-  ctx.fillStyle = '#f00'
-  ctx.fillRect(20, 20, 100, 20)
-
-
-  var data = ctx.getImageData(0,0,w,h)
-  var l = data.data
-  customAttributeShader.datasets[0].optionalAttributes[0].value =
-    new Float32Array(l)
-}
-
-renderer.z = 7.425 * 2
-
-window.Draw = () => {
-  var t = renderer.t
-  renderer.Clear()
-
-  shapes.forEach(shape => {
-    switch(shape.name){
-      case 'background':
-        //shape.yaw += .005
-        renderer.Draw(shape)
-        break
-      case 'particles':
-        renderer.Draw(shape)
-        break
-      default:
-        renderer.Draw(shape)
-        break
-    }
-  })
-  Process()
-}
-  
-</script>
+          enabled: true,
+        } }
+      ]
+      var customShader = await Coordinates.BasicShader(renderer, shaderOptions)
+        
+        
+      var cube1, cube2
+      var geoOptions = {
+        shapeType: 'cube',
+        size: 5,
+        color: 0x880000,
+        colorMix: 1,
+      }
+      
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        cube1 = geometry
+        mainShader.ConnectGeometry(cube1)
+      })
+      
+      await Coordinates.LoadGeometry(renderer, geoOptions).then(async (geometry) => {
+        cube2 = geometry
+        customShader.ConnectGeometry(cube2)
+      })  
+      
+      window.Draw = () => {
+        renderer.Clear()
+        cube1.yaw += .01
+        cube1.pitch += .01
+        cube1.x = -6
+        renderer.Draw(cube1)
+        
+        cube2.yaw += .01
+        cube2.pitch += .01
+        cube2.x = 6
+        renderer.Draw(cube2)
+        
+      }
+      
+    </script>
   </body>
 </html>
