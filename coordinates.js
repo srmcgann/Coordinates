@@ -4956,6 +4956,7 @@ const BasicShader = async (renderer, options=[]) => {
       vec3 rgeoPos;
       float rheightMapIntensity;
       float rmaxHeightmap;
+      float cMix;
 
       ${uFragDeclaration}
       ${aFragDeclaration}
@@ -5135,6 +5136,7 @@ const BasicShader = async (renderer, options=[]) => {
               }
 
               vec2 coords = Coords(0.0, nVi);
+              cMix = colorMix;
               
               ${uFragCode}
               ${aFragCode}
@@ -5155,9 +5157,9 @@ const BasicShader = async (renderer, options=[]) => {
                 
                 texel.a /= 2.0;
                 vec4 col = merge(addInColor, texel);
-                float ip = max(0.0, 1.0 - colorMix);
+                float ip = max(0.0, 1.0 - cMix);
                 col = merge(vec4(col.rgb, ip),
-                        vec4(color.rgb, colorMix));
+                        vec4(color.rgb, cMix));
 
                 col.a = 1.0;
                 col.rgb *= light.rgb;
