@@ -1386,6 +1386,7 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
       res.forEach(async (file, i) => {
         (await file.getData(await (new zip.BlobWriter()))).text().then(data=>{
           var ct = 0
+          
           do{ ct++ }while(data.substr(0,2)=='PK');
           if(options.shapeType == 'custom shape' ||
              options.shapeType == 'lines') data = JSON.parse(data)
