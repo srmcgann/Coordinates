@@ -1215,10 +1215,11 @@ const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
                         ...n[2], ...n[3], ...n[0])
       break
     }
-    var l = ret.normals.length - 7
-    var nvx = ret.normals[l+3] - ret.normals[l+0]
-    var nvy = ret.normals[l+4] - ret.normals[l+1]
-    var nvz = ret.normals[l+5] - ret.normals[l+2]
+    //var l = ret.normals.length - 7
+    //var nvx = ret.normals[l+3] - ret.normals[l+0]
+    //var nvy = ret.normals[l+4] - ret.normals[l+1]
+    //var nvz = ret.normals[l+5] - ret.normals[l+2]
+    //ret.normalVecs.push()
   })
 }
 
@@ -1402,6 +1403,14 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
                 options.name = `${baseName?baseName+'_':''}frame${ct}.json`
                 options.isFromZip = true
                 LoadGeometry(renderer, options).then(async (geo) => {
+                  geo.normalVecs = []
+                  for(var i = 0; i < geo.normals.length; i+=6){
+                    var nx = geo.normals[i+3] - geo.normals[i+0]
+                    var ny = geo.normals[i+4] - geo.normals[i+1]
+                    var nz = geo.normals[i+5] - geo.normals[i+2]
+                    geo.normalVecs.push(nx, ny, nz)
+                  }
+                  geo.normalVecs = new Float32Array(geo.normalVecs)
                   ret.geometries[idx/1|0] = geo
                   await shader.ConnectGeometry(geo)
                   var vertices              = []
@@ -1481,7 +1490,7 @@ const DrawAnimation = (renderer, animation, options) => {
           break
         }
       }
-      if(animation.curFrame < (loopMode=='cycle'?0:1)){
+      if(animation.curFrame < (loopMode=='cycle'?1:1)){
         switch(loopMode){
           case 'cycle':
             animation.curFrame = animation.geometries.length - 1
@@ -1935,6 +1944,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'downloadasobj'      : downloadAsOBJ = !!geoOptions[key]; break
       case 'penumbra'           : penumbra = geoOptions[key]; break
       case 'url'                : url = geoOptions[key]; break
+      case 'isfromzip'          : isFromZip = !!geoOptions[key]; break
       case 'map'                : map = geoOptions[key]; break
       case 'glow'               : glow = !!geoOptions[key]; break
       case 'glowcolor'          : glowColor = geoOptions[key]; break
