@@ -1383,8 +1383,8 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
     .then(res => {
       var tct = res.length
       frames = Array(tct).fill().map(v=>({data: {}}))
-      res.forEach((file, i) => {
-        (file.getData(await (new zip.BlobWriter()))).text().then(data=>{
+      res.forEach(async (file, i) => {
+        (await file.getData(await (new zip.BlobWriter()))).text().then(data=>{
           var ct = 0
           
           do{ ct++ }while(data.substr(0,2)=='PK');
