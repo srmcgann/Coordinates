@@ -93,8 +93,8 @@
                   shape.vertices[i+2] = res.curve[j][2]
                 }
                 res.midPoints.forEach((pt, idx) => {
-                  redDot.x = pt[0]
-                  redDot.y = -pt[1]
+                  redDot.x = -pt[0]
+                  redDot.y = pt[1]
                   redDot.z = pt[2] - idx/100
                   renderer.Draw(redDot)
                 })
