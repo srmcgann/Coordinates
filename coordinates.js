@@ -8806,6 +8806,14 @@ const HSVFromRGB = (R, G, B) => {
   return [hue, sat, val]
 }
 
+const DrawRotatedImage = (image, x, y, width, height, angle, context) => {
+  context.save()
+  context.translate(x, y)
+  context.rotate(-angle)
+  context.drawImage(image, -width/2, -height/2, width, height)
+  context.restore()
+}
+  
 const ShiftArray = (ar, dir) => {
   var ret = Array(ar.length).fill()
   for(var i = 0; i < ar.length; i++){
@@ -9172,6 +9180,7 @@ export {
   ShowBounding,
   ProcessShapeArray,
   ApplyShapeData,
+  DrawRotatedImage,
   GetShaderCoord,
   Reflect,
   Normal,
