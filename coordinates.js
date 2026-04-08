@@ -8465,9 +8465,9 @@ const LoadFPSControls = async (renderer, options) => {
     var px  = 0
     var py  = 0
     var pz  = 0
-    var pvx = 0
-    var pvy = 0
-    var pvz = 0
+    renderer.pvx = 0
+    renderer.pvy = 0
+    renderer.pvz = 0
     var accel = 1
     renderer.rdrag = 1.66
     renderer.pdrag = 1.2
@@ -8524,13 +8524,13 @@ const LoadFPSControls = async (renderer, options) => {
       rvx /= renderer.rdrag
       rvy /= renderer.rdrag
       
-      renderer.x += pvx
-      renderer.y += pvy
-      renderer.z += pvz
+      renderer.x += renderer.pvx
+      renderer.y += renderer.pvy
+      renderer.z += renderer.pvz
       if((1||document.activeElement.nodeName == 'CANVAS') && (renderer.hasTraction || renderer.flyMode)){
-        pvx /= renderer.pdrag
-        pvy /= renderer.pdrag
-        pvz /= renderer.pdrag
+        renderer.pvx /= renderer.pdrag
+        renderer.pvy /= renderer.pdrag
+        renderer.pvz /= renderer.pdrag
       }
 
       if(renderer.flyMode && (1||document.activeElement.nodeName == 'CANVAS')){
@@ -8538,14 +8538,14 @@ const LoadFPSControls = async (renderer, options) => {
         var p2 = renderer.pitch
         switch(renderer.mouseButton){
           case 1:
-            pvx -= S(p1) * S(p2) * mv * accel
-            pvy += C(p2) * mv * accel
-            pvz -= C(p1) * S(p2) * mv * accel
+            renderer.pvx -= S(p1) * S(p2) * mv * accel
+            renderer.pvy += C(p2) * mv * accel
+            renderer.pvz -= C(p1) * S(p2) * mv * accel
           break
           case 2:
-            pvx += S(p1) * S(p2) * mv * accel
-            pvy -= C(p2) * mv * accel
-            pvz += C(p1) * S(p2) * mv * accel
+            renderer.pvx += S(p1) * S(p2) * mv * accel
+            renderer.pvy -= C(p2) * mv * accel
+            renderer.pvz += C(p1) * S(p2) * mv * accel
           break
           default:
           break
@@ -8576,46 +8576,46 @@ const LoadFPSControls = async (renderer, options) => {
               var p1 = -renderer.yaw + Math.PI
               var p2 = renderer.pitch + Math.PI / 2
               if(renderer.flyMode){
-                pvx += S(p1) * S(p2) * mv * accel
-                pvy -= C(p2) * mv * accel
-                pvz += C(p1) * S(p2) * mv * accel
+                renderer.pvx += S(p1) * S(p2) * mv * accel
+                renderer.pvy -= C(p2) * mv * accel
+                renderer.pvz += C(p1) * S(p2) * mv * accel
               }else{
-                pvx += S(p1) * mv * accel
-                pvz += C(p1) * mv * accel
+                renderer.pvx += S(p1) * mv * accel
+                renderer.pvz += C(p1) * mv * accel
               }
             break
             case 65:  //a
               var p1 = -renderer.yaw + Math.PI / 2
               var p2 = renderer.pitch + Math.PI / 2
               if(renderer.flyMode){
-                pvx += S(p1) * mv * accel
-                pvz += C(p1) * mv * accel
+                renderer.pvx += S(p1) * mv * accel
+                renderer.pvz += C(p1) * mv * accel
               }else{
-                pvx += S(p1) * mv * accel
-                pvz += C(p1) * mv * accel
+                renderer.pvx += S(p1) * mv * accel
+                renderer.pvz += C(p1) * mv * accel
               }
             break
             case 83:  //s
               var p1 = -renderer.yaw + Math.PI
               var p2 = renderer.pitch + Math.PI / 2
               if(renderer.flyMode){
-                pvx -= S(p1) * S(p2) * mv * accel
-                pvy += C(p2) * mv * accel
-                pvz -= C(p1) * S(p2) * mv * accel
+                renderer.pvx -= S(p1) * S(p2) * mv * accel
+                renderer.pvy += C(p2) * mv * accel
+                renderer.pvz -= C(p1) * S(p2) * mv * accel
               }else{
-                pvx -= S(p1) * mv * accel
-                pvz -= C(p1) * mv * accel
+                renderer.pvx -= S(p1) * mv * accel
+                renderer.pvz -= C(p1) * mv * accel
               }
             break
             case 68:  //d
               var p1 = -renderer.yaw + Math.PI / 2
               var p2 = renderer.pitch + Math.PI / 2
               if(renderer.flyMode){
-                pvx += -S(p1) * mv * accel
-                pvz += -C(p1) * mv * accel
+                renderer.pvx += -S(p1) * mv * accel
+                renderer.pvz += -C(p1) * mv * accel
               }else{
-                pvx += -S(p1) * mv * accel
-                pvz += -C(p1) * mv * accel
+                renderer.pvx += -S(p1) * mv * accel
+                renderer.pvz += -C(p1) * mv * accel
               }
             break
             case 32:  //space
