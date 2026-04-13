@@ -4969,6 +4969,7 @@ const BasicShader = async (renderer, options=[]) => {
       vec3 rgeoPos;
       float rheightMapIntensity;
       float rmaxHeightmap;
+      float bMix;
       float cMix;
       float sMix;
 
@@ -5152,11 +5153,12 @@ const BasicShader = async (renderer, options=[]) => {
               vec2 coords = Coords(0.0, nVi);
               cMix = colorMix;
               sMix = supplementalTextureMix;
+              bMix = 1.0;
               
               ${uFragCode}
               ${aFragCode}
               
-              vec4 texel = texture2D( baseTexture, coords);
+              vec4 texel = vec4(texture2D( baseTexture, coords).rgb, bMix);
               texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, sMix));
 
               float fv;
