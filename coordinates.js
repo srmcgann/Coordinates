@@ -1209,10 +1209,12 @@ const ProcessOBJData = (data, vInd, nInd, uInd, fInd, ret) => {
         ret.vertices.push(
                         ...v[0], ...v[1], ...v[2],
                         ...v[2], ...v[3], ...v[0])
-        if(u.length) ret.uvs.push(
+        if(u.length && typeof u[0] != 'undefined')
+                      ret.uvs.push(
                         ...u[0], ...u[1], ...u[2],
                         ...u[2], ...u[3], ...u[0])
-        if(n.length) ret.normals.push(
+        if(n.length && typeof n[0] != 'undefined')
+                      ret.normals.push(
                         ...n[0], ...n[1], ...n[2],
                         ...n[2], ...n[3], ...n[0])
       break
