@@ -514,6 +514,10 @@ const Renderer = async options => {
                   tgvi = geometry.vIndices
                 }
                 
+                if(geometry.isPartitioned){
+                  tvertices = new Float32Array(geometry.partitions.parts[0].vertices)
+                }
+                
                 var toffsets = []
                 for(var i = 0; i < geometry.vertices.length; i+=3){
                   toffsets.push(geometry.offsets[i+0],
@@ -927,6 +931,102 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locRenderNormals,   0)
 
 
+
+              var tvertices
+              var tnormals
+              var tuvs
+              var tnormalVecs
+              var tflatShadingNormalVecs
+              var toffsets
+              if(geometry.isPartitioned){
+                var px, py, pz
+                if(renderer.cameraMode == 'fps'){
+                  px = -renderer.x
+                  py = -renderer.y
+                  pz = -renderer.z
+                }else{
+                  var d = Math.hypot(renderer.x, renderer.y, renderer.z)
+                  px = 0
+                  py = 0
+                  pz = -d
+                  d = Math.hypot(py, pz)
+                  p = Math.atan2(py, pz) + renderer.pitch
+                  py = S(p) * d
+                  pz = C(p) * d
+                  d = Math.hypot(px, pz)
+                  p = Math.atan2(px, pz) - renderer.yaw
+                  px = S(p) * d
+                  pz = C(p) * d
+                }
+                
+                var ctX = geometry.partitions.ctX
+                var ctY = geometry.partitions.ctY
+                var ctZ = geometry.partitions.ctZ
+                
+                var ls = geometry.partitionRadius
+                var verts = []
+                var uvs = []
+                var normalVecs = []
+                var normals = []
+                var offsets = []
+                var flatShadingNormalVecs = []
+                var tgvi
+                var tgoi
+                var tgui
+                var tgnvi
+                var tfsnvi
+                var tgni
+                geometry.partitions.parts.forEach((part, pIdx) => {
+                  var cx = part.cx
+                  var cy = part.cy
+                  var cz = part.cz
+                  if(Math.hypot(cx-px, cy-py, cz-pz) < ls){
+                    for(var i = 0; i < part.vertices.length; i++)
+                      verts.push(part.vertices[i])
+                    for(var i = 0; i < part.offsets.length; i++)
+                      offsets.push(part.offsets[i])
+                    for(var i = 0; i < part.uvs.length; i++)
+                      uvs.push(part.uvs[i])
+                    for(var i = 0; i < part.normalVecs.length; i++)
+                      normalVecs.push(part.normalVecs[i])
+                    for(var i = 0; i < part.flatShadingNormalVecs.length; i++)
+                      flatShadingNormalVecs.push(part.flatShadingNormalVecs[i])
+                    if(geometry.showNormals)
+                      for(var i = 0; i < part.normals.length; i++)
+                        normals.push(part.normals[i])
+                  }
+                })
+                tvertices = new Float32Array(verts)
+                toffsets = new Float32Array(offsets)
+                tuvs = new Float32Array(uvs)
+                tnormalVecs= new Float32Array(normalVecs)
+                tflatShadingNormalVecs = new Float32Array(flatShadingNormalVecs)
+                if(geometry.showNormals)
+                  tnormals = new Float32Array(normals)
+                var tgvi = new Uint32Array( Array(tvertices.length/3|0).fill().map((v,i)=>i) )
+                var tgoi = new Uint32Array( Array(toffsets.length/3|0).fill().map((v,i)=>i) )
+                var tgui = new Uint32Array( Array(tuvs.length/2|0).fill().map((v,i)=>i) )
+                var tgnvi = new Uint32Array( Array(tnormalVecs.length/3|0).fill().map((v,i)=>i) )
+                var tfsnvi = new Uint32Array( Array(tflatShadingNormalVecs.length/3|0).fill().map((v,i)=>i) )
+                
+                if(geometry.showNormals)
+                  var tgni = new Uint32Array( Array(tnormals.length/3|0).fill().map((v,i)=>i) )
+              }else{
+                tvertices = geometry.vertices
+                toffsets = geometry.offsets
+                tuvs = geometry.uvs
+                tnormalVecs = geometry.normalVecs
+                tflatShadingNormalVecs = geometry.flatShadingNormalVecs
+                if(geometry.showNormals)
+                  tnormals = geometry.normals
+                tgvi = geometry.vIndices
+                tgni = geometry.nIndices
+                tgnvi = geometry.nVecIndices
+                tfsnvi = geometry.fsnVecIndices
+                tgui = geometry.uvIndices
+                tgoi = geometry.oIndices
+              }
+              
               // dynamically resize UVs, if needed
               
               if(geometry.oScaleUVX != geometry.scaleUVX ||
@@ -941,9 +1041,9 @@ const Renderer = async options => {
 
               // bind buffers
               ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.uv_buffer)
-              ctx.bufferData(ctx.ARRAY_BUFFER, geometry.uvs, ctx.STATIC_DRAW)
+              ctx.bufferData(ctx.ARRAY_BUFFER, tuvs, ctx.STATIC_DRAW)
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.UV_Index_Buffer)
-              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.uvIndices, ctx.STATIC_DRAW)
+              ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, tgui, ctx.STATIC_DRAW)
               ctx.vertexAttribPointer(dset.locUv , 2, ctx.FLOAT, false, 0, 0)
               ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
               ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
@@ -952,9 +1052,9 @@ const Renderer = async options => {
               //normals
               if(geometry?.normalVecs.length){
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
-                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normalVecs, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ARRAY_BUFFER, tnormalVecs, ctx.STATIC_DRAW)
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
-                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nVecIndices, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, tgnvi, ctx.STATIC_DRAW)
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normalVec_buffer)
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.NormalVec_Index_Buffer)
                 dset.locNormalVec= ctx.getAttribLocation(dset.program, "normalVec")
@@ -969,9 +1069,9 @@ const Renderer = async options => {
               
               if(geometry.flatShadingNormalVecs.length){
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.flatShadingNormalVec_buffer)
-                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.flatShadingNormalVecs, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ARRAY_BUFFER, tflatShadingNormalVecs, ctx.STATIC_DRAW)
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.FlatShadingNormalVec_Index_Buffer)
-                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.fsnVecIndices, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, tfsnvi, ctx.STATIC_DRAW)
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.flatShadingNormalVec_buffer)
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.FlatShadingNormalVec_Index_Buffer)
                 dset.locFlatShadingNormalVec= ctx.getAttribLocation(dset.program, "flatShadingNormalVec")
@@ -981,34 +1081,30 @@ const Renderer = async options => {
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
               }
-              
 
               // vertices
               
-              if(geometry?.vertices?.length){
-                
-                ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-                
+              if(geometry?.vertices?.length && tvertices.length){
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Vertex_Index_Buffer)
-                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.vIndices, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, tgvi, ctx.STATIC_DRAW)
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.vertex_buffer)
-                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.vertices, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ARRAY_BUFFER, tvertices, ctx.STATIC_DRAW)
                 dset.locPosition = ctx.getAttribLocation(dset.program, "position")
                 ctx.vertexAttribPointer(dset.locPosition, 3, ctx.FLOAT, false, 0, 0)
                 ctx.enableVertexAttribArray(dset.locPosition)
 
                 // offsets
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.offset_buffer)
-                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.offsets, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ARRAY_BUFFER, toffsets, ctx.STATIC_DRAW)
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Offset_Index_Buffer)
-                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.oIndices, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, tgoi, ctx.STATIC_DRAW)
                 dset.locOffset = ctx.getAttribLocation(dset.program, "offset")
                 ctx.vertexAttribPointer(dset.locOffset, 3, ctx.FLOAT, false, 0, 0)
                 ctx.enableVertexAttribArray(dset.locOffset)
-
+                
                 ctx.drawElements(geometry.wireframe ? ctx.LINE_STRIP :
                                     ctx.TRIANGLES,
-                                  geometry.vertices.length/3|0,
+                                  tvertices.length/3|0,
                                   ctx.UNSIGNED_INT,0)
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
@@ -1020,13 +1116,13 @@ const Renderer = async options => {
               if(geometry.showNormals && geometry?.normals?.length){
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, geometry.Normal_Index_Buffer)
-                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, geometry.nIndices, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, tgni, ctx.STATIC_DRAW)
                 dset.locNormal = ctx.getAttribLocation(dset.program, "normal")
                 ctx.vertexAttribPointer(dset.locNormal, 3, ctx.FLOAT, false, 0, 0)
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, geometry.normal_buffer)
-                ctx.bufferData(ctx.ARRAY_BUFFER, geometry.normals, ctx.STATIC_DRAW)
+                ctx.bufferData(ctx.ARRAY_BUFFER, tnormals, ctx.STATIC_DRAW)
                 ctx.enableVertexAttribArray(dset.locNormal)
-                ctx.drawElements(ctx.LINES, geometry.normals.length/3|0, ctx.UNSIGNED_INT,0)
+                ctx.drawElements(ctx.LINES, tnormals.length/3|0, ctx.UNSIGNED_INT,0)
                 ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, null)
                 ctx.bindBuffer(ctx.ARRAY_BUFFER, null)
               }
@@ -1812,6 +1908,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var url                      = ''
   var name                     = ''
   var size                     = 1
+  var isPartitioned            = false
+  var partitionSize            = 1e5
+  var partitionRadius          = 0
   var averageNormals           = false
   var subs                     = 0
   var sphereize                = 0
@@ -1907,6 +2006,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'equirectangularheightmap' : equirectangularHeightmap = !!geoOptions[key]; break
       case 'flipnormals'        : flipNormals = !!geoOptions[key]; break
       case 'shownormals'        : showNormals = !!geoOptions[key]; break
+      case 'ispartitioned'      : isPartitioned = !!geoOptions[key]; break
+      case 'partitionsize'      : partitionSize = +geoOptions[key]; break
+      case 'partitionradius'    : partitionRadius = +geoOptions[key]; break
       case 'syncnormals'        : syncNormals = !!geoOptions[key]; break
       case 'offsetx'            : offsetX = geoOptions[key]; break
       case 'offsety'            : offsetY = geoOptions[key]; break
@@ -2045,6 +2147,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var nvstate               = []
   var fsnvstate             = []
   var stride                = ''
+  var partitions            = []
 
   var fileURL, hint
   var resolvedFromCache = false
@@ -2991,14 +3094,14 @@ const LoadGeometry = async (renderer, geoOptions) => {
   
   //vertics, indices
   vertex_buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer)
-  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer)
+  //gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, null)
   vIndices = new Uint32Array( Array(vertices.length/3).fill().map((v,i)=>i) )
   Vertex_Index_Buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, vIndices, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Vertex_Index_Buffer)
+  //gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, vIndices, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
 
 
   if(offsetX || offsetY || offsetZ){
@@ -3012,62 +3115,63 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
   //offsets, indices
   offset_buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, offset_buffer)
-  gl.bufferData(gl.ARRAY_BUFFER, offsets, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, offset_buffer)
+  //gl.bufferData(gl.ARRAY_BUFFER, offsets, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, null)
   oIndices = new Uint32Array( Array(offsets.length/3).fill().map((v,i)=>i) )
   Offset_Index_Buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Offset_Index_Buffer)
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, oIndices, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Offset_Index_Buffer)
+  //gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, oIndices, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
 
   
   //normals, indices
   normalVec_buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, normalVec_buffer)
-  gl.bufferData(gl.ARRAY_BUFFER, normalVecs, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, normalVec_buffer)
+  //gl.bufferData(gl.ARRAY_BUFFER, normalVecs, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, null)
   nVecIndices = new Uint32Array( Array(normalVecs.length/3).fill().map((v,i)=>i) )
   NormalVec_Index_Buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, NormalVec_Index_Buffer)
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, nVecIndices, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, NormalVec_Index_Buffer)
+  //gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, nVecIndices, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
   
   //normals, indices (for flat shading)
   flatShadingNormalVec_buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, flatShadingNormalVec_buffer)
-  gl.bufferData(gl.ARRAY_BUFFER, flatShadingNormalVecs, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, flatShadingNormalVec_buffer)
+  //gl.bufferData(gl.ARRAY_BUFFER, flatShadingNormalVecs, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, null)
   fsnVecIndices = new Uint32Array( Array(flatShadingNormalVecs.length/3).fill().map((v,i)=>i) )
   FlatShadingNormalVec_Index_Buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, FlatShadingNormalVec_Index_Buffer)
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, fsnVecIndices, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, FlatShadingNormalVec_Index_Buffer)
+  //gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, fsnVecIndices, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
   
   //normal lines for drawing, indices
   normal_buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
-  gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer)
+  //gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, null)
   nIndices = new Uint32Array( Array(normals.length/3).fill().map((v,i)=>i) )
   Normal_Index_Buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, nIndices, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Normal_Index_Buffer)
+  //gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, nIndices, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
 
   //uvs, indices
   uv_buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer)
-  gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer)
+  //gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ARRAY_BUFFER, null)
   uvIndices = new Uint32Array( Array(uvs.length/2).fill().map((v,i)=>i) )
   UV_Index_Buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, uvIndices, gl.STATIC_DRAW)
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UV_Index_Buffer)
+  //gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, uvIndices, gl.STATIC_DRAW)
+  //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
 
   if(equirectangular == -1) equirectangular = false
   if(equirectangularHeightmap == -1) equirectangularHeightmap = false
+
 
   var updateGeometry = {
     x, y, z, rows, cols,
@@ -3099,16 +3203,18 @@ const LoadGeometry = async (renderer, geoOptions) => {
     heightmapDataArrayWidth, heightmapDataArrayHeight,
     rebindTextures, exportAsOBJ, downloadAsOBJ,
     resolved, isShapeArray, shapeArrayIsSprite,
-    flatShadingNormalVecs, fsnVecIndices,
+    flatShadingNormalVecs, fsnVecIndices, partitions,
     flatShadingNormalVec_buffer, scaleUVX, scaleUVY,
     FlatShadingNormalVec_Index_Buffer, fsnvstate,
     nstate, vstate, nvstate, shapeData, stride,
-    oUvs, oScaleUVX, oScaleUVY
+    oUvs, oScaleUVX, oScaleUVY, isPartitioned,
+    partitionSize, partitionRadius
   }
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
   })
   
+  if(partitionSize != 1e5) InitPartitioning(geometry)
   
   if(geometry.shapeType == 'particles' || isParticle ||
      geometry.shapeType == 'lines' || isLine) {
@@ -3272,8 +3378,116 @@ const VideoToImage = video => {
   return scratchCanvas
 }
 
- 
- 
+const InitPartitioning = geometry => {
+  var g = geometry
+  var ax=0, ay=0, az=0, ct=0
+  var minX = 1e6
+  var minY = 1e6
+  var minZ = 1e6
+  var maxX = -1e6
+  var maxY = -1e6
+  var maxZ = -1e6
+  var x = 0, y = 0, z = 0
+  for(var i = 0; i < g.vertices.length; i+=9){
+    for(var m = 0; m < 3; m++){
+      x = g.vertices[i+0+m*3]
+      y = g.vertices[i+1+m*3]
+      z = g.vertices[i+2+m*3]
+      if(x < minX) minX = x
+      if(y < minY) minY = y
+      if(z < minZ) minZ = z
+      if(x > maxX) maxX = x
+      if(y > maxY) maxY = y
+      if(z > maxZ) maxZ = z
+    }
+  }
+  var ctX = ((maxX-minX) / g.partitionSize | 0) + 1
+  var ctY = ((maxY-minY) / g.partitionSize | 0) + 1
+  var ctZ = ((maxZ-minZ) / g.partitionSize | 0) + 1
+  g.partitions = {
+    ctX, ctY, ctZ,
+    minX, maxX,
+    minY, maxY,
+    minZ, maxZ,
+    parts: Array(ctX*ctY*ctZ).fill().map((v, i) => {
+      return {
+        cx: 0,
+        cy: 0,
+        cz: 0,
+        vertices: [],
+        uvs: [],
+        normals: [],
+        normalVecs: [],
+        offsets: [],
+        flatShadingNormalVecs: [],
+      }
+    })
+  }
+  
+  for(var i = 0; i < g.vertices.length; i+=9){
+    ax = 0
+    ay = 0
+    az = 0
+    ct = 0
+    for(var m = 0; m < 3; m++){
+      ax += g.vertices[i+0+m*3]
+      ay += g.vertices[i+1+m*3]
+      az += g.vertices[i+2+m*3]
+      ct++
+    }
+    ax /= ct
+    ay /= ct
+    az /= ct
+    var px = ((ax - minX) / g.partitionSize | 0)
+    var py = ((ay - minY) / g.partitionSize | 0)
+    var pz = ((az - minZ) / g.partitionSize | 0)
+    var part = px + py * ctX + pz * ctX * ctY
+    //console.log(px, py, pz, ctX, ctY, ctZ, part, g.partitions.parts.length, ay, minY, maxY)
+    g.partitions.parts[part].cx = ax
+    g.partitions.parts[part].cy = ay
+    g.partitions.parts[part].cz = az
+    for(var m = 0; m<9; m++){
+      g.partitions.parts[part].vertices.push(g.vertices[i+m])
+      g.partitions.parts[part].flatShadingNormalVecs.push(g.flatShadingNormalVecs[i+m])
+      g.partitions.parts[part].normalVecs.push(g.normalVecs[i+m])
+      g.partitions.parts[part].offsets.push(g.offsets[i+m])
+      g.partitions.parts[part].normals.push(g.normals[(i+m)*2])
+      g.partitions.parts[part].normals.push(g.normals[(i+m)*2+9])
+    }
+    for(var m = 0; m<6; m++){
+      g.partitions.parts[part].uvs.push(g.uvs[i/3*2+m])
+    }
+    
+    /*
+    for(var m = 0; m < 3; m++){
+      ax += g.vertices[i+0+m*3]
+      ay += g.vertices[i+1+m*3]
+      az += g.vertices[i+2+m*3]
+      ct++
+    }
+    ax /= ct
+    ay /= ct
+    az /= ct
+    
+    for(var m = 0; m < 3; m++){
+      for(var k = 0; k < 3; k++){
+        var idx = i+m*3+k
+        var px = (ax+(maxX-minX)/2)/g.partitionSize | 0
+        var py = (ay+(maxY-minY)/2)/g.partitionSize | 0
+        var pz = (az+(maxZ-minZ)/2)/g.partitionSize | 0
+        var part = px + py * ctX + pz * ctX * ctY
+        g.partitions.parts[part].vertices.push(g.vertices[idx])
+        g.partitions.parts[part].uvs.push(g.uvs[idx])
+        g.partitions.parts[part].normalVecs.push(g.normalVecs[idx])
+        g.partitions.parts[part].normals.push(g.normals[i*2+m*6+k*2])
+        g.partitions.parts[part].normals.push(g.normals[i*2+m*6+k*2+3])
+      }
+    }
+    */
+  }
+  geometry.isPartitioned = true
+}  
+
 const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry={}, involveCache = true) => {
   let texImage
   switch(textureMode){
@@ -6248,7 +6462,8 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     'heightmapIsDataArray', 'heightmapDataArrayFormat',
     'heightmapDataArrayWidth', 'heightmapDataArrayHeight',
     'rebindTextures', 'exportAsOBJ', 'downloadAsOBJ',
-    'resolved','map', 'video', 'muted'
+    'resolved','map', 'video', 'muted', 'partitionSize',
+    'partitionRadius'
   ]).forEach(key => { opts[key] = shape[key] })
   opts.name = shape.name
   Object.keys(options).forEach((key, idx) => {
@@ -6289,6 +6504,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     ret = geometry
     ret.shapeData = shapeData
   })
+  
   return ret
 }
 
