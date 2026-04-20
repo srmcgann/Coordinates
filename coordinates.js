@@ -1361,18 +1361,40 @@ const LoadOBJ = async (url, scale, tx, ty, tz, rl, pt, yw, recenter=false, invol
   var a, X, Y, Z
   if(involveCache && (cacheItem = cache.objFiles.filter(v=>v.url == url)).length){
     ret = cacheItem[0].ret
+    return ret
   }else{
     var vInd = []
     var nInd = []
     var uInd = []
-    var fInd = []
-    await fetch(url).then(res=>res.text()).then(data => {
-      ProcessOBJData(data, vInd, nInd, uInd, fInd, ret)
-    })
-    cache.objFiles = [...structuredClone(cache.objFiles), {url, ret}]
+    var fInd = [] 
+    if(url.toLowerCase().substr(url.length-4) == '.zip'){
+      var brk = 'PK'
+      await fetch(url).then(res=>res.blob()).then(async data => {
+        ;await (new zip.ZipReader(await new zip.BlobReader(data))).getEntries()
+        .then( async res => {
+          var el = await res[0].getData(new zip.BlobWriter())
+          await el.text().then(data=>{
+            var ct = 0
+            brk = data.substr(0,2)
+            do{ ct++ }while(brk=='PK');
+            ProcessOBJData(data, vInd, nInd, uInd, fInd, ret)
+            brk = true
+          })
+        })
+        var ct=0
+        do{ ct++ }while(brk=='PK');
+        OBJFinishing(ret, tx, ty, tz, rl, pt, yw)
+      })
+      return ret
+    }else{
+      await fetch(url).then(res=>res.text()).then(data => {
+        ProcessOBJData(data, vInd, nInd, uInd, fInd, ret)
+      })
+      cache.objFiles = [...structuredClone(cache.objFiles), {url, ret}]
+      OBJFinishing(ret, tx, ty, tz, rl, pt, yw)
+      return ret
+    }
   }
-  OBJFinishing(ret, tx, ty, tz, rl, pt, yw)
-  return ret
 }
 
 const Q = (X, Y, Z, c, AR=700) => [c.width/2+X/Z*AR, c.height/2+Y/Z*AR]
@@ -2228,20 +2250,14 @@ const LoadGeometry = async (renderer, geoOptions) => {
                 if(data?.flatShadingNormalVecs) {
                   flatShadingNormalVecs = data.flatShadingNormalVecs.map(v=>-v)
                 }
-                if(data?.stride) geometry.stride = data.stride
-                if(data?.fsnvstate) {
-                  fsnvstate = data.shapeData.map(v=>v)
-                }
+                if(data?.stride) stride = data.stride
+                if(data?.fsnvstate) fsnvstate= data.shapeData.map(v=>v)
                 if(data?.shapeData) {
                   isShapeArray = true
                   shapeData = data.shapeData.map(v=>v)
                 }
-                if(data?.vstate) {
-                  vstate = data.vstate.map(v=>v)
-                }
-                if(data?.nvstate) {
-                  nvstate = data.nvstate.map(v=>v)
-                }
+                if(data?.vstate) vstate = data.vstate.map(v=>v)
+                if(data?.nvstate) nvstate = data.nvstate.map(v=>v)
                 //if(data?.uvstate) {
                 //  uvs = data.uvstate.map(v=>-v)
                 //}else{
@@ -2295,51 +2311,70 @@ const LoadGeometry = async (renderer, geoOptions) => {
             normalVecs  = geometryData.normalVecs
             uvs         = geometryData.uvs
 
-
-            if(geometryData?.stride) stride = geometryData.stride
-            if(geometryData?.fsnvstate) {
-              fsnvstate= geometryData.shapeData.map(v=>v)
-            }
-            if(geometryData?.shapeData) {
+            if(data?.stride) stride = data.stride
+            if(data?.fsnvstate) fsnvstate= data.shapeData.map(v=>v)
+            if(data?.shapeData) {
               isShapeArray = true
-              shapeData = geometryData.shapeData.map(v=>v)
+              shapeData = data.shapeData.map(v=>v)
             }
-            if(geometryData?.vstate) {
-              vstate = geometryData.vstate.map(v=>v)
-            }
-            if(geometryData?.nvstate) {
-              nvstate = geometryData.nvstate.map(v=>v)
-            }
+            if(data?.vstate) vstate = data.vstate.map(v=>v)
+            if(data?.nvstate) nvstate = data.nvstate.map(v=>v)
 
             resolved    = true
             //cache.customShapes.push({data: structuredClone(geometryData), url})
           }else{
-            await fetch(fileURL).then(res=>res.json()).then(data=>{
-              if(data?.normalAssocs) normalAssocs = data.normalAssocs
-              if(data?.flatShadingNormalVecs) flatShadingNormalVecs = data.flatShadingNormalVecs
-              vertices     = data.vertices
-              normals      = data.normals
-              normalVecs   = data.normalVecs
-              uvs          = data.uvs
-
-              if(data?.stride) stride = data.stride
-              if(data?.fsnvstate) {
-                fsnvstate= data.shapeData.map(v=>v)
-              }
-              if(data?.shapeData) {
-                isShapeArray = true
-                shapeData = data.shapeData.map(v=>v)
-              }
-              if(data?.vstate) {
-                vstate = data.vstate.map(v=>v)
-              }
-              if(data?.nvstate) {
-                nvstate = data.nvstate.map(v=>v)
-              }
-
-              resolved     = true
-              cache.customShapes.push({data: structuredClone(data), url})
-            })
+            if(fileURL.toLowerCase().substr(fileURL.length-4) == '.zip'){
+              var brk = 'PK'
+              await fetch(fileURL).then(res=>res.blob()).then(async data => {
+                ;await (new zip.ZipReader(await new zip.BlobReader(data))).getEntries()
+                .then( async res => {
+                  var el = await res[0].getData(new zip.BlobWriter())
+                  await el.text().then(data=>{
+                    var ct = 0
+                    brk = data.substr(0,2)
+                    do{ ct++ }while(brk=='PK');
+                    data = JSON.parse(data)
+                    if(data?.normalAssocs) normalAssocs = data.normalAssocs
+                    if(data?.flatShadingNormalVecs) flatShadingNormalVecs = data.flatShadingNormalVecs
+                    vertices     = data.vertices
+                    normals      = data.normals
+                    normalVecs   = data.normalVecs
+                    uvs          = data.uvs
+                    if(data?.stride) stride = data.stride
+                    if(data?.fsnvstate) fsnvstate= data.shapeData.map(v=>v)
+                    if(data?.shapeData) {
+                      isShapeArray = true
+                      shapeData = data.shapeData.map(v=>v)
+                    }
+                    if(data?.vstate) vstate = data.vstate.map(v=>v)
+                    if(data?.nvstate) nvstate = data.nvstate.map(v=>v)
+                    resolved     = true
+                    cache.customShapes.push({data: structuredClone(data), url})
+                  })
+                })
+                var ct=0
+                do{ ct++ }while(brk=='PK');
+              })
+            }else{
+              await fetch(fileURL).then(res=>res.json()).then(data=>{
+                if(data?.normalAssocs) normalAssocs = data.normalAssocs
+                if(data?.flatShadingNormalVecs) flatShadingNormalVecs = data.flatShadingNormalVecs
+                vertices     = data.vertices
+                normals      = data.normals
+                normalVecs   = data.normalVecs
+                uvs          = data.uvs
+                if(data?.stride) stride = data.stride
+                if(data?.fsnvstate) fsnvstate= data.shapeData.map(v=>v)
+                if(data?.shapeData) {
+                  isShapeArray = true
+                  shapeData = data.shapeData.map(v=>v)
+                }
+                if(data?.vstate) vstate = data.vstate.map(v=>v)
+                if(data?.nvstate) nvstate = data.nvstate.map(v=>v)
+                resolved     = true
+                cache.customShapes.push({data: structuredClone(data), url})
+              })
+            }
           }
         }
       break
@@ -3442,7 +3477,6 @@ const InitPartitioning = geometry => {
     var py = ((ay - minY) / g.partitionSize | 0)
     var pz = ((az - minZ) / g.partitionSize | 0)
     var part = px + py * ctX + pz * ctX * ctY
-    //console.log(px, py, pz, ctX, ctY, ctZ, part, g.partitions.parts.length, ay, minY, maxY)
     g.partitions.parts[part].cx = ax
     g.partitions.parts[part].cy = ay
     g.partitions.parts[part].cz = az
