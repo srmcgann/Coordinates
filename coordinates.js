@@ -6314,7 +6314,13 @@ const ProcessShapeArray = shape => {
         shape.renderer.z     != shape.renderer.oCamZ ||
         shape.renderer.roll  != shape.renderer.oCamRoll ||
         shape.renderer.pitch != shape.renderer.oCamPitch ||
-        shape.renderer.yaw   != shape.renderer.oCamYaw)) ||
+        shape.renderer.yaw   != shape.renderer.oCamYaw ||
+        shape.x             != shape.ox ||
+        shape.y             != shape.oy ||
+        shape.z             != shape.oz ||
+        shape.roll          != shape.oRoll ||
+        shape.pitch         != shape.oPitch ||
+        shape.yaw           != shape.oYaw)) ||
        data[shpIdx].mx      != data[shpIdx].x ||
        data[shpIdx].my      != data[shpIdx].y ||
        data[shpIdx].mz      != data[shpIdx].z ||
@@ -6326,11 +6332,12 @@ const ProcessShapeArray = shape => {
       tz = data[shpIdx].oz
       var roll, pitch, yaw, rotationMode
       if(shape.shapeArrayIsSprite){
-        roll  = (shape.renderer.roll - shape.roll) *
-                    (shape.renderer.cameraMode == 'fps' ? 1 : -1)
-        pitch = (-shape.renderer.pitch + shape.pitch) *
-                    (shape.renderer.cameraMode == 'fps' ? 1 : -1)
-        yaw   = -shape.renderer.yaw - shape.yaw
+        // to-do:
+        // subtract out shapeArray orientation for sprites.
+        // works currently, unless shape is reoriented.
+        pitch = (-shape.renderer.pitch) * (shape.renderer.cameraMode == 'fps' ? 1 : -1) - shape.pitch
+        yaw   = (-shape.renderer.yaw) - shape.yaw
+        roll  = (shape.renderer.roll)  - shape.roll
         rotationMode = 1
       }else{
         roll  = data[shpIdx].roll
@@ -6483,6 +6490,12 @@ const ProcessShapeArray = shape => {
   shape.renderer.oCamRoll  = shape.renderer.roll
   shape.renderer.oCamPitch = shape.renderer.pitch
   shape.renderer.oCamYaw   = shape.renderer.yaw
+  shape.oX      = shape.x
+  shape.oY      = shape.y
+  shape.oZ      = shape.z
+  shape.oRoll   = shape.roll
+  shape.oPitch  = shape.pitch
+  shape.oYaw    = shape.yaw
 }
 
 
