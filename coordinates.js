@@ -242,7 +242,8 @@ const Renderer = async options => {
          geometry.isLine ||
          geometry.isParticle ||
          geometry.isLight ||
-         geometry.isSprite
+         geometry.isSprite ||
+         geometry.shapeArrayIsSprite
          ) {
         ctx.blendFunc(ctx.SRC_ALPHA, ctx.ONE)
         ctx.enable(ctx.BLEND)
@@ -252,7 +253,9 @@ const Renderer = async options => {
       }else{
         //ctx.disable(ctx.CULL_FACE)
         if(geometry.shapeType != 'sprite' ||
-           (geometry.shapeType != 'point light' && geometry.showSource)) ctx.disable(ctx.BLEND)
+           (geometry.shapeType != 'point light' && geometry.showSource)){
+          ctx.disable(ctx.BLEND)
+        }
       }
 
       var equirectangularPlugin, omitSplitCheck
@@ -279,7 +282,8 @@ const Renderer = async options => {
       if(typeof geometry?.shader != 'undefined'){
         
         // depth + alpha bugfix
-        if(!sortedPass && (geometry.isSprite || (geometry.isLight && geometry.showSource))) {
+        if(!sortedPass && (geometry.isSprite ||
+           geometry.shapeArrayIsSprite || (geometry.isLight && geometry.showSource))) {
           var queueType
           switch(geometry.shapeType){
             case 'sprite'  : case 'point light': queueType = 'alphaQueue'; break
@@ -412,9 +416,10 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locIsLine,          geometry.isLine)
               ctx.uniform1f(dset.locPenumbraPass,    geometry.penumbraPass ? 1 : 0)
               
-              ctx.uniform1f(dset.locT,               renderer.t)
-              ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
-              ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
+              ctx.uniform1f(dset.locT,        renderer.t)
+              ctx.uniform1f(dset.locColorMix, geometry.colorMix)
+              ctx.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
+              ctx.uniform1f(dset.locShapeArrayIsSprite, geometry.shapeArrayIsSprite ? 1.0 : 0.0)
               ctx.uniform1f(dset.locIsLight,         geometry.isLight)
               
               ctx.uniform1f(dset.locCameraMode,      
@@ -912,7 +917,8 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locIsLine,          geometry.isLine)
               ctx.uniform1f(dset.locPenumbraPass,    0)
               ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
-              ctx.uniform1f(dset.locIsSprite,        geometry.isSprite)
+              ctx.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
+              ctx.uniform1f(dset.locShapeArrayIsSprite, geometry.shapeArrayIsSprite ? 1.0 : 0.0)
               ctx.uniform1f(dset.locIsLight,         geometry.isLight)
               
               ctx.uniform1f(dset.locCameraMode,      
@@ -1786,6 +1792,12 @@ const DownloadCustomShape = geo => {
   var normalVecs            = []
   var flatShadingNormalVecs = []
   var uvs                   = []
+  var oCamX                 = ''
+  var oCamY                 = ''
+  var oCamZ                 = ''
+  var oCamRoll              = ''
+  var oCamPitch             = ''
+  var oCamYaw               = ''
   var stride                = ''
   var vstate                = []
   var fsnvstate             = []
@@ -2105,6 +2117,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'showbounding'       : showBounding = !!geoOptions[key]; break
       case 'issprite'           :
         isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
+      case 'shapearrayissprite'           :
+        shapeArrayIsSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'islight'            :
         isLight = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'isparticle'         :
@@ -2169,6 +2183,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var nvstate               = []
   var fsnvstate             = []
   var stride                = ''
+  var oCamX                 = ''
+  var oCamY                 = ''
+  var oCamZ                 = ''
+  var oCamRoll              = ''
+  var oCamPitch             = ''
+  var oCamYaw               = ''
   var partitions            = []
 
   var fileURL, hint
@@ -3243,8 +3263,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
     FlatShadingNormalVec_Index_Buffer, fsnvstate,
     nstate, vstate, nvstate, shapeData, stride,
     oUvs, oScaleUVX, oScaleUVY, isPartitioned,
-    partitionSize, partitionRadius
+    partitionSize, partitionRadius, oCamX, oCamY, oCamZ,
+    oCamRoll, oCamPitch, oCamYaw,
   }
+  
+  
   Object.keys(updateGeometry).forEach((key, idx) => {
     geometry[key] = updateGeometry[key]
   })
@@ -3748,7 +3771,8 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   
   vy *= -1
   
-  if(!(geometry.isLight || geometry.isSprite)){
+  if(!(geometry.isLight || geometry.isSprite ||
+       geometry.shapeArrayIsSprite)){
     ar = R_ryp(vx, vy, vz, {
       roll:  geometry.roll * (geometry.isParticle || geometry.isLine ? 1: 1) + .0001,
       pitch: geometry.pitch * (geometry.isParticle || geometry.isLine ? 1: 1),
@@ -3759,7 +3783,8 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
     vz = -ar[2]  * (geometry.isParticle || geometry.isLine ? 1: 1)
   }
 
-  if(geometry.isLight || geometry.isSprite){
+  if(geometry.isLight || geometry.isSprite ||
+     geometry.shapeArrayIsSprite){
     ar = R_pyr(vx, vy, vz, {
       roll:  renderer.roll * (renderer.cameraMode.toLowerCase() == 'fps' ? -1 : 1),
       pitch: -renderer.pitch * (renderer.cameraMode.toLowerCase() == 'fps' ? -1 : 1),
@@ -4674,6 +4699,7 @@ const BasicShader = async (renderer, options=[]) => {
                   fragCode:            `
                     if(isLight == 0.0 &&
                        isSprite == 0.0 &&
+                       shapeArrayIsSprite == 0.0 &&
                        isParticle == 0.0 &&
                        isLine == 0.0){
                       //light.rgb *= .5;
@@ -4769,6 +4795,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float splitCheckPass;
       uniform float pointSize;
       uniform float isSprite;
+      uniform float shapeArrayIsSprite;
       uniform float isLight;
       uniform float cameraMode;
       uniform float isParticle;
@@ -5169,6 +5196,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float plugin;
       uniform float flatShading;
       uniform float isSprite;
+      uniform float shapeArrayIsSprite;
       uniform float isLight;
       uniform float isParticle;
       uniform float isLine;
@@ -5408,11 +5436,14 @@ const BasicShader = async (renderer, options=[]) => {
               ${uFragCode}
               ${aFragCode}
               
-              vec4 texel = vec4(texture2D( baseTexture, coords).rgb, bMix);
+              vec4 texel = texture2D( baseTexture, coords);
+              texel = vec4(texel.rgb, bMix * texel.a);
               texel = merge(texel, vec4(texture2D( supplementalTexture, coords).rgb, sMix));
 
               float fv;
-              if(isSprite != 0.0 || isLight != 0.0){
+              if(isSprite != 0.0 ||
+                 shapeArrayIsSprite != 0.0 ||
+                 isLight != 0.0){
                 if(fog != 0.0){
                   vec4 preFog = vec4(texel.rgb * 3.0, texel.a);
                   fv = min(1.0, depth * fog) * min(alpha * 2.0, 1.0);
@@ -5899,6 +5930,9 @@ const BasicShader = async (renderer, options=[]) => {
           dset.locIsSprite = gl.getUniformLocation(dset.program, "isSprite")
           gl.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
 
+          dset.locShapeArrayIsSprite = gl.getUniformLocation(dset.program, "shapeArrayIsSprite")
+          gl.uniform1f(dset.locShapeArrayIsSprite, geometry.shapeArrayIsSprite ? 1.0 : 0.0)
+
           dset.locCameraMode = gl.getUniformLocation(dset.program, "cameraMode")
           gl.uniform1f(dset.locCameraMode, renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
 
@@ -6240,6 +6274,10 @@ const ProcessShapeArray = shape => {
     shape.shapeArrayIsSprite = true
     shape.isSprite = false
   }
+
+  if(shape.shapeArrayIsSprite){
+    shape.disableDepthTest = true
+  }
   
   const SyncShapeData = shpIdx => {
     data[shpIdx].mx = data[shpIdx].x
@@ -6270,12 +6308,19 @@ const ProcessShapeArray = shape => {
       data[shpIdx].moffsetz = data[shpIdx].offsetz
       SyncShapeData(shpIdx)
     }
-    if(data[shpIdx].mx != data[shpIdx].x ||
-       data[shpIdx].my != data[shpIdx].y ||
-       data[shpIdx].mz != data[shpIdx].z ||
-       data[shpIdx].mroll != data[shpIdx].roll ||
-       data[shpIdx].mpitch != data[shpIdx].pitch ||
-       data[shpIdx].myaw != data[shpIdx].yaw){
+    if((shape.shapeArrayIsSprite &&
+       (shape.renderer.x     != shape.renderer.oCamX ||
+        shape.renderer.y     != shape.renderer.oCamY ||
+        shape.renderer.z     != shape.renderer.oCamZ ||
+        shape.renderer.roll  != shape.renderer.oCamRoll ||
+        shape.renderer.pitch != shape.renderer.oCamPitch ||
+        shape.renderer.yaw   != shape.renderer.oCamYaw)) ||
+       data[shpIdx].mx      != data[shpIdx].x ||
+       data[shpIdx].my      != data[shpIdx].y ||
+       data[shpIdx].mz      != data[shpIdx].z ||
+       data[shpIdx].mroll   != data[shpIdx].roll ||
+       data[shpIdx].mpitch  != data[shpIdx].pitch ||
+       data[shpIdx].myaw    != data[shpIdx].yaw){
       tx = data[shpIdx].ox
       ty = data[shpIdx].oy
       tz = data[shpIdx].oz
@@ -6432,6 +6477,12 @@ const ProcessShapeArray = shape => {
       SyncShapeData(shpIdx)
     }
   }
+  shape.renderer.oCamX     = shape.renderer.x
+  shape.renderer.oCamY     = shape.renderer.y
+  shape.renderer.oCamZ     = shape.renderer.z
+  shape.renderer.oCamRoll  = shape.renderer.roll
+  shape.renderer.oCamPitch = shape.renderer.pitch
+  shape.renderer.oCamYaw   = shape.renderer.yaw
 }
 
 
@@ -8884,7 +8935,8 @@ const LoadFPSControls = async (renderer, options) => {
 const ShouldDisableDepth = shape => {
   //return false
   return ((!shape.isParticle) && (!shape.isLine) &&
-         (shape.isLight || shape.isSprite)) || shape.disableDepthTest
+         (shape.isLight || shape.isSprite ||
+          shape.shapeArrayIsSprite)) || shape.disableDepthTest
 }
 
 const AnimationLoop = (renderer, func) => {
