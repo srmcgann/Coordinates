@@ -4578,14 +4578,20 @@ const BasicShader = async (renderer, options=[]) => {
                     float ref2p1, ref2p2, d;
                     float ref2rx = rasterPos.x;
                     float ref2ry = rasterPos.y;
+
+                    float ref2val, ref2x3, ref2y3, ref2z3, ref2dist;
+                    float ref2p1Red, ref2p2Red;
+                    float ref2p1Green, ref2p2Green;
+                    float ref2p1Blue, ref2p2Blue;
+                      
                     if(refraction2OmitEquirectangular == 1.0){
                       ref2p1 = rasterPos.x/resolution.x;
                       ref2p2 = rasterPos.y/resolution.y;
                     }else{
                       float ar = resolution.x/resolution.y;
                       float ref2x1 = ref2rx*ar;
-                      float ref2y1 = cos(0.0) * ref2ry;
-                      float ref2z1 = sin(0.0) * ref2ry;
+                      float ref2y1 = ref2ry;
+                      float ref2z1 = 0.0;
 
                       // roll
                       p = atan(ref2x1, ref2y1) - camOri.x;
@@ -4613,8 +4619,8 @@ const BasicShader = async (renderer, options=[]) => {
 
                       float ref2v = 0.83 / (900.0/fov);
                       float ref2x2 = 0.0;
-                      float ref2y2 = sin(0.0) *ref2v;
-                      float ref2z2 = cos(0.0) *ref2v;
+                      float ref2y2 = 0.0;
+                      float ref2z2 = ref2v;
                       
                       // roll
                       p = atan(ref2x2, ref2y2) - camOri.x;
@@ -4633,38 +4639,56 @@ const BasicShader = async (renderer, options=[]) => {
                       d = sqrt( ref2x2 * ref2x2 + ref2z2 * ref2z2 );
                       ref2x2 = sin(p) * d;
                       ref2z2 = cos(p) * d;
-
-                      float ref2val = 1.0 -
-                         pow(.5 * (-1.66-nVec.z), 7.0) *
-                           50.0 * 
-                           angleOfRefraction2;
-                               
-                      float ref2x3 = (ref2x1 / ref2val - ref2x2);
-                      float ref2y3 = (ref2y1 / ref2val - ref2y2);
-                      float ref2z3 = (ref2z1 / ref2val - ref2z2);
                       
-                      //p = atan(ref2x3, ref2y3) - camOri.x;
-                      //d = sqrt(ref2x3*ref2x3 + ref2y3*ref2y3);
-                      //ref2x3 = .5 + sin(p) * d;
-                      //ref2y3 = .5 + cos(p) * d;
-                      
-                      float ref2dist = sqrt(
+                      ref2val = 1.0 -
+                         pow(.5 * (-1.66-nVec.z), 7.0) * 50.0 * angleOfRefraction2;
+                      ref2x3 = (ref2x1 / ref2val - ref2x2);
+                      ref2y3 = (ref2y1 / ref2val - ref2y2);
+                      ref2z3 = (ref2z1 / ref2val - ref2z2);
+                      ref2dist = sqrt(
                         ref2x3 * ref2x3 +
                         ref2y3 * ref2y3 +
                         ref2z3 * ref2z3
                       );
-                      
-                    
-                      ref2p1 = -(atan(ref2x3, ref2z3) + refraction2Theta) / M_PI / 2.0;
-                      ref2p2 = acos(ref2y3 / ref2dist) / M_PI;
+                      ref2p1Red = -(atan(ref2x3, ref2z3) + refraction2Theta) / M_PI / 2.0;
+                      ref2p2Red = acos(ref2y3 / ref2dist) / M_PI;
+
+                      ref2val = 1.0 -
+                         pow(.5 * (-1.66-nVec.z/1.033), 7.0) * 50.0 * angleOfRefraction2;
+                      ref2x3 = (ref2x1 / ref2val - ref2x2);
+                      ref2y3 = (ref2y1 / ref2val - ref2y2);
+                      ref2z3 = (ref2z1 / ref2val - ref2z2);
+                      ref2dist = sqrt(
+                        ref2x3 * ref2x3 +
+                        ref2y3 * ref2y3 +
+                        ref2z3 * ref2z3
+                      );
+                      ref2p1Green = -(atan(ref2x3, ref2z3) + refraction2Theta) / M_PI / 2.0;
+                      ref2p2Green = acos(ref2y3 / ref2dist) / M_PI;
+
+                      ref2val = 1.0 -
+                         pow(.5 * (-1.66-nVec.z/1.066), 7.0) * 50.0 * angleOfRefraction2;
+                      ref2x3 = (ref2x1 / ref2val - ref2x2);
+                      ref2y3 = (ref2y1 / ref2val - ref2y2);
+                      ref2z3 = (ref2z1 / ref2val - ref2z2);
+                      ref2dist = sqrt(
+                        ref2x3 * ref2x3 +
+                        ref2y3 * ref2y3 +
+                        ref2z3 * ref2z3
+                      );
+                      ref2p1Blue = -(atan(ref2x3, ref2z3) + refraction2Theta) / M_PI / 2.0;
+                      ref2p2Blue = acos(ref2y3 / ref2dist) / M_PI;
                     }
                     
                     
-                    vec2 ref2coords = vec2(ref2p1+.5/M_PI/2.0, ref2p2);
-                  
-                    addInColor = merge(addInColor, 
-                      vec4(texture2D(refraction2Map,
-                        ref2coords).rgb * 1.25, refraction2));
+                    vec2 ref2coordsRed   = vec2(ref2p1Red+.5/M_PI/2.0, ref2p2Red);
+                    vec2 ref2coordsGreen = vec2(ref2p1Green+.5/M_PI/2.0, ref2p2Green);
+                    vec2 ref2coordsBlue  = vec2(ref2p1Blue+.5/M_PI/2.0, ref2p2Blue);
+                    float red   = texture2D(refraction2Map, ref2coordsRed).r;
+                    float green = texture2D(refraction2Map, ref2coordsGreen).g;
+                    float blue  = texture2D(refraction2Map, ref2coordsBlue).b;
+                    vec3 rgb = vec3(red, green, blue);
+                    addInColor = merge(addInColor, vec4(rgb * 1.25, refraction2));
                   `,
                 }
                 dataset.optionalUniforms.push( uniformOption )
