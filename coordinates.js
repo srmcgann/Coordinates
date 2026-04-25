@@ -4654,7 +4654,7 @@ const BasicShader = async (renderer, options=[]) => {
                       ref2p2Red = acos(ref2y3 / ref2dist) / M_PI;
 
                       ref2val = 1.0 -
-                         pow(.5 * (-1.66-nVec.z/1.015), 7.0) * 50.0 * angleOfRefraction2;
+                         pow(.5 * (-1.66-nVec.z/1.033), 7.0) * 50.0 * angleOfRefraction2;
                       ref2x3 = (ref2x1 / ref2val - ref2x2);
                       ref2y3 = (ref2y1 / ref2val - ref2y2);
                       ref2z3 = (ref2z1 / ref2val - ref2z2);
@@ -4667,7 +4667,7 @@ const BasicShader = async (renderer, options=[]) => {
                       ref2p2Green = acos(ref2y3 / ref2dist) / M_PI;
 
                       ref2val = 1.0 -
-                         pow(.5 * (-1.66-nVec.z/1.03), 7.0) * 50.0 * angleOfRefraction2;
+                         pow(.5 * (-1.66-nVec.z/1.066), 7.0) * 50.0 * angleOfRefraction2;
                       ref2x3 = (ref2x1 / ref2val - ref2x2);
                       ref2y3 = (ref2y1 / ref2val - ref2y2);
                       ref2z3 = (ref2z1 / ref2val - ref2z2);
