@@ -1169,13 +1169,11 @@ const ResizeRenderer = (renderer, width, height) => {
   renderer.c.width = width
   renderer.c.height = height
   renderer.rsz()
-  switch(renderer.ctx.mode){
+  switch(renderer.context.mode){
     case '2d':
     break
     default:
       renderer.ctx.viewport(0, 0, renderer.c.width, renderer.c.height)
-      //Overlay.c.width = renderer.c.width
-      //Overlay.c.height = renderer.c.height
     break
   }
 }
