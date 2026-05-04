@@ -69,6 +69,9 @@ const Renderer = async options => {
   var fog             = 0
   var frameCount      = 0
   var rotationMode    = 0
+  var offsetX         = 0
+  var offsetY         = 0
+  var offsetZ         = 0
   var fogColor        = [0,0,0]
   var dataArray       = {
     data: [],
@@ -106,6 +109,9 @@ const Renderer = async options => {
         case 'x': x = options[key]; break
         case 'y': y = options[key]; break
         case 'z': z = options[key]; break
+        case 'offsetx': offsetX = options[key]; break
+        case 'offsety': offsetY = options[key]; break
+        case 'offsetz': offsetZ = options[key]; break
         case 'roll': roll = options[key]; break
         case 'pitch': pitch = options[key]; break
         case 'yaw': yaw = options[key]; break
@@ -182,20 +188,17 @@ const Renderer = async options => {
   })
   
   ret = {
-    // vars & objects
     c, ctx, contextType, t:0, alpha,
     width, height, x, y, z, attachToBody,
     roll, pitch, yaw, fov, context,
+    offsetX, offsetY, offsetZ,
     ready: false, ambientLight, clearColor,
     pointLights, pointLightCols, dataArray, glowQueue,
     alphaQueue, particleQueue, lineQueue, active,
     cameraMode, showCrosshair, crosshairSel,
     crosshairMap, pageX, pageY, mouseX, mouseY, frameCount,
     mouseButton, rsz, margin, optionalPlugins, fogColor,
-    rotationMode
-    
-    // functions
-    // ...
+    rotationMode,
   }
   rsz()
   ret[contextType == '2d' ? 'ctx' : 'gl'] = ctx
@@ -435,7 +438,9 @@ const Renderer = async options => {
               ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
               ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
               ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
-              ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
+              ctx.uniform3f(dset.locGeoPos,          geometry.x + renderer.offsetX,
+                                                     geometry.y + renderer.offsetY,
+                                                     geometry.z + renderer.offsetZ)
               ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
               ctx.uniform1f(dset.locFov,             renderer.fov)
               ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
@@ -930,7 +935,9 @@ const Renderer = async options => {
               ctx.uniform2f(dset.locResolution,      renderer.width, renderer.height)
               ctx.uniform3f(dset.locCamPos,          renderer.x, renderer.y, renderer.z)
               ctx.uniform3f(dset.locCamOri,          renderer.roll, renderer.pitch, renderer.yaw)
-              ctx.uniform3f(dset.locGeoPos,          geometry.x, geometry.y, geometry.z)
+              ctx.uniform3f(dset.locGeoPos,          geometry.x + renderer.offsetX,
+                                                     geometry.y + renderer.offsetY,
+                                                     geometry.z + renderer.offsetZ)
               ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
               ctx.uniform1f(dset.locFov,             renderer.fov)
               ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
