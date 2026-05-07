@@ -2207,10 +2207,10 @@ const LoadGeometry = async (renderer, geoOptions) => {
     if(subs < 5 && hint){
       var fileBase
       if(1)switch(hint){
-        case 'cylinder_0':
-        case 'cylinder_1':
-        case 'cylinder_2':
-        case 'cylinder_3':
+        //case 'cylinder_0':
+        //case 'cylinder_1':
+        //case 'cylinder_2':
+        //case 'cylinder_3':
         case 'torus_0':
         case 'torus knot_0':
         case 'tetrahedron_0':
@@ -2479,6 +2479,12 @@ const LoadGeometry = async (renderer, geoOptions) => {
         })
       break
       case 'cylinder':
+        shape = await LoadOBJ(`${ModuleBase}/prebuilt%20shapes/cylinder.obj`,
+                        size, 0,0,0,0,0,0, false, true)
+        vertices = shape.vertices
+        normals  = shape.normals
+        uvs      = shape.uvs
+        /*
         shape = await Cylinder(size, subs, rows, cols, sphereize,
                       flipNormals, shapeType)
         shape.geometry.map(v => {
@@ -2486,6 +2492,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
           normals.push(...v.normal)
           uvs.push(...v.texCoord)
         })
+        */
       break
       case 'dynamic':
         shape = await GeometryFromRaw(geometryData, texCoords,
