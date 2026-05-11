@@ -445,6 +445,9 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locFov,             renderer.fov)
               ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
               ctx.uniform1f(dset.locRenderNormals,   0)
+              ctx.uniform1f(dset.locScaleX,          geometry.scaleX)
+              ctx.uniform1f(dset.locScaleY,          geometry.scaleY)
+              ctx.uniform1f(dset.locScaleZ,          geometry.scaleZ)
 
               // vertices
               if(geometry?.vertices?.length) {
@@ -942,6 +945,9 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locFov,             renderer.fov)
               ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
               ctx.uniform1f(dset.locRenderNormals,   0)
+              ctx.uniform1f(dset.locScaleX,          geometry.scaleX)
+              ctx.uniform1f(dset.locScaleY,          geometry.scaleY)
+              ctx.uniform1f(dset.locScaleZ,          geometry.scaleZ)
 
 
 
@@ -2672,6 +2678,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   }
 
   
+  /*
   if(shapeType == 'obj' && (scaleX != 1 || scaleY != 1 || scaleZ != 1)){
     for(var i = 0; i< vertices.length; i+=3){
       vertices[i+0] *= scaleX
@@ -2691,11 +2698,14 @@ const LoadGeometry = async (renderer, geoOptions) => {
       normals[i+5] = z1 + (z2-z1)/d
     }
   }
+  */
   
   //sphereize
   if(shapeType != 'lines' && shapeType != 'particles' && !isParticle &&
      shapeType != 'custom shape' && shapeType != 'obj' && shapeType != 'dynamic' ||
-     ((scaleX != 1 || scaleY != 1 || scaleZ != 1) && shapeType != 'obj')){
+     //((scaleX != 1 || scaleY != 1 || scaleZ != 1) &&
+     ((size != 1) &&
+     shapeType != 'obj')){
        // && (sphereize || scaleX != 1 || scaleY != 1 || scaleZ != 1)){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
@@ -2733,9 +2743,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
       vertices[i+0] /= maxd2
       vertices[i+1] /= maxd2
       vertices[i+2] /= maxd2
-      vertices[i+0] *= size * scaleX
-      vertices[i+1] *= size * scaleY
-      vertices[i+2] *= size * scaleZ
+      vertices[i+0] *= size //* scaleX
+      vertices[i+1] *= size //* scaleY
+      vertices[i+2] *= size //* scaleZ
       
       var ox = normals[i*2+0]
       var oy = normals[i*2+1]
@@ -3276,7 +3286,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     nstate, vstate, nvstate, shapeData, stride,
     oUvs, oScaleUVX, oScaleUVY, isPartitioned,
     partitionSize, partitionRadius, oCamX, oCamY, oCamZ,
-    oCamRoll, oCamPitch, oCamYaw,
+    oCamRoll, oCamPitch, oCamYaw, scaleX, scaleY, scaleZ,
   }
   
   
@@ -4958,6 +4968,9 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 geoOri;
       uniform int rotationMode;
       uniform int camRotationMode;
+      uniform float scaleX;
+      uniform float scaleY;
+      uniform float scaleZ;
       uniform float omitSplitCheck;
       uniform float splitCheckPass;
       uniform float pointSize;
@@ -5162,13 +5175,13 @@ const BasicShader = async (renderer, options=[]) => {
         float cx, cy, cz;
         
         if(renderNormals == 1.0){
-          cx = normal.x;
-          cy = normal.y;
-          cz = normal.z;
+          cx = normal.x * scaleX;
+          cy = normal.y * scaleY;
+          cz = normal.z * scaleZ;
         }else{
-          cx = position.x + offset.x;
-          cy = position.y + offset.y;
-          cz = position.z + offset.z;
+          cx = position.x * scaleX + offset.x;
+          cy = position.y * scaleY + offset.y;
+          cz = position.z * scaleZ + offset.z;
         }
         
         if(useHeightMap != 0.0 && renderNormals == 0.0){
@@ -5284,9 +5297,9 @@ const BasicShader = async (renderer, options=[]) => {
         if((isLine != 0.0 || isParticle != 0.0) &&
           penumbraPass != 0.0) Z += .001;
         if(isLine != 0.0){
-          X = (position.x + offset.x) / resolution.x * fov;
-          Y = (position.y + offset.y) / resolution.y * fov;
-          Z = position.z + offset.z;
+          X = (position.x * scaleX + offset.x) / resolution.x * fov;
+          Y = (position.y * scaleY + offset.y) / resolution.y * fov;
+          Z = position.z * scaleZ + offset.z;
           rasterPos = vec3(X, Y, Z);
           gl_Position = vec4(X, Y, Z/10000.0, 1.0);
           depth = pow(1.0 + sqrt(X*X + Y*Y + Z*Z), 1.0) / 100.0;
@@ -5370,6 +5383,9 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float fov;
       uniform float cameraMode;
       uniform int camRotationMode;
+      uniform float scaleX;
+      uniform float scaleY;
+      uniform float scaleZ;
       uniform vec4 pointLightPos[16];
       uniform vec4 pointLightCol[16];
       uniform int pointLightCount;
@@ -6097,6 +6113,15 @@ const BasicShader = async (renderer, options=[]) => {
           dset.locIsSprite = gl.getUniformLocation(dset.program, "isSprite")
           gl.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
 
+          dset.locScaleX = gl.getUniformLocation(dset.program, "scaleX")
+          gl.uniform1f(dset.locIsSprite, geometry.scaleX)
+
+          dset.locScaleY = gl.getUniformLocation(dset.program, "scaleY")
+          gl.uniform1f(dset.locIsSprite, geometry.scaleY)
+
+          dset.locScaleZ = gl.getUniformLocation(dset.program, "scaleZ")
+          gl.uniform1f(dset.locIsSprite, geometry.scaleZ)
+
           dset.locShapeArrayIsSprite = gl.getUniformLocation(dset.program, "shapeArrayIsSprite")
           gl.uniform1f(dset.locShapeArrayIsSprite, geometry.shapeArrayIsSprite ? 1.0 : 0.0)
 
@@ -6669,9 +6694,26 @@ const ProcessShapeArray = shape => {
 const ShapeFromArray = async (shape, pointArray, options={}) => {
   
   var geometryData = { vertices: [], normals: [], normalVecs: [], uvs: [], flatShadingNormalVecs: [] }
+  
+  var vertices = structuredClone(shape.vertices)
+  var normals = structuredClone(shape.normals)
+  if(shape.scaleX != 1 || shape.scaleY != 1 || shape.scaleZ != 1){
+    for(var i = 0; i < shape.vertices.length; i += 3){
+      vertices[i+0] *= shape.scaleX
+      vertices[i+1] *= shape.scaleY
+      vertices[i+2] *= shape.scaleZ
+      normals[i*2+0] *= shape.scaleX
+      normals[i*2+1] *= shape.scaleY
+      normals[i*2+2] *= shape.scaleZ
+      normals[i*2+3] *= shape.scaleX
+      normals[i*2+4] *= shape.scaleY
+      normals[i*2+5] *= shape.scaleZ
+    }
+  }
+  
   var stride    = shape.vertices.length
-  var v         = shape.vertices
-  var n         = shape.normals
+  var v         = vertices
+  var n         = normals
   var uv        = shape.uvs
   var nv        = shape.normalVecs
   var fsnv      = shape.flatShadingNormalVecs
@@ -6728,7 +6770,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     'heightmapDataArrayWidth', 'heightmapDataArrayHeight',
     'rebindTextures', 'exportAsOBJ', 'downloadAsOBJ',
     'resolved','map', 'video', 'muted', 'partitionSize',
-    'partitionRadius'
+    'partitionRadius', 'scaleX', 'scaleY', 'scaleZ'
   ]).forEach(key => { opts[key] = shape[key] })
   opts.name = shape.name
   Object.keys(options).forEach((key, idx) => {
@@ -6768,6 +6810,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     if(opts.shapeArrayIsSprite) geometry.shapeArrayIsSprite = true
     ret = geometry
     ret.shapeData = shapeData
+    ret.scaleX = ret.scaleY = ret.scaleZ = 1
   })
   
   return ret
@@ -6932,6 +6975,114 @@ const GeometryFromRaw = (raw, texCoords, size, subs,
     geometry
   }
 }
+
+const ApplyLocation = shape => {
+  var ax = 0, ay = 0, az = 0, ct = 0, x, y, z
+  for(var i = 0; i < shape.vertices.length; i+=3){
+    shape.vertices[i+0] += shape.x
+    shape.vertices[i+1] += shape.y
+    shape.vertices[i+2] += shape.z
+  }
+  shape.x = 0
+  shape.y = 0
+  shape.z = 0
+}
+
+const ApplyRotation = shape => {
+  var x, y, z, p, d, component
+  for(var m = 3; m--;){
+    switch(m){
+      case 0: component = 'vertices'; break
+      case 1: component = 'normalVecs'; break
+      case 2: component = 'normals'; break
+    }
+    for(var i = 0; i < shape[component].length; i+=3){
+      x = shape[component][i+0]
+      y = shape[component][i+1]
+      z = shape[component][i+2]
+      switch(shape.rotationMode){
+        case 0:
+          p = Math.atan2(x, y) + shape.roll
+          d = Math.hypot(x, y)
+          x = S(p) * d
+          y = C(p) * d
+          p = Math.atan2(x, z) + shape.yaw
+          d = Math.hypot(x, z)
+          x = S(p) * d
+          z = C(p) * d
+          p = Math.atan2(y, z) + shape.pitch
+          d = Math.hypot(y, z)
+          y = S(p) * d
+          z = C(p) * d
+        break
+        case 1:
+          p = Math.atan2(y, z) + shape.pitch
+          d = Math.hypot(y, z)
+          y = S(p) * d
+          z = C(p) * d
+          p = Math.atan2(x, z) + shape.yaw
+          d = Math.hypot(x, z)
+          x = S(p) * d
+          z = C(p) * d
+          p = Math.atan2(x, y) + shape.roll
+          d = Math.hypot(x, y)
+          x = S(p) * d
+          y = C(p) * d
+        break
+        case 2:
+          p = Math.atan2(x, z) + shape.yaw
+          d = Math.hypot(x, z)
+          x = S(p) * d
+          z = C(p) * d
+          p = Math.atan2(y, z) + shape.pitch
+          d = Math.hypot(y, z)
+          y = S(p) * d
+          z = C(p) * d
+          p = Math.atan2(x, y) + shape.roll
+          d = Math.hypot(x, y)
+          x = S(p) * d
+          y = C(p) * d
+        break
+        case 3:
+          p = Math.atan2(x, z) + shape.yaw
+          d = Math.hypot(x, z)
+          x = S(p) * d
+          z = C(p) * d
+          p = Math.atan2(y, z) + shape.pitch
+          d = Math.hypot(y, z)
+          y = S(p) * d
+          z = C(p) * d
+          p = Math.atan2(x, y) + shape.roll
+          d = Math.hypot(x, y)
+          x = S(p) * d
+          y = C(p) * d
+        break
+      }
+      shape[component][i+0] = x
+      shape[component][i+1] = y
+      shape[component][i+2] = z
+    }
+  }
+  shape.yaw = shape.pitch = shape.roll = 0
+}
+
+const ApplyScale = shape => {
+  for(var i = 0; i < shape.vertices.length; i += 3){
+    x = shape.vertices[i+0] *= shape.scaleX
+    y = shape.vertices[i+1] *= shape.scaleY
+    z = shape.vertices[i+2] *= shape.scaleZ
+  }
+  shape.scaleX = 1
+  shape.scaleY = 1
+  shape.scaleZ = 1
+}
+
+const ApplyAllTransforms = shape => {
+  ApplyLocation(shape)
+  ApplyRotation(shape)
+  ApplyScale(shape)
+}
+
 
 const subbed = (subs, size, sphereize, shape, texCoords, hint='') => {
 
@@ -9674,6 +9825,10 @@ export {
   Quat,
   Glow,
   CurveTo,
+  ApplyLocation,
+  ApplyRotation,
+  ApplyScale,
+  ApplyAllTransforms,
   InitialTime,
   ShiftArray,
   ShiftArray2D,
