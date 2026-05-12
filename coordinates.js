@@ -2490,7 +2490,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
         vertices = shape.vertices
         normals  = shape.normals
         uvs      = shape.uvs
-        flipNormals = !flipNormals
+        flipNormals = true
         /*
         shape = await Cylinder(size, subs, rows, cols, sphereize,
                       flipNormals, shapeType)
