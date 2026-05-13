@@ -3909,6 +3909,27 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   }
 }
 
+const FlipNormals = shape => {
+  var x, y, z, x1, y1, z1, x2, y2, z2
+  for(var i = 0; i < shape.normals; i+=6){
+    x1 = shape.normals[i+0]
+    y1 = shape.normals[i+1]
+    z1 = shape.normals[i+2]
+    x2 = shape.normals[i+3]
+    y2 = shape.normals[i+4]
+    z2 = shape.normals[i+5]
+    
+    shape.normals[i+3] = x1 - (x2-x1)
+    shape.normals[i+4] = y1 - (y2-y1)
+    shape.normals[i+5] = z1 - (z2-z1)
+  }
+  for(var i = 0; i < shape.normalVecs.length; i += 3){
+    shape.normalVecs[i+0] *= -1
+    shape.normalVecs[i+1] *= -1
+    shape.normalVecs[i+2] *= -1
+  }
+}
+
 const ShowBounding = (shape, renderer, draw=true,
                       equirectangularPlugin=-1,
                       omitSplitCheck=true, splitCheckPass=0,
@@ -7066,9 +7087,9 @@ const ApplyRotation = shape => {
 
 const ApplyScale = shape => {
   for(var i = 0; i < shape.vertices.length; i += 3){
-    x = shape.vertices[i+0] *= shape.scaleX
-    y = shape.vertices[i+1] *= shape.scaleY
-    z = shape.vertices[i+2] *= shape.scaleZ
+    shape.vertices[i+0] *= shape.scaleX
+    shape.vertices[i+1] *= shape.scaleY
+    shape.vertices[i+2] *= shape.scaleZ
   }
   shape.scaleX = 1
   shape.scaleY = 1
@@ -7076,9 +7097,9 @@ const ApplyScale = shape => {
 }
 
 const ApplyAllTransforms = shape => {
+  ApplyScale(shape)
   ApplyLocation(shape)
   ApplyRotation(shape)
-  ApplyScale(shape)
 }
 
 
@@ -9819,6 +9840,10 @@ const ShapeArray = {
   },
 }
 
+const ApplyAll = shape => {
+  return ApplyAllTransforms(shape)
+}
+
 const GenHash = data => Hash.GenHash(data)
 
 var Overlay        // for sketch-up, e.g. shape-bounding graphics
@@ -9873,11 +9898,13 @@ export {
   ApplyLocation,
   ApplyRotation,
   ApplyScale,
+  ApplyAll,
   ApplyAllTransforms,
   InitialTime,
   ShiftArray,
   ShiftArray2D,
   ShiftArray3D,
+  FlipNormals,
   ImageToPo2,
   LoadOBJ,
   IsPowerOf2,
