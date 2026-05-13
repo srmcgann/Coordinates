@@ -6977,9 +6977,9 @@ const GeometryFromRaw = (raw, texCoords, size, subs,
 
 const ApplyLocation = shape => {
   for(var i = 0; i < shape.vertices.length; i+=3){
-    shape.vertices[i+0] -= shape.x * 2
-    shape.vertices[i+1] -= shape.y * 2
-    shape.vertices[i+2] -= shape.z * 2
+    shape.vertices[i+0] += shape.x * 2
+    shape.vertices[i+1] += shape.y * 2
+    shape.vertices[i+2] += shape.z * 2
   }
   shape.x = 0
   shape.y = 0
