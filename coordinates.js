@@ -9716,24 +9716,40 @@ const getParams = ctx => {
   document.body.appendChild(popup)
 }
 
-const Quat = axis => {
-  var S = Math.sin
-  var C = Math.cos
-  var cosa = C(axis[0]), sina = S(axis[0])
-  var cosb = C(axis[1]), sinb = S(axis[1])
-  var cosc = C(axis[2]), sinc = S(axis[2])
-  var xx = cosa*cosb
-  var xy = cosa*sinb*sinc - sina*cosc
-  var xz = cosa*sinb*cosc + sina*sinc
-  var yx = sina*cosb
-  var yy = sina*sinb*sinc + cosa*cosc
-  var yz = sina*sinb*cosc - cosa*sinc
-  var zx = -sinb
-  var zy = cosb*sinc
-  var zz = cosb*cosc
-  return [xx + xy + xz, yx + yy + yz, zx + zy + zz]
+const Quat = (pos, vec) => {
+  var cosa, sina, cosb, sinb, cosc, sinc, ret
+  const pFunc = (pt, cosa, sina,
+              cosb, sinb,
+              cosc, sinc) => {
+    var xx, xy, xz, yx, yy, yz, zx, zy, zz
+    xx = cosa*cosb
+    xy = cosa*sinb*sinc - sina*cosc
+    xz = cosa*sinb*cosc + sina*sinc
+    yx = sina*cosb
+    yy = sina*sinb*sinc + cosa*cosc
+    yz = sina*sinb*cosc - cosa*sinc
+    zx = -sinb
+    zy = cosb*sinc
+    zz = cosb*cosc
+    return [xx*pt[0] + xy*pt[1] + xz*pt[2],
+            yx*pt[0] + yy*pt[1] + yz*pt[2],
+            zx*pt[0] + zy*pt[1] + zz*pt[2]]
+  }
+  ret = [pos[0], pos[1], pos[2]]
+  cosa = C(-vec[0]); sina = S(-vec[0])
+  cosb = C(0.0); sinb = S(0.0)
+  cosc = C(0.0); sinc = S(0.0)
+  ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc)
+  cosa = C(0.0); sina = S(0.0)
+  cosb = C(-vec[2]); sinb = S(-vec[2])
+  cosc = C(0.0); sinc = S(0.0)
+  ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc)
+  cosa = C(0.0); sina = S(0.0)
+  cosb = C(0.0); sinb = S(0.0)
+  cosc = C(vec[1]); sinc = S(vec[1])
+  ret = pFunc(ret, cosa, sina, cosb, sinb, cosc, sinc)
+  return ret
 }
-
 
 const ShapeArray = {
   push: async (renderer, shape) => {
