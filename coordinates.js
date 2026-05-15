@@ -5284,9 +5284,11 @@ const BasicShader = async (renderer, options=[]) => {
             pos = Quat(pos,  vec3(-camOri.x, -camOri.y, -camOri.z), 0);
 
             nVec = Quat(nVeci, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            nVec = Quat(nVec, quatAxis, 1);
             nVec = Quat(nVec, vec3(0.0, -camOri.y, -camOri.z), 0);
 
             fsnVec = Quat(fsnVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            fsnVec = Quat(fsnVec, quatAxis, 1);
             fsnVec = Quat(fsnVec, vec3(0.0, -camOri.y, -camOri.z), 0);
           }
           cpx = 0.0;
@@ -5309,9 +5311,11 @@ const BasicShader = async (renderer, options=[]) => {
             
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
             nVec = Quat(nVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            nVec = Quat(nVec, quatAxis, 1);
             nVec = Quat(nVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
 
             fsnVec = Quat(fsnVec, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            fsnVec = Quat(fsnVec, quatAxis, 1);
             fsnVec = Quat(fsnVec, vec3(camOri.x, camOri.y, -camOri.z), 0);
           }
           fPos = pos;
@@ -7011,6 +7015,38 @@ const GeometryFromRaw = (raw, texCoords, size, subs,
   }
 }
 
+const ClearLocation = shape => {
+  shape.x = 0
+  shape.y = 0
+  shape.z = 0
+  shape.offsetX = 0
+  shape.offsetY = 0
+  shape.offsetZ = 0
+}
+
+const ClearScale= shape => {
+  shape.scaleX = 1
+  shape.scaleY = 1
+  shape.scaleZ = 1
+}
+
+const ClearRotation = shape => {
+  shape.yaw = 0
+  shape.pitch = 0
+  shape.roll = 0
+  shape.quatAxis = [0,0,0]
+}
+
+const ClearAllTransforms = shape => {
+  ClearLocation()
+  ClearScale()
+  ClearRotation()
+}
+
+const ClearAll = shape => {
+  ClearAllTransforms()
+}
+
 const ApplyLocation = shape => {
   for(var i = 0; i < shape.vertices.length; i+=3){
     shape.vertices[i+0] += shape.x
@@ -7022,7 +7058,7 @@ const ApplyLocation = shape => {
   shape.z = 0
 }
 
-const ApplyRotation = shape => {
+const ApplyRotation = (shape, quatOnly=false) => {
   var x, y, z, p, d, component
   for(var m = 3; m--;){
     switch(m){
@@ -7034,63 +7070,65 @@ const ApplyRotation = shape => {
       x = shape[component][i+0]
       y = shape[component][i+1]
       z = shape[component][i+2]
-      switch(shape.rotationMode){
-        case 0:
-          p = Math.atan2(x, y) + shape.roll
-          d = Math.hypot(x, y)
-          x = S(p) * d
-          y = C(p) * d
-          p = Math.atan2(x, z) + shape.yaw
-          d = Math.hypot(x, z)
-          x = S(p) * d
-          z = C(p) * d
-          p = Math.atan2(y, z) + shape.pitch
-          d = Math.hypot(y, z)
-          y = S(p) * d
-          z = C(p) * d
-        break
-        case 1:
-          p = Math.atan2(y, z) + shape.pitch
-          d = Math.hypot(y, z)
-          y = S(p) * d
-          z = C(p) * d
-          p = Math.atan2(x, z) + shape.yaw
-          d = Math.hypot(x, z)
-          x = S(p) * d
-          z = C(p) * d
-          p = Math.atan2(x, y) + shape.roll
-          d = Math.hypot(x, y)
-          x = S(p) * d
-          y = C(p) * d
-        break
-        case 2:
-          p = Math.atan2(x, z) + shape.yaw
-          d = Math.hypot(x, z)
-          x = S(p) * d
-          z = C(p) * d
-          p = Math.atan2(y, z) + shape.pitch
-          d = Math.hypot(y, z)
-          y = S(p) * d
-          z = C(p) * d
-          p = Math.atan2(x, y) + shape.roll
-          d = Math.hypot(x, y)
-          x = S(p) * d
-          y = C(p) * d
-        break
-        case 3:
-          p = Math.atan2(x, z) + shape.yaw
-          d = Math.hypot(x, z)
-          x = S(p) * d
-          z = C(p) * d
-          p = Math.atan2(y, z) + shape.pitch
-          d = Math.hypot(y, z)
-          y = S(p) * d
-          z = C(p) * d
-          p = Math.atan2(x, y) + shape.roll
-          d = Math.hypot(x, y)
-          x = S(p) * d
-          y = C(p) * d
-        break
+      if(!quatOnly){
+        switch(0){ //shape.rotationMode){
+          case 0:
+            p = Math.atan2(x, y) + shape.roll
+            d = Math.hypot(x, y)
+            x = S(p) * d
+            y = C(p) * d
+            p = Math.atan2(x, z) + shape.yaw
+            d = Math.hypot(x, z)
+            x = S(p) * d
+            z = C(p) * d
+            p = Math.atan2(y, z) + shape.pitch
+            d = Math.hypot(y, z)
+            y = S(p) * d
+            z = C(p) * d
+          break
+          case 1:
+            p = Math.atan2(y, z) + shape.pitch
+            d = Math.hypot(y, z)
+            y = S(p) * d
+            z = C(p) * d
+            p = Math.atan2(x, z) + shape.yaw
+            d = Math.hypot(x, z)
+            x = S(p) * d
+            z = C(p) * d
+            p = Math.atan2(x, y) + shape.roll
+            d = Math.hypot(x, y)
+            x = S(p) * d
+            y = C(p) * d
+          break
+          case 2:
+            p = Math.atan2(x, z) + shape.yaw
+            d = Math.hypot(x, z)
+            x = S(p) * d
+            z = C(p) * d
+            p = Math.atan2(y, z) + shape.pitch
+            d = Math.hypot(y, z)
+            y = S(p) * d
+            z = C(p) * d
+            p = Math.atan2(x, y) + shape.roll
+            d = Math.hypot(x, y)
+            x = S(p) * d
+            y = C(p) * d
+          break
+          case 3:
+            p = Math.atan2(x, z) + shape.yaw
+            d = Math.hypot(x, z)
+            x = S(p) * d
+            z = C(p) * d
+            p = Math.atan2(y, z) + shape.pitch
+            d = Math.hypot(y, z)
+            y = S(p) * d
+            z = C(p) * d
+            p = Math.atan2(x, y) + shape.roll
+            d = Math.hypot(x, y)
+            x = S(p) * d
+            y = C(p) * d
+          break
+        }
       }
       
       var res = Quat([x, y, z], shape.quatAxis)
@@ -9935,6 +9973,10 @@ export {
   ApplyScale,
   ApplyAll,
   ApplyAllTransforms,
+  ClearRotation,
+  ClearScale,
+  ClearAll,
+  ClearAllTransforms,
   InitialTime,
   ShiftArray,
   ShiftArray2D,
