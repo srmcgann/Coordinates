@@ -442,6 +442,8 @@ const Renderer = async options => {
                                                      geometry.y + renderer.offsetY,
                                                      geometry.z + renderer.offsetZ)
               ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
+              ctx.uniform3f(dset.locQuatAxis,        ...geometry.quatAxis)
+
               ctx.uniform1f(dset.locFov,             renderer.fov)
               ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
               ctx.uniform1f(dset.locRenderNormals,   0)
@@ -941,6 +943,7 @@ const Renderer = async options => {
               ctx.uniform3f(dset.locGeoPos,          geometry.x + renderer.offsetX,
                                                      geometry.y + renderer.offsetY,
                                                      geometry.z + renderer.offsetZ)
+              ctx.uniform3f(dset.locQuatAxis,        ...geometry.quatAxis)
               ctx.uniform3f(dset.locGeoOri,          geometry.roll, geometry.pitch, geometry.yaw)
               ctx.uniform1f(dset.locFov,             renderer.fov)
               ctx.uniform1f(dset.locEquirectangular, geometry.equirectangular ? 1.0 : 0.0)
@@ -1941,6 +1944,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var x = 0, y = 0, z = 0
   var flipX = false, flipY = false, flipZ = false
   var roll = 0, pitch = 0, yaw = 0
+  var quatAxis = [0,0,0]
   var scaleX=1, scaleY=1, scaleZ=1
   var scaleUVX  = 1, scaleUVY  = 1
   var offsetUVX = 0, offsetUVY = 0
@@ -2059,6 +2063,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'offsety'            : offsetY = geoOptions[key]; break
       case 'offsetz'            : offsetZ = geoOptions[key]; break
       case 'sphereize'          : sphereize = geoOptions[key]; break
+      case 'quataxis'           : quatAxis = geoOptions[key]; break
       case 'rotationmode'       : rotationMode = geoOptions[key]; break
       case 'rebindtextures'     : rebindTextures = !!geoOptions[key]; break
       case 'flipx'              : flipX = geoOptions[key]; break
@@ -3286,6 +3291,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     oUvs, oScaleUVX, oScaleUVY, isPartitioned,
     partitionSize, partitionRadius, oCamX, oCamY, oCamZ,
     oCamRoll, oCamPitch, oCamYaw, scaleX, scaleY, scaleZ,
+    quatAxis,
   }
   
   
@@ -4986,6 +4992,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform vec3 camOri;
       uniform vec3 geoPos;
       uniform vec3 geoOri;
+      uniform vec3 quatAxis;
       uniform int rotationMode;
       uniform int camRotationMode;
       uniform float scaleX;
@@ -5268,7 +5275,9 @@ const BasicShader = async (renderer, options=[]) => {
 
           }else{
             geo = Quat(geoPos, vec3(camOri.x, -camOri.y, -camOri.z), 0);
-            pos = Quat(vec3(cx, cy, cz), vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            pos = Quat(vec3(cx, cy, cz),
+                       vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            pos = Quat(pos, quatAxis, 1);
             pos.x += cpx;
             pos.y += cpy;
             pos.z += cpz;
@@ -5295,6 +5304,7 @@ const BasicShader = async (renderer, options=[]) => {
             geo = Quat(geoPos, vec3(camOri.x, camOri.y, -camOri.z), 0);
             pos = vec3(cx, cy, cz);
             pos = Quat(pos, vec3(geoOri.x, -geoOri.y, -geoOri.z), 1);
+            pos = Quat(pos, quatAxis, 1);
             pos = Quat(pos, vec3(camOri.x, camOri.y, -camOri.z), 0);
             
             nVec = vec3(nVeci.x, nVeci.y, nVeci.z);
@@ -5416,6 +5426,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float colorMix;
       //uniform float penumbraPass;
       uniform vec3 color;
+      uniform vec3 quatAxis;
       uniform float useHeightMap;
       uniform float heightMapIntensity;
       uniform float maxHeightmap;
@@ -6134,13 +6145,16 @@ const BasicShader = async (renderer, options=[]) => {
           gl.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
 
           dset.locScaleX = gl.getUniformLocation(dset.program, "scaleX")
-          gl.uniform1f(dset.locIsSprite, geometry.scaleX)
+          gl.uniform1f(dset.locScaleX, geometry.scaleX)
 
           dset.locScaleY = gl.getUniformLocation(dset.program, "scaleY")
-          gl.uniform1f(dset.locIsSprite, geometry.scaleY)
+          gl.uniform1f(dset.locScaleY, geometry.scaleY)
 
           dset.locScaleZ = gl.getUniformLocation(dset.program, "scaleZ")
-          gl.uniform1f(dset.locIsSprite, geometry.scaleZ)
+          gl.uniform1f(dset.locScaleZ, geometry.scaleZ)
+
+          dset.locQuatAxis = gl.getUniformLocation(dset.program, "quatAxis")
+          gl.uniform3f(dset.locQuatAxis, ...geometry.quatAxis)
 
           dset.locShapeArrayIsSprite = gl.getUniformLocation(dset.program, "shapeArrayIsSprite")
           gl.uniform1f(dset.locShapeArrayIsSprite, geometry.shapeArrayIsSprite ? 1.0 : 0.0)
@@ -6790,7 +6804,8 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     'heightmapDataArrayWidth', 'heightmapDataArrayHeight',
     'rebindTextures', 'exportAsOBJ', 'downloadAsOBJ',
     'resolved','map', 'video', 'muted', 'partitionSize',
-    'partitionRadius', 'scaleX', 'scaleY', 'scaleZ'
+    'partitionRadius', 'scaleX', 'scaleY', 'scaleZ',
+    'quatAxis'
   ]).forEach(key => { opts[key] = shape[key] })
   opts.name = shape.name
   Object.keys(options).forEach((key, idx) => {
@@ -7077,12 +7092,16 @@ const ApplyRotation = shape => {
           y = C(p) * d
         break
       }
-      shape[component][i+0] = x
-      shape[component][i+1] = y
-      shape[component][i+2] = z
+      
+      var res = Quat([x, y, z], shape.quatAxis)
+      
+      shape[component][i+0] = res[0]
+      shape[component][i+1] = res[1]
+      shape[component][i+2] = res[2]
     }
   }
   shape.yaw = shape.pitch = shape.roll = 0
+  shape.quatAxis = [0,0,0]
 }
 
 const ApplyScale = shape => {
