@@ -2706,12 +2706,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
   */
   
   //sphereize
-  if(shapeType != 'lines' && shapeType != 'particles' && !isParticle &&
-     shapeType != 'custom shape' && shapeType != 'obj' && shapeType != 'dynamic' ||
-     //((scaleX != 1 || scaleY != 1 || scaleZ != 1) &&
-     ((size != 1) &&
-     shapeType != 'obj')){
-       // && (sphereize || scaleX != 1 || scaleY != 1 || scaleZ != 1)){
+  var omit = shapeType == 'lines' || shapeType == 'particles' ||
+     shapeType == 'custom shape' || shapeType == 'obj' || shapeType == 'dynamic'
+  if(!omit || (omit && size != 1 && shapeType != 'particles' && shapeType != 'lines')){
     var ip1 = sphereize
     var ip2 = 1 -sphereize
     
