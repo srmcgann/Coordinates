@@ -1584,7 +1584,7 @@ const LoadAnimationFromZip = (renderer, options, shader) => {
 }
 
 const DrawAnimation = (renderer, animation, options) => {
-  var t = renderer.t
+  var t = renderer.frameCount
   var x = 0, y = 0, z = 0
   var roll = 0, pitch = 0, yaw = 0
   var speed    = 1
@@ -1608,34 +1608,29 @@ const DrawAnimation = (renderer, animation, options) => {
 
   if(typeof animation != 'undefined' && animation.loaded &&
      animation.geometries.length){
-    for(var m=1;m--;){
-      if(animationSpeed && !(((t*60)|0)%animationSpeed))
-      animation.curFrame += animation.dir
-      if(animation.curFrame >= animation.geometries.length-(loopMode=='cycle'?0:1)){
-        switch(loopMode){
-          case 'cycle':
-            animation.curFrame = 0
-          break
-          case 'reverse':
-            animation.dir = -1
-          break
-          default:
-            animation.dir = -1
-          break
-        }
+    if(animationSpeed && !(t%animationSpeed))
+    animation.curFrame += animation.dir
+    if(animation.curFrame >= animation.geometries.length-(loopMode=='cycle'?0:1)){
+      switch(loopMode){
+        case 'cycle':
+          animation.curFrame = 0
+        break
+        case 'reverse':
+          animation.dir = -1
+        break
+        default:
+          animation.dir = -1
+        break
       }
-      if(animation.curFrame < (loopMode=='cycle'?1:1)){
-        switch(loopMode){
-          case 'cycle':
-            animation.curFrame = animation.geometries.length - 1
-          break
-          case 'reverse':
-            animation.dir = 1
-          break
-          default:
-            animation.dir = 1
-          break
-        }
+    }
+    if(animation.curFrame < 1){
+      switch(loopMode){
+        case 'reverse':
+          animation.dir = 1
+        break
+        default:
+          animation.dir = 1
+        break
       }
     }
     var shape = animation.geometries[animation.curFrame]
