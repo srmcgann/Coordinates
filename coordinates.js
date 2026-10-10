@@ -423,6 +423,7 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locColorMix, geometry.colorMix)
               ctx.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
               ctx.uniform1f(dset.locShapeArrayIsSprite, geometry.shapeArrayIsSprite ? 1.0 : 0.0)
+              ctx.uniform1f(dset.locOverrideSpriteShapeArrayOrientation, geometry.overrideSpriteShapeArrayOrientation ? 1.0 : 0.0)
               ctx.uniform1f(dset.locIsLight,         geometry.isLight)
               
               ctx.uniform1f(dset.locCameraMode,      
@@ -924,6 +925,7 @@ const Renderer = async options => {
               ctx.uniform1f(dset.locColorMix,        geometry.colorMix)
               ctx.uniform1f(dset.locIsSprite, geometry.isSprite ? 1.0 : 0.0)
               ctx.uniform1f(dset.locShapeArrayIsSprite, geometry.shapeArrayIsSprite ? 1.0 : 0.0)
+              ctx.uniform1f(dset.locOverrideSpriteShapeArrayOrientation, geometry.overrideSpriteShapeArrayOrientation ? 1.0 : 0.0)
               ctx.uniform1f(dset.locIsLight,         geometry.isLight)
               
               ctx.uniform1f(dset.locCameraMode,      
@@ -1979,6 +1981,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var isShapeArray             = false
   var isSprite                 = 0.0
   var shapeArrayIsSprite       = false
+  var overrideSpriteShapeArrayOrientation = false
   var isLight                  = 0.0
   var isParticle               = 0.0
   var isLine                   = 0.0
@@ -2119,6 +2122,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
         isSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'shapearrayissprite'           :
         shapeArrayIsSprite = (!!geoOptions[key]) ? 1.0: 0.0; break
+      case 'overridespriteshapearrayorientation'           :
+        overrideSpriteShapeArrayOrientation = (!!geoOptions[key]) ?
+                                                   1.0: 0.0; break
       case 'islight'            :
         isLight = (!!geoOptions[key]) ? 1.0: 0.0; break
       case 'isparticle'         :
@@ -3265,6 +3271,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
     heightmapDataArrayWidth, heightmapDataArrayHeight,
     rebindTextures, exportAsOBJ, downloadAsOBJ,
     resolved, isShapeArray, shapeArrayIsSprite,
+    overrideSpriteShapeArrayOrientation,
     flatShadingNormalVecs, fsnVecIndices, partitions,
     flatShadingNormalVec_buffer, scaleUVX, scaleUVY,
     FlatShadingNormalVec_Index_Buffer, fsnvstate,
@@ -3779,7 +3786,8 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   vy *= -1
   
   if(!(geometry.isLight || geometry.isSprite ||
-       geometry.shapeArrayIsSprite)){
+       (geometry.shapeArrayIsSprite &&
+        !overrideSpriteShapeArrayOrientation))){
     ar = R_ryp(vx, vy, vz, {
       roll:  geometry.roll * (geometry.isParticle || geometry.isLine ? 1: 1) + .0001,
       pitch: geometry.pitch * (geometry.isParticle || geometry.isLine ? 1: 1),
@@ -3791,7 +3799,8 @@ const GetShaderCoord = (vx, vy, vz, geometry, renderer,
   }
 
   if(geometry.isLight || geometry.isSprite ||
-     geometry.shapeArrayIsSprite){
+     (geometry.shapeArrayIsSprite &&
+      !overrideSpriteShapeArrayOrientation)){
     ar = R_pyr(vx, vy, vz, {
       roll:  renderer.roll * (renderer.cameraMode.toLowerCase() == 'fps' ? -1 : 1),
       pitch: -renderer.pitch * (renderer.cameraMode.toLowerCase() == 'fps' ? -1 : 1),
@@ -4861,7 +4870,8 @@ const BasicShader = async (renderer, options=[]) => {
                   fragCode:            `
                     if(isLight == 0.0 &&
                        isSprite == 0.0 &&
-                       shapeArrayIsSprite == 0.0 &&
+                       (shapeArrayIsSprite == 0.0 ||
+                       overrideSpriteShapeArrayOrientation == 1.0) &&
                        isParticle == 0.0 &&
                        isLine == 0.0){
                       //light.rgb *= .5;
@@ -4958,6 +4968,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float pointSize;
       uniform float isSprite;
       uniform float shapeArrayIsSprite;
+      uniform float overrideSpriteShapeArrayOrientation;
       uniform float isLight;
       uniform float cameraMode;
       uniform float isParticle;
@@ -5359,6 +5370,7 @@ const BasicShader = async (renderer, options=[]) => {
       uniform float flatShading;
       uniform float isSprite;
       uniform float shapeArrayIsSprite;
+      uniform float overrideSpriteShapeArrayOrientation;
       uniform float isLight;
       uniform float isParticle;
       uniform float isLine;
@@ -5604,7 +5616,8 @@ const BasicShader = async (renderer, options=[]) => {
 
               float fv;
               if(isSprite != 0.0 ||
-                 shapeArrayIsSprite != 0.0 ||
+                 (shapeArrayIsSprite != 0.0 &&
+                 overrideSpriteShapeArrayOrientation == 0.0) ||
                  isLight != 0.0){
                 if(fog != 0.0){
                   vec4 preFog = vec4(texel.rgb * 3.0, texel.a);
@@ -6095,6 +6108,9 @@ const BasicShader = async (renderer, options=[]) => {
           dset.locShapeArrayIsSprite = gl.getUniformLocation(dset.program, "shapeArrayIsSprite")
           gl.uniform1f(dset.locShapeArrayIsSprite, geometry.shapeArrayIsSprite ? 1.0 : 0.0)
 
+          dset.locOverrideSpriteShapeArrayOrientation = gl.getUniformLocation(dset.program, "overrideSpriteShapeArrayOrientation")
+          gl.uniform1f(dset.locOverrideSpriteShapeArrayOrientation, geometry.overrideSpriteShapeArrayOrientation? 1.0 : 0.0)
+
           dset.locCameraMode = gl.getUniformLocation(dset.program, "cameraMode")
           gl.uniform1f(dset.locCameraMode, renderer.cameraMode.toLowerCase() == 'fps' ? 1.0 : 0.0)
 
@@ -6493,7 +6509,8 @@ const ProcessShapeArray = shape => {
       ty = data[shpIdx].oy
       tz = data[shpIdx].oz
       var roll, pitch, yaw, rotationMode
-      if(shape.shapeArrayIsSprite){
+      if(shape.shapeArrayIsSprite && 
+         !shape.overrideSpriteShapeArrayOrientation){
         // to-do:
         // subtract out shapeArray orientation for sprites.
         // works currently, unless shape is reoriented.
@@ -6716,7 +6733,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     'canvasTextureMix', 'showBounding',
     'boundingColor', 'heightMap', 'heightMapIntensity',
     'heightMapIsCanvas', 'equirectangularHeightmap',
-    'isFromZip', 'rotationMode',
+    'isFromZip', 'rotationMode', 'overrideSpriteShapeArrayOrientation',
     'mapIsDataArray', 'dataArrayFormat', 'maxHeightmap',
     'dataArrayWidth', 'dataArrayHeight', 'preComputeNormalAssocs',
     'heightmapIsDataArray', 'heightmapDataArrayFormat',
