@@ -173,7 +173,7 @@ const Renderer = async options => {
   }
   
   var rsz, ret
-  window.addEventListener('resize', rsz = (e) => {
+  rsz = e => {
     var margin = ret.margin
     var b = document.body
     var n
@@ -185,7 +185,8 @@ const Renderer = async options => {
       c.style.height = `${(n=b.clientHeight) - margin*2}px`
       c.style.width = `${n/d - margin*2}px`
     }
-  })
+  }
+  window.addEventListener('resize', rsz)
   
   ret = {
     c, ctx, contextType, t:0, alpha,
