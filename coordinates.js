@@ -173,25 +173,7 @@ const Renderer = async options => {
   }
   
   var rsz, ret
-  
-  ret = {
-    c, ctx, contextType, t:0, alpha,
-    width, height, x, y, z, attachToBody,
-    roll, pitch, yaw, fov, context,
-    offsetX, offsetY, offsetZ,
-    ready: false, ambientLight, clearColor,
-    pointLights, pointLightCols, dataArray, glowQueue,
-    alphaQueue, particleQueue, lineQueue, active,
-    cameraMode, showCrosshair, crosshairSel,
-    crosshairMap, pageX, pageY, mouseX, mouseY, frameCount,
-    mouseButton, rsz, margin, optionalPlugins, fogColor,
-    rotationMode,
-  }
-  rsz()
-  ret[contextType == '2d' ? 'ctx' : 'gl'] = ctx
-  var renderer = ret
-  
-  renderer.resize = e => {
+  const Resize = e => {
     var margin = ret.margin
     var b = document.body
     var n
@@ -206,7 +188,25 @@ const Renderer = async options => {
   }
   
   window.addEventListener('resize', 
-             rsz = e => { renderer.resize() })
+             rsz = e => { renderer.Resize() })
+  
+  ret = {
+    c, ctx, contextType, t:0, alpha,
+    width, height, x, y, z, attachToBody,
+    roll, pitch, yaw, fov, context,
+    offsetX, offsetY, offsetZ,
+    ready: false, ambientLight, clearColor,
+    pointLights, pointLightCols, dataArray, glowQueue,
+    alphaQueue, particleQueue, lineQueue, active,
+    cameraMode, showCrosshair, crosshairSel,
+    crosshairMap, pageX, pageY, mouseX, mouseY, frameCount,
+    mouseButton, rsz, margin, optionalPlugins, fogColor,
+    rotationMode, Resize
+  }
+  ret[contextType == '2d' ? 'ctx' : 'gl'] = ctx
+  var renderer = ret
+             
+  rsz()
   
   const Clear = () => {
     switch(contextType){
