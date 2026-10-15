@@ -173,7 +173,7 @@ const Renderer = async options => {
   }
   
   var rsz, ret
-  window.addEventListener('resize', rsz = (e) => {
+  const Resize = e => {
     var margin = ret.margin
     var b = document.body
     var n
@@ -185,7 +185,10 @@ const Renderer = async options => {
       c.style.height = `${(n=b.clientHeight) - margin*2}px`
       c.style.width = `${n/d - margin*2}px`
     }
-  })
+  }
+  
+  window.addEventListener('resize', 
+             rsz = e => { renderer.Resize() })
   
   ret = {
     c, ctx, contextType, t:0, alpha,
@@ -198,12 +201,12 @@ const Renderer = async options => {
     cameraMode, showCrosshair, crosshairSel,
     crosshairMap, pageX, pageY, mouseX, mouseY, frameCount,
     mouseButton, rsz, margin, optionalPlugins, fogColor,
-    rotationMode,
+    rotationMode, Resize
   }
-  rsz()
   ret[contextType == '2d' ? 'ctx' : 'gl'] = ctx
   var renderer = ret
-  
+             
+  rsz()
   
   const Clear = () => {
     switch(contextType){
