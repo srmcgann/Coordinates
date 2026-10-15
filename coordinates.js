@@ -65,6 +65,7 @@ const Renderer = async options => {
   var pointLights     = []
   var pointLightCols  = []
   var optionalPlugins = []
+  var fit             = 'contain'
   var hasFog          = false
   var fog             = 0
   var frameCount      = 0
@@ -115,6 +116,7 @@ const Renderer = async options => {
         case 'roll': roll = options[key]; break
         case 'pitch': pitch = options[key]; break
         case 'yaw': yaw = options[key]; break
+        case 'fit': fit = options[key]; break
         case 'fov': fov = options[key]; break
         case 'fog': fog = options[key]; break
         case 'fogcolor': fogColor = options[key]; break
@@ -178,7 +180,9 @@ const Renderer = async options => {
     var b = document.body
     var n
     var d = c.width !== 0 ? c.height / c.width : 1
-    if(b.clientHeight/b.clientWidth > d){
+    if(b.clientHeight/b.clientWidth
+           * (renderer.fit=="contain" ? 1 : -1) > d
+           * (renderer.fit=="contain" ? 1 : -1)){
       c.style.width = `${(n=b.clientWidth) - margin*2}px`
       c.style.height = `${n*d - margin*2}px`
     }else{
@@ -187,14 +191,14 @@ const Renderer = async options => {
     }
   }
   
+  
   window.addEventListener('resize', 
              rsz = e => { renderer.Resize() })
-  
   ret = {
     c, ctx, contextType, t:0, alpha,
     width, height, x, y, z, attachToBody,
     roll, pitch, yaw, fov, context,
-    offsetX, offsetY, offsetZ,
+    offsetX, offsetY, offsetZ, fit,
     ready: false, ambientLight, clearColor,
     pointLights, pointLightCols, dataArray, glowQueue,
     alphaQueue, particleQueue, lineQueue, active,
