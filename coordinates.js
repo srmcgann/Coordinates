@@ -761,8 +761,21 @@ const Renderer = async options => {
                           ctx.bindTexture(ctx.TEXTURE_2D, uniform.refTexture)
                           BindImage(ctx, uniform.canvasTexture,  uniform.refTexture,'canvas', renderer.t, uniform)
                         }else{
+                          var l
+                          let suffix = (l=uniform.map.split('.'))[l.length-1].toLowerCase()
+                          
+                          if(suffix == 'mp4' || suffix == 'webm' || suffix == 'avi' ||
+                             suffix == 'mkv' || suffix == 'ogv'){
+                            uniform.textureMode = 'video'
+                          }
+                          if(suffix == 'jpg' || suffix == 'webp' || suffix == 'gif' ||
+                             suffix == 'png' || suffix == 'bmp'){
+                            uniform.textureMode = 'image'
+                          }
+                          if(uniform.omap != uniform.map) uniform.rebindTextures = true
                           if(uniform.textureMode == 'image' && uniform.rebindTextures){
                             uniform.rebindTextures = false
+                            uniform.omap = uniform.map
                             console.log('rebinding reflection texture')
                             if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
                                !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
@@ -782,7 +795,6 @@ const Renderer = async options => {
                               fetch(uniform.map).then(res=>res.blob()).then(data => {
                                 image.src = URL.createObjectURL(data)
                               })
-                              
                             }else{
                               console.log('resource found in cache. using it')
                               cacheItem = cache.textures.filter(v=>v.url == uniform.map)[0]
@@ -793,7 +805,50 @@ const Renderer = async options => {
                             }
                           }
                           if(uniform.textureMode == 'video'){
-                             BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
+                            if(uniform.rebindTextures){
+                              uniform.omap = uniform.map
+                              uniform.rebindTextures = false
+                              if(uniform.involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
+                                console.log('found video in cache... using it')
+                                uniform.video = cacheItem[0].resource
+                                //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                                dset.texture = cacheItem[0].texture
+                                //gl.activeTexture(gl.TEXTURE0)
+                                //BindImage(gl, uniform.video, dset.texture, uniform.textureMode, -1, {map: textureURL})
+                              }else{
+                                uniform.video = document.createElement('video')
+                                uniform.video.muted = true
+                                uniform.video.addEventListener('canplay', () =>{
+                                  uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                                })
+                                uniform.video.loop = true
+                                if(!uniform.muted && !audioConsent) {
+                                  audioConsent = true
+                                  GenericPopup('play audio OK?', true, ()=>{
+                                    uniform.video.muted = false
+                                    uniform.video.currentTime = 0
+                                    //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.video.playbackSpeed
+                                    uniform.video.play()
+                                  })
+                                }
+                                uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                                uniform.video.oncanplay = async () => {
+                                  uniform.video.play()
+                                }
+                                //gl.activeTexture(gl.TEXTURE0)
+                                //BindImage(gl, uniform.video, dset.texture, uniform.textureMode, -1, {map: textureURL})
+                                cache.textures.push({
+                                  url: uniform.map,
+                                  resource: uniform.video,
+                                  texture: dset.texture
+                                })
+                                fetch(uniform.map).then(res=>res.blob()).then(data => {
+                                  uniform.video.src = URL.createObjectURL(data)
+                                })
+                              }
+                            }
+                          
+                            BindImage(ctx, uniform.video,  uniform.refTexture, uniform.textureMode, renderer.t, uniform)
                           }
                         }
                         ctx.activeTexture(ctx.TEXTURE1)
@@ -815,8 +870,20 @@ const Renderer = async options => {
                           ctx.bindTexture(ctx.TEXTURE_2D, uniform.refractionTexture)
                           BindImage(ctx, uniform.canvasTexture,  uniform.refractionTexture, 'canvas', renderer.t, uniform)
                         }else{
+                          var l
+                          let suffix = (l=uniform.map.split('.'))[l.length-1].toLowerCase()
+                          if(suffix == 'mp4' || suffix == 'webm' || suffix == 'avi' ||
+                             suffix == 'mkv' || suffix == 'ogv'){
+                            uniform.textureMode = 'video'
+                          }
+                          if(suffix == 'jpg' || suffix == 'webp' || suffix == 'gif' ||
+                             suffix == 'png' || suffix == 'bmp'){
+                            uniform.textureMode = 'image'
+                          }
+                          if(uniform.omap != uniform.map) uniform.rebindTextures = true
                           if(uniform.textureMode == 'image' && uniform.rebindTextures){
                             uniform.rebindTextures = false
+                            uniform.omap = uniform.map
                             if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
                                !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
                               var image = new Image()
@@ -846,7 +913,49 @@ const Renderer = async options => {
                             }
                           }
                           if(uniform.textureMode == 'video'){
-                             BindImage(ctx, uniform.video,  uniform.refractionTexture, uniform.textureMode, renderer.t, uniform)
+                            if(uniform.rebindTextures){
+                              uniform.omap = uniform.map
+                              uniform.rebindTextures = false
+                              if(uniform.involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
+                                console.log('found video in cache... using it')
+                                uniform.video = cacheItem[0].resource
+                                //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                                dset.texture = cacheItem[0].texture
+                                //gl.activeTexture(gl.TEXTURE0)
+                                //BindImage(gl, uniform.video, dset.texture, uniform.textureMode, -1, {map: textureURL})
+                              }else{
+                                uniform.video = document.createElement('video')
+                                uniform.video.muted = true
+                                uniform.video.addEventListener('canplay', () =>{
+                                  uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                                })
+                                uniform.video.loop = true
+                                if(!uniform.muted && !audioConsent) {
+                                  audioConsent = true
+                                  GenericPopup('play audio OK?', true, ()=>{
+                                    uniform.video.muted = false
+                                    uniform.video.currentTime = 0
+                                    //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.video.playbackSpeed
+                                    uniform.video.play()
+                                  })
+                                }
+                                uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                                uniform.video.oncanplay = async () => {
+                                  uniform.video.play()
+                                }
+                                //gl.activeTexture(gl.TEXTURE0)
+                                //BindImage(gl, uniform.video, dset.texture, uniform.textureMode, -1, {map: textureURL})
+                                cache.textures.push({
+                                  url: uniform.map,
+                                  resource: uniform.video,
+                                  texture: dset.texture
+                                })
+                                fetch(uniform.map).then(res=>res.blob()).then(data => {
+                                  uniform.video.src = URL.createObjectURL(data)
+                                })
+                              }
+                            }
+                            BindImage(ctx, uniform.video,  uniform.refractionTexture, uniform.textureMode, renderer.t, uniform)
                           }
                         }
                         ctx.activeTexture(ctx.TEXTURE5)
@@ -873,8 +982,21 @@ const Renderer = async options => {
                           ctx.bindTexture(ctx.TEXTURE_2D, uniform.refraction2Texture)
                           BindImage(ctx, uniform.canvasTexture,  uniform.refraction2Texture, 'canvas', renderer.t, uniform)
                         }else{
+                          var l
+                          let suffix = (l=uniform.map.split('.'))[l.length-1].toLowerCase()
+                          
+                          if(suffix == 'mp4' || suffix == 'webm' || suffix == 'avi' ||
+                             suffix == 'mkv' || suffix == 'ogv'){
+                            uniform.textureMode = 'video'
+                          }
+                          if(suffix == 'jpg' || suffix == 'webp' || suffix == 'gif' ||
+                             suffix == 'png' || suffix == 'bmp'){
+                            uniform.textureMode = 'image'
+                          }
+                          if(uniform.omap != uniform.map) uniform.rebindTextures = true
                           if(uniform.textureMode == 'image' && uniform.rebindTextures){
                             uniform.rebindTextures = false
+                            uniform.omap = uniform.map
                             if(cache.textures.filter(v=>v.url == uniform.map).length == 0 ||
                                !cache.textures.filter(v=>v.url == uniform.map)[0].resource?.width){
                               var image = new Image()
@@ -904,7 +1026,49 @@ const Renderer = async options => {
                             }
                           }
                           if(uniform.textureMode == 'video'){
-                             BindImage(ctx, uniform.video,  uniform.refraction2Texture, uniform.textureMode, renderer.t, uniform)
+                            if(uniform.rebindTextures){
+                              uniform.rebindTextures = false
+                              uniform.omap = uniform.map
+                              if(uniform.involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
+                                console.log('found video in cache... using it')
+                                uniform.video = cacheItem[0].resource
+                                //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                                dset.texture = cacheItem[0].texture
+                                //gl.activeTexture(gl.TEXTURE0)
+                                //BindImage(gl, uniform.video, dset.texture, uniform.textureMode, -1, {map: textureURL})
+                              }else{
+                                uniform.video = document.createElement('video')
+                                uniform.video.muted = true
+                                uniform.video.addEventListener('canplay', () =>{
+                                  uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                                })
+                                uniform.video.loop = true
+                                if(!uniform.muted && !audioConsent) {
+                                  audioConsent = true
+                                  GenericPopup('play audio OK?', true, ()=>{
+                                    uniform.video.muted = false
+                                    uniform.video.currentTime = 0
+                                    //uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.video.playbackSpeed
+                                    uniform.video.play()
+                                  })
+                                }
+                                uniform.video.playbackRate = uniform.video.defaultPlaybackRate = uniform.playbackSpeed
+                                uniform.video.oncanplay = async () => {
+                                  uniform.video.play()
+                                }
+                                //gl.activeTexture(gl.TEXTURE0)
+                                //BindImage(gl, uniform.video, dset.texture, uniform.textureMode, -1, {map: textureURL})
+                                cache.textures.push({
+                                  url: uniform.map,
+                                  resource: uniform.video,
+                                  texture: dset.texture
+                                })
+                                fetch(uniform.map).then(res=>res.blob()).then(data => {
+                                  uniform.video.src = URL.createObjectURL(data)
+                                })
+                              }
+                            }
+                            BindImage(ctx, uniform.video,  uniform.refraction2Texture, uniform.textureMode, renderer.t, uniform)
                           }
                         }
                         ctx.activeTexture(ctx.TEXTURE6)
@@ -960,8 +1124,66 @@ const Renderer = async options => {
               })
               
               ctx.activeTexture(ctx.TEXTURE0)
+              var l
+              let suffix = (l=geometry.map.split('.'))[l.length-1].toLowerCase()
+              
+              if(suffix == 'mp4' || suffix == 'webm' || suffix == 'avi' ||
+                 suffix == 'mkv' || suffix == 'ogv'){
+                geometry.textureMode = 'video'
+              }
+              if(suffix == 'jpg' || suffix == 'webp' || suffix == 'gif' ||
+                 suffix == 'png' || suffix == 'bmp'){
+                geometry.textureMode = 'image'
+              }
+              var l
+              if(geometry.omap != geometry.map) geometry.rebindTextures = true
               switch(geometry.textureMode){
-                case 'video': case 'dataArray':
+                case 'dataArray':
+                  BindImage(ctx, dset.resource,  dset.texture, geometry.textureMode, renderer.t, geometry)
+                break
+                case 'video': 
+                  if(geometry.rebindTextures){
+                    geometry.rebindTextures = false
+                    geometry.omap = geometry.map
+                    if(geometry.involveCache && (cacheItem=cache.textures.filter(v=>v.url == dset.iURL)).length){
+                      console.log('found video in cache... using it')
+                      dset.resource = cacheItem[0].resource
+                      //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
+                      dset.texture = cacheItem[0].texture
+                      //gl.activeTexture(gl.TEXTURE0)
+                      //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, {map: textureURL})
+                    }else{
+                      dset.resource = document.createElement('video')
+                      dset.resource.muted = true
+                      dset.resource.addEventListener('canplay', () =>{
+                        dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
+                      })
+                      dset.resource.loop = true
+                      if(!geometry.muted && !audioConsent) {
+                        audioConsent = true
+                        GenericPopup('play audio OK?', true, ()=>{
+                          dset.resource.muted = false
+                          dset.resource.currentTime = 0
+                          //dset.resource.playbackRate = dset.resource.defaultPlaybackRate = dset.resource.playbackSpeed
+                          dset.resource.play()
+                        })
+                      }
+                      dset.resource.playbackRate = dset.resource.defaultPlaybackRate = geometry.playbackSpeed
+                      dset.resource.oncanplay = async () => {
+                        dset.resource.play()
+                      }
+                      //gl.activeTexture(gl.TEXTURE0)
+                      //BindImage(gl, dset.resource, dset.texture, geometry.textureMode, -1, {map: textureURL})
+                      cache.textures.push({
+                        url: geometry.map,
+                        resource: dset.resource,
+                        texture: dset.texture
+                      })
+                      fetch(geometry.map).then(res=>res.blob()).then(data => {
+                        dset.resource.src = URL.createObjectURL(data)
+                      })
+                    }
+                  }
                   BindImage(ctx, dset.resource,  dset.texture, geometry.textureMode, renderer.t, geometry)
                 break
                 case 'canvas':
@@ -971,6 +1193,7 @@ const Renderer = async options => {
                 case 'image':
                   if(geometry.rebindTextures){
                     geometry.rebindTextures = false
+                    geometry.omap = geometry.map
                     console.log('rebinding shape texture...')
                     if(cache.textures.filter(v=>v.url == geometry.map).length == 0 ||
                        !cache.textures.filter(v=>v.url == geometry.map)[0].resource?.width){
@@ -2055,7 +2278,8 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var flipNormals              = false
   var showNormals              = false
   var syncNormals              = false
-  var map                      = '' //`${ModuleBase}/resources/flat_grey.jpg`
+  var map                      = ''
+  var omap                     = ''
   var glow                     = false
   var glowColor                = 0xffffff
   var glowAlpha                = .25
@@ -2184,6 +2408,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
       case 'url'                : url = geoOptions[key]; break
       case 'isfromzip'          : isFromZip = !!geoOptions[key]; break
       case 'map'                : map = geoOptions[key]; break
+      case 'omap'               : omap = geoOptions[key]; break
       case 'glow'               : glow = !!geoOptions[key]; break
       case 'glowcolor'          : glowColor = geoOptions[key]; break
       case 'glowalpha'          : glowAlpha = geoOptions[key]; break
@@ -2236,6 +2461,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
       break
     }
   })
+  
+  // for texture auto-rebinding
+  omap = map
 
   if(typeof objX     == 'undefined') objX     = 0
   if(typeof objY     == 'undefined') objY     = 0
@@ -3349,9 +3577,9 @@ const LoadGeometry = async (renderer, geoOptions) => {
     normal_buffer, Normal_Index_Buffer, muted,
     normalVec_buffer, NormalVec_Index_Buffer,
     nVecIndices, uv_buffer, UV_Index_Buffer, syncNormals,
-    oIndices, vIndices, nIndices, uvIndices, map, video,
+    oIndices, vIndices, nIndices, uvIndices, map, omap,
     textureMode, isSprite, isLight, playbackSpeed,
-    disableDepthTest, lum, alpha, involveCache,
+    disableDepthTest, lum, alpha, involveCache, video,
     renderer, isParticle, isLine, penumbra, wireframe,
     canvasTexture, canvasTextureMix, showBounding,
     boundingColor, heightMap, heightMapIntensity,
@@ -3655,6 +3883,7 @@ const InitPartitioning = geometry => {
 
 const BindImage = (gl, resource, binding, textureMode='image', tval=-1, geometry={}, involveCache = true) => {
   let texImage
+  //console.log(geometry.name, resource, binding, textureMode, tval, geometry, involveCache)
   switch(textureMode){
     case 'canvas': case 'heightImage':
       texImage = resource
@@ -4377,6 +4606,7 @@ const BasicShader = async (renderer, options=[]) => {
                   fragCode:            typeof option[key].fragCode == 'undefined' ?
                                          `` : option[key].fragCode,
                 }
+                uniformOption.omap = uniformOption.map
                 dataset.optionalUniforms.push( uniformOption )
               }
             break
@@ -4519,6 +4749,7 @@ const BasicShader = async (renderer, options=[]) => {
                     addInColor = merge(addInColor, refCol);
                   `,
                 }
+                uniformOption.omap = uniformOption.map
                 dataset.optionalUniforms.push( uniformOption )
               }
             break
@@ -4646,6 +4877,7 @@ const BasicShader = async (renderer, options=[]) => {
                         refractionCoords).rgb * 1.25, refraction));
                   `,
                 }
+                uniformOption.omap = uniformOption.map
                 dataset.optionalUniforms.push( uniformOption )
               }
             break
@@ -4932,6 +5164,7 @@ const BasicShader = async (renderer, options=[]) => {
                     addInColor = merge(addInColor, vec4(rgb * 1.25, refraction2));
                   `,
                 }
+                uniformOption.omap = uniformOption.map
                 dataset.optionalUniforms.push( uniformOption )
               }
             break
@@ -6849,7 +7082,7 @@ const ShapeFromArray = async (shape, pointArray, options={}) => {
     'heightmapIsDataArray', 'heightmapDataArrayFormat',
     'heightmapDataArrayWidth', 'heightmapDataArrayHeight',
     'rebindTextures', 'exportAsOBJ', 'downloadAsOBJ',
-    'resolved','map', 'video', 'muted', 'partitionSize',
+    'resolved','map', 'omap', 'video', 'muted', 'partitionSize',
     'partitionRadius'
   ]).forEach(key => { opts[key] = shape[key] })
   opts.name = shape.name
