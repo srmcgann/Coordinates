@@ -2578,7 +2578,17 @@ const LoadGeometry = async (renderer, geoOptions) => {
              ){
             resolved = true;
             url = `${ModuleBase}/new%20shapes/`
-            fileURL = `${url}${hint}.json?4`
+            switch(hint){
+              case 'torus_0':
+                fileURL = `${url}torus_5kpoly.obj`
+              break
+              case 'torus knot_0':
+                fileURL = `${url}torus_knot_6kpoly.obj`
+              break
+              default:
+                fileURL = `${url}${hint}.json`
+              break
+            }
             if(involveCache && (cacheItem = cache.geometry.filter(v=>v.url==fileURL)).length){
               console.log(`found geometry (${hint}) in cache... using it`)
               var data          = cacheItem[0].data
