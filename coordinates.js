@@ -2581,11 +2581,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
             switch(hint){
               case 'torus_0':
                 fileURL = `${url}torus_5kpoly.obj`
-                shapetype = 'obj'
+                shapeType = 'obj'
               break
               case 'torus knot_0':
                 fileURL = `${url}torus_knot_6kpoly.obj`
-                shapetype = 'obj'
+                shapeType = 'obj'
               break
               default:
                 fileURL = `${url}${hint}.json`
