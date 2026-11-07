@@ -2581,9 +2581,11 @@ const LoadGeometry = async (renderer, geoOptions) => {
             switch(hint){
               case 'torus_0':
                 fileURL = `${url}torus_5kpoly.obj`
+                shapetype = 'obj'
               break
               case 'torus knot_0':
                 fileURL = `${url}torus_knot_6kpoly.obj`
+                shapetype = 'obj'
               break
               default:
                 fileURL = `${url}${hint}.json`
@@ -2641,7 +2643,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   if(!resolved){
     // involve cache
     switch(shapeType){
-      case 'custom shape': case 'lines':
+      case 'custom shape': case 'lines': case 'obj':
         if(shapeType == 'lines'){
           if(!url) break
           isLine = true
