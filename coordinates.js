@@ -1,3 +1,4 @@
+
 // 'Coordinates', a webgl framework
 // Scott McGann - whitehotrobot@gmail.com
 // all rights reserved - ©2026
@@ -2605,32 +2606,60 @@ const LoadGeometry = async (renderer, geoOptions) => {
               resolvedFromCache     = true
               resolved = true
             }else{
-              await fetch(fileURL).then(res=>res.json()).then(data => {
-                if(data?.normalAssocs) normalAssocs = data.normalAssocs
-                if(data?.flatShadingNormalVecs) {
-                  flatShadingNormalVecs = data.flatShadingNormalVecs.map(v=>-v)
-                }
-                if(data?.stride) stride = data.stride
-                if(data?.fsnvstate) fsnvstate= data.shapeData.map(v=>v)
-                if(data?.shapeData) {
-                  isShapeArray = true
-                  shapeData = data.shapeData.map(v=>v)
-                }
-                if(data?.vstate) vstate = data.vstate.map(v=>v)
-                if(data?.nvstate) nvstate = data.nvstate.map(v=>v)
-                //if(data?.uvstate) {
-                //  uvs = data.uvstate.map(v=>-v)
-                //}else{
-                  uvs         = data.uvs
-                //}
-                if(data?.nstate) {
-                  geometry.nstate = data.nstate.map(v=>-v)
-                }
-                vertices    = data.vertices
-                normals     = data.normals
-                normalVecs  = data.normalVecs.map(v=>-v)
-                cache.geometry.push({data: structuredClone(data), url: fileURL})
-              })
+              switch(shapeType){
+                case 'obj':
+                  shape = await LoadOBJ(fileURL, 1, 0,0,0,0,0,0, false, true)
+                  vertices = shape.vertices
+                  normals  = shape.normals
+                  uvs      = shape.uvs
+                  normalVecs = []
+                  for(var i = 0; i < vertices.length; i++){
+                    vertices[i] *= size/2
+                  }
+                  for(var i = 0; i < normals.length; i += 6){
+                    var x = normals[i+3] - normals[i+0]
+                    var y = normals[i+4] - normals[i+1]
+                    var z = normals[i+5] - normals[i+2]
+                    d=Math.hypot(x,y,z)
+                    var x1 = normals[i+0] *= size/2
+                    var y1 = normals[i+1] *= size/2
+                    var z1 = normals[i+2] *= size/2
+                    normals[i+3] = x1 + x/d
+                    normals[i+4] = y1 + y/d
+                    normals[i+5] = z1 + z/d
+                    normalVecs.push(x/d,y/d,z/d)
+                  }
+                break
+                default:
+                  await fetch(fileURL).then(res=>res.json()).then(data => {
+                    if(data?.normalAssocs) normalAssocs = data.normalAssocs
+                    if(data?.flatShadingNormalVecs) {
+                      flatShadingNormalVecs = data.flatShadingNormalVecs.map(v=>-v)
+                    }
+                    if(data?.stride) stride = data.stride
+                    if(data?.fsnvstate) fsnvstate= data.shapeData.map(v=>v)
+                    if(data?.shapeData) {
+                      isShapeArray = true
+                      shapeData = data.shapeData.map(v=>v)
+                    }
+                    if(data?.vstate) vstate = data.vstate.map(v=>v)
+                    if(data?.nvstate) nvstate = data.nvstate.map(v=>v)
+                    //if(data?.uvstate) {
+                    //  uvs = data.uvstate.map(v=>-v)
+                    //}else{
+                      uvs         = data.uvs
+                    //}
+                    if(data?.nstate) {
+                      geometry.nstate = data.nstate.map(v=>-v)
+                    }
+                    vertices    = data.vertices
+                    normals     = data.normals
+                    normalVecs  = data.normalVecs.map(v=>-v)
+                    cache.geometry.push({data: structuredClone(data), url: fileURL})
+                  })
+                break
+              }
+
               resolved = true
             }
           }else{
