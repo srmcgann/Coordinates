@@ -2520,7 +2520,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var oCamYaw               = ''
   var partitions            = []
 
-  var fileURL='', hint
+  var fileURL, hint
   var resolvedFromCache = false
   
   if(shapeType.indexOf('custom shape') != -1 || (url && shapeType == 'lines')){
@@ -2712,7 +2712,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
             resolved    = true
             //cache.customShapes.push({data: structuredClone(geometryData), url})
           }else{
-            if(fileURL.toLowerCase().substr(fileURL.length-4) == '.zip'){
+            if(fileURL?.toLowerCase().substr(fileURL.length-4) == '.zip'){
               var brk = 'PK'
               await fetch(fileURL).then(res=>res.blob()).then(async data => {
                 ;await (new zip.ZipReader(await new zip.BlobReader(data))).getEntries()
@@ -2745,24 +2745,26 @@ const LoadGeometry = async (renderer, geoOptions) => {
                 do{ ct++ }while(brk=='PK');
               })
             }else{
-              await fetch(fileURL).then(res=>res.json()).then(data=>{
-                if(data?.normalAssocs) normalAssocs = data.normalAssocs
-                if(data?.flatShadingNormalVecs) flatShadingNormalVecs = data.flatShadingNormalVecs
-                vertices     = data.vertices
-                normals      = data.normals
-                normalVecs   = data.normalVecs
-                uvs          = data.uvs
-                if(data?.stride) stride = data.stride
-                if(data?.fsnvstate) fsnvstate= data.shapeData.map(v=>v)
-                if(data?.shapeData) {
-                  isShapeArray = true
-                  shapeData = data.shapeData.map(v=>v)
-                }
-                if(data?.vstate) vstate = data.vstate.map(v=>v)
-                if(data?.nvstate) nvstate = data.nvstate.map(v=>v)
-                resolved     = true
-                cache.customShapes.push({data: structuredClone(data), url})
-              })
+              if(typeof fileURL != 'undefined'){
+                await fetch(fileURL).then(res=>res.json()).then(data=>{
+                  if(data?.normalAssocs) normalAssocs = data.normalAssocs
+                  if(data?.flatShadingNormalVecs) flatShadingNormalVecs = data.flatShadingNormalVecs
+                  vertices     = data.vertices
+                  normals      = data.normals
+                  normalVecs   = data.normalVecs
+                  uvs          = data.uvs
+                  if(data?.stride) stride = data.stride
+                  if(data?.fsnvstate) fsnvstate= data.shapeData.map(v=>v)
+                  if(data?.shapeData) {
+                    isShapeArray = true
+                    shapeData = data.shapeData.map(v=>v)
+                  }
+                  if(data?.vstate) vstate = data.vstate.map(v=>v)
+                  if(data?.nvstate) nvstate = data.nvstate.map(v=>v)
+                  resolved     = true
+                  cache.customShapes.push({data: structuredClone(data), url})
+                })
+              }
             }
           }
         }
