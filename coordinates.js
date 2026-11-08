@@ -2520,7 +2520,7 @@ const LoadGeometry = async (renderer, geoOptions) => {
   var oCamYaw               = ''
   var partitions            = []
 
-  var fileURL, hint
+  var fileURL='', hint
   var resolvedFromCache = false
   
   if(shapeType.indexOf('custom shape') != -1 || (url && shapeType == 'lines')){
