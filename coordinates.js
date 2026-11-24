@@ -763,7 +763,7 @@ const Renderer = async options => {
                           BindImage(ctx, uniform.canvasTexture,  uniform.refTexture,'canvas', renderer.t, uniform)
                         }else{
                           var l
-                          let suffix = (l=uniform.map.split('.'))[l.length-1].toLowerCase()
+                          let suffix = uniform.map ? (l=uniform.map.split('.'))[l.length-1].toLowerCase() : ''
                           
                           if(suffix == 'mp4' || suffix == 'webm' || suffix == 'avi' ||
                              suffix == 'mkv' || suffix == 'ogv'){
@@ -872,7 +872,7 @@ const Renderer = async options => {
                           BindImage(ctx, uniform.canvasTexture,  uniform.refractionTexture, 'canvas', renderer.t, uniform)
                         }else{
                           var l
-                          let suffix = (l=uniform.map.split('.'))[l.length-1].toLowerCase()
+                          let suffix = uniform.map ? (l=uniform.map.split('.'))[l.length-1].toLowerCase() : ''
                           if(suffix == 'mp4' || suffix == 'webm' || suffix == 'avi' ||
                              suffix == 'mkv' || suffix == 'ogv'){
                             uniform.textureMode = 'video'
@@ -984,7 +984,7 @@ const Renderer = async options => {
                           BindImage(ctx, uniform.canvasTexture,  uniform.refraction2Texture, 'canvas', renderer.t, uniform)
                         }else{
                           var l
-                          let suffix = (l=uniform.map.split('.'))[l.length-1].toLowerCase()
+                          let suffix = uniform.map ? (l=uniform.map.split('.'))[l.length-1].toLowerCase() : ''
                           
                           if(suffix == 'mp4' || suffix == 'webm' || suffix == 'avi' ||
                              suffix == 'mkv' || suffix == 'ogv'){
@@ -1126,7 +1126,7 @@ const Renderer = async options => {
               
               ctx.activeTexture(ctx.TEXTURE0)
               var l
-              let suffix = (l=geometry.map.split('.'))[l.length-1].toLowerCase()
+              let suffix = geometry.map ? (l=geometry.map.split('.'))[l.length-1].toLowerCase() : ''
               
               if(suffix == 'mp4' || suffix == 'webm' || suffix == 'avi' ||
                  suffix == 'mkv' || suffix == 'ogv'){
@@ -6579,7 +6579,7 @@ const BasicShader = async (renderer, options=[]) => {
             }else{
               dset.iURL = textureURL
               let l
-              let suffix = (l=textureURL.split('.'))[l.length-1].toLowerCase()
+              let suffix = textureURL ? (l=textureURL.split('.'))[l.length-1].toLowerCase() : ''
               switch(suffix){
                 case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
                   geometry.textureMode = 'video'
@@ -6667,7 +6667,7 @@ const BasicShader = async (renderer, options=[]) => {
             }else{
               dset.heightMapURL = heightMapURL
               let l
-              let suffix = (l=heightMapURL.split('.'))[l.length-1].toLowerCase()
+              let suffix = heightMapURL ? (l=heightMapURL.split('.'))[l.length-1].toLowerCase() : ''
               switch(suffix){
                 case 'mp4': case 'webm': case 'avi': case 'mkv': case 'ogv':
                   geometry.heightTextureMode = 'video'
